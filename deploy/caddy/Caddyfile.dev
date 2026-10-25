@@ -23,11 +23,15 @@
 
 (api_routes) {
 	handle /api/* {
-		request_body { max_size 10MB }
+		request_body {
+			max_size 10MB
+		}
 		reverse_proxy api:8000
 	}
 	handle /auth/* {
-		request_body { max_size 64KB }
+		request_body {
+			max_size 64KB
+		}
 		reverse_proxy api:8000
 	}
 }

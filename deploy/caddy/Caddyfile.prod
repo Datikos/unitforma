@@ -1,13 +1,13 @@
 {
-	email {env.ACME_EMAIL}
+	email {$ACME_EMAIL}
 	admin 127.0.0.1:2019
 	on_demand_tls {
 		# 2xx allows issuance; anything else fails the TLS handshake (unknown-host rejection).
 		ask http://api:8000/internal/domains/ask
 	}
+	metrics
 	servers {
 		trusted_proxies static private_ranges
-		metrics
 	}
 }
 
@@ -24,14 +24,18 @@
 
 (api_routes) {
 	handle /api/* {
-		request_body { max_size 10MB }
+		request_body {
+			max_size 10MB
+		}
 		reverse_proxy api:8000 {
 			lb_policy round_robin
 			health_uri /internal/health/live
 		}
 	}
 	handle /auth/* {
-		request_body { max_size 64KB }
+		request_body {
+			max_size 64KB
+		}
 		rate_limit {
 			zone auth_by_ip {
 				key {remote_host}
@@ -48,13 +52,13 @@
 }
 
 # Marketing site.
-{env.PLATFORM_DOMAIN}, www.{env.PLATFORM_DOMAIN} {
+{$PLATFORM_DOMAIN}, www.{$PLATFORM_DOMAIN} {
 	import security_headers
 	reverse_proxy web-site:8080
 }
 
 # Staff workspace + Kratos public API under /.ory/ (same host → first-party cookies).
-app.{env.PLATFORM_DOMAIN} {
+app.{$PLATFORM_DOMAIN} {
 	import security_headers
 	import api_routes
 	handle_path /.ory/* {
@@ -73,13 +77,13 @@ app.{env.PLATFORM_DOMAIN} {
 }
 
 # CNAME target for custom domains: explains configuration, serves nothing else.
-portals.{env.PLATFORM_DOMAIN} {
+portals.{$PLATFORM_DOMAIN} {
 	import security_headers
 	respond "This hostname is the CNAME target for Unitforma portals." 200
 }
 
 # Tenant subdomains ride the wildcard certificate (DNS-01) — no per-tenant ACME quota.
-*.{env.PLATFORM_DOMAIN} {
+*.{$PLATFORM_DOMAIN} {
 	tls {
 		dns cloudflare {file./run/secrets/dns_provider_token}
 	}

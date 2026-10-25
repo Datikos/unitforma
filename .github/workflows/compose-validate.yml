@@ -25,5 +25,4 @@ jobs:
           failure-threshold: warning
       - name: Validate Caddyfiles
         run: |
-          docker run --rm -v "$PWD/deploy/caddy:/etc/caddy:ro" caddy:2.11 caddy validate --config /etc/caddy/Caddyfile.dev --adapter caddyfile
-          docker run --rm -v "$PWD/deploy/caddy:/etc/caddy:ro" -e PLATFORM_DOMAIN=example.com -e ACME_EMAIL=ops@example.com caddy:2.11 caddy validate --config /etc/caddy/Caddyfile.prod --adapter caddyfile || echo "prod Caddyfile needs the custom-built image (plugins); validated in build-images"
+          docker run --rm -v "$PWD/deploy/caddy:/work:ro" --entrypoint /bin/sh caddy:2.11 -c "cp -r /work /tmp/caddy && /tmp/caddy/validate.sh caddy"
