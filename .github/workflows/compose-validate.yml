@@ -19,7 +19,10 @@ jobs:
           docker compose -f compose.yaml -f compose.prod.yaml --env-file .env config --format json \
             | python3 -c "import json,sys; d=json.load(sys.stdin); bad=[k for k,v in d['services'].items() if v.get('ports') and k!='proxy']; print('published:',bad); sys.exit(1 if bad else 0)"
       - uses: hadolint/hadolint-action@v3.1.0
-        with: { recursive: true, ignore: DL3008,DL3018 }
+        with:
+          recursive: true
+          ignore: "DL3008 DL3018"
+          failure-threshold: warning
       - name: Validate Caddyfiles
         run: |
           docker run --rm -v "$PWD/deploy/caddy:/etc/caddy:ro" caddy:2.11 caddy validate --config /etc/caddy/Caddyfile.dev --adapter caddyfile

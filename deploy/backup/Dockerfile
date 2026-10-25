@@ -1,4 +1,5 @@
 FROM postgres:18-alpine
+# hadolint ignore=DL3018
 RUN apk add --no-cache rclone age bash tar gzip && mkdir -p /backup
 COPY backup.sh restore.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/backup.sh /usr/local/bin/restore.sh
