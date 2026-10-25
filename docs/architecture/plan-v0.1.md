@@ -1023,6 +1023,7 @@ Worker containers subscribe to queue sets (`worker-light: default,docs,mail,peri
 ```mermaid
 flowchart TD
   U["1. Upload<br/>site plans → project<br/>floor plans, renders, schedules → building"] --> C["2. Classify and version<br/>kind, revision no, sha256, source note"]
+  PR["1b. Import from a building permit<br/>tas.ge document id → project, building,<br/>current drawings (ADR-0007)"] --> C
   C --> R["Worker: rasterise, tiles,<br/>text + vector extraction,<br/>page→floor suggestions"]
   R --> S["3a. Reviewer: confirm sheet→floor,<br/>calibrate scale, place building on site"]
   S --> B["3b. Reviewer: draw or accept unit polygons,<br/>labels, types"]
@@ -1231,7 +1232,7 @@ Task IDs are suggestions for the issue tracker; sizes: S ≤ 1 day, M 2–3 days
 - E8-4 (M) Activation pre-warm, cert purge on removal, grace period.
 - E8-5 (M) Admin UI: add domain, instructions, live status, bind to project.
 
-**E10 Regulatory import (Georgia, tas.ge)** — see `docs/research/regulatory-permit-data.md` §6: permit fetch module, project bootstrap wizard, label mapping, plan pre-scan job, refresh job (L–XL, after Phase 2).
+**E10 Regulatory import (Georgia, tas.ge)** — implemented as ADR-0007 (on `main`, 2026-10-25): permit preview and import (`regulatory` module, `regulatory_imports` table, worker task `regulatory.import_attachments`), project card with refresh. Scheduled refresh, `.pla` and the pre-scan port stay out of scope; see `docs/research/regulatory-permit-data.md`.
 
 **E9 Operations**
 - E9-1 (L) `compose.prod.yaml`: image tags, secrets, limits, logging, restart policies, profiles.

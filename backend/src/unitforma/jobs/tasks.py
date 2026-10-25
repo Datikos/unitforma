@@ -50,3 +50,13 @@ async def build_massing(tenant_id: str, project_id: str) -> dict:
     from unitforma.geometry.jobs import build_massing as run
 
     return await run(uuid.UUID(tenant_id), uuid.UUID(project_id))
+
+
+@app.task(name="regulatory.import_attachments", queue="docs", retry=1)
+async def import_attachments(tenant_id: str, import_id: str) -> dict:
+    """Download a permit's current drawings into the project's documents (ADR-0007)."""
+    import uuid
+
+    from unitforma.regulatory.service import import_attachments as run
+
+    return await run(uuid.UUID(tenant_id), uuid.UUID(import_id))

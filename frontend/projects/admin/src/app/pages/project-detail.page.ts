@@ -1,4 +1,4 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,7 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatTableModule } from '@angular/material/table';
 import { RouterLink } from '@angular/router';
-import { BuildingOut, FloorIn, FloorOut, ProjectOut, UnitformaApi, problemMessage } from 'api-client';
+import { BuildingOut, FloorIn, FloorOut, ProjectOut, RegulatoryImportOut, UnitformaApi, problemMessage } from 'api-client';
 
 /** Project structure: buildings and their floors (plan §3.5). */
 @Component({
@@ -31,6 +31,47 @@ import { BuildingOut, FloorIn, FloorOut, ProjectOut, UnitformaApi, problemMessag
         </div>
       }
       @if (error()) { <p class="uf-error">{{ error() }}</p> }
+
+      @if (permit(); as r) {
+        <mat-card appearance="outlined" class="permit">
+          <mat-card-header>
+            <mat-card-title>Building permit {{ r['application_no'] || r['external_id'] }}</mat-card-title>
+            <mat-card-subtitle>
+              {{ r['status'] }} · decided {{ day(r['decided_at']) }} · {{ r['address'] || '' }}
+              @if (codes(r).length) { · parcel {{ codes(r).join(', ') }} }
+              · <a [href]="str(r['public_page'])" target="_blank" rel="noopener">registry page</a>
+            </mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            @if (latestImport(); as j) {
+              <p>
+                <strong [class]="'status-' + j.status">{{ importLabel(j) }}</strong>
+                <span class="uf-muted"> · fetched {{ (j.started_at || j.created_at).slice(0, 16).replace('T', ' ') }}</span>
+                @if (j.status === 'done') {
+                  <span class="uf-muted"> · {{ count(j, 'imported') }} files imported, {{ count(j, 'existing') }} already present, {{ count(j, 'skipped') }} skipped, {{ count(j, 'failed') }} failed</span>
+                }
+                @if (j.error) { <span class="uf-error"> · {{ j.error }}</span> }
+              </p>
+              @if (count(j, 'failed')) {
+                <ul class="uf-muted small">
+                  @for (f of failed(j); track f['attached_file_id']) { <li>{{ f['file_name'] }}: {{ f['error'] }}</li> }
+                </ul>
+              }
+              @if (j.status === 'importing') {
+                <p class="uf-muted small">The worker is downloading the drawings. Reload this page in a minute; they appear under Documents and propose floors from their level markers.</p>
+              }
+            }
+            @if (heights(); as h) {
+              <p class="uf-muted small">Permit heights: {{ h.above ?? '—' }} m above 0.00, {{ h.below ?? '—' }} m below. Use them when you generate floors below (for example 4 floors of about 3.5 m above ground and one basement).</p>
+            }
+            <div class="uf-form-row">
+              <a mat-stroked-button routerLink="documents">Documents</a>
+              <button mat-stroked-button [disabled]="busy() || latestImport()?.status === 'importing'" (click)="refreshPermit()">Check registry for new files</button>
+              <span class="uf-muted small">Fetches the permit again and imports only files that are not here yet.</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
 
       <mat-card appearance="outlined">
         <mat-card-header><mat-card-title>Add building</mat-card-title></mat-card-header>
@@ -70,7 +111,13 @@ import { BuildingOut, FloorIn, FloorOut, ProjectOut, UnitformaApi, problemMessag
       }
     </div>
   `,
-  styles: `.uf-form-row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }`,
+  styles: `
+    .uf-form-row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+    .small { font-size: 0.85rem; }
+    .status-done { color: #047857; }
+    .status-importing { color: #b45309; }
+    .status-failed { color: #b91c1c; }
+  `,
 })
 export class ProjectDetailPage {
   private readonly api = inject(UnitformaApi);
@@ -78,6 +125,18 @@ export class ProjectDetailPage {
   readonly projectId = input.required<string>();
   readonly project = signal<ProjectOut | null>(null);
   readonly buildings = signal<BuildingOut[]>([]);
+  /** Permit summary stored on the project (ADR-0007 Decision 4), when it was imported from one. */
+  readonly permit = computed(() => {
+    const r = this.project()?.regulatory as Record<string, unknown> | undefined;
+    return r && r['source'] === 'tasge' ? r : null;
+  });
+  readonly imports = signal<RegulatoryImportOut[]>([]);
+  readonly latestImport = computed(() => this.imports()[0] ?? null);
+  readonly heights = computed(() => {
+    const p = this.latestImport()?.permit as Record<string, unknown> | undefined;
+    const h = (p?.['heights'] ?? null) as { above_zero_m?: number | null; below_zero_m?: number | null } | null;
+    return h ? { above: h.above_zero_m ?? null, below: h.below_zero_m ?? null } : null;
+  });
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly floorCols = ['level', 'name', 'height'];
@@ -99,9 +158,40 @@ export class ProjectDetailPage {
       ]);
       this.project.set(p);
       this.buildings.set(b);
+      const reg = p.regulatory as Record<string, unknown>;
+      this.imports.set(reg?.['source'] === 'tasge' ? await this.api.listRegulatoryImports(this.tenantId(), this.projectId()) : []);
     } catch (e) {
       this.error.set(problemMessage(e));
     }
+  }
+
+  day(v: unknown): string {
+    return typeof v === 'string' && v ? v.slice(0, 10) : '—';
+  }
+
+  str(v: unknown): string {
+    return typeof v === 'string' ? v : '';
+  }
+
+  codes(r: Record<string, unknown>): string[] {
+    return Array.isArray(r['cadastral_codes']) ? (r['cadastral_codes'] as string[]) : [];
+  }
+
+  count(j: RegulatoryImportOut, key: string): number {
+    return j.counts?.[key] ?? 0;
+  }
+
+  failed(j: RegulatoryImportOut): Record<string, unknown>[] {
+    const f = j.stats?.['failed'];
+    return Array.isArray(f) ? (f as Record<string, unknown>[]) : [];
+  }
+
+  importLabel(j: RegulatoryImportOut): string {
+    return { importing: 'Import running', done: 'Import finished', failed: 'Import failed', fetched: 'Fetched' }[j.status] ?? j.status;
+  }
+
+  async refreshPermit(): Promise<void> {
+    await this.run(() => this.api.refreshPermit(this.tenantId(), this.projectId()));
   }
 
   floorsOf(b: BuildingOut): FloorOut[] {

@@ -726,3 +726,26 @@ class PublishedUnit(Base):
     bedrooms: Mapped[int | None] = mapped_column()
     sort_order: Mapped[int] = mapped_column(default=0)
     data: Mapped[dict] = mapped_column(JSONB)
+
+
+class RegulatoryImport(TimestampMixin, Base):
+    """One fetch of a public building permit for a project (ADR-0007). ``record`` is the
+    normalised, personal-data-free permit; ``stats`` what the worker did with its attachments."""
+
+    __tablename__ = "regulatory_imports"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    source: Mapped[str] = mapped_column(String(20))  # tasge
+    external_id: Mapped[str] = mapped_column(String(40))
+    status: Mapped[str] = mapped_column(String(20), default="fetched")
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    record: Mapped[dict] = mapped_column(JSONB, default=dict)
+    stats: Mapped[dict] = mapped_column(JSONB, default=dict)
+    error: Mapped[str | None] = mapped_column(Text)

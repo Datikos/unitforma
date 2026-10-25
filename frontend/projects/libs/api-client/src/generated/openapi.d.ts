@@ -1557,6 +1557,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/regulatory/tasge/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Permit */
+        post: operations["preview_permit_api_v1_admin_tenants__tenant_id__regulatory_tasge_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/regulatory/tasge/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Permit */
+        post: operations["import_permit_api_v1_admin_tenants__tenant_id__regulatory_tasge_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/regulatory/tasge/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh Permit */
+        post: operations["refresh_permit_api_v1_admin_tenants__tenant_id__projects__project_id__regulatory_tasge_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/regulatory/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Imports */
+        get: operations["list_imports_api_v1_admin_tenants__tenant_id__projects__project_id__regulatory_imports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2600,6 +2668,96 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** PermitAttachmentOut */
+        PermitAttachmentOut: {
+            /** Attached File Id */
+            attached_file_id: number;
+            /** Fieldset Id */
+            fieldset_id: number | null;
+            /** Fieldset */
+            fieldset: string;
+            /** File Name */
+            file_name: string;
+            /** Extension */
+            extension: string;
+            /** Uploaded At */
+            uploaded_at: string | null;
+            /** Download Url */
+            download_url: string;
+            /** Kind */
+            kind: string;
+            /** Skip Reason */
+            skip_reason: string | null;
+        };
+        /** PermitImportCreate */
+        PermitImportCreate: {
+            /**
+             * Reference
+             * @description tas.ge public page address or the bare document id
+             */
+            reference: string;
+            /** Slug */
+            slug?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Building Code */
+            building_code?: string | null;
+        };
+        /** PermitImportResult */
+        PermitImportResult: {
+            project: components["schemas"]["ProjectOut"];
+            building: components["schemas"]["BuildingOut"];
+            job: components["schemas"]["RegulatoryImportOut"];
+        };
+        /** PermitPreviewOut */
+        PermitPreviewOut: {
+            /** Source */
+            source: {
+                [key: string]: unknown;
+            };
+            /** Permit */
+            permit: {
+                [key: string]: unknown;
+            };
+            /** Nomenclature */
+            nomenclature: {
+                [key: string]: unknown;
+            };
+            /** Class Calculator */
+            class_calculator: {
+                [key: string]: unknown;
+            }[];
+            /** Parcels */
+            parcels: {
+                [key: string]: unknown;
+            }[];
+            /** Technical Indicators */
+            technical_indicators: {
+                [key: string]: unknown;
+            }[];
+            /** Heights */
+            heights: {
+                [key: string]: number | null;
+            };
+            /** Suggestions */
+            suggestions: {
+                [key: string]: string;
+            };
+            /** Attachments */
+            attachments: components["schemas"]["PermitAttachmentOut"][];
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+        };
+        /** PermitReference */
+        PermitReference: {
+            /**
+             * Reference
+             * @description tas.ge public page address or the bare document id
+             */
+            reference: string;
+        };
         /** PortalSettings */
         PortalSettings: {
             /** Hero Text */
@@ -2859,7 +3017,7 @@ export interface components {
              */
             codes?: (string | null)[] | null;
             /** Unit Type */
-            unit_type?: ("apartment" | "commercial" | "parking" | "storage") | null;
+            unit_type?: ("apartment" | "commercial" | "storage" | "parking") | null;
             /**
              * Survivor Id
              * @description merged: unit that keeps id
@@ -3022,6 +3180,50 @@ export interface components {
             portal_url: string | null;
             /** Unit Counts */
             unit_counts?: {
+                [key: string]: number;
+            };
+        };
+        /** RegulatoryImportOut */
+        RegulatoryImportOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Source */
+            source: string;
+            /** External Id */
+            external_id: string;
+            /** Status */
+            status: string;
+            /** Requested By */
+            requested_by: string | null;
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Stats */
+            stats: {
+                [key: string]: unknown;
+            };
+            /** Error */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Permit */
+            permit?: {
+                [key: string]: unknown;
+            };
+            /** Counts */
+            counts?: {
                 [key: string]: number;
             };
         };
@@ -7072,6 +7274,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_permit_api_v1_admin_tenants__tenant_id__regulatory_tasge_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PermitReference"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermitPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_permit_api_v1_admin_tenants__tenant_id__regulatory_tasge_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PermitImportCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermitImportResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_permit_api_v1_admin_tenants__tenant_id__projects__project_id__regulatory_tasge_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegulatoryImportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_imports_api_v1_admin_tenants__tenant_id__projects__project_id__regulatory_imports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegulatoryImportOut"][];
                 };
             };
             /** @description Validation Error */

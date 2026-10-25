@@ -86,6 +86,11 @@ by a reviewer.
 
 ## 6. Proposed epic E10 — Regulatory import (after Phase 2)
 
+**Superseded on 2026-10-25 by ADR-0007** (`docs/adr/0007-project-import-from-tasge-permit.md`): items 1 and 2 are
+implemented (no raw payload retention at all, `regulatory_imports` table instead of `regulatory_permits`, no
+automatic floors); item 4 is covered by the ingest hints already on `main`; items 3 and 5 are not planned. The
+list below is kept as the research state.
+
 1. (M) `regulatory` module: `fetch_permit(doc_id)` port of the prototype into the backend (httpx, same
    DWR parser), raw payload stored in object storage with 24 h retention, normalised record stored on
    `projects.regulatory_source` and a `regulatory_permits` table (document id, numbers, dates, status,

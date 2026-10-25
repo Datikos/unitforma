@@ -6102,6 +6102,222 @@
      }
     }
    }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/regulatory/tasge/preview": {
+   "post": {
+    "tags": [
+     "regulatory"
+    ],
+    "summary": "Preview Permit",
+    "operationId": "preview_permit_api_v1_admin_tenants__tenant_id__regulatory_tasge_preview_post",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PermitReference"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PermitPreviewOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/regulatory/tasge/import": {
+   "post": {
+    "tags": [
+     "regulatory"
+    ],
+    "summary": "Import Permit",
+    "operationId": "import_permit_api_v1_admin_tenants__tenant_id__regulatory_tasge_import_post",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PermitImportCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PermitImportResult"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/regulatory/tasge/refresh": {
+   "post": {
+    "tags": [
+     "regulatory"
+    ],
+    "summary": "Refresh Permit",
+    "operationId": "refresh_permit_api_v1_admin_tenants__tenant_id__projects__project_id__regulatory_tasge_refresh_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RegulatoryImportOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/regulatory/imports": {
+   "get": {
+    "tags": [
+     "regulatory"
+    ],
+    "summary": "List Imports",
+    "operationId": "list_imports_api_v1_admin_tenants__tenant_id__projects__project_id__regulatory_imports_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/RegulatoryImportOut"
+         },
+         "title": "Response List Imports Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Regulatory Imports Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -9033,6 +9249,264 @@
     ],
     "title": "PaymentPlanUpdate"
    },
+   "PermitAttachmentOut": {
+    "properties": {
+     "attached_file_id": {
+      "type": "integer",
+      "title": "Attached File Id"
+     },
+     "fieldset_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fieldset Id"
+     },
+     "fieldset": {
+      "type": "string",
+      "title": "Fieldset"
+     },
+     "file_name": {
+      "type": "string",
+      "title": "File Name"
+     },
+     "extension": {
+      "type": "string",
+      "title": "Extension"
+     },
+     "uploaded_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Uploaded At"
+     },
+     "download_url": {
+      "type": "string",
+      "title": "Download Url"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "skip_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Skip Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "attached_file_id",
+     "fieldset_id",
+     "fieldset",
+     "file_name",
+     "extension",
+     "uploaded_at",
+     "download_url",
+     "kind",
+     "skip_reason"
+    ],
+    "title": "PermitAttachmentOut"
+   },
+   "PermitImportCreate": {
+    "properties": {
+     "reference": {
+      "type": "string",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Reference",
+      "description": "tas.ge public page address or the bare document id"
+     },
+     "slug": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 63,
+        "minLength": 3
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Slug"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "building_code": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 20,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]{0,19}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Building Code"
+     }
+    },
+    "type": "object",
+    "required": [
+     "reference"
+    ],
+    "title": "PermitImportCreate"
+   },
+   "PermitImportResult": {
+    "properties": {
+     "project": {
+      "$ref": "#/components/schemas/ProjectOut"
+     },
+     "building": {
+      "$ref": "#/components/schemas/BuildingOut"
+     },
+     "job": {
+      "$ref": "#/components/schemas/RegulatoryImportOut"
+     }
+    },
+    "type": "object",
+    "required": [
+     "project",
+     "building",
+     "job"
+    ],
+    "title": "PermitImportResult"
+   },
+   "PermitPreviewOut": {
+    "properties": {
+     "source": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Source"
+     },
+     "permit": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Permit"
+     },
+     "nomenclature": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Nomenclature"
+     },
+     "class_calculator": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Class Calculator"
+     },
+     "parcels": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Parcels"
+     },
+     "technical_indicators": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Technical Indicators"
+     },
+     "heights": {
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "type": "object",
+      "title": "Heights"
+     },
+     "suggestions": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Suggestions"
+     },
+     "attachments": {
+      "items": {
+       "$ref": "#/components/schemas/PermitAttachmentOut"
+      },
+      "type": "array",
+      "title": "Attachments"
+     },
+     "counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Counts"
+     }
+    },
+    "type": "object",
+    "required": [
+     "source",
+     "permit",
+     "nomenclature",
+     "class_calculator",
+     "parcels",
+     "technical_indicators",
+     "heights",
+     "suggestions",
+     "attachments",
+     "counts"
+    ],
+    "title": "PermitPreviewOut"
+   },
+   "PermitReference": {
+    "properties": {
+     "reference": {
+      "type": "string",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Reference",
+      "description": "tas.ge public page address or the bare document id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "reference"
+    ],
+    "title": "PermitReference"
+   },
    "PortalSettings": {
     "properties": {
      "hero_text": {
@@ -9890,8 +10364,8 @@
         "enum": [
          "apartment",
          "commercial",
-         "parking",
-         "storage"
+         "storage",
+         "parking"
         ]
        },
        {
@@ -10375,6 +10849,116 @@
      "portal_url"
     ],
     "title": "ReadinessOut"
+   },
+   "RegulatoryImportOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Project Id"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "external_id": {
+      "type": "string",
+      "title": "External Id"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "requested_by": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Requested By"
+     },
+     "started_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started At"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "stats": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Stats"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "permit": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Permit"
+     },
+     "counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Counts"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "project_id",
+     "source",
+     "external_id",
+     "status",
+     "requested_by",
+     "started_at",
+     "finished_at",
+     "stats",
+     "error",
+     "created_at"
+    ],
+    "title": "RegulatoryImportOut"
    },
    "RevisionOut": {
     "properties": {

@@ -77,6 +77,9 @@ class Settings(BaseSettings):
     app_session_key: str = Field(default="dev-only-change-me", min_length=16)
     app_session_ttl_days: int = 30
 
+    # Regulatory sources (ADR-0007): project bootstrap from a tas.ge building permit
+    regulatory_tasge_enabled: bool = True
+
     @model_validator(mode="after")
     def _inject_passwords(self) -> Settings:
         """Allow passwords to arrive separately (Docker secrets) and be merged into the URLs."""

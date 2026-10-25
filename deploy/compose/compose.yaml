@@ -25,6 +25,7 @@ x-backend-env: &backend-env
   UF_S3_SECRET_KEY_FILE: /run/secrets/s3_secret_key
   UF_INTERNAL_ASK_TOKEN_FILE: /run/secrets/internal_ask_token
   UF_APP_SESSION_KEY_FILE: /run/secrets/app_session_key
+  UF_REGULATORY_TASGE_ENABLED: ${UF_REGULATORY_TASGE_ENABLED:-true}
 x-backend-secrets: &backend-secrets
   - postgres_app_rw_password
   - postgres_app_owner_password

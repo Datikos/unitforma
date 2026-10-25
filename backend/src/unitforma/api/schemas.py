@@ -1001,3 +1001,67 @@ class UnitPublicationIn(BaseModel):
 class UnitPublicationOut(BaseModel):
     changed: int
     unit_counts: dict[str, int]
+
+
+# --- regulatory (ADR-0007) --------------------------------------------------------------
+class PermitReference(BaseModel):
+    reference: str = Field(
+        min_length=1,
+        max_length=500,
+        description="tas.ge public page address or the bare document id",
+    )
+
+
+class PermitImportCreate(PermitReference):
+    slug: str | None = Field(default=None, min_length=3, max_length=63)
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    building_code: str | None = Field(
+        default=None, min_length=1, max_length=20, pattern=r"^[A-Za-z0-9][A-Za-z0-9.-]{0,19}$"
+    )
+
+
+class PermitAttachmentOut(BaseModel):
+    attached_file_id: int
+    fieldset_id: int | None
+    fieldset: str
+    file_name: str
+    extension: str
+    uploaded_at: str | None
+    download_url: str
+    kind: str
+    skip_reason: str | None
+
+
+class PermitPreviewOut(BaseModel):
+    source: dict[str, Any]
+    permit: dict[str, Any]
+    nomenclature: dict[str, Any]
+    class_calculator: list[dict[str, Any]]
+    parcels: list[dict[str, Any]]
+    technical_indicators: list[dict[str, Any]]
+    heights: dict[str, float | None]
+    suggestions: dict[str, str]
+    attachments: list[PermitAttachmentOut]
+    counts: dict[str, int]
+
+
+class RegulatoryImportOut(ORM):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    source: str
+    external_id: str
+    status: str
+    requested_by: uuid.UUID | None
+    started_at: datetime | None
+    finished_at: datetime | None
+    stats: dict[str, Any]
+    error: str | None
+    created_at: datetime
+    permit: dict[str, Any] = Field(default_factory=dict)
+    counts: dict[str, int] = Field(default_factory=dict)
+
+
+class PermitImportResult(BaseModel):
+    project: ProjectOut
+    building: BuildingOut
+    job: RegulatoryImportOut

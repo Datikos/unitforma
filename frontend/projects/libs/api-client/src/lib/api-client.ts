@@ -78,6 +78,11 @@ export type PublishResult = Schemas['PublishResult'];
 export type UnitPublicationOut = Schemas['UnitPublicationOut'];
 export type PortalSettings = Schemas['PortalSettings'];
 export type Branding = Schemas['Branding'];
+export type PermitPreviewOut = Schemas['PermitPreviewOut'];
+export type PermitAttachmentOut = Schemas['PermitAttachmentOut'];
+export type PermitImportCreate = Schemas['PermitImportCreate'];
+export type PermitImportResult = Schemas['PermitImportResult'];
+export type RegulatoryImportOut = Schemas['RegulatoryImportOut'];
 export interface Page<T> {
   items: T[];
   total: number;
@@ -153,6 +158,20 @@ export class UnitformaApi {
   }
   createProject(tenantId: string, body: ProjectCreate): Promise<ProjectOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/projects`, body);
+  }
+
+  // --- regulatory: project bootstrap from a tas.ge building permit (ADR-0007)
+  previewPermit(tenantId: string, reference: string): Promise<PermitPreviewOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/regulatory/tasge/preview`, { reference });
+  }
+  importPermit(tenantId: string, body: PermitImportCreate): Promise<PermitImportResult> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/regulatory/tasge/import`, body);
+  }
+  refreshPermit(tenantId: string, projectId: string): Promise<RegulatoryImportOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/regulatory/tasge/refresh`, undefined);
+  }
+  listRegulatoryImports(tenantId: string, projectId: string): Promise<RegulatoryImportOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/regulatory/imports`);
   }
   getProject(tenantId: string, projectId: string): Promise<ProjectOut> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}`);
