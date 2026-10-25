@@ -475,6 +475,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Document
+         * @description Confirm or change the kind, rename, re-file under a building (ADR-0008).
+         */
+        patch: operations["update_document_api_v1_admin_tenants__tenant_id__documents__document_id__patch"];
+        trace?: never;
+    };
     "/api/v1/admin/tenants/{tenant_id}/documents/{document_id}/uploads": {
         parameters: {
             query?: never;
@@ -1949,9 +1969,11 @@ export interface components {
         DocumentCreate: {
             /**
              * Kind
+             * @description Omit to let the platform classify from the title and, later, the content
+             * @default unclassified
              * @enum {string}
              */
-            kind: "site_plan" | "floor_plan" | "section" | "elevation" | "render" | "schedule" | "model_ifc" | "model_glb" | "texture" | "permit" | "other";
+            kind?: "site_plan" | "floor_plan" | "section" | "elevation" | "render" | "schedule" | "model_ifc" | "model_glb" | "texture" | "permit" | "other" | "unclassified";
             /** Title */
             title: string;
             /** Building Id */
@@ -1994,11 +2016,33 @@ export interface components {
                 [key: string]: unknown;
             };
             /**
+             * Kind Source
+             * @default manual
+             */
+            kind_source?: string;
+            /**
              * Created At
              * Format: date-time
              */
             created_at: string;
             current_revision?: components["schemas"]["RevisionOut"] | null;
+        };
+        /**
+         * DocumentUpdate
+         * @description Kind set here is final: the worker never replaces a kind a person chose (ADR-0008).
+         */
+        DocumentUpdate: {
+            /** Kind */
+            kind?: ("site_plan" | "floor_plan" | "section" | "elevation" | "render" | "schedule" | "model_ifc" | "model_glb" | "texture" | "permit" | "other" | "unclassified") | null;
+            /** Title */
+            title?: string | null;
+            /** Building Id */
+            building_id?: string | null;
+            /**
+             * Clear Building
+             * @default false
+             */
+            clear_building?: boolean;
         };
         /** FloorIn */
         FloorIn: {
@@ -4938,6 +4982,42 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_document_api_v1_admin_tenants__tenant_id__documents__document_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -25,6 +25,7 @@ export type SiteFeatureCreate = Schemas['SiteFeatureCreate'];
 export type AuditOut = Schemas['AuditOut'];
 export type DocumentOut = Schemas['DocumentOut'];
 export type DocumentCreate = Schemas['DocumentCreate'];
+export type DocumentUpdate = Schemas['DocumentUpdate'];
 export type RevisionOut = Schemas['RevisionOut'];
 export type UploadIntentCreate = Schemas['UploadIntentCreate'];
 export type UploadIntentOut = Schemas['UploadIntentOut'];
@@ -215,7 +216,10 @@ export class UnitformaApi {
   }
   createDocument(tenantId: string, projectId: string, body: DocumentCreate): Promise<DocumentOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/documents`, body);
+  }  updateDocument(tenantId: string, documentId: string, body: DocumentUpdate): Promise<DocumentOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/documents/${documentId}`, body);
   }
+
   createUpload(tenantId: string, documentId: string, body: UploadIntentCreate): Promise<UploadIntentOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/documents/${documentId}/uploads`, body);
   }

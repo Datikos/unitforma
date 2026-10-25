@@ -11,6 +11,7 @@ from sqlalchemy import select
 from unitforma.api.schemas import (
     DocumentCreate,
     DocumentOut,
+    DocumentUpdate,
     PagesExclude,
     RevisionOut,
     SheetAssign,
@@ -90,6 +91,20 @@ async def create_document(project_id: uuid.UUID, body: DocumentCreate, ctx: Ctx)
         actor=_actor(ctx),
     )
     return _doc_out(d, None)
+
+
+@router.patch("/documents/{document_id}", response_model=DocumentOut)
+async def update_document(document_id: uuid.UUID, body: DocumentUpdate, ctx: Ctx):
+    """Confirm or change the kind, rename, re-file under a building (ADR-0008)."""
+    ctx.require("documents", Action.WRITE)
+    d = await _project_of_document(ctx, document_id)
+    d = await documents.update_document(ctx.session, d, body.model_dump(), _actor(ctx))
+    r = (
+        await documents.get_revision(ctx.session, ctx.tenant_id, d.current_revision_id)
+        if d.current_revision_id
+        else None
+    )
+    return _doc_out(d, r)
 
 
 @router.post("/documents/{document_id}/uploads", response_model=UploadIntentOut, status_code=201)

@@ -272,15 +272,28 @@ DocumentKind = Literal[
     "texture",
     "permit",
     "other",
+    "unclassified",
 ]
 
 
 class DocumentCreate(BaseModel):
-    kind: DocumentKind
+    kind: DocumentKind = Field(
+        default="unclassified",
+        description="Omit to let the platform classify from the title and, later, the content",
+    )
     title: str = Field(min_length=1, max_length=200)
     building_id: uuid.UUID | None = None
     visibility: Literal["internal", "public"] = "internal"
     source: dict[str, Any] = Field(default_factory=dict)
+
+
+class DocumentUpdate(BaseModel):
+    """Kind set here is final: the worker never replaces a kind a person chose (ADR-0008)."""
+
+    kind: DocumentKind | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    building_id: uuid.UUID | None = None
+    clear_building: bool = False
 
 
 class RevisionOut(ORM):
@@ -307,6 +320,7 @@ class DocumentOut(ORM):
     visibility: str
     current_revision_id: uuid.UUID | None
     source: dict[str, Any]
+    kind_source: str = "manual"
     created_at: datetime
     current_revision: RevisionOut | None = None
 

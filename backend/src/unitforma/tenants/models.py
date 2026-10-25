@@ -243,6 +243,8 @@ class Document(TimestampMixin, Base):
     visibility: Mapped[str] = mapped_column(String(20), default="internal")
     current_revision_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     source: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # who set the kind: manual | filename | content | pending (ADR-0008)
+    kind_source: Mapped[str] = mapped_column(String(20), default="manual")
 
 
 class DocumentRevision(TimestampMixin, Base):

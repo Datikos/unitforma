@@ -11,6 +11,7 @@ from sqlalchemy import select
 from unitforma.core.db import tenant_session
 from unitforma.core.ids import new_id
 from unitforma.documents import assignments, cad_dxf, levels, processing
+from unitforma.documents import service as documents_service
 from unitforma.mapping.jobs import propose_revision_diff
 from unitforma.storage.service import get_storage
 from unitforma.tenants.models import Building, Document, DocumentRevision, Floor, Sheet
@@ -69,12 +70,13 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
             await db.execute(select(Document).where(Document.id == rev.document_id))
         ).scalar_one()
         base_key = rev.object_key.rsplit("/", 1)[0]
-        mime, page_count, building_id, project_id, doc_kind = (
+        mime, page_count, building_id, project_id, doc_kind, document_id = (
             info.mime,
             info.page_count,
             doc.building_id,
             doc.project_id,
             doc.kind,
+            doc.id,
         )
 
     processed = 0
@@ -123,6 +125,24 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
         page_lines[page_no] = int((extract.get("vectors") or {}).get("lines") or 0)
         processed += 1
 
+    # ADR-0008: the pages may say what the file is; a kind set by a person is never replaced
+    if processed:
+        async with tenant_session(tenant_id, scope="tenant") as db:
+            doc = (
+                await db.execute(select(Document).where(Document.id == document_id))
+            ).scalar_one()
+            if documents_service.classify_from_pages(
+                doc,
+                [
+                    {**page_hints[n], "vector_lines": page_lines.get(n, 0)}
+                    for n in sorted(page_hints)
+                ],
+                mime,
+            ):
+                log.info(
+                    "documents.classified", document_id=str(doc.id), kind=doc.kind, by="content"
+                )
+            doc_kind = doc.kind
     # a building's documents, or floor plans filed at project level (a multi-block set);
     # site plans, renders and schedules show no floor
     if processed and (building_id or doc_kind == "floor_plan"):

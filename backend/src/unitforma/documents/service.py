@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from unitforma.audit.service import write_audit
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
+from unitforma.documents import classify
 from unitforma.storage.service import get_storage, object_key, safe_filename
 from unitforma.tenants.models import Building, Document, DocumentRevision, Sheet
 
@@ -47,12 +48,18 @@ async def create_document(
         ).scalar_one_or_none()
         if b is None:
             raise ProblemError(422, "Building does not belong to this project")
+    kind, kind_source = data.get("kind") or "unclassified", "manual"
+    if kind == "unclassified":
+        # ADR-0008: a guess from the title and file name now, from the content after processing
+        guess = classify.kind_from_name(data["title"], data.get("file_name"))
+        kind, kind_source = (guess, "filename") if guess else ("unclassified", "pending")
     doc = Document(
         id=new_id(),
         tenant_id=tenant_id,
         project_id=project_id,
         building_id=data.get("building_id"),
-        kind=data["kind"],
+        kind=kind,
+        kind_source=kind_source,
         title=data["title"],
         visibility=data.get("visibility", "internal"),
         source=data.get("source") or {},
@@ -67,9 +74,71 @@ async def create_document(
         entity_type="document",
         entity_id=doc.id,
         action="create",
-        after={"kind": doc.kind, "title": doc.title},
+        after={"kind": doc.kind, "kind_source": doc.kind_source, "title": doc.title},
     )
     return doc
+
+
+async def update_document(
+    db: AsyncSession, doc: Document, data: dict[str, Any], actor: tuple[uuid.UUID, str]
+) -> Document:
+    """Title, building and kind; a kind set here is ``manual`` and stays (ADR-0008 Decision 3)."""
+    before = {
+        "kind": doc.kind,
+        "kind_source": doc.kind_source,
+        "title": doc.title,
+        "building_id": str(doc.building_id) if doc.building_id else None,
+    }
+    if data.get("kind"):
+        doc.kind, doc.kind_source = data["kind"], "manual"
+    if data.get("title"):
+        doc.title = data["title"]
+    if data.get("clear_building"):
+        doc.building_id = None
+    elif data.get("building_id"):
+        b = (
+            await db.execute(
+                select(Building).where(
+                    Building.id == data["building_id"], Building.project_id == doc.project_id
+                )
+            )
+        ).scalar_one_or_none()
+        if b is None:
+            raise ProblemError(422, "Building does not belong to this project")
+        doc.building_id = b.id
+    after = {
+        "kind": doc.kind,
+        "kind_source": doc.kind_source,
+        "title": doc.title,
+        "building_id": str(doc.building_id) if doc.building_id else None,
+    }
+    if after != before:
+        await write_audit(
+            db,
+            tenant_id=doc.tenant_id,
+            actor_user_id=actor[0],
+            actor_role=actor[1],
+            entity_type="document",
+            entity_id=doc.id,
+            action="update",
+            before=before,
+            after=after,
+        )
+    return doc
+
+
+def classify_from_pages(doc: Document, page_hints: list[dict[str, Any]], mime: str | None) -> bool:
+    """Worker side of ADR-0008 Decision 1: refine a guessed or pending kind from the pages.
+    Never touches a kind a person set. Returns whether the kind changed."""
+    if doc.kind_source not in ("pending", "filename"):
+        return False
+    guess = classify.kind_from_pages(page_hints, mime)
+    if guess is None or guess == doc.kind:
+        if guess and doc.kind_source == "filename":
+            doc.kind_source = "content"  # the content agrees with the name
+        return False
+    doc.kind, doc.kind_source = guess, "content"
+    return True
 
 
 async def get_document(db: AsyncSession, tenant_id: uuid.UUID, document_id: uuid.UUID) -> Document:

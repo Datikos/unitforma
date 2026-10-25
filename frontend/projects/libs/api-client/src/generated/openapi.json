@@ -2018,6 +2018,70 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/documents/{document_id}": {
+   "patch": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Update Document",
+    "description": "Confirm or change the kind, rename, re-file under a building (ADR-0008).",
+    "operationId": "update_document_api_v1_admin_tenants__tenant_id__documents__document_id__patch",
+    "parameters": [
+     {
+      "name": "document_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Document Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DocumentUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DocumentOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/documents/{document_id}/uploads": {
    "post": {
     "tags": [
@@ -7268,9 +7332,12 @@
        "model_glb",
        "texture",
        "permit",
-       "other"
+       "other",
+       "unclassified"
       ],
-      "title": "Kind"
+      "title": "Kind",
+      "description": "Omit to let the platform classify from the title and, later, the content",
+      "default": "unclassified"
      },
      "title": {
       "type": "string",
@@ -7307,7 +7374,6 @@
     },
     "type": "object",
     "required": [
-     "kind",
      "title"
     ],
     "title": "DocumentCreate"
@@ -7365,6 +7431,11 @@
       "type": "object",
       "title": "Source"
      },
+     "kind_source": {
+      "type": "string",
+      "title": "Kind Source",
+      "default": "manual"
+     },
      "created_at": {
       "type": "string",
       "format": "date-time",
@@ -7394,6 +7465,68 @@
      "created_at"
     ],
     "title": "DocumentOut"
+   },
+   "DocumentUpdate": {
+    "properties": {
+     "kind": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "site_plan",
+         "floor_plan",
+         "section",
+         "elevation",
+         "render",
+         "schedule",
+         "model_ifc",
+         "model_glb",
+         "texture",
+         "permit",
+         "other",
+         "unclassified"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kind"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Title"
+     },
+     "building_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Building Id"
+     },
+     "clear_building": {
+      "type": "boolean",
+      "title": "Clear Building",
+      "default": false
+     }
+    },
+    "type": "object",
+    "title": "DocumentUpdate",
+    "description": "Kind set here is final: the worker never replaces a kind a person chose (ADR-0008)."
    },
    "FloorIn": {
     "properties": {
