@@ -217,6 +217,11 @@ select {
   padding: 0.5rem 0.75rem;
   font-size: 0.9rem;
 }
+.uf-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+}
 .uf-card {
   box-shadow: var(--uf-shadow);
 }

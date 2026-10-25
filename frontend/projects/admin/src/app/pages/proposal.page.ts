@@ -355,8 +355,9 @@ interface PagePair {
       color: var(--uf-primary);
     }
     .uf-split uf-plan-viewer {
-      height: 50vh;
       display: block;
+      --uf-plan-max-height: 50vh;
+      --uf-plan-min-height: 280px;
     }
     .uf-items tr {
       cursor: pointer;

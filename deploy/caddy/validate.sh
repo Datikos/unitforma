@@ -17,6 +17,6 @@ awk '
   /^[[:space:]]*dns [a-z]+ / { sub(/dns .*/, "ca https://acme-staging-v02.api.letsencrypt.org/directory"); print; next }
   { print }
 ' Caddyfile.prod > "$TMP"
-export PLATFORM_DOMAIN=${PLATFORM_DOMAIN:-example.com} ACME_EMAIL=${ACME_EMAIL:-ops@example.com}
+export PLATFORM_DOMAIN=${PLATFORM_DOMAIN:-example.com} ACME_EMAIL=${ACME_EMAIL:-ops@example.com} UF_INTERNAL_ASK_TOKEN=${UF_INTERNAL_ASK_TOKEN:-validate-only}
 "$CADDY" validate --config "$TMP" --adapter caddyfile >/dev/null 2>&1 && echo "valid" || { "$CADDY" validate --config "$TMP" --adapter caddyfile; rm -f "$TMP"; exit 1; }
 rm -f "$TMP"

@@ -30,7 +30,7 @@ $EDITOR secrets/backup_age_recipient  # age public key used to encrypt dumps (pr
 | s3_access_key / s3_secret_key | api, workers | Garage key created by `scripts/init-garage.sh` |
 | garage_rpc_secret | storage | 64 hex chars |
 | garage_admin_token | storage, init script | random |
-| internal_ask_token | api, proxy | shared header value for Caddy's `ask` endpoint |
+| internal_ask_token | api, proxy | shared secret for Caddy's `ask` endpoint: Caddy sends it as `?token=` (its `ask` is a plain GET), other internal callers as the `X-Unitforma-Internal` header |
 | app_session_key | api | ≥ 32 random bytes, base64 |
 | dns_provider_token | proxy (prod) | provider specific |
 | backup_rclone_conf | backup (prod) | full rclone.conf |
