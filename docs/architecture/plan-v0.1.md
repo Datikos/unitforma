@@ -1193,6 +1193,8 @@ Task IDs are suggestions for the issue tracker; sizes: S ≤ 1 day, M 2–3 days
 - E8-4 (M) Activation pre-warm, cert purge on removal, grace period.
 - E8-5 (M) Admin UI: add domain, instructions, live status, bind to project.
 
+**E10 Regulatory import (Georgia, tas.ge)** — see `docs/research/regulatory-permit-data.md` §6: permit fetch module, project bootstrap wizard, label mapping, plan pre-scan job, refresh job (L–XL, after Phase 2).
+
 **E9 Operations**
 - E9-1 (L) `compose.prod.yaml`: image tags, secrets, limits, logging, restart policies, profiles.
 - E9-2 (M) Backup container (pg_dump + rclone), restore script, documented drill.

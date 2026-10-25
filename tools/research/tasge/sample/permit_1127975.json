@@ -1,0 +1,2343 @@
+{
+ "source": {
+  "system": "tas.ge / docs.tbilisi.gov.ge",
+  "document_id": 1127975,
+  "public_page": "https://tas.ge/?p=publicpage&documentId=1127975"
+ },
+ "permit": {
+  "application_no": "AR11127975",
+  "application_date": "11/02/2026",
+  "registered_at": "2026-02-11T12:51:07+00:00",
+  "deadline": "2026-02-23T20:00:00+00:00",
+  "decided_at": "2026-02-24T18:25:38+00:00",
+  "status_id": 3,
+  "status": "approved (თანხმობა)",
+  "address": "ქალაქი თბილისი, ლეო კვაჭაძის ქუჩა, N 19გ",
+  "decision_text_html": null
+ },
+ "nomenclature": {
+  "category": "მრავალბინიანი საცხოვრებელი სახლი",
+  "category_id": "33",
+  "class": "III კლასი",
+  "class_id": "3",
+  "action": "შეთანხმებული პროექტის ცვლილება",
+  "stages": [
+   "პროექტის შეთანხმება",
+   "მშენებლობის ნებართვა"
+  ]
+ },
+ "class_calculator": [
+  {
+   "label": "შენობის  K2 კოეფიციენტის საანგარიშო ფართობი (კვ.მ)",
+   "value": 3610.4
+  },
+  {
+   "label": "შენობის სიმაღლე (მ)",
+   "value": 14.7
+  },
+  {
+   "label": "შენობის ჩაღრმავება მიწის ზედაპირიდან ქვემოთ (მ)",
+   "value": 4.05
+  },
+  {
+   "label": "შენობის მალის, ფერმის ან სხვა კონსტრუქციული ელემენტის მაქსიმალური სიგრძე (მ)",
+   "value": 7.4
+  },
+  {
+   "label": "შენობის საძირკვლის ტიპები",
+   "value": "წერტილოვანი"
+  },
+  {
+   "label": "გადაადგილების მექანიკური საშუალებები",
+   "value": "ლიფტი"
+  }
+ ],
+ "parcels": [
+  {
+   "cadastral_code": "01.72.16.097.088",
+   "address": "ქალაქი თბილისი, ლეო კვაჭაძის ქუჩა, N 19გ",
+   "area_m2": 4865.0,
+   "purpose": "არასასოფლო სამეურნეო",
+   "owner": "შპს \"ჯეი4\" (405067519)",
+   "flags": {
+    "laisOnTbilisi": 1,
+    "laisOnOldTbilisi": -1,
+    "isCultureMonument": -1
+   }
+  }
+ ],
+ "technical_indicators": [
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "მიწის ნაკვეთის ფართობი (კვ.მ)",
+   "value": 4865.0,
+   "field_id": 2904
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "განაშენიანების ფართობი (კვ.მ)",
+   "value": 5074.9,
+   "field_id": 2905
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "საერთო ფართობი (კვ.მ)",
+   "value": 4321.5,
+   "field_id": 2906
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "საცხოვრებელი ფართობი (კვ.მ)",
+   "value": 2556.3,
+   "field_id": 2907
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "საზაფხულო ფართობი (კვ.მ)",
+   "value": 394.7,
+   "field_id": 2910
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "სარდაფის ფართობი (კვ.მ)",
+   "value": 633.7,
+   "field_id": 2912
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "კიბის უჯრედისა და სადარბაზოს ფართობი (კვ.მ)",
+   "value": 736.8,
+   "field_id": 2913
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "სამშენებლო მოცულობა (კუბ.მ)",
+   "value": 14381.1,
+   "field_id": 2920
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "0.00 ნიშნულის ზევით  (კუბ.მ)",
+   "value": 9360.6,
+   "field_id": 2921
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "0.00 ნიშნულის ქვევით  (კუბ.მ)",
+   "value": 5020.5,
+   "field_id": 2922
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "შენობა-ნაგებობის კონსტრუქციული სიმაღლე (მ)",
+   "value": 18.75,
+   "field_id": 2923
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "0.00 ნიშნულის ზევით (მ)",
+   "value": 14.7,
+   "field_id": 2924
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "0.00 ნიშნულის ქვევით (მ)",
+   "value": 4.05,
+   "field_id": 2925
+  }
+ ],
+ "fields": [
+  {
+   "fieldset": "მოთხოვნის შინაარსი",
+   "label": "მოთხოვნის ტექსტი",
+   "value": "გთხოვთ შეითანხმოთ წარმოდგენილი კორექტირებული პროექტი და გასცეთ მშენებლობის ნებართვა. ასევე გთხოვთ ბრძნებაში ასახოთ 26 საპარკინგე ადგილი ფართით 337.5 კვ.მ. ამავე საკადასტროზე ასევე განთავსებულია სახლი A-13თვის განკუთვნილი 3 საპარკინგე ადგილი ფართით - 50 კვ.მ.",
+   "field_id": 2882
+  },
+  {
+   "fieldset": "სატიტულო ინფორმაცია",
+   "label": "ფუნქციური დანიშნულების სახეობა",
+   "value": "მრავალბინიანი საცხოვრებელი სახლი A-9/10",
+   "field_id": 2888
+  },
+  {
+   "fieldset": "დამკვეთის ინფორმაცია",
+   "label": "ორგანიზაცია (არესბობის შემთხვევაში)",
+   "value": "შპს „ჯეი4\"",
+   "field_id": 2893
+  },
+  {
+   "fieldset": "დამკვეთის ინფორმაცია",
+   "label": "საიდენტიფიკაციო კოდი",
+   "value": "405067519",
+   "field_id": 2894
+  },
+  {
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "label": "გენერალური გეგმის pdf ფაილი",
+   "value": "a9-10 გენგეგმა 11..02.pdf",
+   "field_id": 2897
+  },
+  {
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "label": "გენერალური გეგმის ვექტორული ფაილი AutoCad - ის ან  ArchiCad - ის სახით",
+   "value": "A-9-10 გენგეგმა 11.02.pla",
+   "field_id": 2898
+  },
+  {
+   "fieldset": "არსებობის შემთხვევაში მიწის ნაკვეთის ტერიტორიის კეთილმოწყობის გეგმა",
+   "label": "ტერიტორიის კეთილმოწყობის გეგმის pdf ფაილი",
+   "value": "გარემოს თანხმობა.pdf",
+   "field_id": 2901
+  },
+  {
+   "fieldset": "არსებული სიტუაციის ფოტოსურათები",
+   "label": "ფოტოსურათების pdf ფაილი",
+   "value": "ფოტოები 10.02.2026.pdf",
+   "field_id": 2902
+  },
+  {
+   "fieldset": "კორექტრებული პროექტს განმარტებითი ბარათი",
+   "label": "განმარტებითი ბარათი",
+   "value": "პროექტის კორექტირება ითვალისწინებს კეთილმოწყობის ცვლილებას.\n\nსაპროექტო ტერიტორია მდებარეობს ქ.თბილისში, ლისის ტერიტორიაზე (ს/კ 72.16.21.437). შენობის სართულიანობა-4.   შენობა შედგება 4 სართულზე განლაგებული საცხოვრებელი ერთეულებისა და მიწისქვეშა სარდაფებისგან.\nფასადზე გამოყენებულია აგური, ბეტონი და შავი ალუმინის ვიტრაჟები.\nშენობის ძირითადი სტრუქტურული სისტემა შედგება რამდენიმე ნაწილისგან. საძირკველი არისს წერტილოვანი,ხოლო მზიდი კონსტრუქცია წარმოადგენს მონოლითური რკინაბეტონის კარკასს. სახურავი არ არის გამოყენებადი.",
+   "field_id": 2903
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "მიწის ნაკვეთის ფართობი (კვ.მ)",
+   "value": 4865.0,
+   "field_id": 2904
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "განაშენიანების ფართობი (კვ.მ)",
+   "value": 5074.9,
+   "field_id": 2905
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "საერთო ფართობი (კვ.მ)",
+   "value": 4321.5,
+   "field_id": 2906
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "საცხოვრებელი ფართობი (კვ.მ)",
+   "value": 2556.3,
+   "field_id": 2907
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "საზაფხულო ფართობი (კვ.მ)",
+   "value": 394.7,
+   "field_id": 2910
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "სარდაფის ფართობი (კვ.მ)",
+   "value": 633.7,
+   "field_id": 2912
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "კიბის უჯრედისა და სადარბაზოს ფართობი (კვ.მ)",
+   "value": 736.8,
+   "field_id": 2913
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "სამშენებლო მოცულობა (კუბ.მ)",
+   "value": 14381.1,
+   "field_id": 2920
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "0.00 ნიშნულის ზევით  (კუბ.მ)",
+   "value": 9360.6,
+   "field_id": 2921
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "0.00 ნიშნულის ქვევით  (კუბ.მ)",
+   "value": 5020.5,
+   "field_id": 2922
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "შენობა-ნაგებობის კონსტრუქციული სიმაღლე (მ)",
+   "value": 18.75,
+   "field_id": 2923
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "0.00 ნიშნულის ზევით (მ)",
+   "value": 14.7,
+   "field_id": 2924
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "0.00 ნიშნულის ქვევით (მ)",
+   "value": 4.05,
+   "field_id": 2925
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "კ1 განაშენიანების კოეფიციენტის საანგარიშო ფართობი (კვ.მ და ასახული კოეფიციენტში)",
+   "value": "კ1=0.2 (937.9/4144)",
+   "field_id": 2926
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "კ2 განაშენიანების ინტენსივობის კოეფიციენტის საანგარიშო ფართობი (კვ.მ და ასახული კოეფიციენტში)",
+   "value": "კ2=0.9 (3610.4/4144)",
+   "field_id": 2927
+  },
+  {
+   "fieldset": "ტექნიკურ - ეკონომიკური მაჩვენებლები (მეათედების სიზუსტით)",
+   "label": "კ3 გამწვანების კოეფიციენტის საანგარიშო ფართობი (კვ.მ და ასახული კოეფიციენტში)",
+   "value": "კ3=0.5 (2269.2/4144)",
+   "field_id": 2928
+  },
+  {
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "label": "გეგმების pdf ფაილი",
+   "value": "9.10 გეგმები 20.02.pdf",
+   "field_id": 2929
+  },
+  {
+   "fieldset": "შენობა-ნაგებობის ჭრილები, მასშტაბი 1:100",
+   "label": "ჭრილების  pdf ფაილი",
+   "value": "9.10 ჭრილები 27.10.pdf",
+   "field_id": 2930
+  },
+  {
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "label": "ფასადების  pdf ფაილი",
+   "value": "9.10 ფასადები 19.02.pdf",
+   "field_id": 2931
+  },
+  {
+   "fieldset": "შენობა-ნაგებობის მაქსიმალური სიმაღლის განსაზღვრის სქემა",
+   "label": "სიმაღლის განმსაზღვრელი სქემის  pdf ფაილი",
+   "value": "სიმაღლე.pdf",
+   "field_id": 2932
+  },
+  {
+   "fieldset": "კორექტირებული პროექტის ფოტომონტაჟი და აქსონომეტრიული ხედები",
+   "label": "ფოტომონტაჟი და აქსონომეტრიული ხედების pdf ფაილი (ზომების და ნიშნულების ჩვენებით)",
+   "value": "რენდერები 10.02.pdf",
+   "field_id": 2933
+  },
+  {
+   "fieldset": "საპროექტო შენობა-ნაგებობის ვექტორული CAD ფაილი",
+   "label": "საპროექტო შენობა-ნაგებობის ვექტორული ფაილი  AutoCad - ის ან  ArchiCad - ის სახით",
+   "value": "9.10. სახლი 19.02.2026.pla",
+   "field_id": 2934
+  },
+  {
+   "fieldset": "საჭიროების შემთხვევაში მომიჯნავე შენობა-ნაგებობის კონსტრუქციული დასკვნა",
+   "label": "კონსტრუქციული დასკვნის pdf ფაილი",
+   "value": "დასკვნა მომიჯნავეები A9.pdf",
+   "field_id": 2936
+  },
+  {
+   "fieldset": "საინჟინრო კომუნიკაციების ქსელების სქემები (გარდა ინდივიდუალური საცხოვრებელი სახლის მშენებლობისა)",
+   "label": "საინჟინრო კომუნიკაციების ქსელების სქემების pdf ფაილი (გარდა ინდივიდუალური საცხოვრებელი სახლის მშენებლობისა)",
+   "value": "კომუნიკაციები 24,11,2025.pdf",
+   "field_id": 2949
+  },
+  {
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "label": "სურათი 1",
+   "value": "1.jpg",
+   "field_id": 2937
+  },
+  {
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "label": "სურათი 2",
+   "value": "2.jpg",
+   "field_id": 2938
+  },
+  {
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "label": "სურათი 3",
+   "value": "3.jpg",
+   "field_id": 2939
+  },
+  {
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "label": "სურათი 4",
+   "value": "4.jpg",
+   "field_id": 2940
+  },
+  {
+   "fieldset": "\"ფაილის მიმაგრება",
+   "label": "\"ფაილი მიამაგრეთ სურვილის შემთხვევაში",
+   "value": "დენდროლოგია 07.07.2025.rar",
+   "field_id": 1945
+  },
+  {
+   "fieldset": "შეთანხმებული პროექტის რეკვიზიტები",
+   "label": "შეთანხმებული პროექტის ბრძანების ნომერი",
+   "value": "7738094",
+   "field_id": 2886
+  },
+  {
+   "fieldset": "შეთანხმებული პროექტის რეკვიზიტები",
+   "label": "შეთანხმებული პროექტის ბრძანების თარიღი",
+   "value": "12/11/2025",
+   "field_id": 2887
+  },
+  {
+   "fieldset": "არსებობის შემთხვევაში მშენებლობის ნებართვის რეკვიზიტები",
+   "label": "მშენებლობის ნებართვის ბრძანების ნომერი",
+   "value": "7738094",
+   "field_id": 2968
+  },
+  {
+   "fieldset": "არსებობის შემთხვევაში მშენებლობის ნებართვის რეკვიზიტები",
+   "label": "მშენებლობის ნებართვის ბრძანების თარიღი",
+   "value": "12/11/2025",
+   "field_id": 2969
+  },
+  {
+   "fieldset": "III კლასს დაქვემდებარებული შენობა-ნაგებობების მშენებლობის განხორციელების დოკუმენტების პროექტების არქიტექტურული ნაწილების შესაბამისობა „ტექნიკური რეგლამენტის -  შენობა-ნაგებობის უსაფრთხოების წესების დამტკიცების თაობაზე“ საქართველოს მთავრობის 2016 წლის 28 იანვრის N41 დადგენილებით დამტკიცებულ რეგლამენტთან",
+   "label": "საექსპერტო შეფასების pdf ფაილი.:",
+   "value": "საექსპერტო დასკვნა 02,12.pdf",
+   "field_id": 11572
+  },
+  {
+   "fieldset": "ენერგოეფექტურობის მინიმალური მოთხოვნების  დეკლარაცია",
+   "label": "ენერგოეფექტურობის მინიმალური მოთხოვნების  დეკლარაციის pdf ფაილი",
+   "value": "ენერგოეფექტურობალისი A-9.10.pdf",
+   "field_id": 20440
+  },
+  {
+   "fieldset": "საჭიროების შემთხვევაში, ხაზობრივი ნაგებობების მესაკუთრეების თანხმობა",
+   "label": "საჭიროების შემთხვევაში, ხაზობრივი ნაგებობების მესაკუთრეების თანხმობის pdf ფაილი",
+   "value": "სატრანსპორტო დროებითი+მუდმივი.pdf",
+   "field_id": 20442
+  },
+  {
+   "fieldset": "საინჟინრო-გეოლოგიური კვლევა/საექსპერტო შეფასება;  საპროექტო ობიექტის კონსტრუქციული სქემა/ საექსპერტო შეფასება",
+   "label": "საინჟინრო-გეოლოგიური კვლევა/საექსპერტო შეფასება;  საპროექტო ობიექტის კონსტრუქციული სქემა/ საექსპერტო შეფასება",
+   "value": "კონსტრუქციები, ლირა, გეოლოგია.rar",
+   "field_id": 20460
+  },
+  {
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "label": "მშენებლობის ორგანიზების  კალენდარული გრაფიკის pdf ფაილი",
+   "value": "ეტაპები+კალენდარული გრაფიკი 23.02.pdf",
+   "field_id": 2943
+  },
+  {
+   "fieldset": "\"მშენებლობის ნებართვის მოსაკრებელი",
+   "label": "მოსაკრებელის რიცხვითი მაჩვენებელი",
+   "value": 0.0,
+   "field_id": 3370
+  }
+ ],
+ "attachments": [
+  {
+   "attached_file_id": 5174866,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 11.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c330243e9535b26c88b90",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174866",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5175563,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 11..02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T12:08:17+00:00",
+   "storage_id": "698c712e6796661ab3b4bae9",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5175563",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5173724,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 10.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:13:06+00:00",
+   "storage_id": "698ae837f1e5315db826083e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173724",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174867,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "A-9-10 გენგეგმა 11.02.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c33652cb4b008713d295c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174867",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173725,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "A-9-10 გენგეგმა 10.02.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-10T08:13:06+00:00",
+   "storage_id": "698ae87543e9535b26c87713",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173725",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170726,
+   "fieldset_id": 1163,
+   "fieldset": "არსებობის შემთხვევაში მიწის ნაკვეთის ტერიტორიის კეთილმოწყობის გეგმა",
+   "file_name": "გარემოს თანხმობა.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985cffef1e5315db825e21e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170726",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5173818,
+   "fieldset_id": 1164,
+   "fieldset": "არსებული სიტუაციის ფოტოსურათები",
+   "file_name": "ფოტოები 10.02.2026.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:57:39+00:00",
+   "storage_id": "698af2ed549c125c1b006774",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173818",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5170819,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 10.12.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T12:01:59+00:00",
+   "storage_id": "6985d7f7f1e5315db825e3b8",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170819",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173792,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 09.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:39:24+00:00",
+   "storage_id": "698aeeb62cb4b008713d15f0",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173792",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5186217,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 20.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-20T13:49:45+00:00",
+   "storage_id": "699866680adbc8274232599e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5186217",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5170820,
+   "fieldset_id": 1168,
+   "fieldset": "შენობა-ნაგებობის ჭრილები, მასშტაბი 1:100",
+   "file_name": "9.10 ჭრილები 27.10.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T12:01:59+00:00",
+   "storage_id": "6985d80c43e9535b26c852b8",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170820",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5174868,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 09.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c33fecc75021822011c5c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174868",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184177,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 19.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-19T08:39:51+00:00",
+   "storage_id": "6996cbf2d9a6e86630b2e947",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184177",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5171264,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 06.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T14:40:41+00:00",
+   "storage_id": "6985f931660b6c2f59018ffb",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5171264",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170727,
+   "fieldset_id": 1170,
+   "fieldset": "შენობა-ნაგებობის მაქსიმალური სიმაღლის განსაზღვრის სქემა",
+   "file_name": "სიმაღლე.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d092549c125c1b003f0d",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170727",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5170728,
+   "fieldset_id": 1196,
+   "fieldset": "შეთანხმებული პროექტის ფოტომონტაჟი და აქსონომეტრიული ხედები",
+   "file_name": "რენდერები 02.12.2025 (1)_compressed.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d0b6660b6c2f59018994",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170728",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5173787,
+   "fieldset_id": 1197,
+   "fieldset": "კორექტირებული პროექტის ფოტომონტაჟი და აქსონომეტრიული ხედები",
+   "file_name": "რენდერები 10.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee47232e072a7874702c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173787",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5184178,
+   "fieldset_id": 1172,
+   "fieldset": "საპროექტო შენობა-ნაგებობის ვექტორული CAD ფაილი",
+   "file_name": "9.10. სახლი 19.02.2026.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-19T08:39:51+00:00",
+   "storage_id": "6996cc3e41b5da58aaeed26d",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184178",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5171265,
+   "fieldset_id": 1172,
+   "fieldset": "საპროექტო შენობა-ნაგებობის ვექტორული CAD ფაილი",
+   "file_name": "9.10..pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-06T14:40:41+00:00",
+   "storage_id": "6985fd4943e9535b26c857bc",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5171265",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170729,
+   "fieldset_id": 1174,
+   "fieldset": "საჭიროების შემთხვევაში მომიჯნავე შენობა-ნაგებობის კონსტრუქციული დასკვნა",
+   "file_name": "დასკვნა მომიჯნავეები A9.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d0fa4069c11de5d37b07",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170729",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5170789,
+   "fieldset_id": 1182,
+   "fieldset": "საინჟინრო კომუნიკაციების ქსელების სქემები (გარდა ინდივიდუალური საცხოვრებელი სახლის მშენებლობისა)",
+   "file_name": "კომუნიკაციები 24,11,2025.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d38f232e072a78744a42",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170789",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5173788,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "1.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee52f1e5315db8260957",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173788",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173789,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "2.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee544069c11de5d3a255",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173789",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173790,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "3.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee57549c125c1b006679",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173790",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173791,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "4.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee5b660b6c2f5901b071",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173791",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5170790,
+   "fieldset_id": 259,
+   "fieldset": "\"ფაილის მიმაგრება",
+   "file_name": "დენდროლოგია 07.07.2025.rar",
+   "extension": ".rar",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d456660b6c2f59018a4f",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170790",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5170791,
+   "fieldset_id": 9550,
+   "fieldset": "III კლასს დაქვემდებარებული შენობა-ნაგებობების მშენებლობის განხორციელების დოკუმენტების პროექტების არქიტექტურული ნაწილების შესაბამისობა „ტექნიკური რეგლამენტის -  შენობა-ნაგებობის უსაფრთხოების წესების დამტკიცების თაობაზე“ საქართველოს მთავრობის 2016 წლის 28 იანვრის N41 დადგენილებით დამტკიცებულ რეგლამენტთან",
+   "file_name": "საექსპერტო დასკვნა 02,12.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d498f1e5315db825e308",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170791",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5170792,
+   "fieldset_id": 21354,
+   "fieldset": "ენერგოეფექტურობის მინიმალური მოთხოვნების  დეკლარაცია",
+   "file_name": "ენერგოეფექტურობალისი A-9.10.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d4b3549c125c1b003fdf",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170792",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5170793,
+   "fieldset_id": 21407,
+   "fieldset": "საჭიროების შემთხვევაში, ხაზობრივი ნაგებობების მესაკუთრეების თანხმობა",
+   "file_name": "სატრანსპორტო დროებითი+მუდმივი.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d5224069c11de5d37bde",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170793",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5170794,
+   "fieldset_id": 21382,
+   "fieldset": "საინჟინრო-გეოლოგიური კვლევა/საექსპერტო შეფასება;  საპროექტო ობიექტის კონსტრუქციული სქემა/ საექსპერტო შეფასება",
+   "file_name": "კონსტრუქციები, ლირა, გეოლოგია.rar",
+   "extension": ".rar",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d572f1e5315db825e33c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170794",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5174886,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "კალენდარული გრაფიკი 11.02..pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:55:41+00:00",
+   "storage_id": "698c35e2660b6c2f5901c4a2",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174886",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184329,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "ეტაპები+კალენდარული გრაფიკი 19.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-19T09:47:15+00:00",
+   "storage_id": "6996dc2024078628cfe9853e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184329",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5188024,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "ეტაპები+კალენდარული გრაფიკი 23.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-23T12:55:47+00:00",
+   "storage_id": "699c4e4f4098c45c7b8fc4f6",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5188024",
+   "latest_in_fieldset": true
+  },
+  {
+   "attached_file_id": 5170726,
+   "fieldset_id": 1163,
+   "fieldset": "არსებობის შემთხვევაში მიწის ნაკვეთის ტერიტორიის კეთილმოწყობის გეგმა",
+   "file_name": "გარემოს თანხმობა.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985cffef1e5315db825e21e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170726",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170727,
+   "fieldset_id": 1170,
+   "fieldset": "შენობა-ნაგებობის მაქსიმალური სიმაღლის განსაზღვრის სქემა",
+   "file_name": "სიმაღლე.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d092549c125c1b003f0d",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170727",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170728,
+   "fieldset_id": 1196,
+   "fieldset": "შეთანხმებული პროექტის ფოტომონტაჟი და აქსონომეტრიული ხედები",
+   "file_name": "რენდერები 02.12.2025 (1)_compressed.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d0b6660b6c2f59018994",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170728",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170729,
+   "fieldset_id": 1174,
+   "fieldset": "საჭიროების შემთხვევაში მომიჯნავე შენობა-ნაგებობის კონსტრუქციული დასკვნა",
+   "file_name": "დასკვნა მომიჯნავეები A9.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d0fa4069c11de5d37b07",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170729",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170789,
+   "fieldset_id": 1182,
+   "fieldset": "საინჟინრო კომუნიკაციების ქსელების სქემები (გარდა ინდივიდუალური საცხოვრებელი სახლის მშენებლობისა)",
+   "file_name": "კომუნიკაციები 24,11,2025.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d38f232e072a78744a42",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170789",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170790,
+   "fieldset_id": 259,
+   "fieldset": "\"ფაილის მიმაგრება",
+   "file_name": "დენდროლოგია 07.07.2025.rar",
+   "extension": ".rar",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d456660b6c2f59018a4f",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170790",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170791,
+   "fieldset_id": 9550,
+   "fieldset": "III კლასს დაქვემდებარებული შენობა-ნაგებობების მშენებლობის განხორციელების დოკუმენტების პროექტების არქიტექტურული ნაწილების შესაბამისობა „ტექნიკური რეგლამენტის -  შენობა-ნაგებობის უსაფრთხოების წესების დამტკიცების თაობაზე“ საქართველოს მთავრობის 2016 წლის 28 იანვრის N41 დადგენილებით დამტკიცებულ რეგლამენტთან",
+   "file_name": "საექსპერტო დასკვნა 02,12.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d498f1e5315db825e308",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170791",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170792,
+   "fieldset_id": 21354,
+   "fieldset": "ენერგოეფექტურობის მინიმალური მოთხოვნების  დეკლარაცია",
+   "file_name": "ენერგოეფექტურობალისი A-9.10.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d4b3549c125c1b003fdf",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170792",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170793,
+   "fieldset_id": 21407,
+   "fieldset": "საჭიროების შემთხვევაში, ხაზობრივი ნაგებობების მესაკუთრეების თანხმობა",
+   "file_name": "სატრანსპორტო დროებითი+მუდმივი.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d5224069c11de5d37bde",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170793",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170794,
+   "fieldset_id": 21382,
+   "fieldset": "საინჟინრო-გეოლოგიური კვლევა/საექსპერტო შეფასება;  საპროექტო ობიექტის კონსტრუქციული სქემა/ საექსპერტო შეფასება",
+   "file_name": "კონსტრუქციები, ლირა, გეოლოგია.rar",
+   "extension": ".rar",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d572f1e5315db825e33c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170794",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174866,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 11.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c330243e9535b26c88b90",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174866",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5175563,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 11..02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T12:08:17+00:00",
+   "storage_id": "698c712e6796661ab3b4bae9",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5175563",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173724,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 10.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:13:06+00:00",
+   "storage_id": "698ae837f1e5315db826083e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173724",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174867,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "A-9-10 გენგეგმა 11.02.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c33652cb4b008713d295c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174867",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173725,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "A-9-10 გენგეგმა 10.02.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-10T08:13:06+00:00",
+   "storage_id": "698ae87543e9535b26c87713",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173725",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170726,
+   "fieldset_id": 1163,
+   "fieldset": "არსებობის შემთხვევაში მიწის ნაკვეთის ტერიტორიის კეთილმოწყობის გეგმა",
+   "file_name": "გარემოს თანხმობა.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985cffef1e5315db825e21e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170726",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173818,
+   "fieldset_id": 1164,
+   "fieldset": "არსებული სიტუაციის ფოტოსურათები",
+   "file_name": "ფოტოები 10.02.2026.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:57:39+00:00",
+   "storage_id": "698af2ed549c125c1b006774",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173818",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170819,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 10.12.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T12:01:59+00:00",
+   "storage_id": "6985d7f7f1e5315db825e3b8",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170819",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173792,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 09.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:39:24+00:00",
+   "storage_id": "698aeeb62cb4b008713d15f0",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173792",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5186217,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 20.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-20T13:49:45+00:00",
+   "storage_id": "699866680adbc8274232599e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5186217",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170820,
+   "fieldset_id": 1168,
+   "fieldset": "შენობა-ნაგებობის ჭრილები, მასშტაბი 1:100",
+   "file_name": "9.10 ჭრილები 27.10.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T12:01:59+00:00",
+   "storage_id": "6985d80c43e9535b26c852b8",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170820",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174868,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 09.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c33fecc75021822011c5c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174868",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184177,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 19.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-19T08:39:51+00:00",
+   "storage_id": "6996cbf2d9a6e86630b2e947",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184177",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5171264,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 06.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T14:40:41+00:00",
+   "storage_id": "6985f931660b6c2f59018ffb",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5171264",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170727,
+   "fieldset_id": 1170,
+   "fieldset": "შენობა-ნაგებობის მაქსიმალური სიმაღლის განსაზღვრის სქემა",
+   "file_name": "სიმაღლე.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d092549c125c1b003f0d",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170727",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170728,
+   "fieldset_id": 1196,
+   "fieldset": "შეთანხმებული პროექტის ფოტომონტაჟი და აქსონომეტრიული ხედები",
+   "file_name": "რენდერები 02.12.2025 (1)_compressed.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d0b6660b6c2f59018994",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170728",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173787,
+   "fieldset_id": 1197,
+   "fieldset": "კორექტირებული პროექტის ფოტომონტაჟი და აქსონომეტრიული ხედები",
+   "file_name": "რენდერები 10.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee47232e072a7874702c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173787",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184178,
+   "fieldset_id": 1172,
+   "fieldset": "საპროექტო შენობა-ნაგებობის ვექტორული CAD ფაილი",
+   "file_name": "9.10. სახლი 19.02.2026.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-19T08:39:51+00:00",
+   "storage_id": "6996cc3e41b5da58aaeed26d",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184178",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5171265,
+   "fieldset_id": 1172,
+   "fieldset": "საპროექტო შენობა-ნაგებობის ვექტორული CAD ფაილი",
+   "file_name": "9.10..pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-06T14:40:41+00:00",
+   "storage_id": "6985fd4943e9535b26c857bc",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5171265",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170729,
+   "fieldset_id": 1174,
+   "fieldset": "საჭიროების შემთხვევაში მომიჯნავე შენობა-ნაგებობის კონსტრუქციული დასკვნა",
+   "file_name": "დასკვნა მომიჯნავეები A9.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d0fa4069c11de5d37b07",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170729",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170789,
+   "fieldset_id": 1182,
+   "fieldset": "საინჟინრო კომუნიკაციების ქსელების სქემები (გარდა ინდივიდუალური საცხოვრებელი სახლის მშენებლობისა)",
+   "file_name": "კომუნიკაციები 24,11,2025.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d38f232e072a78744a42",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170789",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173788,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "1.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee52f1e5315db8260957",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173788",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173789,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "2.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee544069c11de5d3a255",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173789",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173790,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "3.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee57549c125c1b006679",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173790",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173791,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "4.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee5b660b6c2f5901b071",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173791",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170790,
+   "fieldset_id": 259,
+   "fieldset": "\"ფაილის მიმაგრება",
+   "file_name": "დენდროლოგია 07.07.2025.rar",
+   "extension": ".rar",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d456660b6c2f59018a4f",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170790",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170791,
+   "fieldset_id": 9550,
+   "fieldset": "III კლასს დაქვემდებარებული შენობა-ნაგებობების მშენებლობის განხორციელების დოკუმენტების პროექტების არქიტექტურული ნაწილების შესაბამისობა „ტექნიკური რეგლამენტის -  შენობა-ნაგებობის უსაფრთხოების წესების დამტკიცების თაობაზე“ საქართველოს მთავრობის 2016 წლის 28 იანვრის N41 დადგენილებით დამტკიცებულ რეგლამენტთან",
+   "file_name": "საექსპერტო დასკვნა 02,12.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d498f1e5315db825e308",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170791",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170792,
+   "fieldset_id": 21354,
+   "fieldset": "ენერგოეფექტურობის მინიმალური მოთხოვნების  დეკლარაცია",
+   "file_name": "ენერგოეფექტურობალისი A-9.10.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d4b3549c125c1b003fdf",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170792",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170793,
+   "fieldset_id": 21407,
+   "fieldset": "საჭიროების შემთხვევაში, ხაზობრივი ნაგებობების მესაკუთრეების თანხმობა",
+   "file_name": "სატრანსპორტო დროებითი+მუდმივი.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d5224069c11de5d37bde",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170793",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170794,
+   "fieldset_id": 21382,
+   "fieldset": "საინჟინრო-გეოლოგიური კვლევა/საექსპერტო შეფასება;  საპროექტო ობიექტის კონსტრუქციული სქემა/ საექსპერტო შეფასება",
+   "file_name": "კონსტრუქციები, ლირა, გეოლოგია.rar",
+   "extension": ".rar",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d572f1e5315db825e33c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170794",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174886,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "კალენდარული გრაფიკი 11.02..pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:55:41+00:00",
+   "storage_id": "698c35e2660b6c2f5901c4a2",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174886",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184329,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "ეტაპები+კალენდარული გრაფიკი 19.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-19T09:47:15+00:00",
+   "storage_id": "6996dc2024078628cfe9853e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184329",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5188024,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "ეტაპები+კალენდარული გრაფიკი 23.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-23T12:55:47+00:00",
+   "storage_id": "699c4e4f4098c45c7b8fc4f6",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5188024",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174866,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 11.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c330243e9535b26c88b90",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174866",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5175563,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 11..02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T12:08:17+00:00",
+   "storage_id": "698c712e6796661ab3b4bae9",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5175563",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173724,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 10.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:13:06+00:00",
+   "storage_id": "698ae837f1e5315db826083e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173724",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174867,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "A-9-10 გენგეგმა 11.02.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c33652cb4b008713d295c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174867",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173725,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "A-9-10 გენგეგმა 10.02.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-10T08:13:06+00:00",
+   "storage_id": "698ae87543e9535b26c87713",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173725",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173818,
+   "fieldset_id": 1164,
+   "fieldset": "არსებული სიტუაციის ფოტოსურათები",
+   "file_name": "ფოტოები 10.02.2026.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:57:39+00:00",
+   "storage_id": "698af2ed549c125c1b006774",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173818",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174868,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 09.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c33fecc75021822011c5c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174868",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184177,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 19.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-19T08:39:51+00:00",
+   "storage_id": "6996cbf2d9a6e86630b2e947",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184177",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5171264,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 06.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T14:40:41+00:00",
+   "storage_id": "6985f931660b6c2f59018ffb",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5171264",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184178,
+   "fieldset_id": 1172,
+   "fieldset": "საპროექტო შენობა-ნაგებობის ვექტორული CAD ფაილი",
+   "file_name": "9.10. სახლი 19.02.2026.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-19T08:39:51+00:00",
+   "storage_id": "6996cc3e41b5da58aaeed26d",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184178",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5171265,
+   "fieldset_id": 1172,
+   "fieldset": "საპროექტო შენობა-ნაგებობის ვექტორული CAD ფაილი",
+   "file_name": "9.10..pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-06T14:40:41+00:00",
+   "storage_id": "6985fd4943e9535b26c857bc",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5171265",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173787,
+   "fieldset_id": 1197,
+   "fieldset": "კორექტირებული პროექტის ფოტომონტაჟი და აქსონომეტრიული ხედები",
+   "file_name": "რენდერები 10.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee47232e072a7874702c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173787",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173788,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "1.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee52f1e5315db8260957",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173788",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173789,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "2.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee544069c11de5d3a255",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173789",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173790,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "3.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee57549c125c1b006679",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173790",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173791,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "4.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee5b660b6c2f5901b071",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173791",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170819,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 10.12.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T12:01:59+00:00",
+   "storage_id": "6985d7f7f1e5315db825e3b8",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170819",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173792,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 09.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:39:24+00:00",
+   "storage_id": "698aeeb62cb4b008713d15f0",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173792",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5186217,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 20.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-20T13:49:45+00:00",
+   "storage_id": "699866680adbc8274232599e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5186217",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170820,
+   "fieldset_id": 1168,
+   "fieldset": "შენობა-ნაგებობის ჭრილები, მასშტაბი 1:100",
+   "file_name": "9.10 ჭრილები 27.10.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T12:01:59+00:00",
+   "storage_id": "6985d80c43e9535b26c852b8",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170820",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174886,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "კალენდარული გრაფიკი 11.02..pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:55:41+00:00",
+   "storage_id": "698c35e2660b6c2f5901c4a2",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174886",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184329,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "ეტაპები+კალენდარული გრაფიკი 19.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-19T09:47:15+00:00",
+   "storage_id": "6996dc2024078628cfe9853e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184329",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5188024,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "ეტაპები+კალენდარული გრაფიკი 23.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-23T12:55:47+00:00",
+   "storage_id": "699c4e4f4098c45c7b8fc4f6",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5188024",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174866,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 11.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c330243e9535b26c88b90",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174866",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5175563,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 11..02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T12:08:17+00:00",
+   "storage_id": "698c712e6796661ab3b4bae9",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5175563",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173724,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 10.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:13:06+00:00",
+   "storage_id": "698ae837f1e5315db826083e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173724",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174867,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "A-9-10 გენგეგმა 11.02.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c33652cb4b008713d295c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174867",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173725,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "A-9-10 გენგეგმა 10.02.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-10T08:13:06+00:00",
+   "storage_id": "698ae87543e9535b26c87713",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173725",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170726,
+   "fieldset_id": 1163,
+   "fieldset": "არსებობის შემთხვევაში მიწის ნაკვეთის ტერიტორიის კეთილმოწყობის გეგმა",
+   "file_name": "გარემოს თანხმობა.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985cffef1e5315db825e21e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170726",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173818,
+   "fieldset_id": 1164,
+   "fieldset": "არსებული სიტუაციის ფოტოსურათები",
+   "file_name": "ფოტოები 10.02.2026.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:57:39+00:00",
+   "storage_id": "698af2ed549c125c1b006774",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173818",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170819,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 10.12.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T12:01:59+00:00",
+   "storage_id": "6985d7f7f1e5315db825e3b8",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170819",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173792,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 09.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:39:24+00:00",
+   "storage_id": "698aeeb62cb4b008713d15f0",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173792",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5186217,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 20.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-20T13:49:45+00:00",
+   "storage_id": "699866680adbc8274232599e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5186217",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170820,
+   "fieldset_id": 1168,
+   "fieldset": "შენობა-ნაგებობის ჭრილები, მასშტაბი 1:100",
+   "file_name": "9.10 ჭრილები 27.10.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T12:01:59+00:00",
+   "storage_id": "6985d80c43e9535b26c852b8",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170820",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174868,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 09.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c33fecc75021822011c5c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174868",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184177,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 19.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-19T08:39:51+00:00",
+   "storage_id": "6996cbf2d9a6e86630b2e947",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184177",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5171264,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 06.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T14:40:41+00:00",
+   "storage_id": "6985f931660b6c2f59018ffb",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5171264",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170727,
+   "fieldset_id": 1170,
+   "fieldset": "შენობა-ნაგებობის მაქსიმალური სიმაღლის განსაზღვრის სქემა",
+   "file_name": "სიმაღლე.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d092549c125c1b003f0d",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170727",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170728,
+   "fieldset_id": 1196,
+   "fieldset": "შეთანხმებული პროექტის ფოტომონტაჟი და აქსონომეტრიული ხედები",
+   "file_name": "რენდერები 02.12.2025 (1)_compressed.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d0b6660b6c2f59018994",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170728",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173787,
+   "fieldset_id": 1197,
+   "fieldset": "კორექტირებული პროექტის ფოტომონტაჟი და აქსონომეტრიული ხედები",
+   "file_name": "რენდერები 10.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee47232e072a7874702c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173787",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184178,
+   "fieldset_id": 1172,
+   "fieldset": "საპროექტო შენობა-ნაგებობის ვექტორული CAD ფაილი",
+   "file_name": "9.10. სახლი 19.02.2026.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-19T08:39:51+00:00",
+   "storage_id": "6996cc3e41b5da58aaeed26d",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184178",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5171265,
+   "fieldset_id": 1172,
+   "fieldset": "საპროექტო შენობა-ნაგებობის ვექტორული CAD ფაილი",
+   "file_name": "9.10..pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-06T14:40:41+00:00",
+   "storage_id": "6985fd4943e9535b26c857bc",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5171265",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170729,
+   "fieldset_id": 1174,
+   "fieldset": "საჭიროების შემთხვევაში მომიჯნავე შენობა-ნაგებობის კონსტრუქციული დასკვნა",
+   "file_name": "დასკვნა მომიჯნავეები A9.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d0fa4069c11de5d37b07",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170729",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170789,
+   "fieldset_id": 1182,
+   "fieldset": "საინჟინრო კომუნიკაციების ქსელების სქემები (გარდა ინდივიდუალური საცხოვრებელი სახლის მშენებლობისა)",
+   "file_name": "კომუნიკაციები 24,11,2025.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d38f232e072a78744a42",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170789",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173788,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "1.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee52f1e5315db8260957",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173788",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173789,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "2.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee544069c11de5d3a255",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173789",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173790,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "3.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee57549c125c1b006679",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173790",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173791,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "4.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee5b660b6c2f5901b071",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173791",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170790,
+   "fieldset_id": 259,
+   "fieldset": "\"ფაილის მიმაგრება",
+   "file_name": "დენდროლოგია 07.07.2025.rar",
+   "extension": ".rar",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d456660b6c2f59018a4f",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170790",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170791,
+   "fieldset_id": 9550,
+   "fieldset": "III კლასს დაქვემდებარებული შენობა-ნაგებობების მშენებლობის განხორციელების დოკუმენტების პროექტების არქიტექტურული ნაწილების შესაბამისობა „ტექნიკური რეგლამენტის -  შენობა-ნაგებობის უსაფრთხოების წესების დამტკიცების თაობაზე“ საქართველოს მთავრობის 2016 წლის 28 იანვრის N41 დადგენილებით დამტკიცებულ რეგლამენტთან",
+   "file_name": "საექსპერტო დასკვნა 02,12.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d498f1e5315db825e308",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170791",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170792,
+   "fieldset_id": 21354,
+   "fieldset": "ენერგოეფექტურობის მინიმალური მოთხოვნების  დეკლარაცია",
+   "file_name": "ენერგოეფექტურობალისი A-9.10.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d4b3549c125c1b003fdf",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170792",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170793,
+   "fieldset_id": 21407,
+   "fieldset": "საჭიროების შემთხვევაში, ხაზობრივი ნაგებობების მესაკუთრეების თანხმობა",
+   "file_name": "სატრანსპორტო დროებითი+მუდმივი.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d5224069c11de5d37bde",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170793",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170794,
+   "fieldset_id": 21382,
+   "fieldset": "საინჟინრო-გეოლოგიური კვლევა/საექსპერტო შეფასება;  საპროექტო ობიექტის კონსტრუქციული სქემა/ საექსპერტო შეფასება",
+   "file_name": "კონსტრუქციები, ლირა, გეოლოგია.rar",
+   "extension": ".rar",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d572f1e5315db825e33c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170794",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174886,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "კალენდარული გრაფიკი 11.02..pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:55:41+00:00",
+   "storage_id": "698c35e2660b6c2f5901c4a2",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174886",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184329,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "ეტაპები+კალენდარული გრაფიკი 19.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-19T09:47:15+00:00",
+   "storage_id": "6996dc2024078628cfe9853e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184329",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5188024,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "ეტაპები+კალენდარული გრაფიკი 23.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-23T12:55:47+00:00",
+   "storage_id": "699c4e4f4098c45c7b8fc4f6",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5188024",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174866,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 11.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c330243e9535b26c88b90",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174866",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5175563,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 11..02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T12:08:17+00:00",
+   "storage_id": "698c712e6796661ab3b4bae9",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5175563",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173724,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "a9-10 გენგეგმა 10.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:13:06+00:00",
+   "storage_id": "698ae837f1e5315db826083e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173724",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174867,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "A-9-10 გენგეგმა 11.02.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c33652cb4b008713d295c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174867",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173725,
+   "fieldset_id": 1161,
+   "fieldset": "საპროექტო ტერიტორიის გენერალური გეგმა, მასშტაბი 1:500",
+   "file_name": "A-9-10 გენგეგმა 10.02.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-10T08:13:06+00:00",
+   "storage_id": "698ae87543e9535b26c87713",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173725",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170726,
+   "fieldset_id": 1163,
+   "fieldset": "არსებობის შემთხვევაში მიწის ნაკვეთის ტერიტორიის კეთილმოწყობის გეგმა",
+   "file_name": "გარემოს თანხმობა.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985cffef1e5315db825e21e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170726",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173818,
+   "fieldset_id": 1164,
+   "fieldset": "არსებული სიტუაციის ფოტოსურათები",
+   "file_name": "ფოტოები 10.02.2026.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:57:39+00:00",
+   "storage_id": "698af2ed549c125c1b006774",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173818",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170819,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 10.12.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T12:01:59+00:00",
+   "storage_id": "6985d7f7f1e5315db825e3b8",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170819",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173792,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 09.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:39:24+00:00",
+   "storage_id": "698aeeb62cb4b008713d15f0",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173792",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5186217,
+   "fieldset_id": 1167,
+   "fieldset": "შენობა-ნაგებობის ყველა სართულისა და სახურავის გეგმები, მასშტაბი 1:100",
+   "file_name": "9.10 გეგმები 20.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-20T13:49:45+00:00",
+   "storage_id": "699866680adbc8274232599e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5186217",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170820,
+   "fieldset_id": 1168,
+   "fieldset": "შენობა-ნაგებობის ჭრილები, მასშტაბი 1:100",
+   "file_name": "9.10 ჭრილები 27.10.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T12:01:59+00:00",
+   "storage_id": "6985d80c43e9535b26c852b8",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170820",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174868,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 09.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:47:41+00:00",
+   "storage_id": "698c33fecc75021822011c5c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174868",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184177,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 19.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-19T08:39:51+00:00",
+   "storage_id": "6996cbf2d9a6e86630b2e947",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184177",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5171264,
+   "fieldset_id": 1169,
+   "fieldset": "შენობა-ნაგებობის ფასადები, მასშტაბი 1:100",
+   "file_name": "9.10 ფასადები 06.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T14:40:41+00:00",
+   "storage_id": "6985f931660b6c2f59018ffb",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5171264",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170727,
+   "fieldset_id": 1170,
+   "fieldset": "შენობა-ნაგებობის მაქსიმალური სიმაღლის განსაზღვრის სქემა",
+   "file_name": "სიმაღლე.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d092549c125c1b003f0d",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170727",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170728,
+   "fieldset_id": 1196,
+   "fieldset": "შეთანხმებული პროექტის ფოტომონტაჟი და აქსონომეტრიული ხედები",
+   "file_name": "რენდერები 02.12.2025 (1)_compressed.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d0b6660b6c2f59018994",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170728",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173787,
+   "fieldset_id": 1197,
+   "fieldset": "კორექტირებული პროექტის ფოტომონტაჟი და აქსონომეტრიული ხედები",
+   "file_name": "რენდერები 10.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee47232e072a7874702c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173787",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184178,
+   "fieldset_id": 1172,
+   "fieldset": "საპროექტო შენობა-ნაგებობის ვექტორული CAD ფაილი",
+   "file_name": "9.10. სახლი 19.02.2026.pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-19T08:39:51+00:00",
+   "storage_id": "6996cc3e41b5da58aaeed26d",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184178",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5171265,
+   "fieldset_id": 1172,
+   "fieldset": "საპროექტო შენობა-ნაგებობის ვექტორული CAD ფაილი",
+   "file_name": "9.10..pla",
+   "extension": ".pla",
+   "uploaded_at": "2026-02-06T14:40:41+00:00",
+   "storage_id": "6985fd4943e9535b26c857bc",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5171265",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170729,
+   "fieldset_id": 1174,
+   "fieldset": "საჭიროების შემთხვევაში მომიჯნავე შენობა-ნაგებობის კონსტრუქციული დასკვნა",
+   "file_name": "დასკვნა მომიჯნავეები A9.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:32:34+00:00",
+   "storage_id": "6985d0fa4069c11de5d37b07",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170729",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170789,
+   "fieldset_id": 1182,
+   "fieldset": "საინჟინრო კომუნიკაციების ქსელების სქემები (გარდა ინდივიდუალური საცხოვრებელი სახლის მშენებლობისა)",
+   "file_name": "კომუნიკაციები 24,11,2025.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d38f232e072a78744a42",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170789",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173788,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "1.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee52f1e5315db8260957",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173788",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173789,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "2.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee544069c11de5d3a255",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173789",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173790,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "3.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee57549c125c1b006679",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173790",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5173791,
+   "fieldset_id": 1175,
+   "fieldset": "შენობა - ნაგებობის \"სავიზიტო\" სურათები",
+   "file_name": "4.jpg",
+   "extension": ".jpg",
+   "uploaded_at": "2026-02-10T08:38:16+00:00",
+   "storage_id": "698aee5b660b6c2f5901b071",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5173791",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170790,
+   "fieldset_id": 259,
+   "fieldset": "\"ფაილის მიმაგრება",
+   "file_name": "დენდროლოგია 07.07.2025.rar",
+   "extension": ".rar",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d456660b6c2f59018a4f",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170790",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170791,
+   "fieldset_id": 9550,
+   "fieldset": "III კლასს დაქვემდებარებული შენობა-ნაგებობების მშენებლობის განხორციელების დოკუმენტების პროექტების არქიტექტურული ნაწილების შესაბამისობა „ტექნიკური რეგლამენტის -  შენობა-ნაგებობის უსაფრთხოების წესების დამტკიცების თაობაზე“ საქართველოს მთავრობის 2016 წლის 28 იანვრის N41 დადგენილებით დამტკიცებულ რეგლამენტთან",
+   "file_name": "საექსპერტო დასკვნა 02,12.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d498f1e5315db825e308",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170791",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170792,
+   "fieldset_id": 21354,
+   "fieldset": "ენერგოეფექტურობის მინიმალური მოთხოვნების  დეკლარაცია",
+   "file_name": "ენერგოეფექტურობალისი A-9.10.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d4b3549c125c1b003fdf",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170792",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170793,
+   "fieldset_id": 21407,
+   "fieldset": "საჭიროების შემთხვევაში, ხაზობრივი ნაგებობების მესაკუთრეების თანხმობა",
+   "file_name": "სატრანსპორტო დროებითი+მუდმივი.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d5224069c11de5d37bde",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170793",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5170794,
+   "fieldset_id": 21382,
+   "fieldset": "საინჟინრო-გეოლოგიური კვლევა/საექსპერტო შეფასება;  საპროექტო ობიექტის კონსტრუქციული სქემა/ საექსპერტო შეფასება",
+   "file_name": "კონსტრუქციები, ლირა, გეოლოგია.rar",
+   "extension": ".rar",
+   "uploaded_at": "2026-02-06T11:52:01+00:00",
+   "storage_id": "6985d572f1e5315db825e33c",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5170794",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5174886,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "კალენდარული გრაფიკი 11.02..pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-11T07:55:41+00:00",
+   "storage_id": "698c35e2660b6c2f5901c4a2",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5174886",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5184329,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "ეტაპები+კალენდარული გრაფიკი 19.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-19T09:47:15+00:00",
+   "storage_id": "6996dc2024078628cfe9853e",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5184329",
+   "latest_in_fieldset": false
+  },
+  {
+   "attached_file_id": 5188024,
+   "fieldset_id": 1202,
+   "fieldset": "კორექტირებული პროექტის მშენებლობის ორგანიზების კალენდარული გრაფიკი",
+   "file_name": "ეტაპები+კალენდარული გრაფიკი 23.02.pdf",
+   "extension": ".pdf",
+   "uploaded_at": "2026-02-23T12:55:47+00:00",
+   "storage_id": "699c4e4f4098c45c7b8fc4f6",
+   "download_url": "https://docs.tbilisi.gov.ge/DownloadServlet?downloadCase=2&attachedFileId=5188024",
+   "latest_in_fieldset": false
+  }
+ ],
+ "responses": [
+  {
+   "motion_id": 7811925,
+   "date": "2026-02-19T09:48:28+00:00",
+   "status_id": 3,
+   "url": "https://docs.tbilisi.gov.ge/NewArchitectureResponse?documentId=1127975&motionId=7811925"
+  },
+  {
+   "motion_id": 7816738,
+   "date": "2026-02-20T13:51:20+00:00",
+   "status_id": 3,
+   "url": "https://docs.tbilisi.gov.ge/NewArchitectureResponse?documentId=1127975&motionId=7816738"
+  },
+  {
+   "motion_id": 7819053,
+   "date": "2026-02-23T12:57:40+00:00",
+   "status_id": 3,
+   "url": "https://docs.tbilisi.gov.ge/NewArchitectureResponse?documentId=1127975&motionId=7819053"
+  },
+  {
+   "motion_id": 7821484,
+   "date": "2026-02-24T18:25:38+00:00",
+   "status_id": 3,
+   "url": "https://docs.tbilisi.gov.ge/NewArchitectureResponse?documentId=1127975&motionId=7821484"
+  }
+ ],
+ "signed_files": [
+  {
+   "signed_file_id": "6996dc6a4098c45c7b8f8ed5",
+   "signed_at": "2026-02-19T09:48:26.901000+00:00",
+   "url": "https://esign.tbilisi.gov.ge/api/signature/download/file?fileId=6996dc6a4098c45c7b8f8ed5"
+  },
+  {
+   "signed_file_id": "699866d69a253509a5b2cfdc",
+   "signed_at": "2026-02-20T13:51:18.207000+00:00",
+   "url": "https://esign.tbilisi.gov.ge/api/signature/download/file?fileId=699866d69a253509a5b2cfdc"
+  },
+  {
+   "signed_file_id": "699c4ec241b5da58aaef0a28",
+   "signed_at": "2026-02-23T12:57:38.385000+00:00",
+   "url": "https://esign.tbilisi.gov.ge/api/signature/download/file?fileId=699c4ec241b5da58aaef0a28"
+  }
+ ],
+ "messages": [
+  {
+   "message_id": 917307,
+   "date": "2026-02-17T17:39:42+00:00",
+   "subject": null,
+   "url": "https://docs.tbilisi.gov.ge/ArchitectureViewMessage?messageId=917307"
+  },
+  {
+   "message_id": 918332,
+   "date": "2026-02-20T07:58:20+00:00",
+   "subject": null,
+   "url": "https://docs.tbilisi.gov.ge/ArchitectureViewMessage?messageId=918332"
+  },
+  {
+   "message_id": 918333,
+   "date": "2026-02-20T08:00:11+00:00",
+   "subject": null,
+   "url": "https://docs.tbilisi.gov.ge/ArchitectureViewMessage?messageId=918333"
+  },
+  {
+   "message_id": 918507,
+   "date": "2026-02-20T13:07:31+00:00",
+   "subject": null,
+   "url": "https://docs.tbilisi.gov.ge/ArchitectureViewMessage?messageId=918507"
+  },
+  {
+   "message_id": 918539,
+   "date": "2026-02-20T13:28:44+00:00",
+   "subject": null,
+   "url": "https://docs.tbilisi.gov.ge/ArchitectureViewMessage?messageId=918539"
+  },
+  {
+   "message_id": 919011,
+   "date": "2026-02-23T12:31:41+00:00",
+   "subject": null,
+   "url": "https://docs.tbilisi.gov.ge/ArchitectureViewMessage?messageId=919011"
+  },
+  {
+   "message_id": 919034,
+   "date": "2026-02-23T12:59:01+00:00",
+   "subject": null,
+   "url": "https://docs.tbilisi.gov.ge/ArchitectureViewMessage?messageId=919034"
+  }
+ ]
+}

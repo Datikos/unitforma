@@ -1,18 +1,18 @@
-# tas.ge permit-page capture (research tool)
+# tas.ge permit research tools
 
-`tas.ge` is the public permit portal of the Tbilisi Municipality Architecture Service. A permit page
-such as `https://tas.ge/?p=publicpage&documentId=1127975` holds the regulator's view of a project:
-applicant, address, cadastral code, permit decisions and the attached architectural documents.
+Findings and feasibility: `docs/research/regulatory-permit-data.md`.
 
-`capture_tasge.js` renders one permit page with Playwright and saves, next to the script:
-screenshot, rendered HTML, the list of XHR/fetch calls with JSON samples (to discover any data
-endpoint), label/value pairs, tables, and attachment links (name, extension, URL pattern).
+| Script | Purpose | Requirements |
+|---|---|---|
+| `extract_permit.py <docId>` | Fetches the permit record through the same remote call the public page uses, parses it, filters personal data, emits JSON (metadata, nomenclature, class calculator, parcels, technical indicators, fields, attachments with download URLs, decisions, signed files). `--download-dir` fetches attachments. | Python 3.11+, standard library only. Network access to `docs.tbilisi.gov.ge`. |
+| `scan_plans.py <pdf>` | Page inventory of a drawing PDF: vector/text presence, page kind, apartment and parking labels, areas, level markers, scales, grid axes; optional PNG renders. | `pip install pdfplumber pypdfium2` |
+| `capture_tasge.js <docId>` | Playwright capture of the rendered page (screenshot, DOM label/value pairs, XHR log). Only needed when the page structure changes. | Node 18+, `npm install playwright` |
 
 ```bash
-cd tools/research/tasge
-npm init -y >/dev/null && npm install playwright && npx playwright install chromium
-node capture_tasge.js 1127975
+python3 extract_permit.py 1127975 --out permit.json --download-dir ./files
+python3 scan_plans.py "./files/<id>_<floor plans>.pdf" --out scan.json --render-dir ./png
 ```
 
-The output feeds the feasibility assessment in `docs/research/regulatory-permit-data.md`.
-Respect the site's terms and rate limits; this is a one-page research capture, not a crawler.
+Rules: one record per call, no enumeration of ids, keep the `User-Agent` identifying Unitforma, never
+commit raw payloads or downloaded files (they contain personal data). `sample/` holds a PII-filtered
+output for the reference permit.

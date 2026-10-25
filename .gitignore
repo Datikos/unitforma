@@ -31,3 +31,11 @@ yarn-error.log*
 .vscode/*
 !.vscode/extensions.json
 .DS_Store
+
+# --- research captures (may contain personal data) ---
+tools/research/tasge/capture*/
+tools/research/tasge/files/
+tools/research/tasge/png/
+tools/research/tasge/node_modules/
+tools/research/tasge/*.json
+!tools/research/tasge/sample/*.json
