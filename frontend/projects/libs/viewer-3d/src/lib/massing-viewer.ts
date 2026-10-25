@@ -11,17 +11,26 @@ export interface MassingUnitInfo {
   floor_level: number;
 }
 
+/** Opacity of units outside the focused floor or building (ADR-0006 Decision 6). */
+const FADE_OTHER_FLOOR = 0.18;
+const FADE_OTHER_BUILDING = 0.08;
+
 /**
  * Schematic massing viewer (plan §11.3 MVP 3D): orbit/zoom, floor isolation, unit hover and
  * pick, highlight of the selected unit. Expects the GLB produced by the worker: one mesh per
  * unit with `extras` {unit_id, code, unit_type, building_code, floor_level}.
+ *
+ * Floor-first navigation (ADR-0006 Decision 6): with `floorLevel` set the other floors of the
+ * focused building stay visible but faded, so a buyer sees where the floor sits in the building
+ * and can tap another floor to move there (`floorPicked`). With `buildingCode` set the other
+ * buildings are faded further and cannot be picked, and the camera frames that building.
  */
 @Component({
   selector: 'uf-massing-viewer',
   template: `
     <div class="mv" #host (pointermove)="onMove($event)" (click)="onClick($event)">
       <canvas #canvas></canvas>
-      <div class="mv__badge">Schematic model generated from floor plans — not an architectural model</div>
+      <div class="mv__badge">{{ badge() }}</div>
       @if (status(); as s) { <div class="mv__status">{{ s }}</div> }
       @if (hovered(); as h) { <div class="mv__hover">{{ h.building_code }} · {{ h.code }} · level {{ h.floor_level }}</div> }
     </div>
@@ -38,14 +47,20 @@ export interface MassingUnitInfo {
 export class MassingViewerComponent implements OnDestroy {
   /** Signed GLB URL. */
   readonly src = input<string | null>(null);
-  /** Only show units on this floor level (null = all). */
+  /** Focus one floor level: other floors of the focused building are faded (null = all). */
   readonly floorLevel = input<number | null>(null);
+  /** Focus one building: other buildings are faded and not pickable (null = all). */
+  readonly buildingCode = input<string | null>(null);
+  /** Disclaimer shown on the model (plan §7.3); changes with the model kind. */
+  readonly badge = input<string>('Schematic model generated from floor plans — not an architectural model');
   /** Selected unit id (highlighted). */
   readonly selectedUnitId = input<string | null>(null);
   /** Per-unit base colours (e.g. by availability), keyed by unit id; others keep the GLB colour. */
   readonly unitColors = input<Record<string, string> | null>(null);
 
   readonly unitPicked = output<MassingUnitInfo>();
+  /** A unit on another floor than `floorLevel` was tapped: the level to move to. */
+  readonly floorPicked = output<number>();
   readonly loadedUnits = output<MassingUnitInfo[]>();
 
   readonly status = signal<string | null>('No model loaded');
@@ -73,8 +88,10 @@ export class MassingViewerComponent implements OnDestroy {
       if (url) void this.load(url);
     });
     effect(() => {
-      const lvl = this.floorLevel();
-      for (const m of this.meshes) m.visible = lvl === null || m.userData['floor_level'] === lvl;
+      this.floorLevel();
+      this.buildingCode();
+      this.loadedTick();
+      this.applyFocus();
     });
     effect(() => {
       const sel = this.selectedUnitId();
@@ -166,12 +183,11 @@ export class MassingViewerComponent implements OnDestroy {
       });
       this.scene.add(this.model);
       this.addGround();
+      this.applyFocus();
       this.frameAll();
       this.status.set(this.meshes.length ? null : 'Model has no units yet');
       this.loadedUnits.emit(infos);
       this.loadedTick.update((n) => n + 1);
-      const lvl = this.floorLevel();
-      for (const m of this.meshes) m.visible = lvl === null || m.userData['floor_level'] === lvl;
     } catch (e) {
       this.status.set(`Could not load model: ${(e as Error).message ?? e}`);
     }
@@ -186,9 +202,33 @@ export class MassingViewerComponent implements OnDestroy {
     this.model!.add(grid);
   }
 
+  /** Unit meshes of the focused building (all units when no building is focused). */
+  private focused(): THREE.Mesh[] {
+    const code = this.buildingCode();
+    const own = code === null ? this.meshes : this.meshes.filter((m) => m.userData['building_code'] === code);
+    return own.length ? own : this.meshes;
+  }
+
+  private applyFocus(): void {
+    const lvl = this.floorLevel();
+    const own = new Set(this.focused());
+    for (const m of this.meshes) {
+      const mat = m.material as THREE.MeshStandardMaterial;
+      const opacity = !own.has(m) ? FADE_OTHER_BUILDING : lvl !== null && m.userData['floor_level'] !== lvl ? FADE_OTHER_FLOOR : 1;
+      m.visible = true;
+      mat.transparent = opacity < 1;
+      mat.opacity = opacity;
+      mat.depthWrite = opacity === 1;
+      m.userData['pickable'] = own.has(m);
+    }
+  }
+
   private frameAll(): void {
     if (!this.model || !this.controls) return;
-    const box = new THREE.Box3().setFromObject(this.model);
+    const own = this.focused();
+    const box = new THREE.Box3();
+    if (own.length && this.buildingCode() !== null) for (const m of own) box.expandByObject(m);
+    else box.setFromObject(this.model);
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3()).length() || 50;
     this.camera.position.set(center.x + size * 0.8, center.y + size * 0.6, center.z + size * 0.8);
@@ -204,7 +244,7 @@ export class MassingViewerComponent implements OnDestroy {
     const rect = this.canvas().nativeElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
-    const hit = this.raycaster.intersectObjects(this.meshes.filter((m) => m.visible), false)[0];
+    const hit = this.raycaster.intersectObjects(this.meshes.filter((m) => m.visible && m.userData['pickable'] !== false), false)[0];
     return (hit?.object as THREE.Mesh) ?? null;
   }
 
@@ -226,7 +266,11 @@ export class MassingViewerComponent implements OnDestroy {
 
   onClick(ev: MouseEvent): void {
     const m = this.pick(ev);
-    if (m) this.unitPicked.emit(m.userData as MassingUnitInfo);
+    if (!m) return;
+    const info = m.userData as MassingUnitInfo;
+    const lvl = this.floorLevel();
+    if (lvl !== null && info.floor_level !== lvl) this.floorPicked.emit(info.floor_level);
+    this.unitPicked.emit(info);
   }
 
   ngOnDestroy(): void {

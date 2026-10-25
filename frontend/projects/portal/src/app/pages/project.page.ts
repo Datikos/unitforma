@@ -52,7 +52,7 @@ import { SiteStore } from '../core/site.store';
           } @loading (minimum 200ms) {
             <p class="uf-muted">Loading 3D…</p>
           }
-          <p class="uf-muted small">Tap a unit to open it. Colours: @for (a of legend; track a.key) { <span [class]="'uf-badge uf-av-' + a.key">{{ a.label }}</span> }</p>
+          <p class="uf-muted small">Tap a unit to open its floor plan. Colours: @for (a of legend; track a.key) { <span [class]="'uf-badge uf-av-' + a.key">{{ a.label }}</span> }</p>
         } @else if (d.site?.plan; as plan) {
           <uf-plan-viewer [src]="api.asset(plan.url)" [width]="plan.width" [height]="plan.height" [polygons]="sitePolygons()" mode="view" (polygonSelected)="openBuilding($event)" />
           <p class="uf-muted small">Select a building on the site plan.</p>
@@ -154,7 +154,8 @@ export class ProjectPage {
     void this.router.navigate(['/projects', this.slug(), 'buildings', code]);
   }
 
+  /** Floor first (ADR-0006 Decision 6): a 3D pick opens the building page on that floor with the unit preselected. */
   openUnit(u: MassingUnitInfo): void {
-    void this.router.navigate(['/projects', this.slug(), 'units', u.code]);
+    void this.router.navigate(['/projects', this.slug(), 'buildings', u.building_code], { queryParams: { floor: u.floor_level, unit: u.code } });
   }
 }
