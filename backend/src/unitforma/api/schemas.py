@@ -361,6 +361,22 @@ class SheetOut(ORM):
     thumbnail_url: str | None = None
     extract_url: str | None = None
     floors: list[SheetFloorOut] = Field(default_factory=list)
+    excluded: bool = False
+    exclusion_reason: str | None = None
+
+
+class SheetExclude(BaseModel):
+    excluded: bool
+    reason: str | None = Field(default=None, max_length=200)
+    version: int
+
+
+class PagesExclude(BaseModel):
+    """Exclude or include pages of a revision at once (e.g. a fire-safety set, pages 12–51)."""
+
+    pages: list[int] = Field(min_length=1, max_length=2000)
+    excluded: bool
+    reason: str | None = Field(default=None, max_length=200)
 
 
 class SheetAssign(BaseModel):
@@ -396,6 +412,8 @@ class BoundaryCreate(BaseModel):
     ring: Ring = Field(min_length=3, max_length=500)
     # on a sheet showing several floors; default: the floor whose region holds the outline
     floor_id: uuid.UUID | None = None
+    # the area printed with the label on the drawing → documented area (drawing_schedule)
+    printed_area_m2: Decimal | None = Field(default=None, gt=0, le=100000)
     unit_type: Literal["apartment", "commercial", "parking", "storage"] = "apartment"
     code: str | None = Field(default=None, max_length=40)
     label: str | None = Field(default=None, max_length=80)
@@ -514,6 +532,13 @@ class SuggestionOut(BaseModel):
     printed_area_m2: float | None = None
     measured_area_m2: float | None = None
     floor_id: uuid.UUID | None = None
+    unit_type: Literal["apartment", "commercial", "storage", "parking"] | None = None
+
+
+class PrintedAreasOut(BaseModel):
+    updated: int
+    unchanged: int
+    unmatched: int
 
 
 class ProposalItemOut(ORM):

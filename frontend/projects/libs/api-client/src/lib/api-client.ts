@@ -42,6 +42,7 @@ export type LineageOut = Schemas['LineageOut'];
 export type SuggestionOut = Schemas['SuggestionOut'];
 export type SheetFloorOut = Schemas['SheetFloorOut'];
 export type SheetFloorIn = Schemas['SheetFloorIn'];
+export type PrintedAreasOut = Schemas['PrintedAreasOut'];
 export type ProposalOut = Schemas['ProposalOut'];
 export type ProposalItemOut = Schemas['ProposalItemOut'];
 export type ProposalDecide = Schemas['ProposalDecide'];
@@ -220,6 +221,18 @@ export class UnitformaApi {
   /** Every floor the sheet shows, each optionally limited to a region (split-level / multi-block sheets). */
   setSheetFloors(tenantId: string, sheetId: string, floors: SheetFloorIn[], version: number): Promise<SheetOut> {
     return this.put(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/floors`, { floors, version });
+  }
+  /** Take a sheet out of mapping (a reprint, a detail, a schedule) or bring it back. */
+  excludeSheet(tenantId: string, sheetId: string, excluded: boolean, reason: string | null, version: number): Promise<SheetOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/exclusion`, { excluded, reason, version });
+  }
+  /** Exclude or include several pages of a revision at once. */
+  excludePages(tenantId: string, revisionId: string, pages: number[], excluded: boolean, reason: string | null): Promise<SheetOut[]> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/exclusions`, { pages, excluded, reason });
+  }
+  /** Store the areas printed on the sheet as the documented areas of its units. */
+  readPrintedAreas(tenantId: string, sheetId: string): Promise<PrintedAreasOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/printed-areas`, undefined);
   }
   calibrateSheet(tenantId: string, sheetId: string, calibration: Calibration, version: number): Promise<SheetOut> {
     return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/calibration`, { calibration, version });

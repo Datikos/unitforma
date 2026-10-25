@@ -138,6 +138,8 @@ async def set_floors(
     """
     if sheet.version != version:
         raise ProblemError(409, "Conflict", f"Sheet changed concurrently (version {sheet.version})")
+    if sheet.excluded and items:
+        raise ProblemError(409, "Sheet is excluded from mapping", sheet.exclusion_reason)
     allowed = await _project_floor_ids(db, sheet)
     seen: set[uuid.UUID] = set()
     wanted: list[tuple[uuid.UUID, dict | None]] = []
@@ -240,6 +242,8 @@ async def replace_suggestions(
     db: AsyncSession, sheet: Sheet, suggestions: list[dict[str, Any]], source: str
 ) -> None:
     """Swap the sheet's suggested assignments; confirmed ones are never touched."""
+    if sheet.excluded:
+        return
     assigns = await list_for_sheet(db, sheet.id)
     taken = {a.floor_id for a in assigns if a.status == "confirmed"}
     for a in [a for a in assigns if a.status == "suggested"]:

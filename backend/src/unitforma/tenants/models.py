@@ -293,6 +293,9 @@ class Sheet(TimestampMixin, Base):
     calibration: Mapped[dict | None] = mapped_column(JSONB)
     calibration_status: Mapped[str] = mapped_column(String(20), default="none")
     hints: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # taken out of mapping: a reprint, a detail or a schedule (plan §13.2)
+    excluded: Mapped[bool] = mapped_column(Boolean, default=False)
+    exclusion_reason: Mapped[str | None] = mapped_column(String(200))
     version: Mapped[int] = mapped_column(default=1)
 
 
@@ -479,6 +482,8 @@ class MappingProposalItem(TimestampMixin, Base):
     )
     new_rings: Mapped[list] = mapped_column(JSONB, default=list)  # rings on the new sheet
     labels: Mapped[list] = mapped_column(JSONB, default=list)  # label per new ring (or None)
+    # area printed with each new ring's label (m², or None)
+    printed_areas: Mapped[list | None] = mapped_column(JSONB)
     overlaps: Mapped[list] = mapped_column(JSONB, default=list)  # [old_unit_id, ring_idx, ratio]
     confidence: Mapped[float] = mapped_column(Numeric(4, 3), default=0)
     decision: Mapped[str] = mapped_column(

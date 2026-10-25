@@ -240,6 +240,70 @@ async def assign_floor(
     return sheet
 
 
+async def set_excluded(
+    db: AsyncSession,
+    sheets: list[Sheet],
+    excluded: bool,
+    reason: str | None,
+    actor: tuple[uuid.UUID, str],
+) -> list[Sheet]:
+    """Take sheets out of mapping (reprints, details, schedules) or bring them back.
+
+    An excluded sheet has no floors, offers no suggestions and accepts no units; a sheet that
+    already carries current unit boundaries cannot be excluded (move or remove them first).
+    """
+    from unitforma.documents import assignments
+    from unitforma.tenants.models import Unit, UnitBoundary
+
+    if excluded:
+        ids = [s.id for s in sheets]
+        busy = (
+            await db.execute(
+                select(Sheet.page_no)
+                .join(UnitBoundary, UnitBoundary.sheet_id == Sheet.id)
+                .join(Unit, Unit.id == UnitBoundary.unit_id)
+                .where(
+                    Sheet.id.in_(ids),
+                    UnitBoundary.is_current.is_(True),
+                    Unit.lifecycle_status != "removed",
+                )
+                .distinct()
+            )
+        ).scalars()
+        pages = sorted(busy)
+        if pages:
+            raise ProblemError(
+                409,
+                "Units are drawn on these sheets",
+                f"Pages {', '.join(map(str, pages))} carry units; move or remove them first",
+            )
+    for sheet in sheets:
+        if sheet.excluded == excluded and (not excluded or sheet.exclusion_reason == reason):
+            continue
+        before = {"excluded": sheet.excluded, "reason": sheet.exclusion_reason}
+        if excluded:
+            for a in await assignments.list_for_sheet(db, sheet.id):
+                await db.delete(a)
+            await db.flush()
+            assignments.sync_primary(sheet, [])
+            sheet.floor_id = None
+        sheet.excluded = excluded
+        sheet.exclusion_reason = (reason or "excluded by reviewer")[:200] if excluded else None
+        sheet.version += 1
+        await write_audit(
+            db,
+            tenant_id=sheet.tenant_id,
+            actor_user_id=actor[0],
+            actor_role=actor[1],
+            entity_type="sheet",
+            entity_id=sheet.id,
+            action="exclude" if excluded else "include",
+            before=before,
+            after={"excluded": excluded, "reason": sheet.exclusion_reason},
+        )
+    return sheets
+
+
 def signed_urls(sheet: Sheet) -> dict[str, str | None]:
     st = get_storage()
     return {

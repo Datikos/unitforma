@@ -268,33 +268,6 @@ def world(client: TestClient, kratos) -> dict:
     return {"base": base, "tenant": t, "project": p, "arch": arch, "b": buildings, "f": floors}
 
 
-@pytest.fixture(scope="module")
-def kratos():
-    from tests.fake_kratos import FakeKratos
-
-    return FakeKratos()
-
-
-@pytest.fixture(scope="module")
-def client(kratos, tmp_path_factory):
-    os.environ["UF_STORAGE_BACKEND"] = "local"
-    os.environ["UF_STORAGE_LOCAL_ROOT"] = str(tmp_path_factory.mktemp("storage-sl"))
-    from unitforma.core.settings import get_settings
-    from unitforma.identity.deps import clear_whoami_cache, get_kratos
-    from unitforma.main import create_app
-    from unitforma.storage.service import reset_storage
-
-    get_settings.cache_clear()
-    reset_storage()
-    clear_whoami_cache()
-    app = create_app()
-    app.dependency_overrides[get_kratos] = lambda: kratos
-    with TestClient(app, headers={"X-Requested-With": "unitforma"}) as c:
-        yield c
-    get_settings.cache_clear()
-    reset_storage()
-
-
 def _upload(client: TestClient, world: dict, data: bytes, document_id: str | None = None) -> dict:
     base, arch = world["base"], world["arch"]
     if document_id is None:

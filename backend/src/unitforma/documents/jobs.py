@@ -163,6 +163,7 @@ async def _suggest_floors(
     projects without elevations. Confirmed assignments are never replaced.
     """
     kept = levels.drop_repeated(markers)
+    duplicates = duplicate_pages(page_hints, kept)
     async with tenant_session(tenant_id, scope="tenant") as db:
         floors = [
             levels.FloorRef(
@@ -191,7 +192,11 @@ async def _suggest_floors(
                 continue
             hints = dict(page_hints.get(page_no) or {})
             hints["level_markers"] = [m.as_dict() for m in page_markers]
+            if page_no in duplicates:
+                hints["duplicate_of"] = duplicates[page_no]
             sheet.hints = hints
+            if sheet.excluded or page_no in duplicates:
+                continue  # a reprint gets its floors from the reviewer, if they map it at all
             suggestions: list[dict] = []
             stacked = levels.is_stacked(page_markers)
             if page_markers and not stacked:
@@ -221,3 +226,41 @@ async def _suggest_floors(
                     suggestions = [{"floor_id": own[0].id, "marker": None, "region": None}]
             if suggestions:
                 await assignments.replace_suggestions(db, sheet, suggestions, "level_marker")
+
+
+def duplicate_pages(
+    page_hints: dict[int, dict],
+    markers: dict[int, list[levels.Marker]] | None = None,
+    *,
+    min_labels: int = 3,
+) -> dict[int, int]:
+    """Pages that reprint an earlier page's units (fire-safety, egress or accessibility sets).
+
+    Two pages show the same plan when ≥ 80 % of the smaller unit-label set (≥ ``min_labels``
+    keys) is on the other page — a reprint may lose labels drawn as outlines — and their
+    level markers do not contradict: different floors of a building that numbers units per
+    floor ("Apt 1–8" on every floor) carry different levels. The later page points at the
+    first. Reprints keep their sheet but get no floor suggestions; the documents page offers
+    to exclude them.
+    """
+    keys: dict[int, set[str]] = {}
+    for page_no in sorted(page_hints):
+        by_kind = (page_hints[page_no] or {}).get("unit_labels") or {}
+        ks = {f"{k}:{v}" for k, vs in by_kind.items() if k != "numbered" for v in vs}
+        if len(ks) >= min_labels:
+            keys[page_no] = ks
+    values = {p: {round(m.value, 2) for m in (markers or {}).get(p, [])} for p in keys}
+    out: dict[int, int] = {}
+    pages = sorted(keys)
+    for i, p in enumerate(pages):
+        for q in pages[:i]:
+            if q in out:
+                continue
+            small = min(len(keys[p]), len(keys[q]))
+            if len(keys[p] & keys[q]) / small < 0.8:
+                continue
+            if values[p] and values[q] and not values[p] & values[q]:
+                continue  # same unit numbers, different levels: another floor
+            out[p] = q
+            break
+    return out

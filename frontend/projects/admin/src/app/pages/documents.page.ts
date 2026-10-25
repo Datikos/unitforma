@@ -10,6 +10,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 import { BuildingOut, DocumentOut, SheetOut, UnitformaApi, problemMessage } from 'api-client';
+import { parsePages } from '../core/page-ranges';
 
 type Kind = 'site_plan' | 'floor_plan' | 'section' | 'elevation' | 'render' | 'schedule' | 'model_ifc' | 'model_glb' | 'texture' | 'permit' | 'other';
 
@@ -60,11 +61,26 @@ type Kind = 'site_plan' | 'floor_plan' | 'section' | 'elevation' | 'render' | 's
               <button mat-button (click)="download(d)">Download</button>
             </div>
             @if (sheets()[d.id]; as list) {
+              <div class="uf-form-row uf-sets">
+                <span class="uf-muted">Map only the plans: exclude reprints, details and schedules.</span>
+                @if (reprints(list).length; as n) {
+                  <button mat-stroked-button [disabled]="busy()" (click)="exclude(d, reprints(list), true, 'reprint of an earlier page')">Exclude {{ n }} reprint(s)</button>
+                }
+                <mat-form-field appearance="outline" class="uf-pages"><mat-label>Pages</mat-label>
+                  <input matInput [(ngModel)]="pageInput[d.id]" [name]="'pages-' + d.id" placeholder="12-51, 7" />
+                </mat-form-field>
+                <mat-form-field appearance="outline"><mat-label>Reason</mat-label>
+                  <input matInput [(ngModel)]="reasonInput[d.id]" [name]="'reason-' + d.id" placeholder="fire-safety set" />
+                </mat-form-field>
+                <button mat-button [disabled]="busy() || !pageInput[d.id]" (click)="exclude(d, parsePages(pageInput[d.id]), true, reasonInput[d.id])">Exclude</button>
+                <button mat-button [disabled]="busy() || !pageInput[d.id]" (click)="exclude(d, parsePages(pageInput[d.id]), false, null)">Include</button>
+              </div>
               <div class="uf-sheets">
                 @for (s of list; track s.id) {
-                  <a class="uf-sheet" [routerLink]="['../sheets', s.id]">
+                  <a class="uf-sheet" [class.uf-sheet--excluded]="s.excluded" [routerLink]="['../sheets', s.id]" [attr.title]="s.exclusion_reason ?? null">
                     @if (s.thumbnail_url) { <img [src]="s.thumbnail_url" alt="page {{ s.page_no }}" /> } @else { <div class="uf-sheet__ph">p{{ s.page_no }}</div> }
-                    <span>Page {{ s.page_no }} · {{ s.assignment_status }} · {{ kindOf(s) }}</span>
+                    <span>Page {{ s.page_no }} · @if (s.excluded) { excluded } @else { {{ s.assignment_status }} · {{ kindOf(s) }} }</span>
+                    @if (dupOf(s); as dup) { @if (!s.excluded) { <span class="uf-badge">reprint of p{{ dup }}</span> } }
                   </a>
                 }
               </div>
@@ -79,6 +95,10 @@ type Kind = 'site_plan' | 'floor_plan' | 'section' | 'elevation' | 'render' | 's
     .uf-actions { display: flex; gap: 0.5rem; }
     .uf-sheets { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem; }
     .uf-sheet { display: flex; flex-direction: column; gap: 0.25rem; width: 160px; font-size: 0.75rem; text-decoration: none; color: inherit; }
+    .uf-sheet--excluded { opacity: 0.45; }
+    .uf-badge { align-self: flex-start; padding: 0 0.35rem; border-radius: 4px; background: #fef3c7; }
+    .uf-pages { width: 9rem; }
+    .uf-sets { margin-top: 0.5rem; }
     .uf-sheet img, .uf-sheet__ph { width: 160px; height: 110px; object-fit: contain; background: #fff; border: 1px solid #e5e7eb; display: grid; place-items: center; }
   `,
 })
@@ -110,6 +130,33 @@ export class DocumentsPage {
       this.buildings.set(b.filter((x) => x.kind === 'building'));
     } catch (e) {
       this.error.set(problemMessage(e));
+    }
+  }
+
+  pageInput: Record<string, string> = {};
+  reasonInput: Record<string, string> = {};
+
+  dupOf(s: SheetOut): number | null {
+    return ((s.hints ?? {}) as { duplicate_of?: number }).duplicate_of ?? null;
+  }
+
+  reprints(list: SheetOut[]): number[] {
+    return list.filter((s) => !s.excluded && this.dupOf(s) !== null).map((s) => s.page_no);
+  }
+
+  readonly parsePages = parsePages;
+
+  async exclude(d: DocumentOut, pages: number[], excluded: boolean, reason: string | null | undefined): Promise<void> {
+    if (!d.current_revision_id || !pages.length) return;
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      const list = await this.api.excludePages(this.tenantId(), d.current_revision_id, pages, excluded, reason || null);
+      this.sheets.update((m) => ({ ...m, [d.id]: list }));
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
     }
   }
 

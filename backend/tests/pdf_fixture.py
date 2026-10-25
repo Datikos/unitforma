@@ -11,14 +11,34 @@ def _obj(n: int, body: str) -> str:
 
 
 def build_pdf(streams: list[str], width: float = 842, height: float = 595) -> bytes:
-    """One page per content stream (PDF operators, Helvetica available as /F1)."""
+    """One page per content stream (PDF operators).
+
+    Fonts: /F1 Helvetica, /F2 a font named AcadNusx (the legacy Georgian CAD font: Latin
+    codes drawn as Georgian; the viewer substitutes a standard font, the name is what counts).
+    """
     objs: list[str] = []
     objs.append(_obj(1, "<< /Type /Catalog /Pages 2 0 R >>"))
-    first_page_obj = 4
+    first_page_obj = 6
     page_objs = [first_page_obj + 2 * i for i in range(len(streams))]
     kids = " ".join(f"{n} 0 R" for n in page_objs)
     objs.append(_obj(2, f"<< /Type /Pages /Kids [{kids}] /Count {len(streams)} >>"))
     objs.append(_obj(3, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"))
+    objs.append(
+        _obj(
+            4,
+            "<< /Type /Font /Subtype /Type1 /BaseFont /AcadNusx /Encoding /WinAnsiEncoding "
+            "/FirstChar 32 /LastChar 126 /Widths [" + " ".join(["556"] * 95) + "] "
+            "/FontDescriptor 5 0 R >>",
+        )
+    )
+    objs.append(
+        _obj(
+            5,
+            "<< /Type /FontDescriptor /FontName /AcadNusx /Flags 32 "
+            "/FontBBox [0 -200 1000 900] /ItalicAngle 0 /Ascent 900 /Descent -200 "
+            "/CapHeight 700 /StemV 80 >>",
+        )
+    )
     pages: list[str] = []
     contents: list[str] = []
     for page_obj, stream in zip(page_objs, streams, strict=True):
@@ -27,7 +47,7 @@ def build_pdf(streams: list[str], width: float = 842, height: float = 595) -> by
             _obj(
                 page_obj,
                 f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width} {height}] "
-                f"/Resources << /Font << /F1 3 0 R >> >> /Contents {content_obj} 0 R >>",
+                f"/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents {content_obj} 0 R >>",
             )
         )
         contents.append(
@@ -198,3 +218,57 @@ def make_split_level_pdf() -> bytes:
         section += f"60 {y} m 760 {y} l S\n"
     pages.append(section)
     return build_pdf(pages)
+
+
+# --- a drawing bundle: legacy-font labels, parking, a reprint, a text page, a basement ------
+def _geo(x: float, y: float, s: str, size: int = 10) -> str:
+    """Text in the legacy Georgian CAD font (/F2): "bina #3" reads as "ბინა №3" on paper."""
+    return f"BT /F2 {size} Tf {x} {y} Td ({s}) Tj ET\n"
+
+
+BUNDLE_APT = (120.0, 120.0)  # apartment fill (pt) → printed area at 1:100
+BUNDLE_STALL = (2.5 / PT_M_AT_100, 5.0 / PT_M_AT_100)  # a 2.5 × 5 m parking stall
+BUNDLE_STORE = (2.0 / PT_M_AT_100, 3.0 / PT_M_AT_100)  # a 2 × 3 m store room
+
+
+def bundle_area(size: tuple[float, float]) -> float:
+    return round(size[0] * PT_M_AT_100 * size[1] * PT_M_AT_100, 1)
+
+
+def _ground_plan(dx: float = 0.0, dy: float = 0.0, title: str = "TYPICAL PLAN") -> str:
+    s = _text(40, 560, f"{title} scale 1:100", 12)
+    s += _text(60 + dx, 470 + dy, "+0.00 (649.0)")
+    w, h = BUNDLE_APT
+    area = bundle_area(BUNDLE_APT)
+    for i in range(3):
+        x0, y0 = 60 + dx + i * (w + 10), 300 + dy
+        s += f"0.5 0.75 1 rg {x0} {y0} {w} {h} re f\n" + _rect(x0, y0, x0 + w, y0 + h)
+        s += _geo(x0 + 20, y0 + 70, f"bina #{i + 1}")
+        s += _text(x0 + 20, y0 + 55, f"{area} m2")
+    sw, sh = BUNDLE_STALL
+    for i in range(3):
+        x0, y0 = 520 + dx + i * (sw + 4), 300 + dy
+        s += f"0.886 0.875 0.867 rg {x0} {y0} {sw} {sh} re f\n" + _rect(x0, y0, x0 + sw, y0 + sh)
+        s += _text(x0 + 8, y0 + 100, f"A1-{i + 1}", 8)
+        s += _text(x0 + 30, y0 + 70, "P", 12)
+        s += _text(x0 + 8, y0 + 40, f"{bundle_area(BUNDLE_STALL)} m2", 8)
+    # the legend: item 5 ends with "apartment", item 6 starts the next line
+    s += _geo(60, 120, "5. sacxovrebeli bina")
+    s += _geo(60, 105, "6. aivani")
+    return s
+
+
+def make_bundle_pdf() -> bytes:
+    """Page 1 ground plan, 2 its fire-safety reprint, 3 a text page, 4 the basement."""
+    p1 = _ground_plan()
+    p2 = _ground_plan(15, -10, "FIRE SAFETY PLAN") + _geo(400, 560, "xanZarsawinaaRmdego")
+    p3 = "".join(_geo(60, 520 - 14 * i, "SeniSvnebi: sarTuli 1 da sarTuli 2") for i in range(30))
+    p4 = _text(40, 560, "BASEMENT PLAN scale 1:100", 12) + _text(60, 470, "-2.55 (646.45)")
+    w, h = BUNDLE_STORE
+    for i in range(3):
+        x0, y0 = 60 + i * (w + 6), 300
+        s = f"0.5 0.5 0.5 rg {x0} {y0} {w} {h} re f\n" + _rect(x0, y0, x0 + w, y0 + h)
+        s += _geo(x0 + 10, y0 + 50, f"#{i + 1}")
+        s += _text(x0 + 10, y0 + 35, f"{bundle_area(BUNDLE_STORE)} m2", 8)
+        p4 += s
+    return build_pdf([p1, p2, p3, p4])

@@ -16,6 +16,7 @@ from unitforma.api.schemas import (
     BoundaryUpdate,
     CodeHistoryOut,
     LineageOut,
+    PrintedAreasOut,
     ProposalAcceptAll,
     ProposalDecide,
     ProposalItemOut,
@@ -118,6 +119,7 @@ async def create_boundary(sheet_id: uuid.UUID, body: BoundaryCreate, ctx: Ctx):
             actor=_actor(ctx),
             source=body.source,
             floor_id=body.floor_id,
+            printed_area_m2=float(body.printed_area_m2) if body.printed_area_m2 else None,
         )
     except ValueError as e:
         raise ProblemError(422, "Invalid boundary", str(e)) from e
@@ -140,6 +142,23 @@ async def suggest_boundaries(sheet_id: uuid.UUID, ctx: Ctx):
         SuggestionOut(**c.as_dict(), floor_id=fid)
         for c, fid in await mapping.suggest_for_sheet(ctx.session, sheet)
     ]
+
+
+@router.post("/sheets/{sheet_id}/printed-areas", response_model=PrintedAreasOut)
+async def read_printed_areas(sheet_id: uuid.UUID, ctx: Ctx):
+    """Store the areas printed on the sheet as the documented areas of the units drawn on it.
+
+    Units created from suggestions get their printed area at creation; this catches up units
+    drawn by hand or before printed areas were read. Values stay unverified.
+    """
+    ctx.require("mapping", Action.WRITE)
+    sheet = await documents.get_sheet(ctx.session, ctx.tenant_id, sheet_id)
+    project_id = await documents.sheet_project_id(ctx.session, sheet)
+    ctx.require_project(project_id)
+    project = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
+    return PrintedAreasOut(
+        **await mapping.apply_printed_areas(ctx.session, project, sheet, _actor(ctx))
+    )
 
 
 @router.patch("/boundaries/{boundary_id}", response_model=BoundaryOut)

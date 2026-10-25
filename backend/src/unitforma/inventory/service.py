@@ -72,6 +72,7 @@ async def create_unit_from_boundary(
     actor: Actor,
     source: str = "manual",
     floor_id: uuid.UUID | None = None,
+    printed_area_m2: float | None = None,
 ) -> tuple[Unit, UnitBoundary]:
     """Drawing a boundary on an assigned sheet creates a draft unit with a permanent id.
 
@@ -79,6 +80,8 @@ async def create_unit_from_boundary(
     region holds the outline (``documents.assignments.resolve_floor``).
     """
     poly = geometry.validate_ring(ring)
+    if sheet.excluded:
+        raise ProblemError(409, "Sheet is excluded from mapping", sheet.exclusion_reason)
     fid = await assignments.resolve_floor(db, sheet, ring, floor_id)
     floor = (await db.execute(select(Floor).where(Floor.id == fid))).scalar_one()
     building = (
@@ -131,6 +134,16 @@ async def create_unit_from_boundary(
     db.add(boundary)
     await db.flush()
     await _refresh_measured_area(db, unit, boundary, project)
+    if printed_area_m2:
+        await set_printed_area(
+            db,
+            unit,
+            project,
+            float(printed_area_m2),
+            sheet_id=sheet.id,
+            label=label,
+            revision_id=revision_id,
+        )
     db.add(
         UnitLineageEvent(
             id=new_id(),
@@ -197,6 +210,62 @@ async def _refresh_measured_area(
                 verification_status="unverified",
             )
         )
+
+
+async def set_printed_area(
+    db: AsyncSession,
+    unit: Unit,
+    project: Project,
+    value_m2: float,
+    *,
+    sheet_id: uuid.UUID,
+    label: str | None,
+    revision_id: uuid.UUID | None = None,
+) -> UnitArea | None:
+    """The area the architect printed with the unit's label, as its documented area.
+
+    Stored as source ``drawing_schedule`` (it outranks the measured polygon for price per m²,
+    plan §6.2) and unverified until a reviewer checks it. An unchanged value is left alone;
+    a different one (a new revision) supersedes the previous row, which stays as history.
+    Returns the new row, or None when nothing changed.
+    """
+    if value_m2 is None or value_m2 <= 0:
+        return None
+    area_type = _measured_area_type(project)
+    current = list(
+        (
+            await db.execute(
+                select(UnitArea).where(
+                    UnitArea.unit_id == unit.id,
+                    UnitArea.area_type == area_type,
+                    UnitArea.source == "drawing_schedule",
+                    UnitArea.is_current.is_(True),
+                )
+            )
+        ).scalars()
+    )
+    if any(abs(float(a.value_m2) - float(value_m2)) < 0.005 for a in current):
+        return None
+    for a in current:
+        a.is_current = False
+    row = UnitArea(
+        id=new_id(),
+        tenant_id=unit.tenant_id,
+        unit_id=unit.id,
+        area_type=area_type,
+        value_m2=round(float(value_m2), 2),
+        source="drawing_schedule",
+        source_ref={
+            "kind": "printed_label",
+            "sheet_id": str(sheet_id),
+            "label": label,
+            "revision_id": str(revision_id) if revision_id else None,
+        },
+        verification_status="unverified",
+    )
+    db.add(row)
+    await db.flush()
+    return row
 
 
 def _measured_area_type(project: Project) -> str:

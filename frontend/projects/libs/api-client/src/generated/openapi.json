@@ -2483,6 +2483,138 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/exclusion": {
+   "patch": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Exclude Sheet",
+    "description": "Take a sheet out of mapping (a reprint, a detail, a schedule) or bring it back.",
+    "operationId": "exclude_sheet_api_v1_admin_tenants__tenant_id__sheets__sheet_id__exclusion_patch",
+    "parameters": [
+     {
+      "name": "sheet_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Sheet Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SheetExclude"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SheetOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/revisions/{revision_id}/exclusions": {
+   "post": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Exclude Pages",
+    "description": "Exclude or include several pages at once, e.g. the reprinted plan sets of a bundle.",
+    "operationId": "exclude_pages_api_v1_admin_tenants__tenant_id__revisions__revision_id__exclusions_post",
+    "parameters": [
+     {
+      "name": "revision_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Revision Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PagesExclude"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SheetOut"
+         },
+         "title": "Response Exclude Pages Api V1 Admin Tenants  Tenant Id  Revisions  Revision Id  Exclusions Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/calibration": {
    "patch": {
     "tags": [
@@ -2763,6 +2895,60 @@
           "$ref": "#/components/schemas/SuggestionOut"
          },
          "title": "Response Suggest Boundaries Api V1 Admin Tenants  Tenant Id  Sheets  Sheet Id  Suggestions Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/printed-areas": {
+   "post": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Read Printed Areas",
+    "description": "Store the areas printed on the sheet as the documented areas of the units drawn on it.\n\nUnits created from suggestions get their printed area at creation; this catches up units\ndrawn by hand or before printed areas were read. Values stay unverified.",
+    "operationId": "read_printed_areas_api_v1_admin_tenants__tenant_id__sheets__sheet_id__printed_areas_post",
+    "parameters": [
+     {
+      "name": "sheet_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Sheet Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PrintedAreasOut"
         }
        }
       }
@@ -6237,6 +6423,22 @@
       ],
       "title": "Floor Id"
      },
+     "printed_area_m2": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 100000.0,
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Printed Area M2"
+     },
      "unit_type": {
       "type": "string",
       "enum": [
@@ -8593,6 +8795,42 @@
     ],
     "title": "Milestone"
    },
+   "PagesExclude": {
+    "properties": {
+     "pages": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array",
+      "maxItems": 2000,
+      "minItems": 1,
+      "title": "Pages"
+     },
+     "excluded": {
+      "type": "boolean",
+      "title": "Excluded"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "pages",
+     "excluded"
+    ],
+    "title": "PagesExclude",
+    "description": "Exclude or include pages of a revision at once (e.g. a fire-safety set, pages 12\u201351)."
+   },
    "PaymentPlanIn": {
     "properties": {
      "name": {
@@ -8952,6 +9190,29 @@
      "import_batch_id"
     ],
     "title": "PriceHistoryOut"
+   },
+   "PrintedAreasOut": {
+    "properties": {
+     "updated": {
+      "type": "integer",
+      "title": "Updated"
+     },
+     "unchanged": {
+      "type": "integer",
+      "title": "Unchanged"
+     },
+     "unmatched": {
+      "type": "integer",
+      "title": "Unmatched"
+     }
+    },
+    "type": "object",
+    "required": [
+     "updated",
+     "unchanged",
+     "unmatched"
+    ],
+    "title": "PrintedAreasOut"
    },
    "ProjectCreate": {
     "properties": {
@@ -10855,6 +11116,36 @@
     ],
     "title": "SheetCalibrate"
    },
+   "SheetExclude": {
+    "properties": {
+     "excluded": {
+      "type": "boolean",
+      "title": "Excluded"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "excluded",
+     "version"
+    ],
+    "title": "SheetExclude"
+   },
    "SheetFloorIn": {
     "properties": {
      "floor_id": {
@@ -11107,6 +11398,22 @@
       },
       "type": "array",
       "title": "Floors"
+     },
+     "excluded": {
+      "type": "boolean",
+      "title": "Excluded",
+      "default": false
+     },
+     "exclusion_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Exclusion Reason"
      }
     },
     "type": "object",
@@ -11351,6 +11658,23 @@
        }
       ],
       "title": "Floor Id"
+     },
+     "unit_type": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "apartment",
+         "commercial",
+         "storage",
+         "parking"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit Type"
      }
     },
     "type": "object",

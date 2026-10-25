@@ -77,18 +77,85 @@ def candidates_for_sheet(sheet: Sheet) -> list[suggest.Candidate]:
 async def suggest_for_sheet(
     db: AsyncSession, sheet: Sheet
 ) -> list[tuple[suggest.Candidate, uuid.UUID | None]]:
-    """Candidates with the floor each would be created on (by region), if the sheet decides it."""
+    """Candidates with the floor each would be created on (by region), if the sheet decides it.
+
+    A numbered zone without a unit word ("№30 12.5 m²") on a floor below ground is suggested
+    as storage; elsewhere its type is left to the reviewer.
+    """
+    if sheet.excluded:
+        raise ProblemError(409, "Sheet is excluded from mapping", sheet.exclusion_reason)
     cands = candidates_for_sheet(sheet)
     conf = await assignments.confirmed(db, sheet)
     pairs = [(a.floor_id, a.region) for a in conf]
+    level_of: dict[uuid.UUID, int] = {}
+    if conf:
+        rows = await db.execute(
+            select(Floor.id, Floor.level).where(Floor.id.in_([a.floor_id for a in conf]))
+        )
+        level_of = {fid: lvl for fid, lvl in rows}
     out = []
     for c in cands:
         fid = None
         if pairs:
             centre = Polygon(c.ring).representative_point()
             fid = levels.region_floor((centre.x, centre.y), pairs)
+        if c.unit_type is None and c.printed_area_m2 and fid and level_of.get(fid, 0) < 0:
+            c.unit_type = "storage"
         out.append((c, fid))
     return out
+
+
+async def apply_printed_areas(
+    db: AsyncSession, project: Project, sheet: Sheet, actor: Actor
+) -> dict[str, int]:
+    """Read the areas printed on a sheet into the documented areas of the units drawn on it.
+
+    Each current boundary is matched to the suggestion that overlaps it most (≥ 70 % of the
+    smaller polygon, same label key when both have one); its printed area becomes the unit's
+    ``drawing_schedule`` area. Units drawn before printed areas were read get them this way.
+    """
+    if sheet.excluded:
+        raise ProblemError(409, "Sheet is excluded from mapping", sheet.exclusion_reason)
+    cands = [c for c in candidates_for_sheet(sheet) if c.printed_area_m2]
+    polys = [Polygon(c.ring) for c in cands]
+    stats = {"updated": 0, "unchanged": 0, "unmatched": 0}
+    for b, u in await current_boundaries(db, sheet.id):
+        ring = Polygon(b.polygon["ring"])
+        best, best_ratio = None, 0.0
+        for c, p in zip(cands, polys, strict=True):
+            small = min(ring.area, p.area)
+            ratio = ring.intersection(p).area / small if small > 0 else 0.0
+            if ratio < 0.7 or ratio <= best_ratio:
+                continue
+            kb, kc = suggest.normalise_label(b.label), suggest.normalise_label(c.label)
+            if kb and kc and kb != kc:
+                continue
+            best, best_ratio = c, ratio
+        if best is None:
+            stats["unmatched"] += 1
+            continue
+        row = await inventory.set_printed_area(
+            db,
+            u,
+            project,
+            float(best.printed_area_m2),
+            sheet_id=sheet.id,
+            label=best.label,
+            revision_id=sheet.revision_id,
+        )
+        stats["updated" if row else "unchanged"] += 1
+    if stats["updated"]:
+        await write_audit(
+            db,
+            tenant_id=sheet.tenant_id,
+            actor_user_id=actor[0],
+            actor_role=actor[1],
+            entity_type="sheet",
+            entity_id=sheet.id,
+            action="read_printed_areas",
+            after=stats,
+        )
+    return stats
 
 
 async def current_boundaries(
@@ -110,8 +177,20 @@ async def current_boundaries(
 async def inherit_sheet_setup(db: AsyncSession, old: Sheet, new: Sheet) -> None:
     """Carry floor assignments (with regions) and calibration over to the new revision's page.
 
-    Floors arrive as suggestions; accepting a diff item confirms the unit's floor.
+    Floors arrive as suggestions; accepting a diff item confirms the unit's floor. A page the
+    reviewer excluded stays excluded in the new revision.
     """
+    if old.excluded and not new.excluded:
+        for a in await assignments.list_for_sheet(db, new.id):
+            if a.status == "suggested":
+                await db.delete(a)
+        await db.flush()
+        assignments.sync_primary(new, [])
+        new.excluded = True
+        new.exclusion_reason = f"excluded in the previous revision: {old.exclusion_reason or ''}"[
+            :200
+        ]
+        return
     await assignments.inherit(db, old, new)
     if (
         old.calibration
@@ -167,6 +246,8 @@ async def build_proposal(
         if os_ is None:
             continue
         await inherit_sheet_setup(db, os_, ns)
+        if ns.excluded:
+            continue
         olds = await current_boundaries(db, os_.id)
         if not olds:
             continue
@@ -198,6 +279,7 @@ async def build_proposal(
                     new_sheet_id=ns.id,
                     new_rings=[cands[j].ring for j in it.new_indexes],
                     labels=[cands[j].label for j in it.new_indexes],
+                    printed_areas=[cands[j].printed_area_m2 for j in it.new_indexes],
                     overlaps=it.overlaps,
                     confidence=it.confidence,
                 )
@@ -310,6 +392,29 @@ async def _ensure_floor(db: AsyncSession, sheet: Sheet, wanted_floor_id: uuid.UU
         await assignments.confirm(db, sheet, a.floor_id, "diff_accept")
 
 
+def _printed_at(item: MappingProposalItem, j: int) -> float | None:
+    areas = item.printed_areas or []
+    return float(areas[j]) if j < len(areas) and areas[j] else None
+
+
+async def _printed(
+    db: AsyncSession,
+    project: Project,
+    unit: Unit,
+    sheet: Sheet,
+    item: MappingProposalItem,
+    j: int,
+    revision_id: uuid.UUID,
+) -> None:
+    """A revision's printed area follows the unit like its outline does (plan §13.3)."""
+    value = _printed_at(item, j)
+    if value:
+        label = item.labels[j] if j < len(item.labels or []) else None
+        await inventory.set_printed_area(
+            db, unit, project, value, sheet_id=sheet.id, label=label, revision_id=revision_id
+        )
+
+
 async def _unit(db: AsyncSession, unit_id: uuid.UUID) -> Unit:
     u = (await db.execute(select(Unit).where(Unit.id == unit_id))).scalar_one_or_none()
     if u is None:
@@ -389,6 +494,7 @@ async def decide_item(
                 actor=actor,
             )
             result = {"unit_id": str(unit.id), "boundary_id": str(b.id)}
+            await _printed(db, project, unit, sheet, item, 0, proposal.new_revision_id)
             if overrides.get("code"):
                 await inventory.relabel(
                     db, unit, overrides["code"], unit.version, actor, reason=note
@@ -406,6 +512,8 @@ async def decide_item(
             units = await inventory.split_unit(
                 db, project, unit, sheet, rings, codes, actor, proposal.new_revision_id, note
             )
+            for part, j in zip(units, order, strict=False):
+                await _printed(db, project, part, sheet, item, j, proposal.new_revision_id)
             result = {"unit_ids": [str(u.id) for u in units], "inherit_index": keep}
         elif item.kind == "merged":
             survivor_id = _survivor(item, overrides.get("survivor_id"))
@@ -423,6 +531,7 @@ async def decide_item(
                 proposal.new_revision_id,
                 note,
             )
+            await _printed(db, project, survivor, sheet, item, 0, proposal.new_revision_id)
             result = {"survivor_id": str(survivor.id), "absorbed": [str(u.id) for u in absorbed]}
         elif item.kind == "new":
             await _ensure_floor(db, sheet, None)
@@ -437,6 +546,7 @@ async def decide_item(
                 revision_id=proposal.new_revision_id,
                 actor=actor,
                 source="vector_suggest",
+                printed_area_m2=_printed_at(item, 0),
             )
             result = {"unit_id": str(unit.id), "boundary_id": str(b.id), "code": unit.code}
         elif item.kind == "missing":

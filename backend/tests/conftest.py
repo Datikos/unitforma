@@ -19,3 +19,34 @@ def settings():
 
     get_settings.cache_clear()
     return get_settings()
+
+
+@pytest.fixture(scope="module")
+def kratos():
+    """Fake Kratos per test module; modules that need their own define a fixture of this name."""
+    from tests.fake_kratos import FakeKratos
+
+    return FakeKratos()
+
+
+@pytest.fixture(scope="module")
+def client(kratos, tmp_path_factory):
+    """The API app on local storage with the fake Kratos, one per test module."""
+    from fastapi.testclient import TestClient
+
+    os.environ["UF_STORAGE_BACKEND"] = "local"
+    os.environ["UF_STORAGE_LOCAL_ROOT"] = str(tmp_path_factory.mktemp("storage"))
+    from unitforma.core.settings import get_settings
+    from unitforma.identity.deps import clear_whoami_cache, get_kratos
+    from unitforma.main import create_app
+    from unitforma.storage.service import reset_storage
+
+    get_settings.cache_clear()
+    reset_storage()
+    clear_whoami_cache()
+    app = create_app()
+    app.dependency_overrides[get_kratos] = lambda: kratos
+    with TestClient(app, headers={"X-Requested-With": "unitforma"}) as c:
+        yield c
+    get_settings.cache_clear()
+    reset_storage()

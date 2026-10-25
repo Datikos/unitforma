@@ -618,6 +618,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/exclusion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Exclude Sheet
+         * @description Take a sheet out of mapping (a reprint, a detail, a schedule) or bring it back.
+         */
+        patch: operations["exclude_sheet_api_v1_admin_tenants__tenant_id__sheets__sheet_id__exclusion_patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/revisions/{revision_id}/exclusions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Exclude Pages
+         * @description Exclude or include several pages at once, e.g. the reprinted plan sets of a bundle.
+         */
+        post: operations["exclude_pages_api_v1_admin_tenants__tenant_id__revisions__revision_id__exclusions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/calibration": {
         parameters: {
             query?: never;
@@ -690,6 +730,29 @@ export interface paths {
          *     ``source=vector_suggest``). Scanned sheets have no vectors and return an empty list.
          */
         post: operations["suggest_boundaries_api_v1_admin_tenants__tenant_id__sheets__sheet_id__suggestions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/printed-areas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read Printed Areas
+         * @description Store the areas printed on the sheet as the documented areas of the units drawn on it.
+         *
+         *     Units created from suggestions get their printed area at creation; this catches up units
+         *     drawn by hand or before printed areas were read. Values stay unverified.
+         */
+        post: operations["read_printed_areas_api_v1_admin_tenants__tenant_id__sheets__sheet_id__printed_areas_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1604,6 +1667,8 @@ export interface components {
             ring: number[][];
             /** Floor Id */
             floor_id?: string | null;
+            /** Printed Area M2 */
+            printed_area_m2?: number | string | null;
             /**
              * Unit Type
              * @default apartment
@@ -2453,6 +2518,18 @@ export interface components {
              */
             due?: string | null;
         };
+        /**
+         * PagesExclude
+         * @description Exclude or include pages of a revision at once (e.g. a fire-safety set, pages 12–51).
+         */
+        PagesExclude: {
+            /** Pages */
+            pages: number[];
+            /** Excluded */
+            excluded: boolean;
+            /** Reason */
+            reason?: string | null;
+        };
         /** PaymentPlanIn */
         PaymentPlanIn: {
             /** Name */
@@ -2559,6 +2636,15 @@ export interface components {
             reason: string | null;
             /** Import Batch Id */
             import_batch_id: string | null;
+        };
+        /** PrintedAreasOut */
+        PrintedAreasOut: {
+            /** Updated */
+            updated: number;
+            /** Unchanged */
+            unchanged: number;
+            /** Unmatched */
+            unmatched: number;
         };
         /** ProjectCreate */
         ProjectCreate: {
@@ -3117,6 +3203,15 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** SheetExclude */
+        SheetExclude: {
+            /** Excluded */
+            excluded: boolean;
+            /** Reason */
+            reason?: string | null;
+            /** Version */
+            version: number;
+        };
         /** SheetFloorIn */
         SheetFloorIn: {
             /**
@@ -3205,6 +3300,13 @@ export interface components {
             extract_url?: string | null;
             /** Floors */
             floors?: components["schemas"]["SheetFloorOut"][];
+            /**
+             * Excluded
+             * @default false
+             */
+            excluded?: boolean;
+            /** Exclusion Reason */
+            exclusion_reason?: string | null;
         };
         /** SiteFeatureCreate */
         SiteFeatureCreate: {
@@ -3315,6 +3417,8 @@ export interface components {
             measured_area_m2?: number | null;
             /** Floor Id */
             floor_id?: string | null;
+            /** Unit Type */
+            unit_type?: ("apartment" | "commercial" | "storage" | "parking") | null;
         };
         /** TenantCreate */
         TenantCreate: {
@@ -4920,6 +5024,78 @@ export interface operations {
             };
         };
     };
+    exclude_sheet_api_v1_admin_tenants__tenant_id__sheets__sheet_id__exclusion_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheet_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SheetExclude"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SheetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    exclude_pages_api_v1_admin_tenants__tenant_id__revisions__revision_id__exclusions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                revision_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PagesExclude"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SheetOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     calibrate_sheet_api_v1_admin_tenants__tenant_id__sheets__sheet_id__calibration_patch: {
         parameters: {
             query?: never;
@@ -5075,6 +5251,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SuggestionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_printed_areas_api_v1_admin_tenants__tenant_id__sheets__sheet_id__printed_areas_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheet_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrintedAreasOut"];
                 };
             };
             /** @description Validation Error */

@@ -15,13 +15,12 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from unitforma.documents import labels
+
 LEVEL_RE = re.compile(r"(?<![\d.])([+-]\d{1,2}\.\d{2})(?![\d.])")
-SCALE_RE = re.compile(r"(?:\b|m\.?\s*)1\s*[:/]\s*(\d{2,4})\b")
-APARTMENT_RE = re.compile(
-    r"(?:ბინა|bina|apt\.?|apartment|unit|wohnung)\s*(?:#|№|N|no\.?)?\s*([A-Za-z]?\d{1,4}[A-Za-z]?)\b",
-    re.I,
-)
-AREA_RE = re.compile(r"(\d{1,4}[.,]\d{1,2})\s*(?:m\s*[²2]|კვ\.?\s*მ|sq\.?\s*m)", re.I)
+SCALE_RE = re.compile(r"(?:\b|[mმ]\.?\s*)1\s*[:/]\s*(\d{2,4})\b")
+# "61.3 m²", "61.3 მ²" (Georgian), "61,3 კვ.მ", "61.3 sq m"
+AREA_RE = re.compile(r"(\d{1,4}[.,]\d{1,2})\s*(?:m\s*[²2]|მ\s*[²2]|კვ\.?\s*მ|sq\.?\s*m)", re.I)
 FLOOR_WORD_RE = re.compile(
     r"\b(?:level|floor|storey|etage|этаж|სართული|sarTuli)\b\s*([+-]?\d{1,2})?", re.I
 )
@@ -122,6 +121,13 @@ def extract_page(data: bytes, mime: str, page_no: int) -> dict[str, Any]:
     with pdfplumber.open(io.BytesIO(data)) as pdf:
         page = pdf.pages[page_no - 1]
         page_w, page_h = page.width, page.height
+        # Georgian set in legacy CAD fonts sits at Latin code points: decode it in place so
+        # text, words and labels read as Georgian (page.chars is the cached object list)
+        legacy = 0
+        for ch in page.chars:
+            if labels.is_legacy_font(ch.get("fontname")):
+                ch["text"] = labels.decode_legacy(ch["text"])
+                legacy += 1
         text = page.extract_text() or ""
         words = [
             {
@@ -163,7 +169,7 @@ def extract_page(data: bytes, mime: str, page_no: int) -> dict[str, Any]:
         "rects": rects,
         "fills": fills,
         "page_pt": [round(float(page_w), 3), round(float(page_h), 3)],
-        "hints": hints_from_text(text, vectors),
+        "hints": {**hints_from_text(text, vectors), "legacy_font_chars": legacy},
     }
 
 
@@ -224,12 +230,17 @@ def _shoelace(ring: list[list[float]]) -> float:
 def hints_from_text(text: str, vectors: dict[str, int] | None = None) -> dict[str, Any]:
     levels = sorted({m.group(1) for m in LEVEL_RE.finditer(text)}, key=lambda s: float(s))
     scales = sorted({int(m.group(1)) for m in SCALE_RE.finditer(text)})
-    apartments = sorted({m.group(1).upper() for m in APARTMENT_RE.finditer(text)})
+    found = labels.find_labels(text)
+    by_kind: dict[str, set[str]] = {}
+    for lb in found:
+        by_kind.setdefault(lb.kind or "numbered", set()).add(lb.key)
+    apartments = sorted(by_kind.get("apartment", set()), key=_natural)
     areas = [float(a.replace(",", ".")) for a in AREA_RE.findall(text)]
     floor_words = [m.group(1) for m in FLOOR_WORD_RE.finditer(text) if m.group(1)]
     vec_total = sum((vectors or {}).values())
     kind = "unknown"
-    if apartments and vec_total > 500:
+    typed = any(k != "numbered" for k in by_kind)
+    if typed and vec_total > 500:
         kind = "floor_plan"
     elif vec_total > 2000:
         kind = "drawing"
@@ -240,10 +251,16 @@ def hints_from_text(text: str, vectors: dict[str, int] | None = None) -> dict[st
         "levels": levels[:12],
         "scales": scales,
         "apartment_labels": apartments[:200],
+        "unit_labels": {k: sorted(v, key=_natural)[:200] for k, v in sorted(by_kind.items())},
         "area_values": areas[:300],
         "floor_numbers": sorted({int(f) for f in floor_words}),
         "has_text_layer": bool(text.strip()),
     }
+
+
+def _natural(key: str) -> tuple:
+    """Sort "2" before "10" and "A9/10-2" before "A9/10-10"."""
+    return tuple(int(p) if p.isdigit() else p for p in re.split(r"(\d+)", key))
 
 
 def suggest_floor_level(hints: dict[str, Any]) -> int | None:

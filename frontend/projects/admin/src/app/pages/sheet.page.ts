@@ -24,6 +24,20 @@ import { PlanMode, PlanPolygon, PlanViewerComponent, Point, Ring } from 'plan-vi
       </div>
       @if (error()) { <p class="uf-error">{{ error() }}</p> }
       @if (sheet(); as s) {
+        @if (s.excluded) {
+          <mat-card appearance="outlined" class="uf-excluded">
+            <mat-card-content class="uf-form-row">
+              <strong>Excluded from mapping</strong>
+              <span>{{ s.exclusion_reason }}</span>
+              <span class="uf-spacer"></span>
+              <button mat-stroked-button [disabled]="busy()" (click)="setExcluded(false)">Include again</button>
+            </mat-card-content>
+          </mat-card>
+        } @else {
+        @if (duplicateOf(); as dup) {
+          <p class="uf-note">This page repeats the units of page {{ dup }} (a reprint, e.g. a fire-safety or accessibility set). Map page {{ dup }} instead, or exclude this one.
+            <button mat-button [disabled]="busy()" (click)="setExcluded(true, 'reprint of page ' + dup)">Exclude this page</button></p>
+        }
         <mat-card appearance="outlined" class="uf-floors">
           <mat-card-content>
             <div class="uf-form-row">
@@ -69,8 +83,11 @@ import { PlanMode, PlanPolygon, PlanViewerComponent, Point, Ring } from 'plan-vi
             · {{ hintsText() }}
           </span>
           <span class="uf-spacer"></span>
+          <button mat-button [disabled]="busy() || !units().length" (click)="readPrinted()">Read printed areas</button>
+          <button mat-button [disabled]="busy() || units().length > 0" (click)="setExcluded(true)">Exclude sheet</button>
           <button mat-flat-button [disabled]="busy() || draftCount() === 0" (click)="approve()">Approve {{ draftCount() }} draft unit(s)</button>
         </div>
+        @if (notice()) { <p class="uf-note">{{ notice() }}</p> }
         @if (mode() === 'calibrate') {
           <mat-card appearance="outlined"><mat-card-content class="uf-form-row">
             <span>Click two points of a known distance, then enter it:</span>
@@ -100,7 +117,7 @@ import { PlanMode, PlanPolygon, PlanViewerComponent, Point, Ring } from 'plan-vi
           <mat-card appearance="outlined"><mat-card-content class="uf-form-row">
             <span>{{ candidates().length }} suggested polygon(s) from the drawing (dashed). Click one to select it.</span>
             @if (selectedCandidate(); as c) {
-              <span class="uf-chip">{{ c.label ?? 'unlabelled' }} · {{ c.confidence * 100 | number: '1.0-0' }} % · {{ methodLabel(c.method) }}</span>
+              <span class="uf-chip">{{ c.label ?? 'unlabelled' }} · {{ c.unit_type ?? 'type?' }} · {{ c.confidence * 100 | number: '1.0-0' }} % · {{ methodLabel(c.method) }}</span>
               @if (c.printed_area_m2 !== null && c.printed_area_m2 !== undefined) {
                 <span class="uf-muted">printed {{ c.printed_area_m2 }} m²@if (c.measured_area_m2 !== null && c.measured_area_m2 !== undefined) { · measured {{ c.measured_area_m2 }} m² }</span>
               }
@@ -130,7 +147,7 @@ import { PlanMode, PlanPolygon, PlanViewerComponent, Point, Ring } from 'plan-vi
           <mat-card-header><mat-card-title>Units on this sheet</mat-card-title></mat-card-header>
           <mat-card-content>
             <table class="uf-units">
-              <thead><tr><th>Code</th><th>Type</th><th>Status</th><th>Source</th><th>Measured area</th><th></th></tr></thead>
+              <thead><tr><th>Code</th><th>Type</th><th>Status</th><th>Source</th><th>Measured area</th><th>Printed area</th><th></th></tr></thead>
               <tbody>
                 @for (u of units(); track u.id) {
                   <tr [class.uf-selected]="u.id === selectedUnitId()" (click)="selectedUnitId.set(u.id)">
@@ -138,13 +155,15 @@ import { PlanMode, PlanPolygon, PlanViewerComponent, Point, Ring } from 'plan-vi
                     <td>{{ u.lifecycle_status }} · {{ u.verification_status }}</td>
                     <td>{{ sourceOf(u) }}</td>
                     <td>@if (measured(u); as a) { {{ a.value_m2 }} m² ({{ a.verification_status }}) } @else { — }</td>
+                    <td>@if (printed(u); as a) { {{ a.value_m2 }} m² ({{ a.verification_status }}) } @else { — }</td>
                     <td><button mat-button (click)="relabel(u); $event.stopPropagation()">Relabel</button><button mat-button (click)="remove(u); $event.stopPropagation()">Remove</button></td>
                   </tr>
-                } @empty { <tr><td colspan="6" class="uf-muted">No units drawn yet.</td></tr> }
+                } @empty { <tr><td colspan="7" class="uf-muted">No units drawn yet.</td></tr> }
               </tbody>
             </table>
           </mat-card-content>
         </mat-card>
+        }
       }
     </div>
   `,
@@ -159,6 +178,8 @@ import { PlanMode, PlanPolygon, PlanViewerComponent, Point, Ring } from 'plan-vi
     .uf-selected { background: rgba(245, 158, 11, 0.12); }
     .uf-chip { padding: 0.2rem 0.5rem; border-radius: 4px; background: #ede9fe; }
     .uf-chip--suggested { background: #ccfbf1; border: 1px dashed #0d9488; }
+    .uf-excluded { background: #f3f4f6; }
+    .uf-note { background: #fffbeb; border: 1px solid #fcd34d; padding: 0.5rem 0.75rem; border-radius: 4px; }
     .uf-chip--drawing { background: #fef3c7; }
     .uf-floors { margin-bottom: 0.75rem; }
     .uf-floor-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; padding: 0.15rem 0; }
@@ -216,13 +237,17 @@ export class SheetPage {
   readonly selectedCandidate = computed(() => (this.selectedCandidateIdx() === null ? null : this.candidates()[this.selectedCandidateIdx()!] ?? null));
   readonly labelledCount = computed(() => this.candidates().filter(confident).length);
   readonly draftCount = computed(() => this.boundaries().filter((b) => b.status === 'draft').length);
+  readonly notice = signal<string | null>(null);
+  readonly duplicateOf = computed(() => ((this.sheet()?.hints ?? {}) as { duplicate_of?: number }).duplicate_of ?? null);
   readonly hintsText = computed(() => {
-    const h = (this.sheet()?.hints ?? {}) as { levels?: string[]; level_markers?: { text: string }[]; scales?: number[]; apartment_labels?: string[] };
+    const h = (this.sheet()?.hints ?? {}) as { levels?: string[]; level_markers?: { text: string }[]; scales?: number[]; apartment_labels?: string[]; unit_labels?: Record<string, string[]> };
     const parts: string[] = [];
     if (h.level_markers?.length) parts.push(`level markers ${h.level_markers.map((m) => m.text).join(', ')}`);
     else if (h.levels?.length) parts.push(`levels ${h.levels.join(', ')}`);
     if (h.scales?.length) parts.push(`scale 1:${h.scales.join('/')}`);
-    if (h.apartment_labels?.length) parts.push(`${h.apartment_labels.length} apartment labels`);
+    const kinds: Record<string, string> = { apartment: 'apartment', parking: 'parking', storage: 'storage', commercial: 'commercial', numbered: 'numbered room' };
+    const labels = Object.entries(h.unit_labels ?? (h.apartment_labels?.length ? { apartment: h.apartment_labels } : {}));
+    for (const [k, v] of labels) if (v.length) parts.push(`${v.length} ${kinds[k] ?? k} label${v.length === 1 ? '' : 's'}`);
     return parts.join(' · ') || 'no hints';
   });
   readonly pxPerMetre = computed(() => {
@@ -236,6 +261,11 @@ export class SheetPage {
 
   floorLabel(id: string): string {
     return this.floors().find((f) => f.id === id)?.label ?? id;
+  }
+
+  /** The architect's printed area (documented, source drawing_schedule). */
+  printed(u: UnitOut) {
+    return (u.areas ?? []).find((a) => a.source === 'drawing_schedule' && a.is_current);
   }
 
   measured(u: UnitOut) {
@@ -269,6 +299,8 @@ export class SheetPage {
   onSelected(id: string): void {
     if (id.startsWith('cand:')) {
       this.selectedCandidateIdx.set(Number(id.slice(5)));
+      const t = this.selectedCandidate()?.unit_type;
+      if (t) this.unitType = t;
       this.selectedUnitId.set(null);
     } else {
       this.selectedUnitId.set(id);
@@ -363,7 +395,7 @@ export class SheetPage {
 
   acceptCandidate(c: SuggestionOut): Promise<void> {
     return this.run(async () => {
-      await this.api.createBoundary(this.tenantId(), this.sheetId(), { ring: c.ring, unit_type: this.unitType, code: this.code || null, label: c.label ?? null, source: 'vector_suggest', floor_id: c.floor_id ?? null });
+      await this.api.createBoundary(this.tenantId(), this.sheetId(), { ring: c.ring, unit_type: this.unitType, code: this.code || null, label: c.label ?? null, source: 'vector_suggest', floor_id: c.floor_id ?? null, printed_area_m2: c.printed_area_m2 ?? null });
       this.code = '';
       this.dismissCandidate(c);
     });
@@ -372,10 +404,23 @@ export class SheetPage {
   acceptLabelled(): Promise<void> {
     return this.run(async () => {
       for (const c of this.candidates().filter(confident)) {
-        await this.api.createBoundary(this.tenantId(), this.sheetId(), { ring: c.ring, unit_type: 'apartment', code: null, label: c.label ?? null, source: 'vector_suggest', floor_id: c.floor_id ?? null });
+        await this.api.createBoundary(this.tenantId(), this.sheetId(), { ring: c.ring, unit_type: c.unit_type!, code: null, label: c.label ?? null, source: 'vector_suggest', floor_id: c.floor_id ?? null, printed_area_m2: c.printed_area_m2 ?? null });
       }
       this.candidates.update((list) => list.filter((x) => !confident(x)));
       this.selectedCandidateIdx.set(null);
+    });
+  }
+
+  setExcluded(excluded: boolean, reason?: string): Promise<void> {
+    const why = excluded ? (reason ?? window.prompt('Why is this sheet not mapped? (e.g. reprint, detail, schedule)', 'not a floor plan')) : null;
+    if (excluded && why === null) return Promise.resolve();
+    return this.run(() => this.api.excludeSheet(this.tenantId(), this.sheetId(), excluded, why, this.sheet()!.version));
+  }
+
+  readPrinted(): Promise<void> {
+    return this.run(async () => {
+      const r = await this.api.readPrintedAreas(this.tenantId(), this.sheetId());
+      this.notice.set(`Printed areas: ${r.updated} stored, ${r.unchanged} unchanged, ${r.unmatched} unit(s) without a printed area.`);
     });
   }
 
@@ -413,9 +458,9 @@ export class SheetPage {
   }
 }
 
-/** Labelled outlines the engine is sure of: drawing zones and whole labelled loops (≥ 85 %). */
+/** Typed, labelled outlines the engine is sure of: drawing zones and whole loops (≥ 85 %). */
 function confident(c: SuggestionOut): boolean {
-  return !!c.label && c.confidence >= 0.85;
+  return !!c.label && !!c.unit_type && c.confidence >= 0.85;
 }
 
 function centroidOf(ring: Ring): Point {

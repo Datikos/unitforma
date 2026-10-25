@@ -11,9 +11,11 @@ from sqlalchemy import select
 from unitforma.api.schemas import (
     DocumentCreate,
     DocumentOut,
+    PagesExclude,
     RevisionOut,
     SheetAssign,
     SheetCalibrate,
+    SheetExclude,
     SheetFloorOut,
     SheetFloorsSet,
     SheetOut,
@@ -192,6 +194,39 @@ async def set_sheet_floors(sheet_id: uuid.UUID, body: SheetFloorsSet, ctx: Ctx):
     return await _sheet_out(ctx, sheet)
 
 
+@router.patch("/sheets/{sheet_id}/exclusion", response_model=SheetOut)
+async def exclude_sheet(sheet_id: uuid.UUID, body: SheetExclude, ctx: Ctx):
+    """Take a sheet out of mapping (a reprint, a detail, a schedule) or bring it back."""
+    ctx.require("mapping", Action.WRITE)
+    sheet = await documents.get_sheet(ctx.session, ctx.tenant_id, sheet_id)
+    ctx.require_project(await documents.sheet_project_id(ctx.session, sheet))
+    if sheet.version != body.version:
+        raise ProblemError(409, "Conflict", f"Sheet changed concurrently (version {sheet.version})")
+    await documents.set_excluded(ctx.session, [sheet], body.excluded, body.reason, _actor(ctx))
+    return await _sheet_out(ctx, sheet)
+
+
+@router.post("/revisions/{revision_id}/exclusions", response_model=list[SheetOut])
+async def exclude_pages(revision_id: uuid.UUID, body: PagesExclude, ctx: Ctx):
+    """Exclude or include several pages at once, e.g. the reprinted plan sets of a bundle."""
+    ctx.require("mapping", Action.WRITE)
+    rev = await documents.get_revision(ctx.session, ctx.tenant_id, revision_id)
+    await _project_of_document(ctx, rev.document_id)
+    sheets = await documents.list_sheets(ctx.session, revision_id)
+    wanted = set(body.pages)
+    missing = sorted(wanted - {s.page_no for s in sheets})
+    if missing:
+        raise ProblemError(422, "No such pages", ", ".join(map(str, missing[:20])))
+    await documents.set_excluded(
+        ctx.session,
+        [s for s in sheets if s.page_no in wanted],
+        body.excluded,
+        body.reason,
+        _actor(ctx),
+    )
+    return await _sheets_out(ctx, sheets)
+
+
 @router.patch("/sheets/{sheet_id}/calibration", response_model=SheetOut)
 async def calibrate_sheet(sheet_id: uuid.UUID, body: SheetCalibrate, ctx: Ctx):
     ctx.require("mapping", Action.WRITE)
@@ -236,7 +271,11 @@ async def sheets_for_floor(floor_id: uuid.UUID, ctx: Ctx):
     rows = await ctx.session.execute(
         select(Sheet)
         .join(SheetFloor, SheetFloor.sheet_id == Sheet.id)
-        .where(SheetFloor.floor_id == floor_id, SheetFloor.status == "confirmed")
+        .where(
+            SheetFloor.floor_id == floor_id,
+            SheetFloor.status == "confirmed",
+            Sheet.excluded.is_(False),
+        )
         .order_by(Sheet.created_at)
     )
     sheets = list(rows.scalars())

@@ -29,9 +29,11 @@ from shapely.geometry import LineString, Point, Polygon, box
 from shapely.ops import polygonize, unary_union
 from shapely.strtree import STRtree
 
-from unitforma.documents.processing import APARTMENT_RE, AREA_RE, LEVEL_RE
+from unitforma.documents.labels import UnitLabel, find_labels, parking_families, primary_label
+from unitforma.documents.processing import AREA_RE, LEVEL_RE
 
 Ring = list[list[float]]
+Word = dict[str, Any]
 
 # a lone number such as "12" or "3A" inside a loop is a weaker label candidate than "apt 12"
 BARE_LABEL_RE = re.compile(r"^(?:[A-Za-z]?\d{1,4}[A-Za-z]?)$")
@@ -40,6 +42,10 @@ BARE_LABEL_RE = re.compile(r"^(?:[A-Za-z]?\d{1,4}[A-Za-z]?)$")
 AREA_MATCH = 0.08
 # a labelled face this far below the printed area is only part of the unit
 AREA_PARTIAL = 0.15
+
+# confidence by source and label (plan §13.2): a CAD zone with a typed label is the unit
+FILL_CONFIDENCE = {"typed": 0.95, "parking": 0.9, "numbered": 0.85, "bare": 0.65, None: 0.45}
+LOOP_CONFIDENCE = {"typed": 0.9, "parking": 0.85, "numbered": 0.8, "bare": 0.65, None: 0.4}
 
 
 @dataclass
@@ -54,18 +60,20 @@ class Candidate:
     method: str = "loop"  # fill | grown | loop
     printed_area_m2: float | None = None
     measured_area_m2: float | None = None
+    # apartment | commercial | storage | parking, or None when the label does not say
+    unit_type: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
 def normalise_label(text: str | None) -> str | None:
-    """Reduce 'bina #12', 'Apt. 12', '12' to a comparable key ('12')."""
+    """Reduce 'ბინა №12', 'bina #12', 'Apt. 12', '12' to a comparable key ('12')."""
     if not text:
         return None
-    m = APARTMENT_RE.search(text)
-    if m:
-        return m.group(1).upper()
+    lb = primary_label(text)
+    if lb:
+        return lb.key
     t = text.strip().upper()
     return t or None
 
@@ -77,6 +85,44 @@ def page_metres(extract: dict[str, Any], scale: int | None) -> tuple[float, floa
         return None
     k = 0.0254 / 72 * scale
     return (float(pt[0]) * k, float(pt[1]) * k)
+
+
+@dataclass
+class _Label:
+    """What the text inside one polygon says about it."""
+
+    unit: UnitLabel | None
+    label: str | None  # as shown to the reviewer
+    grade: str | None  # typed | parking | numbered | bare | None
+    text: str
+    printed: float | None
+
+    @property
+    def key(self) -> str | None:
+        return self.unit.key if self.unit else None
+
+    @property
+    def unit_type(self) -> str | None:
+        return self.unit.kind if self.unit else None
+
+
+def _read(words: list[Word], families: frozenset[str] = frozenset()) -> _Label:
+    text = _joined(words)
+    unit = primary_label(text, families)
+    printed = _printed_area(text, unit)
+    if unit is not None:
+        if unit.kind == "parking" and unit.strength == 1:
+            grade = "parking"
+        elif unit.kind is None:
+            grade = "numbered" if printed is not None else "bare"
+        else:
+            grade = "typed"
+        return _Label(unit, unit.text, grade, text, printed)
+    for w in words:
+        t = str(w.get("t", ""))
+        if BARE_LABEL_RE.match(t):
+            return _Label(None, t, "bare", text, None)
+    return _Label(None, None, None, text, None)
 
 
 def closed_loops(
@@ -96,32 +142,26 @@ def closed_loops(
     the sheet size in metres (from the calibration or the drawing scale); without it printed
     areas cannot be compared and faces are not grown.
     """
-    words = extract.get("words") or []
-    centres = [
-        (Point((w["x0"] + w["x1"]) / 2, (w["y0"] + w["y1"]) / 2), str(w.get("t", "")))
-        for w in words
-        if "x0" in w
-    ]
+    words = [w for w in (extract.get("words") or []) if "x0" in w]
     m2_per_unit = page_m[0] * page_m[1] if page_m else None
+    families = parking_families(_joined(words))
 
-    fills = _fill_candidates(extract, centres, m2_per_unit, min_area, max_area, simplify)
-    covered = {normalise_label(c.label) for c in fills if c.confidence >= 0.9 and c.label}
+    fills = _fill_candidates(extract, words, m2_per_unit, min_area, max_area, simplify, families)
+    covered = {normalise_label(c.label) for c in fills if c.confidence >= 0.85 and c.label}
     fill_polys = [Polygon(c.ring) for c in fills]
 
     all_faces = [f for f in _faces(extract, min_segment) if 0 < f.area <= max_area]
-    all_text = _texts_in(all_faces, centres)
+    all_words = _words_in(all_faces, words)
+    reads = [_read(ws, families) for ws in all_words]
 
-    grown = _grow(all_faces, all_text, covered, m2_per_unit, simplify)
+    grown = _grow(all_faces, reads, covered, m2_per_unit, simplify)
     covered |= {normalise_label(c.label) for c in grown}
 
     loops: list[Candidate] = []
-    for face, inner in zip(all_faces, all_text, strict=True):
+    for face, ws, rd in zip(all_faces, all_words, reads, strict=True):
         if face.area < min_area:
             continue
-        text = " ".join(inner)
-        label = _best_label(inner, text)
-        key = normalise_label(label) if label and APARTMENT_RE.search(text) else None
-        if key and key in covered:
+        if rd.key and rd.grade != "bare" and rd.key in covered:
             continue
         if any(_overlap(face, fp) >= 0.8 for fp in fill_polys):
             continue
@@ -131,22 +171,22 @@ def closed_loops(
         ring = _ring(poly)
         if len(ring) < 3:
             continue
-        printed = _printed_area(text) if key else None
         measured = round(face.area * m2_per_unit, 1) if m2_per_unit else None
-        confidence = 0.9 if key else 0.65 if label else 0.4
-        if key and printed and measured and measured < printed * (1 - AREA_PARTIAL):
+        confidence = LOOP_CONFIDENCE[rd.grade]
+        if rd.unit and rd.printed and measured and measured < rd.printed * (1 - AREA_PARTIAL):
             confidence = 0.5  # a room of the unit, not the unit
         loops.append(
             Candidate(
                 ring=ring,
-                label=label,
-                text=text[:200],
+                label=rd.label,
+                text=rd.text[:200],
                 confidence=confidence,
                 area_norm=round(face.area, 6),
-                words=inner[:40],
+                words=[str(w.get("t", "")) for w in ws][:40],
                 method="loop",
-                printed_area_m2=printed,
+                printed_area_m2=rd.printed if rd.unit else None,
                 measured_area_m2=measured,
+                unit_type=rd.unit_type,
             )
         )
     out = fills + grown + loops
@@ -171,25 +211,41 @@ def _faces(extract: dict[str, Any], min_segment: float) -> list[Polygon]:
     return list(polygonize(unary_union(lines)))
 
 
-def _texts_in(polys: list[Polygon], centres: list[tuple[Point, str]]) -> list[list[str]]:
-    """Words whose centre lies in each polygon, in reading order (spatial index on words)."""
-    out: list[list[str]] = [[] for _ in polys]
-    if not polys or not centres:
+def _words_in(polys: list[Polygon], words: list[Word]) -> list[list[Word]]:
+    """Words whose centre lies in each polygon, in reading order (spatial index on polygons)."""
+    out: list[list[Word]] = [[] for _ in polys]
+    if not polys or not words:
         return out
     tree = STRtree(polys)
-    for pt, t in centres:
+    for w in words:
+        pt = Point((w["x0"] + w["x1"]) / 2, (w["y0"] + w["y1"]) / 2)
         for i in tree.query(pt, predicate="within"):
-            out[int(i)].append(t)
+            out[int(i)].append(w)
     return out
+
+
+def _joined(words: list[Word]) -> str:
+    """Words as text with their line breaks, so a label never runs into the next line."""
+    parts: list[str] = []
+    prev: Word | None = None
+    for w in words:
+        if prev is not None:
+            h = max(prev["y1"] - prev["y0"], w["y1"] - w["y0"], 1e-6)
+            same_line = abs((w["y0"] + w["y1"]) - (prev["y0"] + prev["y1"])) / 2 < 0.6 * h
+            parts.append(" " if same_line else "\n")
+        parts.append(str(w.get("t", "")))
+        prev = w
+    return "".join(parts)
 
 
 def _fill_candidates(
     extract: dict[str, Any],
-    centres: list[tuple[Point, str]],
+    words: list[Word],
     m2_per_unit: float | None,
     min_area: float,
     max_area: float,
     simplify: float,
+    families: frozenset[str] = frozenset(),
 ) -> list[Candidate]:
     out: list[Candidate] = []
     kept: list[Polygon] = []
@@ -204,17 +260,18 @@ def _fill_candidates(
             continue
         if any(_iou(poly, k) > 0.95 for k in kept):
             continue  # the same zone drawn twice (fill + pattern)
-        inner = _texts_in([poly], centres)[0]
-        text = " ".join(inner)
-        labels = {m.group(1).upper() for m in APARTMENT_RE.finditer(text)}
-        if len(labels) > 1:
+        inner = _words_in([poly], words)[0]
+        rd = _read(inner, families)
+        if len(_unit_keys(rd.text, families)) > 1:
             continue  # a background or block fill under several units
-        label = _best_label(inner, text)
-        is_unit = bool(labels)
-        printed = _printed_area(text) if is_unit else None
         measured = round(poly.area * m2_per_unit, 1) if m2_per_unit else None
-        confidence = 0.95 if is_unit else 0.65 if label else 0.45
-        if is_unit and printed and measured and abs(measured - printed) > printed * AREA_MATCH:
+        confidence = FILL_CONFIDENCE[rd.grade]
+        if (
+            rd.grade in ("typed", "parking", "numbered")
+            and rd.printed
+            and measured
+            and abs(measured - rd.printed) > rd.printed * AREA_MATCH
+        ):
             confidence = 0.6
         simple = poly.simplify(simplify / 4, preserve_topology=True)
         ring = _ring(simple if isinstance(simple, Polygon) else poly)
@@ -224,22 +281,27 @@ def _fill_candidates(
         out.append(
             Candidate(
                 ring=ring,
-                label=label,
-                text=text[:200],
+                label=rd.label,
+                text=rd.text[:200],
                 confidence=confidence,
                 area_norm=round(poly.area, 6),
-                words=inner[:40],
+                words=[str(w.get("t", "")) for w in inner][:40],
                 method="fill",
-                printed_area_m2=printed,
+                printed_area_m2=rd.printed if rd.unit else None,
                 measured_area_m2=measured,
+                unit_type=rd.unit_type,
             )
         )
     return out
 
 
+def _unit_keys(text: str, families: frozenset[str]) -> set[str]:
+    return {lb.key for lb in find_labels(text, families)}
+
+
 def _grow(
     faces: list[Polygon],
-    face_text: list[list[str]],
+    reads: list[_Label],
     covered: set[str | None],
     m2_per_unit: float | None,
     simplify: float,
@@ -249,32 +311,28 @@ def _grow(
     """Grow labelled faces into neighbours up to the printed area (see module docstring)."""
     if not m2_per_unit or not faces:
         return []
-    texts = [" ".join(t) for t in face_text]
-    keys = [(m.group(1).upper() if (m := APARTMENT_RE.search(t)) else None) for t in texts]
     blocked = {
         i
-        for i, t in enumerate(texts)
-        if keys[i] is not None
-        or LEVEL_RE.search(t) is not None
-        or _own_zone(faces[i], t, m2_per_unit)
+        for i, rd in enumerate(reads)
+        if rd.unit is not None
+        or LEVEL_RE.search(rd.text) is not None
+        or _own_zone(faces[i], rd.text, m2_per_unit)
     }
     seeds = []
-    for i, k in enumerate(keys):
-        if k is None or k in covered:
+    for i, rd in enumerate(reads):
+        if rd.unit is None or rd.key in covered or rd.printed is None:
             continue
-        printed = _printed_area(texts[i])
-        if printed is None:
-            continue
-        target = printed / m2_per_unit
+        target = rd.printed / m2_per_unit
         if faces[i].area >= target * (1 - AREA_MATCH):
             continue  # the face already is the unit; the plain-face path reports it
-        seeds.append((target, i, k, printed))
+        seeds.append((target, i))
     if not seeds:
         return []
     tree = STRtree(faces)
     claimed: set[int] = set()
     out: list[Candidate] = []
-    for target, i, _key, printed in sorted(seeds):
+    for target, i in sorted(seeds):
+        rd = reads[i]
         territory = {i}
         shape = faces[i]
         area = faces[i].area
@@ -306,14 +364,15 @@ def _grow(
         out.append(
             Candidate(
                 ring=_ring(outline),
-                label=_best_label(face_text[i], texts[i]),
-                text=texts[i][:200],
+                label=rd.label,
+                text=rd.text[:200],
                 confidence=0.7,
                 area_norm=round(area, 6),
-                words=face_text[i][:40],
+                words=[],
                 method="grown",
-                printed_area_m2=printed,
+                printed_area_m2=rd.printed,
                 measured_area_m2=round(area * m2_per_unit, 1),
+                unit_type=rd.unit_type,
             )
         )
     return out
@@ -328,10 +387,11 @@ def _own_zone(face: Polygon, text: str, m2_per_unit: float) -> bool:
     )
 
 
-def _printed_area(text: str) -> float | None:
+def _printed_area(text: str, unit: UnitLabel | None = None) -> float | None:
     """The area printed with a unit label ("ბინა №12 61.3 m²"): the first one after the label."""
-    m = APARTMENT_RE.search(text)
-    after = AREA_RE.search(text, m.end()) if m else None
+    if unit is None:
+        unit = primary_label(text)
+    after = AREA_RE.search(text, unit.end) if unit else None
     if after:
         return float(after.group(1).replace(",", "."))
     found = AREA_RE.findall(text)
@@ -352,13 +412,3 @@ def _overlap(a: Polygon, b: Polygon) -> float:
 def _iou(a: Polygon, b: Polygon) -> float:
     union = a.union(b).area
     return a.intersection(b).area / union if union > 0 else 0.0
-
-
-def _best_label(words: list[str], text: str) -> str | None:
-    m = APARTMENT_RE.search(text)
-    if m:
-        return m.group(0).strip()
-    for w in words:
-        if BARE_LABEL_RE.match(w):
-            return w
-    return None
