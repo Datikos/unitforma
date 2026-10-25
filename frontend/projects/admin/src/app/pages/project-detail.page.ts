@@ -19,7 +19,13 @@ import { BuildingOut, FloorIn, FloorOut, ProjectOut, UnitformaApi, problemMessag
         <div class="uf-page-header">
           <h2>{{ p.name }}</h2>
           <span class="uf-muted">{{ p.slug }} · {{ p.status }} · {{ p.currency }} · code pattern {{ p.code_pattern }}</span>
-          <span class="uf-links"><a mat-stroked-button routerLink="documents">Documents</a> <a mat-stroked-button routerLink="units">Units</a></span>
+          <span class="uf-links">
+            <a mat-stroked-button routerLink="documents">Documents</a>
+            <a mat-stroked-button routerLink="proposals">Revision diffs</a>
+            <a mat-stroked-button routerLink="placement">Site placement</a>
+            <a mat-stroked-button routerLink="massing">3D massing</a>
+            <a mat-stroked-button routerLink="units">Units</a>
+          </span>
         </div>
       }
       @if (error()) { <p class="uf-error">{{ error() }}</p> }

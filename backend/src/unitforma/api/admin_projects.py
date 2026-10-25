@@ -20,7 +20,8 @@ from unitforma.api.schemas import (
     SiteFeatureCreate,
     SiteFeatureOut,
 )
-from unitforma.identity.authz import Action
+from unitforma.core.errors import ProblemError
+from unitforma.identity.authz import Action, is_allowed
 from unitforma.identity.deps import TenantContext, tenant_context
 from unitforma.projects import service as projects
 from unitforma.tenants.models import Project, SiteFeature, Tenant
@@ -92,16 +93,25 @@ async def create_building(project_id: uuid.UUID, body: BuildingCreate, ctx: Ctx)
 
 @router.patch("/buildings/{building_id}", response_model=BuildingOut)
 async def update_building(building_id: uuid.UUID, body: BuildingUpdate, ctx: Ctx):
-    ctx.require("project", Action.WRITE)
+    ctx.require("project", Action.READ)
     b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)
     ctx.require_project(b.project_id)
-    return await projects.update_building(
-        ctx.session,
-        b,
-        body.model_dump(exclude={"version"}, exclude_none=True),
-        body.version,
-        _actor(ctx),
-    )
+    changes = body.model_dump(exclude={"version"}, exclude_none=True)
+    if changes and set(changes) <= {"site_transform", "placement_status"}:
+        # placing a building on the site plan is mapping work (plan §13.1 step 3a): the
+        # architectural reviewer may do it even without project write rights
+        if not (
+            ctx.scope == "platform"
+            or is_allowed(ctx.membership, "project", Action.WRITE)
+            or is_allowed(ctx.membership, "mapping", Action.WRITE)
+        ):
+            raise ProblemError(403, "Not allowed", "write on project or mapping")
+    else:
+        ctx.require("project", Action.WRITE)
+    if "site_transform" in changes and "placement_status" not in changes:
+        changes["placement_status"] = "draft" if b.placement_status == "unplaced" else None
+        changes = {k: v for k, v in changes.items() if v is not None}
+    return await projects.update_building(ctx.session, b, changes, body.version, _actor(ctx))
 
 
 @router.put("/buildings/{building_id}/floors", response_model=list[FloorOut])

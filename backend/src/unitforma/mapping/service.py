@@ -1,0 +1,431 @@
+"""Revision diff proposals: build from a processed revision, apply reviewer decisions.
+
+Plan §5.5 rule 1 and §13.3: a new revision never writes to ``units``; every change goes
+through an explicit decision that calls the identity-preserving inventory operations.
+"""
+
+from __future__ import annotations
+
+import json
+import uuid
+from datetime import UTC, datetime
+from typing import Any
+
+import structlog
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from unitforma.audit.service import write_audit
+from unitforma.core.errors import ProblemError
+from unitforma.core.ids import new_id
+from unitforma.inventory import geometry
+from unitforma.inventory import service as inventory
+from unitforma.mapping import diff, suggest
+from unitforma.storage.service import get_storage
+from unitforma.tenants.models import (
+    Document,
+    DocumentRevision,
+    Floor,
+    MappingProposal,
+    MappingProposalItem,
+    Project,
+    Sheet,
+    Unit,
+    UnitBoundary,
+)
+
+log = structlog.get_logger()
+Actor = tuple[uuid.UUID, str]
+
+
+def load_extract(sheet: Sheet) -> dict[str, Any]:
+    if not sheet.extract_key:
+        return {}
+    try:
+        return json.loads(get_storage().get_bytes(sheet.extract_key))
+    except Exception as e:  # noqa: BLE001 - a missing extract only disables suggestions
+        log.warning("mapping.extract_unavailable", sheet_id=str(sheet.id), error=str(e))
+        return {}
+
+
+def suggest_for_sheet(sheet: Sheet) -> list[suggest.Candidate]:
+    return suggest.closed_loops(load_extract(sheet))
+
+
+async def current_boundaries(
+    db: AsyncSession, sheet_id: uuid.UUID
+) -> list[tuple[UnitBoundary, Unit]]:
+    rows = await db.execute(
+        select(UnitBoundary, Unit)
+        .join(Unit, Unit.id == UnitBoundary.unit_id)
+        .where(
+            UnitBoundary.sheet_id == sheet_id,
+            UnitBoundary.is_current.is_(True),
+            Unit.lifecycle_status != "removed",
+        )
+        .order_by(Unit.code)
+    )
+    return [(b, u) for b, u in rows]
+
+
+def inherit_sheet_setup(old: Sheet, new: Sheet) -> None:
+    """Carry floor assignment and calibration over to the new revision's page as suggestions."""
+    if new.floor_id is None and old.floor_id is not None and new.suggested_floor_id is None:
+        new.suggested_floor_id = old.floor_id
+        if new.assignment_status == "unassigned":
+            new.assignment_status = "suggested"
+    if (
+        old.calibration
+        and old.calibration_status == "calibrated"
+        and new.calibration_status == "none"
+        and new.raster_width
+        and new.raster_height
+    ):
+        try:
+            new.calibration = geometry.calibration_from_points(
+                old.calibration["p1"],
+                old.calibration["p2"],
+                old.calibration["distance_m"],
+                new.raster_width,
+                new.raster_height,
+            )
+            new.calibration_status = "inherited"
+        except (ValueError, KeyError):
+            pass
+
+
+async def build_proposal(
+    db: AsyncSession, tenant_id: uuid.UUID, new_rev: DocumentRevision, actor_id: uuid.UUID | None
+) -> MappingProposal | None:
+    """Diff the new revision against the mapping on the revision it supersedes.
+
+    Returns ``None`` when there is nothing to diff (first revision, or no mapped pages).
+    """
+    if new_rev.supersedes_revision_id is None:
+        return None
+    doc = (
+        await db.execute(select(Document).where(Document.id == new_rev.document_id))
+    ).scalar_one()
+    old_sheets = {
+        s.page_no: s
+        for s in (
+            await db.execute(
+                select(Sheet).where(Sheet.revision_id == new_rev.supersedes_revision_id)
+            )
+        ).scalars()
+    }
+    new_sheets = list(
+        (
+            await db.execute(
+                select(Sheet).where(Sheet.revision_id == new_rev.id).order_by(Sheet.page_no)
+            )
+        ).scalars()
+    )
+    items: list[MappingProposalItem] = []
+    pages_compared = 0
+    for ns in new_sheets:
+        os_ = old_sheets.get(ns.page_no)
+        if os_ is None:
+            continue
+        inherit_sheet_setup(os_, ns)
+        olds = await current_boundaries(db, os_.id)
+        if not olds:
+            continue
+        pages_compared += 1
+        cands = suggest.closed_loops(load_extract(ns))
+        old_in = [
+            diff.OldBoundary(
+                boundary_id=str(b.id),
+                unit_id=str(u.id),
+                ring=b.polygon["ring"],
+                label=b.label,
+                code=u.code,
+                status=b.status,
+            )
+            for b, u in olds
+        ]
+        new_in = [
+            diff.NewCandidate(index=i, ring=c.ring, label=c.label) for i, c in enumerate(cands)
+        ]
+        for it in diff.classify(old_in, new_in):
+            items.append(
+                MappingProposalItem(
+                    id=new_id(),
+                    tenant_id=tenant_id,
+                    kind=it.kind,
+                    old_unit_ids=[uuid.UUID(x) for x in it.old_unit_ids],
+                    old_boundary_ids=[uuid.UUID(x) for x in it.old_boundary_ids],
+                    old_sheet_id=os_.id,
+                    new_sheet_id=ns.id,
+                    new_rings=[cands[j].ring for j in it.new_indexes],
+                    labels=[cands[j].label for j in it.new_indexes],
+                    overlaps=it.overlaps,
+                    confidence=it.confidence,
+                )
+            )
+    if pages_compared == 0:
+        return None
+    # one open proposal per revision: an earlier one (re-run) is dismissed
+    for old_p in (
+        await db.execute(
+            select(MappingProposal).where(
+                MappingProposal.new_revision_id == new_rev.id, MappingProposal.status == "open"
+            )
+        )
+    ).scalars():
+        old_p.status = "dismissed"
+        old_p.resolved_at = datetime.now(UTC)
+    summary = {}
+    for it in items:
+        summary[it.kind] = summary.get(it.kind, 0) + 1
+    summary["total"] = len(items)
+    summary["pages_compared"] = pages_compared
+    proposal = MappingProposal(
+        id=new_id(),
+        tenant_id=tenant_id,
+        project_id=doc.project_id,
+        document_id=doc.id,
+        old_revision_id=new_rev.supersedes_revision_id,
+        new_revision_id=new_rev.id,
+        status="open" if items else "resolved",
+        summary=summary,
+        created_by=actor_id,
+        resolved_at=None if items else datetime.now(UTC),
+    )
+    db.add(proposal)
+    await db.flush()
+    for it in items:
+        it.proposal_id = proposal.id
+        db.add(it)
+    await db.flush()
+    log.info(
+        "mapping.proposal_built",
+        proposal_id=str(proposal.id),
+        revision_id=str(new_rev.id),
+        summary=summary,
+    )
+    return proposal
+
+
+async def get_proposal(
+    db: AsyncSession, tenant_id: uuid.UUID, proposal_id: uuid.UUID
+) -> MappingProposal:
+    p = (
+        await db.execute(
+            select(MappingProposal).where(
+                MappingProposal.tenant_id == tenant_id, MappingProposal.id == proposal_id
+            )
+        )
+    ).scalar_one_or_none()
+    if p is None:
+        raise ProblemError(404, "Proposal not found")
+    return p
+
+
+async def list_items(db: AsyncSession, proposal_id: uuid.UUID) -> list[MappingProposalItem]:
+    rows = await db.execute(
+        select(MappingProposalItem)
+        .where(MappingProposalItem.proposal_id == proposal_id)
+        .order_by(MappingProposalItem.created_at, MappingProposalItem.id)
+    )
+    return list(rows.scalars())
+
+
+async def _refresh_status(db: AsyncSession, proposal: MappingProposal) -> None:
+    pending = [i for i in await list_items(db, proposal.id) if i.decision == "pending"]
+    if not pending and proposal.status == "open":
+        proposal.status = "resolved"
+        proposal.resolved_at = datetime.now(UTC)
+
+
+async def _ensure_floor(db: AsyncSession, sheet: Sheet, wanted_floor_id: uuid.UUID | None) -> None:
+    """Accepting a diff item implies the page is the same floor as before: confirm it."""
+    if sheet.floor_id is not None:
+        if wanted_floor_id is not None and sheet.floor_id != wanted_floor_id:
+            raise ProblemError(
+                409,
+                "Sheet is assigned to another floor",
+                "The new page is assigned to a different floor than the unit it should replace",
+            )
+        return
+    floor_id = wanted_floor_id or sheet.suggested_floor_id
+    if floor_id is None:
+        raise ProblemError(409, "Assign the new sheet to a floor before accepting this item")
+    fl = (await db.execute(select(Floor).where(Floor.id == floor_id))).scalar_one_or_none()
+    if fl is None:
+        raise ProblemError(409, "Suggested floor no longer exists")
+    sheet.floor_id = floor_id
+    sheet.assignment_status = "confirmed"
+    sheet.version += 1
+
+
+async def _unit(db: AsyncSession, unit_id: uuid.UUID) -> Unit:
+    u = (await db.execute(select(Unit).where(Unit.id == unit_id))).scalar_one_or_none()
+    if u is None:
+        raise ProblemError(409, "A unit referenced by this item no longer exists")
+    return u
+
+
+def _inherit_index(item: MappingProposalItem, override: int | None) -> int:
+    if override is not None:
+        if not 0 <= override < len(item.new_rings):
+            raise ProblemError(422, "inherit_index out of range")
+        return override
+    best, best_ratio = 0, -1.0
+    for _uid, j, ratio in item.overlaps:
+        if ratio > best_ratio:
+            best, best_ratio = int(j), float(ratio)
+    return best
+
+
+def _survivor(item: MappingProposalItem, override: uuid.UUID | None) -> uuid.UUID:
+    if override is not None:
+        if override not in item.old_unit_ids:
+            raise ProblemError(422, "survivor_id is not one of the merged units")
+        return override
+    best, best_ratio = item.old_unit_ids[0], -1.0
+    for uid, _j, ratio in item.overlaps:
+        if ratio > best_ratio:
+            best, best_ratio = uuid.UUID(str(uid)), float(ratio)
+    return best
+
+
+async def decide_item(
+    db: AsyncSession,
+    proposal: MappingProposal,
+    item: MappingProposalItem,
+    *,
+    decision: str,
+    overrides: dict[str, Any],
+    actor: Actor,
+) -> MappingProposalItem:
+    if proposal.status != "open":
+        raise ProblemError(409, "Proposal is not open")
+    if item.decision != "pending":
+        raise ProblemError(409, "Item already decided", item.decision)
+    now = datetime.now(UTC)
+    if decision == "reject":
+        item.decision = "rejected"
+        item.decided_by, item.decided_at = actor[0], now
+        item.result = {"note": overrides.get("note")}
+        await _refresh_status(db, proposal)
+        return item
+
+    project = (
+        await db.execute(select(Project).where(Project.id == proposal.project_id))
+    ).scalar_one()
+    sheet = (
+        (await db.execute(select(Sheet).where(Sheet.id == item.new_sheet_id))).scalar_one_or_none()
+        if item.new_sheet_id
+        else None
+    )
+    if sheet is None:
+        raise ProblemError(409, "The new sheet of this item no longer exists")
+    note = overrides.get("note") or f"revision diff {proposal.new_revision_id}"
+    result: dict[str, Any] = {}
+    try:
+        if item.kind in ("matched", "relabelled"):
+            unit = await _unit(db, item.old_unit_ids[0])
+            await _ensure_floor(db, sheet, unit.floor_id)
+            b = await inventory.rehome_boundary(
+                db,
+                unit,
+                sheet,
+                item.new_rings[0],
+                label=item.labels[0] if item.labels else None,
+                source="vector_suggest",
+                revision_id=proposal.new_revision_id,
+                actor=actor,
+            )
+            result = {"unit_id": str(unit.id), "boundary_id": str(b.id)}
+            if overrides.get("code"):
+                await inventory.relabel(
+                    db, unit, overrides["code"], unit.version, actor, reason=note
+                )
+                result["code"] = unit.code
+        elif item.kind == "split":
+            unit = await _unit(db, item.old_unit_ids[0])
+            await _ensure_floor(db, sheet, unit.floor_id)
+            keep = _inherit_index(item, overrides.get("inherit_index"))
+            order = [keep, *[j for j in range(len(item.new_rings)) if j != keep]]
+            rings = [item.new_rings[j] for j in order]
+            codes_in = overrides.get("codes") or []
+            codes = [codes_in[j] if j < len(codes_in) else None for j in order]
+            codes[0] = None  # the inheriting part keeps its code
+            units = await inventory.split_unit(
+                db, project, unit, sheet, rings, codes, actor, proposal.new_revision_id, note
+            )
+            result = {"unit_ids": [str(u.id) for u in units], "inherit_index": keep}
+        elif item.kind == "merged":
+            survivor_id = _survivor(item, overrides.get("survivor_id"))
+            survivor = await _unit(db, survivor_id)
+            absorbed = [await _unit(db, i) for i in item.old_unit_ids if i != survivor_id]
+            await _ensure_floor(db, sheet, survivor.floor_id)
+            await inventory.merge_units(
+                db,
+                project,
+                survivor,
+                absorbed,
+                item.new_rings[0],
+                sheet,
+                actor,
+                proposal.new_revision_id,
+                note,
+            )
+            result = {"survivor_id": str(survivor.id), "absorbed": [str(u.id) for u in absorbed]}
+        elif item.kind == "new":
+            await _ensure_floor(db, sheet, None)
+            unit, b = await inventory.create_unit_from_boundary(
+                db,
+                project=project,
+                sheet=sheet,
+                ring=item.new_rings[0],
+                unit_type=overrides.get("unit_type") or "apartment",
+                code=overrides.get("code"),
+                label=item.labels[0] if item.labels else None,
+                revision_id=proposal.new_revision_id,
+                actor=actor,
+                source="vector_suggest",
+            )
+            result = {"unit_id": str(unit.id), "boundary_id": str(b.id), "code": unit.code}
+        elif item.kind == "missing":
+            unit = await _unit(db, item.old_unit_ids[0])
+            await inventory.remove_unit(
+                db, unit, unit.version, actor, proposal.new_revision_id, note
+            )
+            result = {"unit_id": str(unit.id)}
+        else:
+            raise ProblemError(
+                422,
+                "Complex change needs manual resolution",
+                "Several old units overlap several new polygons: resolve with the boundary editor "
+                "and reject this item",
+            )
+    except ValueError as e:
+        raise ProblemError(422, "Invalid geometry in proposal", str(e)) from e
+    item.decision = "accepted"
+    item.decided_by, item.decided_at = actor[0], now
+    item.result = result
+    await write_audit(
+        db,
+        tenant_id=proposal.tenant_id,
+        actor_user_id=actor[0],
+        actor_role=actor[1],
+        entity_type="mapping_proposal_item",
+        entity_id=item.id,
+        action="accept",
+        after={"kind": item.kind, **result},
+    )
+    await _refresh_status(db, proposal)
+    return item
+
+
+async def accept_all(
+    db: AsyncSession, proposal: MappingProposal, kinds: set[str], actor: Actor
+) -> int:
+    n = 0
+    for it in await list_items(db, proposal.id):
+        if it.decision == "pending" and it.kind in kinds:
+            await decide_item(db, proposal, it, decision="accept", overrides={}, actor=actor)
+            n += 1
+    return n

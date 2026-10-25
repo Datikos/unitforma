@@ -11,6 +11,7 @@ from sqlalchemy import select
 from unitforma.core.db import tenant_session
 from unitforma.core.ids import new_id
 from unitforma.documents import processing
+from unitforma.mapping.jobs import propose_revision_diff
 from unitforma.storage.service import get_storage
 from unitforma.tenants.models import Document, DocumentRevision, Floor, Sheet
 
@@ -125,6 +126,7 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
         )
         if rev.processing_status != "done":
             rev.processing_error = f"{processed}/{page_count} pages processed"
+        supersedes = rev.supersedes_revision_id
     log.info(
         "documents.processed",
         revision_id=str(revision_id),
@@ -132,4 +134,12 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
         of=page_count,
         project_id=str(project_id),
     )
-    return {"pages": processed, "page_count": page_count}
+    result: dict = {"pages": processed, "page_count": page_count}
+    if processed and supersedes is not None:
+        # a new revision of a mapped document → diff proposal for the reviewer (plan §13.3)
+        try:
+            result["diff"] = await propose_revision_diff(tenant_id, revision_id)
+        except Exception as e:  # noqa: BLE001 - processing succeeded; the diff can be re-run
+            log.warning("mapping.diff_failed", revision_id=str(revision_id), error=str(e))
+            result["diff"] = {"error": str(e)[:500]}
+    return result

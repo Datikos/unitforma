@@ -168,9 +168,19 @@ class BuildingCreate(BaseModel):
     sort_order: int = 0
 
 
+class SiteTransform(BaseModel):
+    """Building local frame → site frame (metres, plan §3.5)."""
+
+    tx: float = 0.0
+    ty: float = 0.0
+    rotation_deg: float = Field(default=0.0, ge=-360, le=360)
+    scale: float = Field(default=1.0, gt=0.01, lt=100)
+    elevation: float = 0.0
+
+
 class BuildingUpdate(BaseModel):
     name: str | None = None
-    site_transform: dict[str, Any] | None = None
+    site_transform: SiteTransform | None = None
     placement_status: Literal["unplaced", "draft", "confirmed"] | None = None
     sort_order: int | None = None
     version: int
@@ -357,6 +367,7 @@ class BoundaryCreate(BaseModel):
     unit_type: Literal["apartment", "commercial", "parking", "storage"] = "apartment"
     code: str | None = Field(default=None, max_length=40)
     label: str | None = Field(default=None, max_length=80)
+    source: Literal["manual", "vector_suggest", "raster_suggest"] = "manual"
 
 
 class BoundaryUpdate(BaseModel):
@@ -457,3 +468,85 @@ class CodeHistoryOut(ORM):
     new_code: str
     changed_at: datetime
     reason: str | None
+
+
+# --- suggestions & revision diff proposals (plan §13.2, §13.3) ---------------------------
+class SuggestionOut(BaseModel):
+    ring: Ring
+    label: str | None
+    text: str
+    confidence: float
+    area_norm: float
+    source: str = "vector_suggest"
+
+
+class ProposalItemOut(ORM):
+    id: uuid.UUID
+    kind: str
+    old_unit_ids: list[uuid.UUID]
+    old_boundary_ids: list[uuid.UUID]
+    old_sheet_id: uuid.UUID | None
+    new_sheet_id: uuid.UUID | None
+    new_rings: list[Ring]
+    labels: list[str | None]
+    overlaps: list[list[Any]]
+    confidence: Decimal
+    decision: str
+    decided_at: datetime | None
+    result: dict[str, Any]
+
+
+class ProposalOut(ORM):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    document_id: uuid.UUID
+    old_revision_id: uuid.UUID | None
+    new_revision_id: uuid.UUID
+    status: str
+    summary: dict[str, Any]
+    created_at: datetime
+    resolved_at: datetime | None
+    items: list[ProposalItemOut] = Field(default_factory=list)
+
+
+class ProposalDecide(BaseModel):
+    decision: Literal["accept", "reject"]
+    code: str | None = Field(default=None, max_length=40, description="new/relabelled: unit code")
+    codes: list[str | None] | None = Field(
+        default=None, description="split: code per new ring (inheriting ring keeps its code)"
+    )
+    unit_type: Literal["apartment", "commercial", "parking", "storage"] | None = None
+    survivor_id: uuid.UUID | None = Field(default=None, description="merged: unit that keeps id")
+    inherit_index: int | None = Field(default=None, description="split: ring that keeps the id")
+    note: str | None = Field(default=None, max_length=500)
+
+
+class ProposalAcceptAll(BaseModel):
+    kinds: list[Literal["matched", "relabelled", "new", "missing", "split", "merged"]] = Field(
+        default_factory=lambda: ["matched"]
+    )
+
+
+# --- geometry (plan §11.3) ----------------------------------------------------------------
+class FootprintOut(BaseModel):
+    building_id: uuid.UUID
+    code: str
+    name: str | None
+    placement_status: str
+    site_transform: dict[str, Any]
+    version: int
+    ring_m: Ring | None
+    source_floor_level: int | None
+    floors: int
+    height_m: float
+
+
+class MassingOut(ORM):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    kind: str
+    status: str
+    stats: dict[str, Any]
+    error: str | None
+    created_at: datetime
+    glb_url: str | None = None

@@ -112,6 +112,8 @@ def extract_page(data: bytes, mime: str, page_no: int) -> dict[str, Any]:
             "text": "",
             "words": [],
             "vectors": {"lines": 0, "rects": 0, "curves": 0},
+            "segments": [],
+            "rects": [],
             "hints": {},
         }
     import pdfplumber
@@ -140,11 +142,22 @@ def extract_page(data: bytes, mime: str, page_no: int) -> dict[str, Any]:
             ]
             for ln in page.lines[:20000]
         ]
+        # rectangles are closed loops already; the suggestion engine turns them into faces
+        rects = [
+            [
+                round(r["x0"] / page.width, 5),
+                round(r["top"] / page.height, 5),
+                round(r["x1"] / page.width, 5),
+                round(r["bottom"] / page.height, 5),
+            ]
+            for r in page.rects[:20000]
+        ]
     return {
         "text": text,
         "words": words,
         "vectors": vectors,
         "segments": segments,
+        "rects": rects,
         "hints": hints_from_text(text, vectors),
     }
 

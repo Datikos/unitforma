@@ -69,6 +69,7 @@ async def create_unit_from_boundary(
     label: str | None,
     revision_id: uuid.UUID,
     actor: Actor,
+    source: str = "manual",
 ) -> tuple[Unit, UnitBoundary]:
     """Drawing a boundary on an assigned sheet creates a draft unit with a permanent id."""
     if sheet.floor_id is None:
@@ -117,7 +118,7 @@ async def create_unit_from_boundary(
         unit_id=unit.id,
         sheet_id=sheet.id,
         polygon={"ring": ring},
-        source="manual",
+        source=source,
         status="draft",
         label=label,
     )
@@ -155,7 +156,8 @@ async def create_unit_from_boundary(
 
 
 def _apply_calibration(boundary: UnitBoundary, sheet: Sheet) -> None:
-    if sheet.calibration and sheet.calibration_status == "calibrated":
+    # "inherited" = carried over from the previous revision of the same page (plan §13.3)
+    if sheet.calibration and sheet.calibration_status in ("calibrated", "inherited"):
         boundary.polygon_m = {
             "ring": geometry.ring_to_metres(boundary.polygon["ring"], sheet.calibration)
         }
@@ -253,6 +255,68 @@ async def update_boundary(
         after={"unit_id": str(unit.id)},
     )
     return boundary
+
+
+async def rehome_boundary(
+    db: AsyncSession,
+    unit: Unit,
+    sheet: Sheet,
+    ring: list[list[float]],
+    *,
+    label: str | None,
+    source: str,
+    revision_id: uuid.UUID | None,
+    actor: Actor,
+) -> UnitBoundary:
+    """A new revision redraws the unit: its current boundary moves to the new sheet.
+
+    Used when a revision diff item is accepted (plan §13.3). The unit keeps its id and code;
+    the previous boundary is superseded, the new one starts as ``draft`` until the sheet is
+    approved, and the measured area follows the new geometry.
+    """
+    if sheet.floor_id != unit.floor_id:
+        raise ProblemError(422, "Sheet is not assigned to the unit's floor")
+    geometry.validate_ring(ring)
+    project = (await db.execute(select(Project).where(Project.id == unit.project_id))).scalar_one()
+    for b in (
+        await db.execute(
+            select(UnitBoundary).where(
+                UnitBoundary.unit_id == unit.id, UnitBoundary.is_current.is_(True)
+            )
+        )
+    ).scalars():
+        b.is_current = False
+        b.status = "superseded"
+    nb = UnitBoundary(
+        id=new_id(),
+        tenant_id=unit.tenant_id,
+        unit_id=unit.id,
+        sheet_id=sheet.id,
+        polygon={"ring": ring},
+        source=source,
+        status="draft",
+        label=label,
+    )
+    _apply_calibration(nb, sheet)
+    db.add(nb)
+    await db.flush()
+    await _refresh_measured_area(db, unit, nb, project)
+    unit.verification_status = "in_review"
+    unit.version += 1
+    db.add(
+        UnitLineageEvent(
+            id=new_id(),
+            tenant_id=unit.tenant_id,
+            project_id=unit.project_id,
+            event_type="geometry_updated",
+            revision_id=revision_id,
+            from_unit_ids=[unit.id],
+            to_unit_ids=[unit.id],
+            decided_by=actor[0],
+            note="redrawn in new revision",
+        )
+    )
+    return nb
 
 
 async def recalibrate_sheet(db: AsyncSession, sheet: Sheet, calibration: dict[str, Any]) -> int:

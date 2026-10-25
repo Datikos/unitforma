@@ -2081,6 +2081,64 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/suggestions": {
+   "post": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Suggest Boundaries",
+    "description": "Closed loops found in the sheet's vector line work, labelled from inner text (plan \u00a713.2).\n\nNothing is written: the reviewer accepts candidates one by one (creating boundaries with\n``source=vector_suggest``). Scanned sheets have no vectors and return an empty list.",
+    "operationId": "suggest_boundaries_api_v1_admin_tenants__tenant_id__sheets__sheet_id__suggestions_post",
+    "parameters": [
+     {
+      "name": "sheet_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Sheet Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SuggestionOut"
+         },
+         "title": "Response Suggest Boundaries Api V1 Admin Tenants  Tenant Id  Sheets  Sheet Id  Suggestions Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/boundaries/{boundary_id}": {
    "patch": {
     "tags": [
@@ -2183,6 +2241,324 @@
          "type": "object",
          "additionalProperties": true,
          "title": "Response Approve Sheet Api V1 Admin Tenants  Tenant Id  Sheets  Sheet Id  Approve Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/proposals": {
+   "get": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "List Proposals",
+    "operationId": "list_proposals_api_v1_admin_tenants__tenant_id__projects__project_id__proposals_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     },
+     {
+      "name": "status",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/ProposalOut"
+         },
+         "title": "Response List Proposals Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Proposals Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/proposals/{proposal_id}": {
+   "get": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Get Proposal",
+    "operationId": "get_proposal_api_v1_admin_tenants__tenant_id__proposals__proposal_id__get",
+    "parameters": [
+     {
+      "name": "proposal_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Proposal Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProposalOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/revisions/{revision_id}/proposals": {
+   "post": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Build Proposal",
+    "description": "(Re)build the diff of a processed revision against the revision it supersedes.\n\nThe worker does this automatically after processing; this endpoint re-runs it (for\nexample after the reviewer finished mapping the old revision late).",
+    "operationId": "build_proposal_api_v1_admin_tenants__tenant_id__revisions__revision_id__proposals_post",
+    "parameters": [
+     {
+      "name": "revision_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Revision Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProposalOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/proposals/{proposal_id}/items/{item_id}": {
+   "post": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Decide Item",
+    "description": "Accept (apply through identity-preserving operations) or reject one proposal item.",
+    "operationId": "decide_item_api_v1_admin_tenants__tenant_id__proposals__proposal_id__items__item_id__post",
+    "parameters": [
+     {
+      "name": "proposal_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Proposal Id"
+      }
+     },
+     {
+      "name": "item_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Item Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProposalDecide"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProposalItemOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/proposals/{proposal_id}/accept-all": {
+   "post": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Accept All",
+    "description": "Accept every pending item of the given kinds (default: confident 1:1 matches).",
+    "operationId": "accept_all_api_v1_admin_tenants__tenant_id__proposals__proposal_id__accept_all_post",
+    "parameters": [
+     {
+      "name": "proposal_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Proposal Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProposalAcceptAll"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProposalOut"
         }
        }
       }
@@ -2803,6 +3179,169 @@
      }
     }
    }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/footprints": {
+   "get": {
+    "tags": [
+     "geometry"
+    ],
+    "summary": "List Footprints",
+    "description": "Building outlines (lowest mapped floor, building-local metres) for the placement editor.",
+    "operationId": "list_footprints_api_v1_admin_tenants__tenant_id__projects__project_id__footprints_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/FootprintOut"
+         },
+         "title": "Response List Footprints Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Footprints Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/massing": {
+   "get": {
+    "tags": [
+     "geometry"
+    ],
+    "summary": "Get Massing",
+    "operationId": "get_massing_api_v1_admin_tenants__tenant_id__projects__project_id__massing_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MassingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "geometry"
+    ],
+    "summary": "Regenerate Massing",
+    "description": "Queue a rebuild of the massing GLB (``geometry.build_massing``). The worker replaces the\ncurrent model; until then the previous one stays available.",
+    "operationId": "regenerate_massing_api_v1_admin_tenants__tenant_id__projects__project_id__massing_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MassingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -3071,6 +3610,16 @@
        }
       ],
       "title": "Label"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "manual",
+       "vector_suggest",
+       "raster_suggest"
+      ],
+      "title": "Source",
+      "default": "manual"
      }
     },
     "type": "object",
@@ -3309,14 +3858,12 @@
      "site_transform": {
       "anyOf": [
        {
-        "additionalProperties": true,
-        "type": "object"
+        "$ref": "#/components/schemas/SiteTransform"
        },
        {
         "type": "null"
        }
-      ],
-      "title": "Site Transform"
+      ]
      },
      "placement_status": {
       "anyOf": [
@@ -3662,6 +4209,93 @@
     ],
     "title": "FloorsBulkCreate"
    },
+   "FootprintOut": {
+    "properties": {
+     "building_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Building Id"
+     },
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "placement_status": {
+      "type": "string",
+      "title": "Placement Status"
+     },
+     "site_transform": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Site Transform"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     },
+     "ring_m": {
+      "anyOf": [
+       {
+        "items": {
+         "items": {
+          "type": "number"
+         },
+         "type": "array"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ring M"
+     },
+     "source_floor_level": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Floor Level"
+     },
+     "floors": {
+      "type": "integer",
+      "title": "Floors"
+     },
+     "height_m": {
+      "type": "number",
+      "title": "Height M"
+     }
+    },
+    "type": "object",
+    "required": [
+     "building_id",
+     "code",
+     "name",
+     "placement_status",
+     "site_transform",
+     "version",
+     "ring_m",
+     "source_floor_level",
+     "floors",
+     "height_m"
+    ],
+    "title": "FootprintOut"
+   },
    "HTTPValidationError": {
     "properties": {
      "detail": {
@@ -3870,6 +4504,71 @@
      "note"
     ],
     "title": "LineageOut"
+   },
+   "MassingOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Project Id"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "stats": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Stats"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "glb_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Glb Url"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "project_id",
+     "kind",
+     "status",
+     "stats",
+     "error",
+     "created_at"
+    ],
+    "title": "MassingOut"
    },
    "MeOut": {
     "properties": {
@@ -4385,6 +5084,345 @@
     ],
     "title": "ProjectUpdate"
    },
+   "ProposalAcceptAll": {
+    "properties": {
+     "kinds": {
+      "items": {
+       "type": "string",
+       "enum": [
+        "matched",
+        "relabelled",
+        "new",
+        "missing",
+        "split",
+        "merged"
+       ]
+      },
+      "type": "array",
+      "title": "Kinds"
+     }
+    },
+    "type": "object",
+    "title": "ProposalAcceptAll"
+   },
+   "ProposalDecide": {
+    "properties": {
+     "decision": {
+      "type": "string",
+      "enum": [
+       "accept",
+       "reject"
+      ],
+      "title": "Decision"
+     },
+     "code": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Code",
+      "description": "new/relabelled: unit code"
+     },
+     "codes": {
+      "anyOf": [
+       {
+        "items": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "null"
+          }
+         ]
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Codes",
+      "description": "split: code per new ring (inheriting ring keeps its code)"
+     },
+     "unit_type": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "apartment",
+         "commercial",
+         "parking",
+         "storage"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit Type"
+     },
+     "survivor_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Survivor Id",
+      "description": "merged: unit that keeps id"
+     },
+     "inherit_index": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Inherit Index",
+      "description": "split: ring that keeps the id"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "decision"
+    ],
+    "title": "ProposalDecide"
+   },
+   "ProposalItemOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "old_unit_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "title": "Old Unit Ids"
+     },
+     "old_boundary_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "title": "Old Boundary Ids"
+     },
+     "old_sheet_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Old Sheet Id"
+     },
+     "new_sheet_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "New Sheet Id"
+     },
+     "new_rings": {
+      "items": {
+       "items": {
+        "items": {
+         "type": "number"
+        },
+        "type": "array"
+       },
+       "type": "array"
+      },
+      "type": "array",
+      "title": "New Rings"
+     },
+     "labels": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "type": "array",
+      "title": "Labels"
+     },
+     "overlaps": {
+      "items": {
+       "items": {},
+       "type": "array"
+      },
+      "type": "array",
+      "title": "Overlaps"
+     },
+     "confidence": {
+      "type": "string",
+      "title": "Confidence"
+     },
+     "decision": {
+      "type": "string",
+      "title": "Decision"
+     },
+     "decided_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decided At"
+     },
+     "result": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Result"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "kind",
+     "old_unit_ids",
+     "old_boundary_ids",
+     "old_sheet_id",
+     "new_sheet_id",
+     "new_rings",
+     "labels",
+     "overlaps",
+     "confidence",
+     "decision",
+     "decided_at",
+     "result"
+    ],
+    "title": "ProposalItemOut"
+   },
+   "ProposalOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Project Id"
+     },
+     "document_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Document Id"
+     },
+     "old_revision_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Old Revision Id"
+     },
+     "new_revision_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "New Revision Id"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "summary": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Summary"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "resolved_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Resolved At"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ProposalItemOut"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "project_id",
+     "document_id",
+     "old_revision_id",
+     "new_revision_id",
+     "status",
+     "summary",
+     "created_at",
+     "resolved_at"
+    ],
+    "title": "ProposalOut"
+   },
    "RevisionOut": {
     "properties": {
      "id": {
@@ -4810,6 +5848,93 @@
      "sort_order"
     ],
     "title": "SiteFeatureOut"
+   },
+   "SiteTransform": {
+    "properties": {
+     "tx": {
+      "type": "number",
+      "title": "Tx",
+      "default": 0.0
+     },
+     "ty": {
+      "type": "number",
+      "title": "Ty",
+      "default": 0.0
+     },
+     "rotation_deg": {
+      "type": "number",
+      "maximum": 360.0,
+      "minimum": -360.0,
+      "title": "Rotation Deg",
+      "default": 0.0
+     },
+     "scale": {
+      "type": "number",
+      "exclusiveMaximum": 100.0,
+      "exclusiveMinimum": 0.01,
+      "title": "Scale",
+      "default": 1.0
+     },
+     "elevation": {
+      "type": "number",
+      "title": "Elevation",
+      "default": 0.0
+     }
+    },
+    "type": "object",
+    "title": "SiteTransform",
+    "description": "Building local frame \u2192 site frame (metres, plan \u00a73.5)."
+   },
+   "SuggestionOut": {
+    "properties": {
+     "ring": {
+      "items": {
+       "items": {
+        "type": "number"
+       },
+       "type": "array"
+      },
+      "type": "array",
+      "title": "Ring"
+     },
+     "label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label"
+     },
+     "text": {
+      "type": "string",
+      "title": "Text"
+     },
+     "confidence": {
+      "type": "number",
+      "title": "Confidence"
+     },
+     "area_norm": {
+      "type": "number",
+      "title": "Area Norm"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source",
+      "default": "vector_suggest"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ring",
+     "label",
+     "text",
+     "confidence",
+     "area_norm"
+    ],
+    "title": "SuggestionOut"
    },
    "TenantCreate": {
     "properties": {

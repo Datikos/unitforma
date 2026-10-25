@@ -293,6 +293,32 @@
           }
         }
       }
+    },
+    "viewer-3d": {
+      "projectType": "library",
+      "root": "projects/libs/viewer-3d",
+      "sourceRoot": "projects/libs/viewer-3d/src",
+      "prefix": "uf",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/libs/viewer-3d/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/libs/viewer-3d/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/libs/viewer-3d/tsconfig.spec.json"
+          }
+        }
+      }
     }
   }
 }

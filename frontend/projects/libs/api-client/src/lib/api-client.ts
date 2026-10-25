@@ -39,6 +39,14 @@ export type UnitSplit = Schemas['UnitSplit'];
 export type AreaOut = Schemas['AreaOut'];
 export type AreaSet = Schemas['AreaSet'];
 export type LineageOut = Schemas['LineageOut'];
+export type SuggestionOut = Schemas['SuggestionOut'];
+export type ProposalOut = Schemas['ProposalOut'];
+export type ProposalItemOut = Schemas['ProposalItemOut'];
+export type ProposalDecide = Schemas['ProposalDecide'];
+export type FootprintOut = Schemas['FootprintOut'];
+export type MassingOut = Schemas['MassingOut'];
+export type SiteTransform = Schemas['SiteTransform'];
+export type BuildingUpdate = Schemas['BuildingUpdate'];
 export interface Page<T> {
   items: T[];
   total: number;
@@ -136,6 +144,20 @@ export class UnitformaApi {
   createSiteFeature(tenantId: string, projectId: string, body: SiteFeatureCreate): Promise<SiteFeatureOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/site-features`, body);
   }
+  updateBuilding(tenantId: string, buildingId: string, body: BuildingUpdate): Promise<BuildingOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}`, body);
+  }
+
+  // --- geometry (plan §11.3): footprints for placement, generated massing
+  listFootprints(tenantId: string, projectId: string): Promise<FootprintOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/footprints`);
+  }
+  getMassing(tenantId: string, projectId: string): Promise<MassingOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/massing`);
+  }
+  regenerateMassing(tenantId: string, projectId: string): Promise<MassingOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/massing`, undefined);
+  }
 
   // --- documents
   listDocuments(tenantId: string, projectId: string): Promise<DocumentOut[]> {
@@ -211,6 +233,26 @@ export class UnitformaApi {
   }
   projectLineage(tenantId: string, projectId: string): Promise<LineageOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/lineage`);
+  }
+
+  // --- suggestions & revision diff proposals (plan §13.2, §13.3)
+  suggestBoundaries(tenantId: string, sheetId: string): Promise<SuggestionOut[]> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/suggestions`, undefined);
+  }
+  listProposals(tenantId: string, projectId: string, status?: string): Promise<ProposalOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/proposals`, status ? { status } : undefined);
+  }
+  getProposal(tenantId: string, proposalId: string): Promise<ProposalOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/proposals/${proposalId}`);
+  }
+  buildProposal(tenantId: string, revisionId: string): Promise<ProposalOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/proposals`, undefined);
+  }
+  decideProposalItem(tenantId: string, proposalId: string, itemId: string, body: ProposalDecide): Promise<ProposalItemOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/proposals/${proposalId}/items/${itemId}`, body);
+  }
+  acceptProposalItems(tenantId: string, proposalId: string, kinds: string[]): Promise<ProposalOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/proposals/${proposalId}/accept-all`, { kinds });
   }
 
   /** Upload a file to a presigned PUT URL (S3 or the local dev backend), reporting progress 0..1. */

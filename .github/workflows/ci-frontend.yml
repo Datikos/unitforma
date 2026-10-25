@@ -13,5 +13,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npx ng test admin --watch=false
       - run: npx ng test portal --watch=false
+      - run: npx ng test plan-viewer --watch=false
+      - run: npx ng test viewer-3d --watch=false
       - run: npx ng build admin --configuration production
       - run: npx ng build portal --configuration production

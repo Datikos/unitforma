@@ -11,6 +11,7 @@ from unitforma import __version__
 from unitforma.api import (
     admin,
     admin_documents,
+    admin_geometry,
     admin_mapping,
     admin_projects,
     internal,
@@ -54,6 +55,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_projects.router)
     app.include_router(admin_documents.router)
     app.include_router(admin_mapping.router)
+    app.include_router(admin_geometry.router)
     return app
 
 

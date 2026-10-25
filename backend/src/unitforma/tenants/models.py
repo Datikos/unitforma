@@ -399,3 +399,87 @@ class UnitArea(TimestampMixin, Base):
     verified_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_current: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+# --- revision diff proposals (plan §5.5, §13.3) -----------------------------------------
+class MappingProposal(TimestampMixin, Base):
+    """Worker-produced diff between the current mapping and a new document revision.
+
+    A proposal never touches ``units``; the reviewer accepts or rejects each item and the
+    accepted ones are applied through the inventory service (identity-preserving operations).
+    """
+
+    __tablename__ = "mapping_proposals"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    )
+    old_revision_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    new_revision_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("document_revisions.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), default="open")  # open|resolved|dismissed
+    summary: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class MappingProposalItem(TimestampMixin, Base):
+    __tablename__ = "mapping_proposal_items"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    proposal_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("mapping_proposals.id", ondelete="CASCADE"), index=True
+    )
+    # matched | relabelled | split | merged | new | missing | complex
+    kind: Mapped[str] = mapped_column(String(20))
+    old_unit_ids: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), default=list)
+    old_boundary_ids: Mapped[list[uuid.UUID]] = mapped_column(
+        ARRAY(UUID(as_uuid=True)), default=list
+    )
+    old_sheet_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    new_sheet_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sheets.id", ondelete="SET NULL")
+    )
+    new_rings: Mapped[list] = mapped_column(JSONB, default=list)  # rings on the new sheet
+    labels: Mapped[list] = mapped_column(JSONB, default=list)  # label per new ring (or None)
+    overlaps: Mapped[list] = mapped_column(JSONB, default=list)  # [old_unit_id, ring_idx, ratio]
+    confidence: Mapped[float] = mapped_column(Numeric(4, 3), default=0)
+    decision: Mapped[str] = mapped_column(
+        String(20), default="pending"
+    )  # pending|accepted|rejected
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    result: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+# --- 3D geometry (plan §5.3 geometry_models, §11.3) -------------------------------------
+class GeometryModel(TimestampMixin, Base):
+    __tablename__ = "geometry_models"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    building_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("buildings.id", ondelete="SET NULL")
+    )
+    kind: Mapped[str] = mapped_column(String(30))  # massing_generated | glb_source | ifc
+    revision_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    glb_key: Mapped[str | None] = mapped_column(String(512))
+    model_transform: Mapped[dict] = mapped_column(JSONB, default=dict)
+    units_scale: Mapped[float] = mapped_column(Numeric(10, 6), default=1)
+    status: Mapped[str] = mapped_column(String(20), default="generating")  # generating|ready|failed
+    stats: Mapped[dict] = mapped_column(JSONB, default=dict)
+    error: Mapped[str | None] = mapped_column(Text)
+    is_current: Mapped[bool] = mapped_column(Boolean, default=True)
