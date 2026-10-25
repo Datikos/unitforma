@@ -177,6 +177,7 @@ async def site_summary(site: Site) -> dict[str, Any]:
                     "construction_stage": doc["project"].get("construction_stage"),
                     "address": doc["project"].get("address"),
                     "stats": doc.get("stats"),
+                    "cover": (doc.get("gallery") or [{}])[0].get("url"),
                 }
             )
     from unitforma.publishing.snapshot import sanitise_branding

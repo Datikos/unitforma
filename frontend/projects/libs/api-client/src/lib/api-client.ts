@@ -30,6 +30,7 @@ export type BlockProposalOut = Schemas['BlockProposalOut'];
 export type BlocksAcceptIn = Schemas['BlocksAcceptIn'];
 export type BlocksAcceptOut = Schemas['BlocksAcceptOut'];
 export type SiteFeatureOut = Schemas['SiteFeatureOut'];
+export type SiteFeatureUpdate = Schemas['SiteFeatureUpdate'];
 export type SiteFeatureCreate = Schemas['SiteFeatureCreate'];
 export type AuditOut = Schemas['AuditOut'];
 export type DocumentOut = Schemas['DocumentOut'];
@@ -254,6 +255,16 @@ export class UnitformaApi {
     body: SiteFeatureCreate,
   ): Promise<SiteFeatureOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/site-features`, body);
+  }
+  updateSiteFeature(
+    tenantId: string,
+    featureId: string,
+    body: SiteFeatureUpdate,
+  ): Promise<SiteFeatureOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/site-features/${featureId}`, body);
+  }
+  deleteSiteFeature(tenantId: string, featureId: string): Promise<void> {
+    return this.delete(`${BASE}/admin/tenants/${tenantId}/site-features/${featureId}`);
   }
   updateBuilding(tenantId: string, buildingId: string, body: BuildingUpdate): Promise<BuildingOut> {
     return this.patch(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}`, body);

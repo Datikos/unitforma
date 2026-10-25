@@ -16,6 +16,7 @@ from unitforma.publishing import portal, snapshot, tokens
 from unitforma.sales import service as sales
 from unitforma.tenants.models import (
     Building,
+    Document,
     Floor,
     GeometryModel,
     PortalDomain,
@@ -202,6 +203,22 @@ async def readiness(db: AsyncSession, project: Project) -> dict[str, Any]:
         add("massing", "warning", "No 3D massing yet: the portal falls back to 2D plans", None)
     if not (project.portal_settings or {}).get("hero_text") and not project.description:
         add("text", "warning", "No project description or hero text", None)
+    public_renders = (
+        await db.execute(
+            select(Document.id).where(
+                Document.project_id == project.id,
+                Document.kind == "render",
+                Document.visibility == "public",
+            )
+        )
+    ).first()
+    if public_renders is None:
+        add(
+            "gallery",
+            "warning",
+            "No renders in the portal gallery: mark a render document public under Documents",
+            None,
+        )
     current = await current_publication(db, project.id)
     return {
         "ok": not any(i["level"] == "error" for i in items),

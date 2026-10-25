@@ -16,9 +16,14 @@ describe('Portal App', () => {
   it('shows the "not set up" page for an unknown host', async () => {
     const fixture = TestBed.createComponent(App);
     const http = TestBed.inject(HttpTestingController);
-    http
-      .expectOne('/api/v1/portal/site')
-      .flush({ type: 'https://unitforma.com/problems/portal-not-configured', title: 'Portal not configured', status: 404 }, { status: 404, statusText: 'Not Found' });
+    http.expectOne('/api/v1/portal/site').flush(
+      {
+        type: 'https://unitforma.com/problems/portal-not-configured',
+        title: 'Portal not configured',
+        status: 404,
+      },
+      { status: 404, statusText: 'Not Found' },
+    );
     await fixture.whenStable();
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('This address is not set up');
@@ -29,7 +34,11 @@ describe('Portal App', () => {
     const http = TestBed.inject(HttpTestingController);
     http.expectOne('/api/v1/portal/site').flush({
       tenant: { name: 'Riverside Homes', slug: 'riverside' },
-      branding: { primary_color: '#0f766e', display_name: 'Riverside', contact_email: 'sales@example.com' },
+      branding: {
+        primary_color: '#0f766e',
+        display_name: 'Riverside',
+        contact_email: 'sales@example.com',
+      },
       mode: 'tenant',
       projects: [],
       status: 'coming_soon',

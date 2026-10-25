@@ -5,6 +5,7 @@ import { NgIcon, provideIcons } from '@ng-icons/core';
 import { combineLatest } from 'rxjs';
 import { EmptyStateComponent, StatusChipComponent, UF_ICONS } from 'ui';
 import { PlanPolygon, PlanViewerComponent } from 'plan-viewer';
+import { MassingViewerComponent, type SiteFeature3D } from 'viewer-3d';
 import { Favourites } from '../core/favourites';
 import { AVAILABILITY, area, money, typeLabel } from '../core/format';
 import { PortalApi, ProjectDoc, UnitDoc, problemOf } from '../core/portal-api';
@@ -13,7 +14,14 @@ import { SiteStore } from '../core/site.store';
 /** Unit page: plan, labelled media, areas with definitions, price and terms (plan §7.1, §7.4). */
 @Component({
   selector: 'uf-unit-page',
-  imports: [RouterLink, NgIcon, PlanViewerComponent, StatusChipComponent, EmptyStateComponent],
+  imports: [
+    RouterLink,
+    NgIcon,
+    PlanViewerComponent,
+    MassingViewerComponent,
+    StatusChipComponent,
+    EmptyStateComponent,
+  ],
   viewProviders: [provideIcons(UF_ICONS)],
   template: `
     @if (notFound()) {
@@ -64,15 +72,46 @@ import { SiteStore } from '../core/site.store';
       <div class="layout">
         <section class="main">
           @if (u.plan; as plan) {
-            <uf-plan-viewer
-              [src]="api.asset(plan.url)"
-              [width]="plan.width"
-              [height]="plan.height"
-              [polygons]="planPolygons()"
-              mode="view"
-            />
+            <div class="planbox">
+              <uf-plan-viewer
+                [src]="api.asset(plan.url)"
+                [width]="plan.width"
+                [height]="plan.height"
+                [polygons]="planPolygons()"
+                [focus]="plan.ring"
+                mode="view"
+              />
+              <p class="uf-hint planbox__hint">
+                <ng-icon name="lucideMaximize2" /> The plan opens zoomed on {{ u.code }}; scroll to
+                zoom, drag to see the neighbours.
+              </p>
+            </div>
+          }
+          @if (doc()?.massing || building()?.model) {
+            <section class="uf-card model">
+              <h2>In the building</h2>
+              @defer (on viewport) {
+                <uf-massing-viewer
+                  class="model__view"
+                  [src]="api.asset(building()?.model?.url ?? doc()?.massing?.url)"
+                  [buildingCode]="building()?.model ? null : u.building_code"
+                  [floorLevel]="u.floor_level"
+                  [selectedUnitId]="u.unit_id"
+                  [siteFeatures]="siteFeatures3d()"
+                />
+              } @placeholder {
+                <div class="uf-skeleton model__view"></div>
+              }
+              <p class="uf-muted small">{{ u.code }} is highlighted; the other floors are faded.</p>
+            </section>
           }
           @if (u.media?.length) {
+            @if (u.media![0].shared_from; as from) {
+              <p class="uf-indicative">
+                <ng-icon name="lucideInfo" /> Renders of layout {{ u.layout }}, shared with
+                {{ from }}: the same plan, the finish may differ.
+              </p>
+            }
             <div class="gallery">
               @for (m of u.media; track m.url) {
                 <figure>
@@ -108,6 +147,15 @@ import { SiteStore } from '../core/site.store';
         </section>
 
         <aside class="side">
+          @if (cover(); as g) {
+            <a
+              class="uf-card cover"
+              [routerLink]="['/projects', slug(), 'buildings', u.building_code]"
+            >
+              <img [src]="api.asset(g.url)" [alt]="g.caption" loading="lazy" />
+              <span class="cover__cap">{{ g.caption }} · building {{ u.building_code }}</span>
+            </a>
+          }
           <section class="uf-card action" aria-label="Price and actions">
             <p class="price">{{ price() ?? 'Price on request' }}</p>
             @if (u.price?.per_m2) {
@@ -242,6 +290,52 @@ import { SiteStore } from '../core/site.store';
     }
   `,
   styles: `
+    .planbox {
+      display: grid;
+      gap: 0.25rem;
+    }
+    .planbox uf-plan-viewer {
+      --uf-plan-max-height: 60vh;
+      border-radius: var(--uf-radius);
+      overflow: hidden;
+    }
+    .planbox__hint ng-icon {
+      vertical-align: -0.15em;
+    }
+    .model {
+      display: grid;
+      gap: 0.5rem;
+    }
+    .model h2 {
+      margin: 0;
+    }
+    .model__view {
+      --uf-3d-height: 46vh;
+      --uf-3d-min-height: 300px;
+      display: block;
+      border-radius: var(--uf-radius-sm);
+      overflow: hidden;
+    }
+    .cover {
+      display: block;
+      padding: 0;
+      overflow: hidden;
+      position: relative;
+      text-decoration: none;
+      color: inherit;
+    }
+    .cover img {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+      display: block;
+    }
+    .cover__cap {
+      display: block;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.85rem;
+      color: var(--uf-muted);
+    }
     .head {
       display: flex;
       justify-content: space-between;
@@ -392,6 +486,12 @@ export class UnitPage {
     () => this.doc()?.buildings.find((b) => b.code === this.unit()?.building_code) ?? null,
   );
   readonly fav = computed(() => !!this.unit() && this.favs.has(this.slug(), this.unit()!.code));
+  readonly cover = computed(() => this.doc()?.gallery?.[0] ?? null);
+  readonly siteFeatures3d = computed<SiteFeature3D[]>(() =>
+    (this.doc()?.site?.features ?? [])
+      .filter((f) => f.ring_m && f.ring_m.length >= 3)
+      .map((f) => ({ kind: f.kind, name: f.name, ring_m: f.ring_m as [number, number][] })),
+  );
   readonly planPolygons = computed<PlanPolygon[]>(() => {
     const u = this.unit();
     if (!u?.plan?.ring) return [];

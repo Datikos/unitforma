@@ -469,6 +469,47 @@ def test_import_creates_project_building_and_documents(client: TestClient, world
 
 
 @pytestmark_db
+def test_stale_import_is_closed_by_the_next_refresh(client: TestClient, world: dict):
+    """An import whose worker died stays "importing"; once it is older than STALE_AFTER the
+    next refresh closes it as failed and starts a new one instead of answering 409 for ever
+    (ADR-0016 Decision 6)."""
+    base = world["base"]
+    r = client.post(
+        f"{base}/regulatory/tasge/import",
+        headers=cookie("pm"),
+        json={"reference": str(DOC_ID), "slug": f"stale-{world['s']}"},
+    )
+    assert r.status_code == 201, r.text
+    project, job = r.json()["project"], r.json()["job"]
+    refresh = f"{base}/projects/{project['id']}/regulatory/tasge/refresh"
+    assert client.post(refresh, headers=cookie("pm")).status_code == 409
+    eng = create_engine(os.environ["UF_TEST_DATABASE_ADMIN_URL"])
+    with eng.begin() as conn:  # the table forces RLS on its owner too: scope the transaction
+        conn.execute(text("SELECT set_config('app.scope', 'platform', true)"))
+        res = conn.execute(
+            text(
+                "UPDATE regulatory_imports SET started_at = now() - interval '21 minutes',"
+                " created_at = now() - interval '21 minutes' WHERE id = :id"
+            ),
+            {"id": job["id"]},
+        )
+        assert res.rowcount == 1
+    eng.dispose()
+    r = client.post(refresh, headers=cookie("pm"))
+    assert r.status_code == 200, r.text
+    imports = {
+        i["id"]: i
+        for i in client.get(
+            f"{base}/projects/{project['id']}/regulatory/imports", headers=cookie("pm")
+        ).json()
+    }
+    assert imports[job["id"]]["status"] == "failed"
+    assert imports[job["id"]]["error"] == "worker did not finish within 20 minutes"
+    assert imports[job["id"]]["finished_at"] is not None
+    assert imports[r.json()["id"]]["status"] == "importing"
+
+
+@pytestmark_db
 def test_feature_flag_hides_the_endpoints(client: TestClient, world: dict):
     from unitforma.core.settings import get_settings
 

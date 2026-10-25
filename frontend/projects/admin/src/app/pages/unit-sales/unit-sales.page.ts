@@ -113,6 +113,10 @@ import { UnitSalesStore } from './unit-sales.store';
               storageKey="unit-price"
             >
               <div class="uf-form-row">
+                <p class="uf-hint">
+                  Layout: a code shared by every unit with the same plan. Renders attached to one
+                  unit of a layout show on all of them until they get their own.
+                </p>
                 <mat-form-field
                   appearance="outline"
                   [class.uf-changed]="store.isChanged('availability')"
@@ -309,6 +313,19 @@ import { UnitSalesStore } from './unit-sales.store';
                     name="orientation"
                     maxlength="20"
                     placeholder="S / SW"
+                /></mat-form-field>
+                <mat-form-field
+                  appearance="outline"
+                  class="num"
+                  [class.uf-changed]="store.isChanged('layout')"
+                  ><mat-label>Layout</mat-label
+                  ><input
+                    matInput
+                    [ngModel]="f.layout"
+                    (ngModelChange)="store.set('layout', $event)"
+                    name="layout"
+                    maxlength="40"
+                    placeholder="Type A"
                 /></mat-form-field>
                 <mat-form-field
                   appearance="outline"

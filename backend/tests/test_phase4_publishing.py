@@ -382,7 +382,10 @@ def test_readiness_and_unit_publication(client, world):
     )
     rd = client.get(f"{base}/projects/{pid}/publish/readiness", headers=world["pm"]).json()
     assert rd["ok"] is True
-    assert {i["key"] for i in rd["items"]} == {"units"}  # plans, placement, massing all present
+    # plans, placement, massing all present; no public render document yet, so the gallery
+    # warning stays (ADR-0016 Decision 1) and does not block publishing
+    assert {i["key"] for i in rd["items"]} == {"units", "gallery"}
+    assert {i["level"] for i in rd["items"] if i["key"] == "gallery"} == {"warning"}
 
 
 def test_preview_is_private_until_published(client, world):
@@ -805,3 +808,139 @@ def test_portal_content_entrance_building_fields_price_note_and_elevation(client
     assert r.status_code == 201
     [bd] = client.get("/api/v1/portal/projects/riverside", headers=H_(world)).json()["buildings"]
     assert bd["terms"] == "Default terms SECRET-FREE"
+
+
+def test_portal_gallery_site_features_map_and_shared_layout_media(client, world):
+    """ADR-0016: pages of ``public`` render documents become the gallery and the project card
+    cover (Decision 1), public site features reach the snapshot in sheet and metre coordinates
+    (Decision 3), a unit without media borrows the renders of its layout (Decision 4) and the
+    map position travels with the address (Decision 5); internal values stay out."""
+    base, pid, tid = world["base"], world["project"]["id"], world["tenant"]["id"]
+    adm, sales, pm = world["adm"], world["sales"], world["pm"]
+    units = world["units"]
+    portal = "/api/v1/portal/projects/riverside"
+
+    # a render document is internal by default: readiness warns and the gallery stays empty
+    _upload(client, base, adm, pid, "render", "Renders", make_plan_pdf(), tid)
+    render = next(
+        d
+        for d in client.get(f"{base}/projects/{pid}/documents", headers=adm).json()
+        if d["title"] == "Renders"
+    )
+    assert render["visibility"] == "internal"
+    rd = client.get(f"{base}/projects/{pid}/publish/readiness", headers=pm).json()
+    assert "gallery" in {i["key"] for i in rd["items"]}
+    r = client.patch(f"{base}/documents/{render['id']}", headers=adm, json={"visibility": "public"})
+    assert r.status_code == 200 and r.json()["visibility"] == "public", r.text
+    rd = client.get(f"{base}/projects/{pid}/publish/readiness", headers=pm).json()
+    assert "gallery" not in {i["key"] for i in rd["items"]}
+
+    # site features: one public, one internal, one without a polygon
+    garden = client.post(
+        f"{base}/projects/{pid}/site-features",
+        headers=adm,
+        json={
+            "kind": "garden",
+            "name": "Courtyard",
+            "polygon": {"ring": [[0.1, 0.1], [0.3, 0.1], [0.3, 0.3], [0.1, 0.3]]},
+        },
+    )
+    assert garden.status_code == 201, garden.text
+    garden = garden.json()
+    assert (
+        client.post(
+            f"{base}/projects/{pid}/site-features",
+            headers=adm,
+            json={
+                "kind": "parking_zone",
+                "name": "Staff SECRET-FEATURE-3c1",
+                "is_public": False,
+                "polygon": {"ring": [[0.5, 0.5], [0.6, 0.5], [0.6, 0.6]]},
+            },
+        ).status_code
+        == 201
+    )
+    gym = client.post(
+        f"{base}/projects/{pid}/site-features",
+        headers=adm,
+        json={"kind": "amenity", "name": "Gym"},
+    ).json()
+    r = client.patch(f"{base}/site-features/{garden['id']}", headers=adm, json={"name": "Garden"})
+    assert r.status_code == 200 and r.json()["name"] == "Garden", r.text
+    assert client.delete(f"{base}/site-features/{gym['id']}", headers=adm).status_code == 204
+    assert (
+        client.get(f"{base}/site-features/{gym['id']}", headers=adm).status_code == 404
+        or len(client.get(f"{base}/projects/{pid}/site-features", headers=adm).json()) == 2
+    )
+
+    # the map position is part of the address; unknown keys never reach the portal
+    proj = client.get(f"{base}/projects/{pid}", headers=adm).json()
+    r = client.patch(
+        f"{base}/projects/{pid}",
+        headers=adm,
+        json={
+            "address": {
+                "line1": "Riverside 1",
+                "city": "Tbilisi",
+                "lat": "41.7151",
+                "lng": 44.8271,
+                "cadastral": "SECRET-CAD-1",
+            },
+            "version": proj["version"],
+        },
+    )
+    assert r.status_code == 200, r.text
+
+    # layout L1 on the unit with media and on one without
+    for code in ("A-00-01", "A-00-02"):
+        row = client.get(f"{base}/units/{units[code]['id']}/sales", headers=sales).json()
+        r = client.patch(
+            f"{base}/units/{units[code]['id']}/sales",
+            headers=sales,
+            json={"layout": "L1", "version": row["version"]},
+        )
+        assert r.status_code == 200 and r.json()["layout"] == "L1", r.text
+
+    r = client.post(f"{base}/projects/{pid}/publications", headers=pm, json={"mode": "publish"})
+    assert r.status_code == 201, r.text
+    doc = client.get(portal, headers=H_(world)).json()
+    for marker in ("SECRET-FEATURE-3c1", "SECRET-CAD-1", "SECRET-MEDIA"):
+        assert marker not in json.dumps(doc)
+
+    gallery = doc["gallery"]
+    assert [(g["document"], g["page"], g["caption"]) for g in gallery] == [
+        ("Renders", 1, "Renders · 1"),
+        ("Renders", 2, "Renders · 2"),
+    ]
+    assert all(g["url"].endswith(".webp") and g["width"] > 0 and g["height"] > 0 for g in gallery)
+    site = client.get("/api/v1/portal/site", headers=H_(world)).json()
+    card = next(c for c in site["projects"] if c["slug"] == "riverside")
+    assert card["cover"] == gallery[0]["url"]
+
+    [feature] = doc["site"]["features"]
+    assert feature["kind"] == "garden" and feature["name"] == "Garden"
+    assert feature["ring"] == [[0.1, 0.1], [0.3, 0.1], [0.3, 0.3], [0.1, 0.3]]
+    sheet = client.get(f"{base}/sheets/{proj['site_frame']['sheet_id']}", headers=adm).json()
+    m = float(sheet["calibration"]["m_per_px"])
+    assert len(feature["ring_m"]) == 4
+    assert feature["ring_m"][1][0] - feature["ring_m"][0][0] == pytest.approx(
+        0.2 * m * sheet["raster_width"], abs=0.01
+    )
+    assert feature["ring_m"][2][1] - feature["ring_m"][1][1] == pytest.approx(
+        0.2 * m * sheet["raster_height"], abs=0.01
+    )
+
+    assert doc["project"]["address"] == {
+        "line1": "Riverside 1",
+        "city": "Tbilisi",
+        "lat": 41.7151,
+        "lng": 44.8271,
+    }
+
+    own = client.get(f"{portal}/units/A-00-01", headers=H_(world)).json()
+    borrowed = client.get(f"{portal}/units/A-00-02", headers=H_(world)).json()
+    assert own["layout"] == "L1" and borrowed["layout"] == "L1"
+    assert len(own["media"]) == 1 and "shared_from" not in own["media"][0]
+    assert len(borrowed["media"]) == 1 and borrowed["media"][0]["shared_from"] == "A-00-01"
+    assert borrowed["media"][0]["url"] == own["media"][0]["url"]
+    assert "SECRET-MEDIA" not in json.dumps(borrowed)  # the donor's internal media stays internal

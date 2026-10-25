@@ -37,8 +37,25 @@ export interface ProjectCard {
   name: string;
   hero_text?: string;
   construction_stage?: string;
-  address?: Record<string, string>;
+  address?: Record<string, string | number>;
   stats: Stats;
+  /** First gallery image, when the developer published renders (ADR-0016). */
+  cover?: string | null;
+}
+
+/** A page of a public render document (ADR-0016 Decision 1). */
+export interface GalleryItem extends PlanRef {
+  caption: string;
+  document: string;
+  page: number;
+}
+
+/** A public site feature: ring on the site plan (normalised) and in site-frame metres. */
+export interface SiteFeatureDoc {
+  kind: string;
+  name: string;
+  ring: Point[];
+  ring_m?: Point[];
 }
 
 export interface SiteOut {
@@ -140,7 +157,8 @@ export interface ProjectDoc {
     slug: string;
     name: string;
     description?: string | null;
-    address: Record<string, string>;
+    /** Text lines plus `lat` / `lng` when the developer set the map position. */
+    address: Record<string, string | number>;
     currency: string;
     area_definitions: AreaDefinition[];
     price_area_type: string;
@@ -163,7 +181,9 @@ export interface ProjectDoc {
       construction_status?: ConstructionStatus | null;
       ring: Point[] | null;
     }[];
+    features?: SiteFeatureDoc[];
   } | null;
+  gallery?: GalleryItem[];
   buildings: BuildingDoc[];
   massing: { url: string; units: number; bytes: number; disclaimer: string } | null;
   payment_plans: PaymentPlan[];
@@ -178,6 +198,8 @@ export interface UnitMedia {
   ai_disclosure_text?: string | null;
   url: string;
   mime: string;
+  /** Code of the unit whose media this is, when shown here because both share a layout. */
+  shared_from?: string;
 }
 
 export interface UnitDoc {
@@ -190,6 +212,8 @@ export interface UnitDoc {
   availability: Availability;
   entrance?: string;
   indicative: boolean;
+  /** Plan type shared by several units; their renders are shared too (ADR-0016). */
+  layout?: string;
   listed: boolean;
   price:
     (Money & { per_m2?: string; per_m2_area_type?: string; per_m2_area_verified?: boolean }) | null;

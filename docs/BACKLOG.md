@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-26: 31 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, plan Phases 5 to 7 and
+State on 2026-10-26: 35 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Rows that share one code area or one
 outside input are one row with every reference. Sizes: S up to a day, M a few days, L a week or more.
@@ -51,3 +51,7 @@ outside input are one row with every reference. Sizes: S up to a day, M a few da
 | 29 | Second portal language (Georgian and English on one host): per-field translations of the editable texts, language switch. | ADR-0014 Revisit, plan §2.3 R3 | — | L |
 | 30 | OAuth 2.1 for the MCP server: Ory Hydra as the authorization server next to Kratos, login and consent in the admin app, the SDK's `AuthSettings` and RFC 9728 metadata, client registration; tokens stay for scripts. Decided on 2026-10-26 to follow the tokens, not replace them. | ADR-0015 Option C (Revisit) | an OAuth-only client; owner's go | L |
 | 31 | MCP beyond projects and buildings: tools for documents, mapping and sales, a `delete_*` family with an explicit confirmation argument, the buyer-side read-only server. | ADR-0015 Revisit (Option A) | owner's pick | M |
+| 32 | Sample project `permit-1127975`: the owner checks the map position (OSM cluster of the street's `19/x` buildings, ±100 m), refines the 11 site features and the four facade regions drawn by eye from the general plan, and closes apartments №3 and №15 (no closed outline). | ADR-0016 #E1 (done, approximate) | owner's review | S |
+| 33 | Owner's decision on AI-generated renders for units (`media.is_ai_generated` exists) and on tenant-uploaded ground textures instead of the generic grass, paving and trees. | ADR-0016 #E2, Option D | owner's decision | — |
+| 34 | Move `site_frame.facades` into its own column or table with a backward-reading test, once the migration chain is free after the ADR-0015 branch merges. | ADR-0016 #E3 | ADR-0015 merge | S |
+| 35 | OpenStreetMap embed volume against the tile usage policy before the first tenant goes live; fallback (self-hosted tiles) in the runbooks. | ADR-0016 #E4 | first tenant's traffic estimate | S |

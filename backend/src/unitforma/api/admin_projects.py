@@ -23,6 +23,7 @@ from unitforma.api.schemas import (
     ProjectUpdate,
     SiteFeatureCreate,
     SiteFeatureOut,
+    SiteFeatureUpdate,
 )
 from unitforma.core.errors import ProblemError
 from unitforma.documents import floor_proposal as proposal
@@ -231,3 +232,27 @@ async def create_site_feature(project_id: uuid.UUID, body: SiteFeatureCreate, ct
     ctx.require_project(project_id)
     p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
     return await projects.create_site_feature(ctx.session, p, body.model_dump(), _actor(ctx))
+
+
+async def _site_feature(ctx: Ctx, feature_id: uuid.UUID) -> SiteFeature:
+    sf = (
+        await ctx.session.execute(select(SiteFeature).where(SiteFeature.id == feature_id))
+    ).scalar_one_or_none()
+    if sf is None:
+        raise ProblemError(404, "Site feature not found")
+    ctx.require_project(sf.project_id)
+    return sf
+
+
+@router.patch("/site-features/{feature_id}", response_model=SiteFeatureOut)
+async def update_site_feature(feature_id: uuid.UUID, body: SiteFeatureUpdate, ctx: Ctx):
+    ctx.require("project", Action.WRITE)
+    sf = await _site_feature(ctx, feature_id)
+    return await projects.update_site_feature(ctx.session, sf, body.model_dump(), _actor(ctx))
+
+
+@router.delete("/site-features/{feature_id}", status_code=204)
+async def delete_site_feature(feature_id: uuid.UUID, ctx: Ctx):
+    ctx.require("project", Action.WRITE)
+    sf = await _site_feature(ctx, feature_id)
+    await projects.delete_site_feature(ctx.session, sf, _actor(ctx))

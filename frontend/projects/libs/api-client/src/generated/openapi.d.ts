@@ -48,6 +48,10 @@ export interface paths {
         /**
          * Domains Ask
          * @description Caddy on-demand TLS permission endpoint: 200 allows issuance, 403 denies.
+         *
+         *     The shared secret arrives as ``?token=`` (Caddy's ``ask`` sends a plain GET and cannot add
+         *     headers; the Caddyfile appends the value of the ``internal_ask_token`` secret) or, for other
+         *     internal callers, as the ``X-Unitforma-Internal`` header.
          */
         get: operations["domains_ask_internal_domains_ask_get"];
         put?: never;
@@ -565,6 +569,24 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/site-features/{feature_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Site Feature */
+        delete: operations["delete_site_feature_api_v1_admin_tenants__tenant_id__site_features__feature_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Site Feature */
+        patch: operations["update_site_feature_api_v1_admin_tenants__tenant_id__site_features__feature_id__patch"];
         trace?: never;
     };
     "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/documents": {
@@ -2437,6 +2459,8 @@ export interface components {
              * @default false
              */
             clear_building?: boolean;
+            /** Visibility */
+            visibility?: ("internal" | "public") | null;
         };
         /**
          * ElevationCandidateOut
@@ -2570,6 +2594,14 @@ export interface components {
             floors: number;
             /** Height M */
             height_m: number;
+            /** Sides */
+            sides?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Facades */
+            facades?: {
+                [key: string]: unknown;
+            }[];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2811,6 +2843,11 @@ export interface components {
              * @description Staircase; public like the floor
              */
             entrance?: string | null;
+            /**
+             * Layout
+             * @description Layout code shared by units with the same plan (ADR-0016)
+             */
+            layout?: string | null;
             /** Public Description */
             public_description: string | null;
             /** Internal Notes */
@@ -3892,6 +3929,8 @@ export interface components {
             orientation?: string | null;
             /** Entrance */
             entrance?: string | null;
+            /** Layout */
+            layout?: string | null;
             /** Public Fields */
             public_fields?: {
                 [key: string]: boolean;
@@ -3973,6 +4012,8 @@ export interface components {
             orientation?: string | null;
             /** Entrance */
             entrance?: string | null;
+            /** Layout */
+            layout?: string | null;
             /** Public Fields */
             public_fields?: {
                 [key: string]: boolean;
@@ -4156,6 +4197,26 @@ export interface components {
             is_public: boolean;
             /** Sort Order */
             sort_order: number;
+        };
+        /** SiteFeatureUpdate */
+        SiteFeatureUpdate: {
+            /** Kind */
+            kind?: ("garden" | "road" | "parking_zone" | "amenity" | "common_area" | "entrance" | "other") | null;
+            /** Name */
+            name?: string | null;
+            /** Polygon */
+            polygon?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Clear Polygon
+             * @default false
+             */
+            clear_polygon?: boolean;
+            /** Is Public */
+            is_public?: boolean | null;
+            /** Sort Order */
+            sort_order?: number | null;
         };
         /**
          * SiteTransform
@@ -4501,6 +4562,7 @@ export interface operations {
         parameters: {
             query: {
                 domain: string;
+                token?: string | null;
             };
             header?: {
                 "x-unitforma-internal"?: string | null;
@@ -5728,6 +5790,72 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteFeatureOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_site_feature_api_v1_admin_tenants__tenant_id__site_features__feature_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                feature_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_site_feature_api_v1_admin_tenants__tenant_id__site_features__feature_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                feature_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SiteFeatureUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

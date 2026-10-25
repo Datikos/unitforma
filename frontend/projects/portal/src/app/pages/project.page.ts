@@ -1,15 +1,36 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, ElementRef, computed, inject, input, signal, viewChild } from '@angular/core';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { PlanPolygon, PlanViewerComponent } from 'plan-viewer';
 import { EmptyStateComponent, StatusChipComponent, UF_ICONS } from 'ui';
-import type { MassingUnitInfo } from 'viewer-3d';
+import type { MassingUnitInfo, SiteFeature3D } from 'viewer-3d';
 import { MassingViewerComponent } from 'viewer-3d';
 import { detectCapabilities } from '../core/capabilities';
 import { AVAILABILITY, CONSTRUCTION, area, areaRange, money } from '../core/format';
 import { PortalApi, ProjectDoc, problemOf } from '../core/portal-api';
 import { SiteStore } from '../core/site.store';
+
+/** Site feature colours on the 2D site plan; the 3D viewer uses the same hues. */
+const FEATURE_FILL: Record<string, string> = {
+  garden: 'rgba(111, 184, 106, 0.35)',
+  road: 'rgba(139, 145, 154, 0.35)',
+  parking_zone: 'rgba(154, 161, 171, 0.35)',
+  amenity: 'rgba(95, 178, 220, 0.35)',
+  common_area: 'rgba(201, 181, 143, 0.35)',
+  entrance: 'rgba(232, 150, 63, 0.45)',
+  other: 'rgba(184, 181, 174, 0.35)',
+};
+const FEATURE_STROKE: Record<string, string> = {
+  garden: '#4f9d5a',
+  road: '#6b7280',
+  parking_zone: '#7c8591',
+  amenity: '#2f8fc2',
+  common_area: '#a68c5b',
+  entrance: '#d97706',
+  other: '#9b968d',
+};
 
 /** Project page with the site explorer: 2D site plan or schematic 3D massing (plan §7.1, §7.3). */
 @Component({
@@ -32,8 +53,8 @@ import { SiteStore } from '../core/site.store';
         ><a routerLink="/" class="uf-btn">Home</a></uf-empty-state
       >
     } @else if (doc(); as d) {
-      <section class="hero">
-        <div>
+      <section class="hero" id="top">
+        <div class="hero__text">
           <h1>{{ d.project.name }}</h1>
           @if (d.project.hero_text) {
             <p class="hero__lead">{{ d.project.hero_text }}</p>
@@ -71,18 +92,60 @@ import { SiteStore } from '../core/site.store';
               </li>
             }
           </ul>
+          <nav class="hero__nav">
+            <a class="uf-btn" [routerLink]="['units']"
+              ><ng-icon name="lucideLayoutGrid" /> Browse units</a
+            >
+            <a class="uf-btn uf-ghost" [routerLink]="['favourites']"
+              ><ng-icon name="lucideHeart" /> Saved</a
+            >
+          </nav>
         </div>
-        <nav class="hero__nav">
-          <a class="uf-btn" [routerLink]="['units']"
-            ><ng-icon name="lucideLayoutGrid" /> Browse units</a
-          >
-          <a class="uf-btn uf-ghost" [routerLink]="['favourites']"
-            ><ng-icon name="lucideHeart" /> Saved</a
-          >
-        </nav>
+        @if (gallery().length) {
+          <div class="hero__media">
+            <button
+              type="button"
+              class="hero__cover"
+              (click)="openLightbox(0)"
+              [attr.aria-label]="'Open ' + label(0)"
+            >
+              <img [src]="api.asset(gallery()[0].url)" [alt]="label(0)" />
+              <span class="hero__count"><ng-icon name="lucideImage" /> {{ gallery().length }}</span>
+            </button>
+            @if (gallery().length > 1) {
+              <div class="hero__thumbs">
+                @for (g of gallery().slice(1, 5); track g.url; let i = $index) {
+                  <button
+                    type="button"
+                    class="hero__thumb"
+                    (click)="openLightbox(i + 1)"
+                    [attr.aria-label]="'Open ' + label(i + 1)"
+                  >
+                    <img [src]="api.asset(g.url)" [alt]="label(i + 1)" loading="lazy" />
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        }
       </section>
 
-      <section class="explore">
+      <section class="facts" aria-label="Key facts">
+        @for (f of facts(); track f.label) {
+          <div class="fact">
+            <span class="fact__label"><ng-icon [name]="f.icon" /> {{ f.label }}</span>
+            <span class="fact__value">{{ f.value }}</span>
+          </div>
+        }
+      </section>
+
+      <nav class="subnav" aria-label="Sections">
+        @for (n of sections(); track n.id) {
+          <a [href]="'#' + n.id" (click)="jump($event, n.id)">{{ n.label }}</a>
+        }
+      </nav>
+
+      <section class="explore" id="site">
         <div class="explore__bar">
           <h2>Explore the site</h2>
           @if (has3d()) {
@@ -98,11 +161,20 @@ import { SiteStore } from '../core/site.store';
         </div>
         @if (show3d() && d.massing) {
           @defer (when show3d()) {
-            <uf-massing-viewer
-              [src]="api.asset(d.massing.url)"
-              [unitColors]="unitColors()"
-              (unitPicked)="openUnit($event)"
-            />
+            <div class="explore__3d" [class.explore__3d--split]="gallery().length">
+              <uf-massing-viewer
+                [src]="api.asset(d.massing.url)"
+                [unitColors]="unitColors()"
+                [siteFeatures]="siteFeatures3d()"
+                (unitPicked)="openUnit($event)"
+              />
+              @if (gallery().length) {
+                <button type="button" class="explore__render" (click)="openLightbox(0)">
+                  <img [src]="api.asset(gallery()[0].url)" [alt]="label(0)" loading="lazy" />
+                  <span class="explore__caption">{{ label(0) }} · rendered view</span>
+                </button>
+              }
+            </div>
           } @loading (minimum 200ms) {
             <p class="uf-muted">Loading 3D…</p>
           }
@@ -128,7 +200,7 @@ import { SiteStore } from '../core/site.store';
             }
           </p>
         }
-        <div class="uf-grid buildings">
+        <div class="uf-grid buildings" id="buildings">
           @for (b of d.buildings; track b.code) {
             <a class="uf-card bcard" [routerLink]="['buildings', b.code]">
               <div class="bcard__head">
@@ -157,14 +229,51 @@ import { SiteStore } from '../core/site.store';
         </div>
       </section>
 
+      @if (gallery().length > 1) {
+        <section class="gallery" id="gallery">
+          <h2>Gallery</h2>
+          <div class="gallery__grid">
+            @for (g of gallery(); track g.url; let i = $index) {
+              <button
+                type="button"
+                class="gallery__item"
+                (click)="openLightbox(i)"
+                [attr.aria-label]="'Open ' + label(i)"
+              >
+                <img [src]="api.asset(g.url)" [alt]="label(i)" loading="lazy" />
+                <span>{{ label(i) }}</span>
+              </button>
+            }
+          </div>
+        </section>
+      }
       @if (d.project.description) {
-        <section class="uf-card text">
+        <section class="uf-card text" id="about">
           <h2>About</h2>
           <p>{{ d.project.description }}</p>
         </section>
       }
+      @if (mapEmbed(); as m) {
+        <section class="location" id="location">
+          <h2>Location</h2>
+          @if (address()) {
+            <p class="uf-muted">{{ address() }}</p>
+          }
+          <iframe
+            class="location__map"
+            [src]="m"
+            title="Map of the project location (OpenStreetMap)"
+            loading="lazy"
+            referrerpolicy="no-referrer"
+          ></iframe>
+          <p class="uf-muted uf-small">
+            <a [href]="mapLink()" target="_blank" rel="noopener">Open in OpenStreetMap</a> · map
+            data © OpenStreetMap contributors
+          </p>
+        </section>
+      }
       @if (d.payment_plans.length || d.promotions.length) {
-        <section class="uf-grid terms">
+        <section class="uf-grid terms" id="terms">
           @for (p of d.payment_plans; track p.name) {
             <div class="uf-card">
               <h3>{{ p.name }}</h3>
@@ -196,6 +305,48 @@ import { SiteStore } from '../core/site.store';
           }
         </section>
       }
+      <dialog
+        #lightbox
+        class="lightbox"
+        (click)="onLightboxClick($event)"
+        (close)="lightboxIndex.set(null)"
+      >
+        @if (lightboxItem(); as g) {
+          <figure>
+            <img [src]="api.asset(g.url)" [alt]="label(lightboxIndex() ?? 0)" />
+            <figcaption>
+              {{ label(lightboxIndex() ?? 0) }}
+              <span class="uf-muted"
+                >{{ (lightboxIndex() ?? 0) + 1 }} / {{ gallery().length }}</span
+              >
+            </figcaption>
+          </figure>
+        }
+        <button
+          type="button"
+          class="lightbox__btn lightbox__btn--prev"
+          (click)="stepLightbox(-1)"
+          aria-label="Previous"
+        >
+          <ng-icon name="lucideChevronLeft" />
+        </button>
+        <button
+          type="button"
+          class="lightbox__btn lightbox__btn--next"
+          (click)="stepLightbox(1)"
+          aria-label="Next"
+        >
+          <ng-icon name="lucideChevronRight" />
+        </button>
+        <button
+          type="button"
+          class="lightbox__btn lightbox__btn--close"
+          (click)="closeLightbox()"
+          aria-label="Close"
+        >
+          <ng-icon name="lucideX" />
+        </button>
+      </dialog>
     } @else {
       <p class="uf-muted">Loading…</p>
     }
@@ -233,12 +384,170 @@ import { SiteStore } from '../core/site.store';
       gap: 0.25rem;
     }
     .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+      gap: 1.5rem;
+      align-items: start;
+      margin-bottom: 1.25rem;
+    }
+    .hero__text {
+      display: grid;
+      gap: 0.5rem;
+      align-content: start;
+    }
+    .hero__media {
+      display: grid;
+      gap: 0.5rem;
+    }
+    .hero__cover,
+    .hero__thumb,
+    .gallery__item,
+    .explore__render {
+      border: 0;
+      padding: 0;
+      background: var(--uf-surface);
+      border-radius: var(--uf-radius);
+      overflow: hidden;
+      cursor: zoom-in;
+      position: relative;
+      display: block;
+      color: inherit;
+      font: inherit;
+      box-shadow: var(--uf-shadow);
+    }
+    .hero__cover img {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+      display: block;
+    }
+    .hero__count,
+    .explore__caption {
+      position: absolute;
+      left: 0.6rem;
+      bottom: 0.6rem;
+      background: rgba(15, 23, 42, 0.75);
+      color: #fff;
+      border-radius: var(--uf-radius-pill);
+      padding: 0.15rem 0.6rem;
+      font-size: 0.8rem;
+      display: inline-flex;
+      gap: 0.3rem;
+      align-items: center;
+    }
+    .hero__thumbs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+    }
+    .hero__thumb img,
+    .gallery__item img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      display: block;
+    }
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .fact {
+      display: grid;
+      gap: 0.15rem;
+      padding: 0.65rem 0.9rem;
+      border: 1px solid var(--uf-border);
+      border-radius: var(--uf-radius);
+      background: var(--uf-surface);
+    }
+    .fact__label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--uf-muted);
+      display: inline-flex;
+      gap: 0.3rem;
+      align-items: center;
+    }
+    .fact__value {
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+    .subnav {
+      position: sticky;
+      top: 3.9rem;
+      z-index: 4;
       display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      flex-wrap: wrap;
-      align-items: flex-end;
+      gap: 0.25rem;
+      overflow-x: auto;
+      padding: 0.35rem 0;
+      margin: 0 0 1rem;
+      background: var(--uf-bg);
+      border-bottom: 1px solid var(--uf-border);
+    }
+    .subnav a {
+      white-space: nowrap;
+      padding: 0.35rem 0.8rem;
+      border-radius: var(--uf-radius-pill);
+      color: var(--uf-text);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+    .subnav a:hover {
+      background: var(--uf-primary-soft);
+      color: var(--uf-primary-strong);
+    }
+    .explore__3d--split {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      gap: 0.75rem;
+      align-items: stretch;
+    }
+    .explore__render img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .gallery {
       margin-bottom: 1.5rem;
+    }
+    .gallery__grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+      gap: 0.75rem;
+    }
+    .gallery__item span {
+      display: block;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.85rem;
+      color: var(--uf-muted);
+      text-align: left;
+    }
+    .location {
+      margin-bottom: 1.5rem;
+      display: grid;
+      gap: 0.5rem;
+    }
+    .location__map {
+      width: 100%;
+      height: min(60vh, 420px);
+      border: 1px solid var(--uf-border);
+      border-radius: var(--uf-radius);
+      background: var(--uf-surface-2);
+    }
+    @media (max-width: 860px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+      .explore__3d--split {
+        grid-template-columns: 1fr;
+      }
+      .subnav {
+        top: 0;
+      }
     }
     .hero__lead {
       font-size: 1.15rem;
@@ -284,6 +593,122 @@ import { SiteStore } from '../core/site.store';
   `,
 })
 export class ProjectPage {
+  private readonly sanitizer = inject(DomSanitizer);
+  private readonly lightboxEl = viewChild<ElementRef<HTMLDialogElement>>('lightbox');
+  readonly lightboxIndex = signal<number | null>(null);
+  readonly gallery = computed(() => this.doc()?.gallery ?? []);
+
+  /** Gallery captions: the document title and page, or "Render n" when the title is only a number
+   * (a file named 1.pdf). */
+  label(i: number): string {
+    const g = this.gallery()[i];
+    if (!g) return '';
+    return /^\d+$/.test(g.document ?? '') ? `Render ${i + 1}` : g.caption;
+  }
+  readonly lightboxItem = computed(() => {
+    const i = this.lightboxIndex();
+    return i === null ? null : (this.gallery()[i] ?? null);
+  });
+  readonly siteFeatures3d = computed<SiteFeature3D[]>(() =>
+    (this.doc()?.site?.features ?? [])
+      .filter((f) => f.ring_m && f.ring_m.length >= 3)
+      .map((f) => ({ kind: f.kind, name: f.name, ring_m: f.ring_m as [number, number][] })),
+  );
+  /** Headline facts a buyer reads first: what, how many, how big, when. */
+  readonly facts = computed(() => {
+    const d = this.doc();
+    if (!d) return [];
+    const floors = Math.max(0, ...d.buildings.map((b) => b.floors.length));
+    const out: { label: string; value: string; icon: string }[] = [
+      { label: 'Buildings', value: String(d.buildings.length), icon: 'lucideBuilding2' },
+      { label: 'Floors', value: floors ? String(floors) : '—', icon: 'lucideLayers' },
+      {
+        label: 'Units',
+        value: `${d.stats.available} of ${d.stats.units} available`,
+        icon: 'lucideLayoutGrid',
+      },
+    ];
+    const ar = areaRange(d.stats.area_min, d.stats.area_max);
+    if (ar) out.push({ label: 'Areas', value: ar, icon: 'lucideMaximize2' });
+    const pf = money(d.stats.price_from);
+    if (pf) out.push({ label: 'From', value: pf, icon: 'lucideCoins' });
+    if (d.project.construction_stage) {
+      out.push({
+        label: 'Stage',
+        value: d.project.construction_stage,
+        icon: 'lucideClipboardCheck',
+      });
+    }
+    if (d.project.completion) {
+      out.push({ label: 'Completion', value: d.project.completion, icon: 'lucideCalendar' });
+    }
+    return out;
+  });
+  readonly sections = computed(() => {
+    const d = this.doc();
+    if (!d) return [];
+    const out: { id: string; label: string }[] = [];
+    if (d.massing || d.site?.plan) out.push({ id: 'site', label: 'Site' });
+    out.push({ id: 'buildings', label: 'Buildings' });
+    if (this.gallery().length > 1) out.push({ id: 'gallery', label: 'Gallery' });
+    if (d.project.description) out.push({ id: 'about', label: 'About' });
+    if (this.mapEmbed()) out.push({ id: 'location', label: 'Location' });
+    if (d.payment_plans.length || d.promotions.length) out.push({ id: 'terms', label: 'Terms' });
+    return out;
+  });
+  readonly coords = computed(() => {
+    const a = this.doc()?.project.address ?? {};
+    if (a['lat'] === undefined || a['lng'] === undefined) return null;
+    const lat = Number(a['lat']);
+    const lng = Number(a['lng']);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  });
+  /** OpenStreetMap embed around the position (ADR-0016 Decision 5): no key, no script. */
+  readonly mapEmbed = computed<SafeResourceUrl | null>(() => {
+    const c = this.coords();
+    if (!c) return null;
+    const d = 0.004;
+    const bbox = [c.lng - d, c.lat - d, c.lng + d, c.lat + d].map((v) => v.toFixed(5)).join('%2C');
+    const marker = `${c.lat.toFixed(6)}%2C${c.lng.toFixed(6)}`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(
+      `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${marker}`,
+    );
+  });
+
+  mapLink(): string {
+    const c = this.coords();
+    return c
+      ? `https://www.openstreetmap.org/?mlat=${c.lat}&mlon=${c.lng}#map=17/${c.lat}/${c.lng}`
+      : '#';
+  }
+
+  jump(ev: Event, id: string): void {
+    ev.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  openLightbox(i: number): void {
+    this.lightboxIndex.set(i);
+    const el = this.lightboxEl()?.nativeElement;
+    if (el && !el.open) el.showModal();
+  }
+
+  closeLightbox(): void {
+    this.lightboxEl()?.nativeElement.close();
+    this.lightboxIndex.set(null);
+  }
+
+  stepLightbox(delta: number): void {
+    const n = this.gallery().length;
+    const i = this.lightboxIndex();
+    if (!n || i === null) return;
+    this.lightboxIndex.set((i + delta + n) % n);
+  }
+
+  onLightboxClick(ev: MouseEvent): void {
+    if (ev.target === this.lightboxEl()?.nativeElement) this.closeLightbox();
+  }
+
   protected readonly api = inject(PortalApi);
   private readonly store = inject(SiteStore);
   private readonly router = inject(Router);
@@ -316,8 +741,19 @@ export class ProjectPage {
     return out;
   });
   /** Footprints coloured by construction status when any building states one (ADR-0014 Decision 3). */
-  readonly sitePolygons = computed<PlanPolygon[]>(() =>
-    (this.doc()?.site?.buildings ?? [])
+  readonly sitePolygons = computed<PlanPolygon[]>(() => [
+    ...(this.doc()?.site?.features ?? [])
+      .filter((f) => f.ring?.length >= 3)
+      .map((f) => ({
+        id: 'feature:' + f.name,
+        ring: f.ring,
+        label: f.name,
+        kind: 'region' as const,
+        fill: FEATURE_FILL[f.kind] ?? FEATURE_FILL['other'],
+        stroke: FEATURE_STROKE[f.kind] ?? FEATURE_STROKE['other'],
+        title: `${f.name} (${f.kind.replace('_', ' ')})`,
+      })),
+    ...(this.doc()?.site?.buildings ?? [])
       .filter((b) => b.ring)
       .map((b) => {
         const c = b.construction_status ? CONSTRUCTION[b.construction_status] : null;
@@ -331,7 +767,7 @@ export class ProjectPage {
           title: `Building ${b.code}${c ? ', ' + c.label : ''}`,
         };
       }),
-  );
+  ]);
   readonly constructionLegend = computed(() => {
     const present = new Set(
       (this.doc()?.site?.buildings ?? []).map((b) => b.construction_status).filter(Boolean),

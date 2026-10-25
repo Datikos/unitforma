@@ -23,6 +23,27 @@ export interface MassingUnitInfo {
   lifecycle_status?: string;
 }
 
+/** A public site feature drawn on the ground (ADR-0016 Decision 3), site-frame metres. */
+export interface SiteFeature3D {
+  kind: string;
+  name?: string;
+  ring_m: [number, number][];
+}
+
+/** Ground colours per feature kind; gardens also get trees. */
+const FEATURE_COLOURS: Record<string, number> = {
+  garden: 0x9fcf8a,
+  road: 0x9ca3af,
+  parking_zone: 0xb0b6bf,
+  amenity: 0xa7d8f0,
+  common_area: 0xe3d9c6,
+  entrance: 0xf5b86b,
+  other: 0xd6d3cd,
+};
+const GROUND_COLOUR = 0xdfe8d8;
+const TREE_EVERY_M2 = 45;
+const MAX_TREES = 240;
+
 /** Opacity of a unit whose mapping is not approved yet. */
 const DRAFT_OPACITY = 0.55;
 
@@ -68,7 +89,7 @@ const FADE_OTHER_BUILDING = 0.08;
       width: 100%;
       height: var(--uf-3d-height, 70vh);
       min-height: var(--uf-3d-min-height, 420px);
-      background: #f3f4f6;
+      background: linear-gradient(180deg, #cfe3f7 0%, #eaf2fb 55%, #f4f6f3 100%);
       overflow: hidden;
     }
     canvas {
@@ -128,6 +149,8 @@ export class MassingViewerComponent implements OnDestroy {
   readonly selectedUnitId = input<string | null>(null);
   /** Per-unit base colours (e.g. by availability), keyed by unit id; others keep the GLB colour. */
   readonly unitColors = input<Record<string, string> | null>(null);
+  /** Public site features (gardens, roads, parking, …) drawn on the ground around the model. */
+  readonly siteFeatures = input<SiteFeature3D[] | null>(null);
 
   readonly unitPicked = output<MassingUnitInfo>();
   /** A unit on another floor than `floorLevel` was tapped: the level to move to. */
@@ -146,6 +169,8 @@ export class MassingViewerComponent implements OnDestroy {
   private camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000);
   private controls: OrbitControls | null = null;
   private model: THREE.Group | null = null;
+  private environment: THREE.Group | null = null;
+  private sun: THREE.DirectionalLight | null = null;
   private meshes: THREE.Mesh[] = [];
   private raycaster = new THREE.Raycaster();
   private frame = 0;
@@ -173,6 +198,11 @@ export class MassingViewerComponent implements OnDestroy {
       for (const m of this.meshes) this.paint(m, m.userData['unit_id'] === sel ? 'selected' : null);
     });
     effect(() => {
+      this.siteFeatures();
+      this.loadedTick();
+      this.buildEnvironment();
+    });
+    effect(() => {
       const colours = this.unitColors();
       this.loadedTick();
       if (!colours) return;
@@ -194,11 +224,18 @@ export class MassingViewerComponent implements OnDestroy {
       return;
     }
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // mobile budget (plan §11.3)
-    this.scene.background = new THREE.Color(0xf3f4f6);
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x9ca3af, 1.2));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.4);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.scene.background = null; // the host paints the sky gradient behind the transparent canvas
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0xb7c4a8, 1.1));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
     sun.position.set(80, 120, 60);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.bias = -0.0005;
+    this.sun = sun;
     this.scene.add(sun);
+    this.scene.add(sun.target);
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.enableDamping = true;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.02;
@@ -242,16 +279,22 @@ export class MassingViewerComponent implements OnDestroy {
       const gltf = await this.loader.loadAsync(url);
       this.model = gltf.scene;
       const infos: MassingUnitInfo[] = [];
+      const seen = new Set<string>();
       this.model.traverse((o) => {
         if (o instanceof THREE.Mesh) {
           // materials are shared per unit type in the GLB; clone so highlights stay per unit
           const mat = (o.material as THREE.MeshStandardMaterial).clone();
           mat.flatShading = true;
           o.material = mat;
+          o.castShadow = true;
+          o.receiveShadow = true;
           this.baseColours.set(o, mat.color.clone());
           const x = (o.userData ?? {}) as Partial<MassingUnitInfo>;
           if (x.unit_id) {
             this.meshes.push(o);
+            // a unit with facade drawings is several primitives, so several meshes: one info each
+            if (!seen.has(x.unit_id)) seen.add(x.unit_id);
+            else return;
             infos.push({
               unit_id: x.unit_id,
               code: x.code ?? o.name,
@@ -264,7 +307,8 @@ export class MassingViewerComponent implements OnDestroy {
         }
       });
       this.scene.add(this.model);
-      this.addGround();
+      this.addEdges();
+      this.buildEnvironment();
       this.applyFocus();
       this.frameAll();
       this.status.set(this.meshes.length ? null : 'Model has no units yet');
@@ -275,17 +319,125 @@ export class MassingViewerComponent implements OnDestroy {
     }
   }
 
-  private addGround(): void {
-    const box = new THREE.Box3().setFromObject(this.model!);
+  /** Thin dark outlines so floors and units read even on a textured or faded facade. */
+  private addEdges(): void {
+    const lineMat = new THREE.LineBasicMaterial({
+      color: 0x334155,
+      transparent: true,
+      opacity: 0.35,
+    });
+    for (const m of this.meshes) {
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 25), lineMat);
+      edges.userData['edges'] = true;
+      m.add(edges);
+    }
+  }
+
+  /** Ground, sky light, shadow frame and the public site features around the model. */
+  private buildEnvironment(): void {
+    if (!this.model) return;
+    if (this.environment) {
+      this.scene.remove(this.environment);
+      this.environment.traverse((o) => {
+        if (o instanceof THREE.Mesh) {
+          o.geometry.dispose();
+          (Array.isArray(o.material) ? o.material : [o.material]).forEach((mm) => mm.dispose());
+        }
+      });
+    }
+    const env = new THREE.Group();
+    const box = new THREE.Box3().setFromObject(this.model);
     const size = box.getSize(new THREE.Vector3());
-    const span = Math.max(size.x, size.z, 20) * 1.5;
-    const grid = new THREE.GridHelper(span, Math.round(span / 5), 0xd1d5db, 0xe5e7eb);
-    grid.position.set(
+    const groundY = Math.min(box.min.y, 0) - 0.02;
+    const center = new THREE.Vector3(
       (box.min.x + box.max.x) / 2,
-      Math.min(box.min.y, 0) - 0.01,
+      groundY,
       (box.min.z + box.max.z) / 2,
     );
-    this.model!.add(grid);
+    const features = this.siteFeatures() ?? [];
+    const featureBox = new THREE.Box2();
+    for (const f of features)
+      for (const [x, z] of f.ring_m) featureBox.expandByPoint(new THREE.Vector2(x, z));
+    const reach = Math.max(size.x, size.z, 20) * 2.2;
+    const span = features.length
+      ? Math.max(
+          reach,
+          (featureBox.max.x - featureBox.min.x) * 1.4,
+          (featureBox.max.y - featureBox.min.y) * 1.4,
+        )
+      : reach;
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(span, 64),
+      new THREE.MeshStandardMaterial({ color: GROUND_COLOUR, roughness: 1 }),
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.copy(center);
+    ground.receiveShadow = true;
+    env.add(ground);
+    let order = 1;
+    for (const f of features) {
+      if (f.ring_m.length < 3) continue;
+      const shape = new THREE.Shape(f.ring_m.map(([x, z]) => new THREE.Vector2(x, -z)));
+      const mesh = new THREE.Mesh(
+        new THREE.ShapeGeometry(shape),
+        new THREE.MeshStandardMaterial({
+          color: FEATURE_COLOURS[f.kind] ?? FEATURE_COLOURS['other'],
+          roughness: 1,
+        }),
+      );
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.y = groundY + 0.01 * order++;
+      mesh.receiveShadow = true;
+      env.add(mesh);
+      if (f.kind === 'garden') this.addTrees(env, f.ring_m, groundY);
+    }
+    if (this.sun) {
+      const half = Math.max(size.x, size.z, 20) * 1.2;
+      const cam = this.sun.shadow.camera;
+      cam.left = -half;
+      cam.right = half;
+      cam.top = half;
+      cam.bottom = -half;
+      cam.near = 1;
+      cam.far = half * 6;
+      cam.updateProjectionMatrix();
+      this.sun.position.set(center.x + half * 0.8, center.y + half * 1.6, center.z + half * 0.6);
+      this.sun.target.position.copy(center);
+    }
+    this.environment = env;
+    this.scene.add(env);
+  }
+
+  /** Low-poly trees on a deterministic grid inside a garden polygon (no randomness, no data invented). */
+  private addTrees(env: THREE.Group, ring: [number, number][], groundY: number): void {
+    const xs = ring.map((p) => p[0]);
+    const zs = ring.map((p) => p[1]);
+    const step = Math.sqrt(TREE_EVERY_M2);
+    const trunk = new THREE.CylinderGeometry(0.18, 0.25, 1.6, 6);
+    const crown = new THREE.ConeGeometry(1.6, 3.4, 7);
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8b5e3c, roughness: 1 });
+    const crownMat = new THREE.MeshStandardMaterial({ color: 0x4f9d5a, roughness: 1 });
+    let count = 0;
+    for (let x = Math.min(...xs) + step / 2; x < Math.max(...xs) && count < MAX_TREES; x += step) {
+      for (
+        let z = Math.min(...zs) + step / 2;
+        z < Math.max(...zs) && count < MAX_TREES;
+        z += step
+      ) {
+        const jitter = ((Math.round(x * 7 + z * 13) % 5) - 2) * 0.12 * step; // stable, not random
+        const px = x + jitter;
+        const pz = z - jitter;
+        if (!pointInRing(px, pz, ring)) continue;
+        const t = new THREE.Mesh(trunk, trunkMat);
+        t.position.set(px, groundY + 0.8, pz);
+        t.castShadow = true;
+        const c = new THREE.Mesh(crown, crownMat);
+        c.position.set(px, groundY + 1.6 + 1.7, pz);
+        c.castShadow = true;
+        env.add(t, c);
+        count++;
+      }
+    }
   }
 
   /** Unit meshes of the focused building (all units when no building is focused). */
@@ -312,6 +464,7 @@ export class MassingViewerComponent implements OnDestroy {
       mat.opacity = opacity;
       mat.depthWrite = opacity === 1;
       m.userData['pickable'] = own.has(m);
+      for (const child of m.children) if (child.userData['edges']) child.visible = opacity === 1;
     }
   }
 
@@ -379,4 +532,15 @@ export class MassingViewerComponent implements OnDestroy {
     this.renderer?.dispose();
     this.draco.dispose();
   }
+}
+
+/** Even-odd point-in-polygon on site-frame metres. */
+function pointInRing(x: number, z: number, ring: [number, number][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, zi] = ring[i];
+    const [xj, zj] = ring[j];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
 }

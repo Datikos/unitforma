@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { EmptyStateComponent, StatusChipComponent, UF_ICONS } from 'ui';
 import { area, areaRange, money } from '../core/format';
+import { PortalApi } from '../core/portal-api';
 import { SiteStore } from '../core/site.store';
 
 /** Tenant landing: live projects, or "coming soon"; a project domain goes straight to its project. */
@@ -31,7 +32,14 @@ import { SiteStore } from '../core/site.store';
         <h1>{{ s.branding.display_name || s.tenant.name }}</h1>
         <div class="uf-grid">
           @for (p of s.projects; track p.slug) {
-            <a class="uf-card proj" [routerLink]="['/projects', p.slug]">
+            <a
+              class="uf-card proj"
+              [class.proj--cover]="p.cover"
+              [routerLink]="['/projects', p.slug]"
+            >
+              @if (p.cover) {
+                <img class="proj__cover" [src]="api.asset(p.cover)" [alt]="p.name" loading="lazy" />
+              }
               <h2>{{ p.name }}</h2>
               @if (p.hero_text) {
                 <p class="uf-muted">{{ p.hero_text }}</p>
@@ -73,6 +81,23 @@ import { SiteStore } from '../core/site.store';
       gap: 0.5rem;
       align-content: start;
     }
+    .proj--cover {
+      padding: 0;
+    }
+    .proj--cover > :not(.proj__cover) {
+      margin-left: 1.25rem;
+      margin-right: 1.25rem;
+    }
+    .proj--cover > :last-child {
+      margin-bottom: 1rem;
+    }
+    .proj__cover {
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+      display: block;
+      border-radius: var(--uf-radius) var(--uf-radius) 0 0;
+    }
     .proj h2 {
       margin: 0;
     }
@@ -88,6 +113,7 @@ import { SiteStore } from '../core/site.store';
 })
 export class HomePage {
   protected readonly store = inject(SiteStore);
+  protected readonly api = inject(PortalApi);
   private readonly router = inject(Router);
   protected readonly money = money;
   protected readonly area = area;

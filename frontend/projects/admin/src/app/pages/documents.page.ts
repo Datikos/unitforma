@@ -6,6 +6,7 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
@@ -78,6 +79,7 @@ const SOURCE_LABELS: Record<string, string> = {
     MatButtonModule,
     MatButtonToggleModule,
     MatProgressBarModule,
+    MatSlideToggleModule,
     RouterLink,
     NgIcon,
     PageHeaderComponent,
@@ -218,6 +220,11 @@ const SOURCE_LABELS: Record<string, string> = {
             @if (d.current_revision; as r) {
               <uf-status-chip domain="document.processing" [value]="r.processing_status" />
             }
+            @if (d.kind === 'render' && d.visibility === 'public') {
+              <span class="uf-chip uf-tone-good"
+                ><ng-icon name="lucideGlobe" />In portal gallery</span
+              >
+            }
           </div>
           @if (d.current_revision?.processing_error) {
             <div class="uf-alert uf-alert--bad">
@@ -237,6 +244,14 @@ const SOURCE_LABELS: Record<string, string> = {
                 }
               </mat-select>
             </mat-form-field>
+            @if (d.kind === 'render') {
+              <mat-slide-toggle
+                [checked]="d.visibility === 'public'"
+                [disabled]="busy()"
+                (change)="setVisibility(d, $event.checked)"
+                >Show in portal gallery</mat-slide-toggle
+              >
+            }
             @if (isGuessed(d)) {
               <button mat-stroked-button [disabled]="busy()" (click)="setKind(d, d.kind)">
                 <ng-icon name="lucideCheck" /> Confirm {{ kindLabel(d.kind) }}
@@ -574,6 +589,27 @@ export class DocumentsPage {
       const updated = await this.api.updateDocument(this.tenantId(), d.id, { kind: kind as Kind });
       this.docs.update((list) => list.map((x) => (x.id === d.id ? updated : x)));
       this.toast.ok(`${d.title}: ${this.kindLabel(kind)}`);
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** A public render document's pages form the portal gallery with the next publication (ADR-0016). */
+  async setVisibility(d: DocumentOut, isPublic: boolean): Promise<void> {
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      const updated = await this.api.updateDocument(this.tenantId(), d.id, {
+        visibility: isPublic ? 'public' : 'internal',
+      });
+      this.docs.update((list) => list.map((x) => (x.id === d.id ? updated : x)));
+      this.toast.ok(
+        isPublic
+          ? `${d.title} is in the portal gallery from the next publication`
+          : `${d.title} removed from the gallery`,
+      );
     } catch (e) {
       this.error.set(problemMessage(e));
     } finally {

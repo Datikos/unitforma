@@ -21,7 +21,8 @@ export class SiteStore {
       this.state.set('ready');
     } catch (e) {
       const p = problemOf(e);
-      if (p.status === 404 && p.type?.endsWith('portal-not-configured')) this.state.set('not_configured');
+      if (p.status === 404 && p.type?.endsWith('portal-not-configured'))
+        this.state.set('not_configured');
       else {
         this.error.set(p.title ?? 'The portal is temporarily unavailable');
         this.state.set('error');
@@ -48,6 +49,7 @@ const HEX = /^#[0-9a-f]{6}$/i;
 /** Tenant palette as CSS custom properties (plan §11.4); values were allow-listed by the backend. */
 export function applyBranding(b: Branding | null | undefined): void {
   const root = document.documentElement.style;
-  if (b?.primary_color && HEX.test(b.primary_color)) root.setProperty('--uf-primary', b.primary_color);
+  if (b?.primary_color && HEX.test(b.primary_color))
+    root.setProperty('--uf-primary', b.primary_color);
   if (b?.accent_color && HEX.test(b.accent_color)) root.setProperty('--uf-accent', b.accent_color);
 }

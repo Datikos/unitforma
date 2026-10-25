@@ -938,7 +938,7 @@ Conventions: standalone components, signals for state, `@angular/router` lazy ro
 
 ### 11.3 Portal application (`projects/portal`) — principal screens
 
-Project landing; Site explorer (2D/3D toggle); Building view; Floor view; Units list with filters; Unit page; Favourites; Inquiry modal (type-specific forms + email-code step + confirmation); Account (inquiries & thread, profile, consent, sign out); Legal pages (tenant-provided); "Not configured"/"Coming soon" pages for inactive hosts. Bundle budget: initial ≤ 300 kB gzipped excluding the lazily loaded 3D chunk.
+Project landing; Site explorer (2D/3D toggle); Building view; Floor view; Units list with filters; Unit page; Favourites; Inquiry modal (type-specific forms + email-code step + confirmation); Account (inquiries & thread, profile, consent, sign out); Legal pages (tenant-provided); "Not configured"/"Coming soon" pages for inactive hosts. Bundle budget: initial ≤ 300 kB gzipped excluding the lazily loaded 3D chunk. The project landing is one guided page (ADR-0016): hero with the cover render, facts strip, section sub-navigation, the first render beside the 3D view, a gallery with a lightbox and an OpenStreetMap embed; the 3D view draws the facade drawings on the massing and the public site features (grass, roads, paving, generic trees) on a ground disc under a sky gradient; the unit page focuses its plan on the unit, shows the building with the unit lit and borrows the renders of its layout code.
 
 ### 11.4 Shared concerns
 
@@ -1319,6 +1319,7 @@ unitforma/
     garage/garage.toml
     backup/Dockerfile, backup.sh, restore.sh
     scripts/
+      dev-up.sh, dev-up.ps1      # dev stack: secrets → storage + Garage init once → up -d --build [services] → ps
       deploy.sh                  # pull → migrate → up -d --no-deps per module → health wait
       rollback.sh                # set previous tag → up -d --no-deps module
       rotate-secrets.md

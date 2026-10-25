@@ -85,13 +85,18 @@ async def create_document(
 async def update_document(
     db: AsyncSession, doc: Document, data: dict[str, Any], actor: tuple[uuid.UUID, str]
 ) -> Document:
-    """Title, building and kind; a kind set here is ``manual`` and stays (ADR-0008 Decision 3)."""
+    """Title, building, kind and visibility; a kind set here is ``manual`` and stays (ADR-0008
+    Decision 3). ``visibility = public`` on a render document puts its pages in the portal
+    gallery with the next publication (ADR-0016 Decision 1)."""
     before = {
         "kind": doc.kind,
         "kind_source": doc.kind_source,
         "title": doc.title,
         "building_id": str(doc.building_id) if doc.building_id else None,
+        "visibility": doc.visibility,
     }
+    if data.get("visibility") in ("internal", "public"):
+        doc.visibility = data["visibility"]
     if data.get("kind"):
         doc.kind, doc.kind_source = data["kind"], "manual"
     if data.get("title"):
@@ -114,6 +119,7 @@ async def update_document(
         "kind_source": doc.kind_source,
         "title": doc.title,
         "building_id": str(doc.building_id) if doc.building_id else None,
+        "visibility": doc.visibility,
     }
     if after != before:
         await write_audit(

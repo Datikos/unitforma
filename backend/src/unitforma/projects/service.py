@@ -393,6 +393,68 @@ async def create_site_feature(
     return sf
 
 
+def _feature_audit(sf: SiteFeature) -> dict[str, Any]:
+    return {
+        "kind": sf.kind,
+        "name": sf.name,
+        "is_public": sf.is_public,
+        "has_polygon": sf.polygon is not None,
+    }
+
+
+async def update_site_feature(
+    db: AsyncSession, sf: SiteFeature, data: dict[str, Any], actor: tuple[uuid.UUID, str]
+) -> SiteFeature:
+    before = {
+        "kind": sf.kind,
+        "name": sf.name,
+        "is_public": sf.is_public,
+        "has_polygon": sf.polygon is not None,
+    }
+    for k in ("kind", "name", "is_public", "sort_order"):
+        if data.get(k) is not None:
+            setattr(sf, k, data[k])
+    if data.get("clear_polygon"):
+        sf.polygon = None
+    elif data.get("polygon") is not None:
+        sf.polygon = data["polygon"]
+    await db.flush()
+    await write_audit(
+        db,
+        tenant_id=sf.tenant_id,
+        actor_user_id=actor[0],
+        actor_role=actor[1],
+        entity_type="site_feature",
+        entity_id=sf.id,
+        action="update",
+        before=before,
+        after={
+            "kind": sf.kind,
+            "name": sf.name,
+            "is_public": sf.is_public,
+            "has_polygon": sf.polygon is not None,
+        },
+    )
+    return sf
+
+
+async def delete_site_feature(
+    db: AsyncSession, sf: SiteFeature, actor: tuple[uuid.UUID, str]
+) -> None:
+    await write_audit(
+        db,
+        tenant_id=sf.tenant_id,
+        actor_user_id=actor[0],
+        actor_role=actor[1],
+        entity_type="site_feature",
+        entity_id=sf.id,
+        action="delete",
+        before={"kind": sf.kind, "name": sf.name},
+    )
+    await db.delete(sf)
+    await db.flush()
+
+
 async def delete_building(db: AsyncSession, b: Building, actor: tuple[uuid.UUID, str]) -> None:
     """Delete an empty building (ADR-0012 Decision 3).
 

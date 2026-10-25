@@ -47,6 +47,7 @@ export const SETS: Record<Exclude<ColumnSet, 'all'>, string[]> = {
     'building_code',
     'floor_level',
     'unit_type',
+    'layout',
     'availability',
     'list_price',
     'currency',
@@ -137,6 +138,7 @@ export function toChange(
     case 'currency':
     case 'price_on_request':
     case 'orientation':
+    case 'layout':
     case 'entrance':
     case 'public_description':
     case 'internal_notes':
@@ -288,6 +290,13 @@ export function buildColumns(d: ColumnDeps): ColDef<InventoryRow>[] {
     num('bedrooms', 'Bedrooms'),
     num('bathrooms', 'Baths'),
     { field: 'orientation', headerName: 'Orientation', editable: true, width: 120 },
+    {
+      field: 'layout',
+      headerName: 'Layout',
+      editable: true,
+      width: 110,
+      headerTooltip: 'Plan type; units of one layout share renders',
+    },
     { field: 'entrance', headerName: 'Entrance', editable: true, width: 110 },
     {
       field: 'public_description',

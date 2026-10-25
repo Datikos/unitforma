@@ -8,7 +8,7 @@ upload path so ingest, sheets and floor suggestions are the same as for a manual
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 import structlog
@@ -86,6 +86,11 @@ async def preview(reference: str) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- import
+# An import still "importing" after this long has lost its worker (restart, crash); the next
+# refresh closes it as failed instead of being refused forever.
+STALE_AFTER = timedelta(minutes=20)
+
+
 async def start_import(
     db: AsyncSession,
     *,
@@ -133,15 +138,25 @@ async def refresh(
     current = project.regulatory or {}
     if current.get("source") != tasge.SYSTEM or not current.get("external_id"):
         raise ProblemError(422, "Project was not imported from a permit")
-    running = (
-        await db.execute(
-            select(RegulatoryImport.id).where(
-                RegulatoryImport.project_id == project.id, RegulatoryImport.status == "importing"
+    running = list(
+        (
+            await db.execute(
+                select(RegulatoryImport).where(
+                    RegulatoryImport.project_id == project.id,
+                    RegulatoryImport.status == "importing",
+                )
             )
-        )
-    ).first()
-    if running:
-        raise ProblemError(409, "An import is still running for this project")
+        ).scalars()
+    )
+    now = datetime.now(UTC)
+    for r in running:
+        started = r.started_at or r.created_at
+        if started is not None and now - started < STALE_AFTER:
+            raise ProblemError(409, "An import is still running for this project")
+        # the worker never reported back (restart, crash): close the row so the refresh can run
+        r.status = "failed"
+        r.error = f"worker did not finish within {int(STALE_AFTER.total_seconds() // 60)} minutes"
+        r.finished_at = now
     record = await fetch_normalised(str(current["external_id"]))
     row = _new_import(project.tenant_id, project, record, actor[0])
     db.add(row)

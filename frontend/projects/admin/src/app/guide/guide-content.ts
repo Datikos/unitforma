@@ -121,7 +121,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
       {
         name: 'Check registry for new files',
-        does: 'Fetches the permit again and imports only drawings that are not here yet.',
+        does: 'Fetches the permit again and imports only drawings that are not here yet. An import shown as stalled (importing for over 20 minutes, its worker lost) is closed as failed by this button and a new one starts.',
       },
       {
         name: 'Archive / Reactivate',
@@ -167,6 +167,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       {
         name: 'Upload new revision',
         does: 'A newer drawing of the same document. Processed revisions of mapped documents produce a revision diff.',
+      },
+      {
+        name: 'Show in portal gallery',
+        does: 'On a render document only. Its pages become the portal gallery and the project cover with the next publication; plans, sections and elevations stay internal.',
       },
       {
         name: 'Delete',
@@ -247,8 +251,18 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
         name: 'Confirm',
         does: 'Marks the placement as confirmed; a changed footprint is marked until saved.',
       },
+      {
+        name: 'Site features',
+        does: 'Gardens, roads, parking, amenities and entrances drawn on the site plan. Public features fill the portal site plan and become grass, paving and generic trees in 3D; nothing is drawn that you did not draw.',
+      },
+      {
+        name: 'Facades',
+        does: 'Per building side: pick the elevation sheet, mark the drawing area (the facade without its title block), tick Flip when the sheet shows the side from the other direction. Saving queues a 3D rebuild that wraps the drawing onto that side.',
+      },
     ],
     roles: STRUCTURE,
+    result:
+      'The portal site plan and the 3D view follow the next massing build; a facade without a sheet keeps the availability colour.',
   },
   massing: {
     title: '3D massing',
@@ -296,6 +310,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
     tips: [
       'An empty price means "on request" on the portal; never type 0.',
       'Entrance (staircase) is public like the floor: buyers filter by it once they pick a building.',
+      'Layout is one short code per plan type (for example L1). Units that share it share their renders in the portal, so set it only when the plans are the same.',
     ],
   },
   'unit-sales': {
@@ -315,6 +330,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       {
         name: 'Media',
         does: 'Renders and photos with alt text; AI-generated images carry a disclosure.',
+      },
+      {
+        name: 'Layout',
+        does: 'The plan-type code shared with identical units (1 to 40 characters). A unit without media of its own shows the public media of the first unit with the same code.',
       },
     ],
     roles: SALES,
@@ -372,6 +391,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       {
         name: 'Price note / Terms',
         does: 'The price note is printed next to every price (for example the settlement currency rule); the terms are the default for buildings without their own.',
+      },
+      {
+        name: 'Location',
+        does: 'Latitude and longitude of the site in decimal degrees; the OpenStreetMap link searches the typed address. The portal shows a map around the position once published.',
       },
     ],
     roles: STRUCTURE,

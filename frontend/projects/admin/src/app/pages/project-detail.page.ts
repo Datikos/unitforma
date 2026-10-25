@@ -120,7 +120,16 @@ import { ToastService } from '../ui/toast.service';
         >
           <div actions>
             @if (latestImport(); as j) {
-              <uf-status-chip domain="regulatory_import" [value]="j.status" />
+              @if (importStalled()) {
+                <uf-status-chip
+                  domain="regulatory_import"
+                  value="failed"
+                  label="Import stalled"
+                  tooltip="The worker did not report back; Check registry starts a fresh import"
+                />
+              } @else {
+                <uf-status-chip domain="regulatory_import" [value]="j.status" />
+              }
             }
           </div>
           <uf-facts [facts]="permitFacts(r)" />
@@ -142,7 +151,13 @@ import { ToastService } from '../ui/toast.service';
                 }
               </ul>
             }
-            @if (j.status === 'importing') {
+            @if (importStalled()) {
+              <p class="uf-hint">
+                This import has been "running" for more than 20 minutes: the worker never reported
+                back (a restart or a crash). "Check registry for new files" closes it and starts a
+                fresh one; files already here are kept.
+              </p>
+            } @else if (j.status === 'importing') {
               <p class="uf-hint">
                 The worker is downloading the drawings. They appear under Documents within a minute
                 and propose floors from their level markers.
@@ -162,7 +177,7 @@ import { ToastService } from '../ui/toast.service';
             >
             <button
               mat-stroked-button
-              [disabled]="busy() || latestImport()?.status === 'importing'"
+              [disabled]="busy() || importRunning()"
               (click)="refreshPermit()"
             >
               <ng-icon name="lucideRefreshCw" /> Check registry for new files
@@ -232,12 +247,13 @@ import { ToastService } from '../ui/toast.service';
             @if (pr.split_level && !asOneBuilding()[b.id]) {
               <div class="proposal">
                 <p class="uf-small">
-                  <strong>Split-level blocks: {{ blocksOf(pr).length }}</strong> drawn side by side on
-                  {{ pr.sheets_with_markers }} sheets.
+                  <strong>Split-level blocks: {{ blocksOf(pr).length }}</strong> drawn side by side
+                  on {{ pr.sheets_with_markers }} sheets.
                   <span class="uf-muted"
-                    >Each column of level markers on the plan sheets is a block with its own storeys.
-                    Blocks become separate buildings, as the sheets' regions and the 3D model expect;
-                    edit the codes first. The sheets then get one floor suggestion per block.</span
+                    >Each column of level markers on the plan sheets is a block with its own
+                    storeys. Blocks become separate buildings, as the sheets' regions and the 3D
+                    model expect; edit the codes first. The sheets then get one floor suggestion per
+                    block.</span
                   >
                   <a class="uf-link" (click)="setOneBuilding(b, true)"
                     >Treat as one building instead</a
@@ -255,7 +271,10 @@ import { ToastService } from '../ui/toast.service';
                           [name]="'blk-' + b.id + blk.code"
                         />
                       </mat-form-field>
-                      <span class="uf-hint">column at {{ (blk.column_x * 100).toFixed(0) }} % of the sheet width · {{ blk.sheets }} sheets</span>
+                      <span class="uf-hint"
+                        >column at {{ (blk.column_x * 100).toFixed(0) }} % of the sheet width ·
+                        {{ blk.sheets }} sheets</span
+                      >
                       <table class="uf-plain floors">
                         <thead>
                           <tr>
@@ -270,7 +289,9 @@ import { ToastService } from '../ui/toast.service';
                             <tr>
                               <td class="uf-num">{{ f.level }}</td>
                               <td>{{ f.display_name }}</td>
-                              <td class="uf-num">{{ f.elevation_m >= 0 ? '+' : '' }}{{ f.elevation_m }}</td>
+                              <td class="uf-num">
+                                {{ f.elevation_m >= 0 ? '+' : '' }}{{ f.elevation_m }}
+                              </td>
                               <td class="uf-num">{{ f.height_m ?? '—' }}</td>
                             </tr>
                           }
@@ -280,92 +301,102 @@ import { ToastService } from '../ui/toast.service';
                   }
                 </div>
                 <div class="uf-actions">
-                  <mat-checkbox [checked]="removeSource()[b.id] ?? true" (change)="setRemoveSource(b, $event.checked)" [disabled]="busy()">
+                  <mat-checkbox
+                    [checked]="removeSource()[b.id] ?? true"
+                    (change)="setRemoveSource(b, $event.checked)"
+                    [disabled]="busy()"
+                  >
                     Remove building {{ b.code }} afterwards (only possible while it has no units)
                   </mat-checkbox>
                   <button mat-flat-button [disabled]="busy()" (click)="acceptBlocks(b, pr)">
-                    <ng-icon name="lucideBuilding2" /> Create {{ blocksOf(pr).length }} buildings with their floors
+                    <ng-icon name="lucideBuilding2" /> Create {{ blocksOf(pr).length }} buildings
+                    with their floors
                   </button>
                 </div>
               </div>
             } @else {
-            <div class="proposal">
-              @if (pr.split_level) {
+              <div class="proposal">
+                @if (pr.split_level) {
+                  <p class="uf-small">
+                    <a class="uf-link" (click)="setOneBuilding(b, false)"
+                      >Back to {{ blocksOf(pr).length }} blocks</a
+                    >
+                  </p>
+                }
                 <p class="uf-small">
-                  <a class="uf-link" (click)="setOneBuilding(b, false)"
-                    >Back to {{ blocksOf(pr).length }} blocks</a
+                  <strong>Floors proposed from the drawings</strong> ·
+                  {{ pr.floors.length }} storeys on {{ pr.sheets_with_markers }} sheets.
+                  <span class="uf-muted"
+                    >Level markers such as +3.20 on the plan sheets, one storey per marker height;
+                    heights are the distance to the next storey
+                    @if (pr.roof['elevation_m']) {
+                      , the top one to the roof at +{{ pr.roof['elevation_m'] }}
+                    }
+                    . Existing floors are kept; "fills elevation" completes a floor you generated.
+                    Three markers 1 m apart on one sheet are split-level blocks drawn side by side:
+                    accept only one block's storeys here, or model the blocks as separate
+                    buildings.</span
                   >
                 </p>
-              }
-              <p class="uf-small">
-                <strong>Floors proposed from the drawings</strong> · {{ pr.floors.length }} storeys on
-                {{ pr.sheets_with_markers }} sheets.
-                <span class="uf-muted"
-                  >Level markers such as +3.20 on the plan sheets, one storey per marker height;
-                  heights are the distance to the next storey@if (pr.roof['elevation_m']) {, the
-                  top one to the roof at +{{ pr.roof['elevation_m'] }}}. Existing floors are kept;
-                  "fills elevation" completes a floor you generated. Three markers 1 m apart on one
-                  sheet are split-level blocks drawn side by side: accept only one block's storeys
-                  here, or model the blocks as separate buildings.</span
-                >
-              </p>
-              <table class="uf-plain floors">
-                <thead>
-                  <tr>
-                    <th></th>
-                    <th>Level</th>
-                    <th>Name</th>
-                    <th class="uf-num">Elevation (m)</th>
-                    <th class="uf-num">Height (m)</th>
-                    <th>Status</th>
-                    <th class="uf-num">Sheets</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (f of pr.floors; track f.level) {
-                    <tr [class.uf-muted]="f.status === 'existing'">
-                      <td>
-                        <mat-checkbox
-                          [checked]="isPicked(b, f)"
-                          [disabled]="f.status === 'existing' || busy()"
-                          (change)="togglePick(b, f, $event.checked)"
-                        />
-                      </td>
-                      <td class="uf-num">{{ f.level }}</td>
-                      <td>{{ f.display_name }}</td>
-                      <td class="uf-num">{{ f.elevation_m >= 0 ? '+' : '' }}{{ f.elevation_m }}</td>
-                      <td class="uf-num">{{ f.height_m ?? '—' }}</td>
-                      <td>
-                        <span
-                          class="uf-chip"
-                          [class.uf-tone-good]="f.status === 'new'"
-                          [class.uf-tone-warning]="f.status === 'update'"
-                          >{{ statusLabel(f.status) }}</span
-                        >
-                      </td>
-                      <td class="uf-num" [title]="f.markers.join(', ')">{{ f.sheets }}</td>
+                <table class="uf-plain floors">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>Level</th>
+                      <th>Name</th>
+                      <th class="uf-num">Elevation (m)</th>
+                      <th class="uf-num">Height (m)</th>
+                      <th>Status</th>
+                      <th class="uf-num">Sheets</th>
                     </tr>
-                  }
-                </tbody>
-              </table>
-              @if (pr.unmatched_existing.length) {
-                <p class="uf-hint">
-                  Floors without a marker in the drawings, left as they are:
-                  @for (u of pr.unmatched_existing; track u['floor_id']) {
-                    {{ u['display_name'] }}
-                  }
-                </p>
-              }
-              <div class="uf-actions">
-                <button
-                  mat-flat-button
-                  [disabled]="busy() || !pickedCount(b)"
-                  (click)="acceptProposal(b, pr)"
-                >
-                  <ng-icon name="lucideLayers" /> Accept {{ pickedCount(b) }} floor(s)
-                </button>
+                  </thead>
+                  <tbody>
+                    @for (f of pr.floors; track f.level) {
+                      <tr [class.uf-muted]="f.status === 'existing'">
+                        <td>
+                          <mat-checkbox
+                            [checked]="isPicked(b, f)"
+                            [disabled]="f.status === 'existing' || busy()"
+                            (change)="togglePick(b, f, $event.checked)"
+                          />
+                        </td>
+                        <td class="uf-num">{{ f.level }}</td>
+                        <td>{{ f.display_name }}</td>
+                        <td class="uf-num">
+                          {{ f.elevation_m >= 0 ? '+' : '' }}{{ f.elevation_m }}
+                        </td>
+                        <td class="uf-num">{{ f.height_m ?? '—' }}</td>
+                        <td>
+                          <span
+                            class="uf-chip"
+                            [class.uf-tone-good]="f.status === 'new'"
+                            [class.uf-tone-warning]="f.status === 'update'"
+                            >{{ statusLabel(f.status) }}</span
+                          >
+                        </td>
+                        <td class="uf-num" [title]="f.markers.join(', ')">{{ f.sheets }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+                @if (pr.unmatched_existing.length) {
+                  <p class="uf-hint">
+                    Floors without a marker in the drawings, left as they are:
+                    @for (u of pr.unmatched_existing; track u['floor_id']) {
+                      {{ u['display_name'] }}
+                    }
+                  </p>
+                }
+                <div class="uf-actions">
+                  <button
+                    mat-flat-button
+                    [disabled]="busy() || !pickedCount(b)"
+                    (click)="acceptProposal(b, pr)"
+                  >
+                    <ng-icon name="lucideLayers" /> Accept {{ pickedCount(b) }} floor(s)
+                  </button>
+                </div>
               </div>
-            </div>
             }
           }
           <div class="uf-form-row">
@@ -657,6 +688,16 @@ export class ProjectDetailPage {
   readonly asOneBuilding = signal<Record<string, boolean>>({});
   readonly removeSource = signal<Record<string, boolean>>({});
   readonly latestImport = computed(() => this.imports()[0] ?? null);
+  /** "importing" for over 20 minutes means a lost worker (ADR-0016 #8); the next refresh closes it. */
+  readonly importStalled = computed(() => {
+    const j = this.latestImport();
+    if (!j || j.status !== 'importing') return false;
+    const started = new Date(j.started_at || j.created_at).getTime();
+    return Date.now() - started > 20 * 60 * 1000;
+  });
+  readonly importRunning = computed(
+    () => this.latestImport()?.status === 'importing' && !this.importStalled(),
+  );
   readonly heights = computed(() => {
     const p = this.latestImport()?.permit as Record<string, unknown> | undefined;
     const h = (p?.['heights'] ?? null) as {

@@ -301,6 +301,52 @@ const FIX_LINKS: [RegExp, string, string][] = [
       </div>
 
       <uf-section-card
+        title="Location"
+        icon="lucideMapPin"
+        [summary]="locationSummary()"
+        storageKey="publish-location"
+      >
+        <p class="uf-hint">
+          With a position the portal shows an OpenStreetMap view of the project with a marker. Find
+          the plot on
+          <a [href]="osmSearchUrl()" target="_blank" rel="noopener">openstreetmap.org</a>,
+          right-click the spot, choose "Show address" and copy the two numbers.
+        </p>
+        <div class="uf-form-row">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Latitude</mat-label>
+            <input
+              matInput
+              type="number"
+              step="0.000001"
+              [(ngModel)]="location.lat"
+              name="lat"
+              placeholder="41.7"
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Longitude</mat-label>
+            <input
+              matInput
+              type="number"
+              step="0.000001"
+              [(ngModel)]="location.lng"
+              name="lng"
+              placeholder="44.7"
+            />
+          </mat-form-field>
+          <button mat-flat-button [disabled]="busy()" (click)="saveLocation()">
+            Save position
+          </button>
+          @if (location.lat && location.lng) {
+            <a mat-button [href]="osmViewUrl()" target="_blank" rel="noopener"
+              ><ng-icon name="lucideExternalLink" /> Check on the map</a
+            >
+          }
+        </div>
+      </uf-section-card>
+
+      <uf-section-card
         title="Publications"
         icon="lucideHistory"
         [count]="publications().length"
@@ -438,6 +484,7 @@ export class PublishPage {
     price_note: '',
     terms: '',
   };
+  location: { lat: number | null; lng: number | null } = { lat: null, lng: null };
   brand: BrandingForm = blankBrand();
   when = whenShort;
 
@@ -507,6 +554,11 @@ export class PublishPage {
       this.project.set(p);
       this.ctx.set(p);
       this.tenant.set(t);
+      const addr = (p.address ?? {}) as Record<string, unknown>;
+      this.location = {
+        lat: typeof addr['lat'] === 'number' ? addr['lat'] : null,
+        lng: typeof addr['lng'] === 'number' ? addr['lng'] : null,
+      };
       const ps = (p.portal_settings ?? {}) as Partial<PortalForm>;
       this.portal = {
         hero_text: ps.hero_text ?? '',
@@ -568,6 +620,55 @@ export class PublishPage {
     return this.act(async () => {
       await this.api.unpublish(this.tenantId(), this.projectId());
       this.toast.ok('The project is no longer published.');
+    });
+  }
+
+  locationSummary(): string {
+    return this.location.lat && this.location.lng
+      ? `${this.location.lat}, ${this.location.lng}`
+      : 'no map position';
+  }
+
+  osmSearchUrl(): string {
+    const a = (this.project()?.address ?? {}) as Record<string, unknown>;
+    const q =
+      [a['line1'], a['city']].filter((x) => typeof x === 'string').join(', ') ||
+      this.project()?.name ||
+      '';
+    return 'https://www.openstreetmap.org/search?query=' + encodeURIComponent(q);
+  }
+
+  osmViewUrl(): string {
+    const { lat, lng } = this.location;
+    return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat}/${lng}`;
+  }
+
+  /** The position lives in the project address (`lat`, `lng`); the snapshot publishes it (ADR-0016 Decision 5). */
+  saveLocation(): Promise<void> {
+    const p = this.project();
+    if (!p) return Promise.resolve();
+    const addr = { ...((p.address ?? {}) as Record<string, unknown>) };
+    const { lat, lng } = this.location;
+    if (
+      lat !== null &&
+      lng !== null &&
+      lat !== undefined &&
+      lng !== undefined &&
+      `${lat}` !== '' &&
+      `${lng}` !== ''
+    ) {
+      addr['lat'] = Number(lat);
+      addr['lng'] = Number(lng);
+    } else {
+      delete addr['lat'];
+      delete addr['lng'];
+    }
+    return this.act(async () => {
+      await this.api.updateProject(this.tenantId(), this.projectId(), {
+        address: addr,
+        version: p.version,
+      });
+      this.toast.ok('Map position saved. Publish a new version to show it to buyers.');
     });
   }
 

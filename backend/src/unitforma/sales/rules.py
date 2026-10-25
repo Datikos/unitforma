@@ -14,7 +14,9 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 AVAILABILITY = ("available", "reserved", "sold", "withdrawn")
-UNIT_FIELDS = ("rooms", "bedrooms", "bathrooms", "orientation", "entrance")
+UNIT_FIELDS = ("rooms", "bedrooms", "bathrooms", "orientation", "entrance", "layout")
+# unit fields that live in ``units.attributes`` (JSONB) rather than in a column
+ATTRIBUTE_FIELDS = ("layout",)
 SALES_FIELDS = (
     "availability",
     "availability_reason",
@@ -237,7 +239,7 @@ def current_values(project, unit, sales) -> Current:
             values["list_price"] = Decimal(values["list_price"]).quantize(Decimal("0.01"))
         version = sales.version
     for f in UNIT_FIELDS:
-        values[f] = getattr(unit, f)
+        values[f] = (unit.attributes or {}).get(f) if f in ATTRIBUTE_FIELDS else getattr(unit, f)
     return Current(values=values, version=version)
 
 
@@ -315,6 +317,9 @@ def validate(
         elif f in ("orientation", "entrance"):
             if v is not None and len(v) > 20:
                 errors.append(f"{f} is limited to 20 characters")
+        elif f == "layout":
+            if v is not None and (not isinstance(v, str) or not v.strip() or len(v) > 40):
+                errors.append("layout is a code of 1 to 40 characters")
     return errors
 
 

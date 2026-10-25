@@ -4,7 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { PlanPolygon, PlanViewerComponent } from 'plan-viewer';
 import { StatusChipComponent, UF_ICONS } from 'ui';
-import type { MassingUnitInfo } from 'viewer-3d';
+import type { MassingUnitInfo, SiteFeature3D } from 'viewer-3d';
 import { MassingViewerComponent } from 'viewer-3d';
 import { detectCapabilities } from '../core/capabilities';
 import { AVAILABILITY, typeLabel } from '../core/format';
@@ -117,6 +117,7 @@ import { SiteStore } from '../core/site.store';
                   [floorLevel]="level()"
                   [selectedUnitId]="selected()"
                   [unitColors]="unitColors()"
+                  [siteFeatures]="siteFeatures3d()"
                   (unitPicked)="pick3d($event)"
                 />
               } @loading (minimum 200ms) {
@@ -348,6 +349,11 @@ export class BuildingPage {
       this.doc()?.buildings.find((b) => b.code.toLowerCase() === this.code().toLowerCase()) ?? null,
   );
   /** The architect's IFC model when the building has one (ADR-0006 Decision 5), else the project massing. */
+  readonly siteFeatures3d = computed<SiteFeature3D[]>(() =>
+    (this.doc()?.site?.features ?? [])
+      .filter((f) => f.ring_m && f.ring_m.length >= 3)
+      .map((f) => ({ kind: f.kind, name: f.name, ring_m: f.ring_m as [number, number][] })),
+  );
   readonly has3d = computed(
     () => !!(this.doc()?.massing || this.building()?.model) && this.caps.webgl2,
   );

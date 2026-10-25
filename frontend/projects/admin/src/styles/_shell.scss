@@ -6,6 +6,10 @@
 }
 .shell__nav {
   width: var(--uf-nav-width);
+  /* MatSidenav's own styles are injected after this sheet and paint `.mat-drawer` from these two
+     tokens, so the dark menu must be set through them, not only through background/color. */
+  --mat-sidenav-container-background-color: var(--uf-nav-bg);
+  --mat-sidenav-container-text-color: var(--uf-nav-text);
   background: var(--uf-nav-bg);
   color: var(--uf-nav-text);
   border-right: 0;

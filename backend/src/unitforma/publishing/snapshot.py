@@ -30,6 +30,7 @@ from unitforma.sales import service as sales
 from unitforma.storage.service import get_storage
 from unitforma.tenants.models import (
     Building,
+    Document,
     Floor,
     PaymentPlan,
     Project,
@@ -37,6 +38,7 @@ from unitforma.tenants.models import (
     Publication,
     PublishedUnit,
     Sheet,
+    SiteFeature,
     Tenant,
     Unit,
     UnitBoundary,
@@ -292,6 +294,13 @@ async def build(
             else None
         )
 
+    # renders shared by layout (ADR-0016 Decision 4): a unit without media of its own shows the
+    # media of the first unit (by code) that has the same layout code and media
+    layout_donor: dict[str, uuid.UUID] = {}
+    for u in sorted(units, key=lambda x: x.code):
+        code = (rows_by_id.get(u.id) or {}).get("layout")
+        if code and media_by_unit.get(u.id) and code not in layout_donor:
+            layout_donor[code] = u.id
     # unit public views + read model rows
     unit_docs: dict[uuid.UUID, dict[str, Any]] = {}
     read_rows: list[PublishedUnit] = []
@@ -302,6 +311,11 @@ async def build(
         plan = plans.get(row["payment_plan_id"]) if row["payment_plan_id"] else None
         unit_promos = [promos[p] for p in row["promotion_ids"] if p in promos]
         media = media_by_unit.get(u.id, [])
+        shared_from: str | None = None
+        if not media and row.get("layout") and layout_donor.get(row["layout"]) not in (None, u.id):
+            donor = layout_donor[row["layout"]]
+            media = media_by_unit.get(donor, [])
+            shared_from = rows_by_id[donor]["code"]
         view = sales.public_view(row, plan, unit_promos, media)
         media_items = {m.id: m for m in media}
         for item in view.get("media", []):
@@ -311,6 +325,8 @@ async def build(
             item.pop("id", None)  # internal ids are not needed by the portal
             item["url"] = assets.url(name)
             item["mime"] = m.mime
+            if shared_from:
+                item["shared_from"] = shared_from
         sheet_id = floor_sheet.get(u.floor_id)
         if sheet_id is not None:
             crop = floor_crop.get(u.floor_id)
@@ -437,6 +453,7 @@ async def build(
         plan_cache,
     )
     massing_ref = await _massing(db, project, assets, listed)
+    gallery = await _gallery(db, project, assets, plan_cache)
 
     listed_docs = [unit_docs[u] for u in unit_docs if u in listed]
     prices = [
@@ -498,12 +515,7 @@ async def build(
                 "slug": project.slug,
                 "name": project.name,
                 "description": project.description,
-                "address": {
-                    k: v
-                    for k, v in (project.address or {}).items()
-                    if k in ("line1", "line2", "city", "region", "postcode", "country")
-                    and isinstance(v, str)
-                },
+                "address": _public_address(project.address),
                 "currency": project.currency,
                 "area_definitions": [
                     {k: a.get(k) for k in ("key", "label", "description")}
@@ -515,6 +527,7 @@ async def build(
             },
             "stats": stats,
             "site": site,
+            "gallery": gallery,
             "buildings": building_docs,
             "massing": massing_ref,
             "payment_plans": public_plans,
@@ -599,9 +612,112 @@ async def _site(
                 "ring": ring,
             }
         )
+    features = await _site_features(db, project, sheet, cal)
     if ref is None and not out_buildings:
         return None
-    return {"plan": ref, "buildings": out_buildings}
+    return {"plan": ref, "buildings": out_buildings, "features": features}
+
+
+def _public_address(address: dict[str, Any] | None) -> dict[str, Any]:
+    """Text lines plus the map position (``lat``/``lng``), nothing else (ADR-0016 Decision 5)."""
+    out: dict[str, Any] = {
+        k: v
+        for k, v in (address or {}).items()
+        if k in ("line1", "line2", "city", "region", "postcode", "country") and isinstance(v, str)
+    }
+    try:
+        lat, lng = float((address or {}).get("lat")), float((address or {}).get("lng"))
+        if -90 <= lat <= 90 and -180 <= lng <= 180:
+            out["lat"], out["lng"] = round(lat, 6), round(lng, 6)
+    except (TypeError, ValueError):
+        pass
+    return out
+
+
+GALLERY_KINDS = ("render",)
+
+
+async def _gallery(
+    db: AsyncSession, project: Project, assets: Assets, cache: dict[Any, dict]
+) -> list[dict[str, Any]]:
+    """The portal gallery (ADR-0016 Decision 1): every processed, non-excluded page of the
+    project's ``public`` render documents, in document title and page order."""
+    docs = list(
+        (
+            await db.execute(
+                select(Document)
+                .where(
+                    Document.project_id == project.id,
+                    Document.kind.in_(GALLERY_KINDS),
+                    Document.visibility == "public",
+                    Document.current_revision_id.is_not(None),
+                )
+                .order_by(Document.title)
+            )
+        ).scalars()
+    )
+    out: list[dict[str, Any]] = []
+    for d in sorted(docs, key=lambda x: _natural(x.title)):
+        sheets = list(
+            (
+                await db.execute(
+                    select(Sheet)
+                    .where(
+                        Sheet.revision_id == d.current_revision_id,
+                        Sheet.excluded.is_(False),
+                        Sheet.raster_key.is_not(None),
+                    )
+                    .order_by(Sheet.page_no)
+                )
+            ).scalars()
+        )
+        for s in sheets:
+            ref = _plan_asset(assets, s, cache)
+            if ref is None:
+                continue
+            caption = d.title if len(sheets) == 1 else f"{d.title} · {s.page_no}"
+            out.append({**ref, "caption": caption, "document": d.title, "page": s.page_no})
+    return out
+
+
+FEATURE_KINDS = ("garden", "road", "parking_zone", "amenity", "common_area", "entrance", "other")
+
+
+async def _site_features(
+    db: AsyncSession, project: Project, sheet: Sheet | None, cal: dict[str, Any] | None
+) -> list[dict[str, Any]]:
+    """Public site features (ADR-0016 Decision 3): polygons are stored normalised to the site
+    sheet; the snapshot adds the site-frame metres the 3D viewer draws them in."""
+    rows = list(
+        (
+            await db.execute(
+                select(SiteFeature)
+                .where(SiteFeature.project_id == project.id, SiteFeature.is_public.is_(True))
+                .order_by(SiteFeature.sort_order, SiteFeature.name)
+            )
+        ).scalars()
+    )
+    m = (cal or {}).get("m_per_px") if sheet is not None else None
+    out: list[dict[str, Any]] = []
+    for f in rows:
+        ring = (f.polygon or {}).get("ring") if isinstance(f.polygon, dict) else None
+        if not ring or f.kind not in FEATURE_KINDS:
+            continue
+        item: dict[str, Any] = {
+            "kind": f.kind,
+            "name": f.name,
+            "ring": [[round(float(x), 5), round(float(y), 5)] for x, y in ring],
+        }
+        if m and sheet is not None and sheet.raster_width and sheet.raster_height:
+            item["ring_m"] = [
+                [
+                    round(float(x) * m * sheet.raster_width, 3),
+                    round(float(y) * m * sheet.raster_height, 3),
+                ]
+                for x, y in ring
+            ]
+        out.append(item)
+    return out
 
 
 def _natural(key: str) -> tuple:

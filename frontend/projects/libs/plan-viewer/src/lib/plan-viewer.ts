@@ -286,6 +286,8 @@ export interface PolygonMove {
 })
 export class PlanViewerComponent {
   readonly src = input<string | null>(null);
+  /** Zoom to this ring (normalised) after load instead of fitting the whole sheet: the unit page. */
+  readonly focus = input<Ring | null>(null);
   readonly width = input(1000);
   readonly height = input(700);
   readonly polygons = input<PlanPolygon[]>([]);
@@ -325,6 +327,7 @@ export class PlanViewerComponent {
     effect(() => {
       this.width();
       this.height();
+      this.focus();
       this.fit();
     });
     // the box follows the sheet's aspect ratio (--uf-plan-aspect), so refit when the layout settles or the window resizes
@@ -342,12 +345,25 @@ export class PlanViewerComponent {
     });
   }
 
-  /** Scale the sheet to the box and centre it. */
+  /** Scale the sheet to the box and centre it, or zoom onto the `focus` ring with a margin. */
   private fit(): void {
     const w = this.width();
     const h = this.height();
     const el = this.host().nativeElement;
     if (!el.clientWidth || !el.clientHeight) return;
+    const ring = this.focus();
+    if (ring && ring.length >= 3) {
+      const xs = ring.map((p) => p[0] * w);
+      const ys = ring.map((p) => p[1] * h);
+      const bw = Math.max(1, Math.max(...xs) - Math.min(...xs)) * 2.2;
+      const bh = Math.max(1, Math.max(...ys) - Math.min(...ys)) * 2.2;
+      const s = Math.min(el.clientWidth / bw, el.clientHeight / bh, el.clientWidth / w / 0.25);
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+      const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+      this.scale.set(s);
+      this.offset.set([el.clientWidth / 2 - cx * s, el.clientHeight / 2 - cy * s]);
+      return;
+    }
     const s = Math.min(el.clientWidth / w, el.clientHeight / h) * 0.95 || 1;
     this.scale.set(s);
     this.offset.set([(el.clientWidth - w * s) / 2, (el.clientHeight - h * s) / 2]);

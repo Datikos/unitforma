@@ -149,6 +149,7 @@ def row_dict(project, unit, building, floor, sales, areas, media_count, lookups)
         "bathrooms": unit.bathrooms,
         "orientation": unit.orientation,
         "entrance": unit.entrance,
+        "layout": (unit.attributes or {}).get("layout"),
         "public_description": cur["public_description"],
         "internal_notes": cur["internal_notes"],
         "public_fields": rules.effective_public_fields(project, sales),
@@ -218,7 +219,15 @@ async def apply_changes(
     new = {d.field: d.new for d in diffs}
     unit_changed = False
     for d in diffs:
-        if d.field in rules.UNIT_FIELDS:
+        if d.field in rules.ATTRIBUTE_FIELDS:
+            attrs = dict(unit.attributes or {})
+            if d.new is None:
+                attrs.pop(d.field, None)
+            else:
+                attrs[d.field] = d.new
+            unit.attributes = attrs
+            unit_changed = True
+        elif d.field in rules.UNIT_FIELDS:
             setattr(unit, d.field, d.new)
             unit_changed = True
         else:
@@ -591,6 +600,8 @@ def public_view(
     }
     if row.get("entrance"):
         out["entrance"] = row["entrance"]  # a location fact like the floor: public, no switch
+    if row.get("layout"):
+        out["layout"] = row["layout"]  # the plan type; renders of the same layout are shared
     if pf.get("list_price") and row["list_price"] is not None and not row["price_on_request"]:
         out["price"] = {"amount": row["list_price"], "currency": row["currency"]}
         if row["price_per_m2"] is not None:

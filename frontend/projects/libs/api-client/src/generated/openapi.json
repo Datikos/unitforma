@@ -57,7 +57,7 @@
      "internal"
     ],
     "summary": "Domains Ask",
-    "description": "Caddy on-demand TLS permission endpoint: 200 allows issuance, 403 denies.",
+    "description": "Caddy on-demand TLS permission endpoint: 200 allows issuance, 403 denies.\n\nThe shared secret arrives as ``?token=`` (Caddy's ``ask`` sends a plain GET and cannot add\nheaders; the Caddyfile appends the value of the ``internal_ask_token`` secret) or, for other\ninternal callers, as the ``X-Unitforma-Internal`` header.",
     "operationId": "domains_ask_internal_domains_ask_get",
     "parameters": [
      {
@@ -69,6 +69,23 @@
        "minLength": 1,
        "maxLength": 253,
        "title": "Domain"
+      }
+     },
+     {
+      "name": "token",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 200
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Token"
       }
      },
      {
@@ -2329,6 +2346,113 @@
         }
        }
       }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/site-features/{feature_id}": {
+   "patch": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Update Site Feature",
+    "operationId": "update_site_feature_api_v1_admin_tenants__tenant_id__site_features__feature_id__patch",
+    "parameters": [
+     {
+      "name": "feature_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Feature Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SiteFeatureUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SiteFeatureOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Delete Site Feature",
+    "operationId": "delete_site_feature_api_v1_admin_tenants__tenant_id__site_features__feature_id__delete",
+    "parameters": [
+     {
+      "name": "feature_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Feature Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
      },
      "422": {
       "description": "Validation Error",
@@ -8772,6 +8896,21 @@
       "type": "boolean",
       "title": "Clear Building",
       "default": false
+     },
+     "visibility": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "internal",
+         "public"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Visibility"
      }
     },
     "type": "object",
@@ -9128,6 +9267,29 @@
      "height_m": {
       "type": "number",
       "title": "Height M"
+     },
+     "sides": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sides"
+     },
+     "facades": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Facades"
      }
     },
     "type": "object",
@@ -9756,6 +9918,18 @@
       ],
       "title": "Entrance",
       "description": "Staircase; public like the floor"
+     },
+     "layout": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Layout",
+      "description": "Layout code shared by units with the same plan (ADR-0016)"
      },
      "public_description": {
       "anyOf": [
@@ -13072,6 +13246,18 @@
       ],
       "title": "Entrance"
      },
+     "layout": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Layout"
+     },
      "public_fields": {
       "anyOf": [
        {
@@ -13425,6 +13611,18 @@
        }
       ],
       "title": "Entrance"
+     },
+     "layout": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Layout"
      },
      "public_fields": {
       "anyOf": [
@@ -13949,6 +14147,84 @@
      "sort_order"
     ],
     "title": "SiteFeatureOut"
+   },
+   "SiteFeatureUpdate": {
+    "properties": {
+     "kind": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "garden",
+         "road",
+         "parking_zone",
+         "amenity",
+         "common_area",
+         "entrance",
+         "other"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kind"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "polygon": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Polygon"
+     },
+     "clear_polygon": {
+      "type": "boolean",
+      "title": "Clear Polygon",
+      "default": false
+     },
+     "is_public": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Public"
+     },
+     "sort_order": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sort Order"
+     }
+    },
+    "type": "object",
+    "title": "SiteFeatureUpdate"
    },
    "SiteTransform": {
     "properties": {

@@ -27,6 +27,7 @@ from unitforma.tenants.models import (
     Floor,
     GeometryModel,
     Project,
+    Sheet,
     Unit,
     UnitBoundary,
 )
@@ -146,6 +147,8 @@ async def collect(
                 placement=massing.Placement.from_dict(b.site_transform),
                 units=units,
                 extras={"placement_status": b.placement_status},
+                facades=await facade_images(db, project, b),
+                facade_rect=massing.building_rectangle(massing.facade_rings(units)),
             )
         )
     stats = {
@@ -248,6 +251,70 @@ def signed_url(model: GeometryModel) -> str | None:
     return get_storage().presign_get(model.glb_key, expires=3600) if model.glb_key else None
 
 
+FACADE_MAX_WIDTH = 1024
+
+
+def facade_assignments(project: Project, building_id: uuid.UUID) -> list[dict[str, Any]]:
+    """The reviewer's facade choices (ADR-0016 Decision 2) live in ``projects.site_frame``
+    under ``facades[building_id]``: ``[{side, sheet_id, region: {ring}, flip}]``."""
+    raw = ((project.site_frame or {}).get("facades") or {}).get(str(building_id)) or []
+    return [a for a in raw if isinstance(a, dict) and a.get("sheet_id") is not None]
+
+
+async def facade_images(
+    db: AsyncSession, project: Project, b: Building
+) -> list[massing.FacadeImage]:
+    """Crop each assigned elevation sheet to its marked region, JPEG no wider than 1024 px."""
+    out: list[massing.FacadeImage] = []
+    for a in facade_assignments(project, b.id):
+        try:
+            sheet = (
+                await db.execute(select(Sheet).where(Sheet.id == uuid.UUID(str(a["sheet_id"]))))
+            ).scalar_one_or_none()
+        except ValueError:
+            sheet = None
+        if sheet is None or not sheet.raster_key:
+            continue
+        ring = ((a.get("region") or {}).get("ring")) or [[0, 0], [1, 0], [1, 1], [0, 1]]
+        try:
+            data = facade_image(get_storage().get_bytes(sheet.raster_key), ring)
+        except Exception as e:  # noqa: BLE001 - a bad crop only loses that facade
+            log.warning("geometry.facade_unavailable", sheet_id=str(sheet.id), error=str(e))
+            continue
+        out.append(
+            massing.FacadeImage(side=int(a.get("side", 0)), image=data, flip=bool(a.get("flip")))
+        )
+    return out
+
+
+def facade_image(raster_png: bytes, ring: list[list[float]]) -> bytes:
+    """The bounding box of a normalised region on the sheet, as a JPEG for the GLB."""
+    import io
+
+    from PIL import Image
+
+    xs = [float(p[0]) for p in ring]
+    ys = [float(p[1]) for p in ring]
+    with Image.open(io.BytesIO(raster_png)) as im:
+        im = im.convert("RGB")
+        box = (
+            round(max(0.0, min(xs)) * im.width),
+            round(max(0.0, min(ys)) * im.height),
+            round(min(1.0, max(xs)) * im.width),
+            round(min(1.0, max(ys)) * im.height),
+        )
+        if box[2] - box[0] < 2 or box[3] - box[1] < 2:
+            raise ValueError("facade region is empty")
+        im = im.crop(box)
+        if im.width > FACADE_MAX_WIDTH:
+            im = im.resize(
+                (FACADE_MAX_WIDTH, max(1, round(im.height * FACADE_MAX_WIDTH / im.width)))
+            )
+        buf = io.BytesIO()
+        im.save(buf, format="JPEG", quality=82, optimize=True)
+        return buf.getvalue()
+
+
 async def footprints(db: AsyncSession, project: Project) -> list[dict[str, Any]]:
     """Per building: outline of the lowest mapped floor in building-local metres, plus placement.
 
@@ -283,6 +350,7 @@ async def footprints(db: AsyncSession, project: Project) -> list[dict[str, Any]]
                     .where(
                         Unit.floor_id == f.id,
                         Unit.lifecycle_status != "removed",
+                        Unit.unit_type.not_in(massing.FACADE_EXCLUDED_TYPES),
                         UnitBoundary.is_current.is_(True),
                         UnitBoundary.polygon_m.is_not(None),
                     )
@@ -310,6 +378,17 @@ async def footprints(db: AsyncSession, project: Project) -> list[dict[str, Any]]
                 "source_floor_level": source_floor,
                 "floors": len(floors),
                 "height_m": round(total_height, 2),
+                # the four sides a facade drawing can be mapped to (ADR-0016 Decision 2), in
+                # building-local metres; the massing numbers them the same way
+                "sides": (
+                    [
+                        {"index": sd.index, "a": sd.a, "b": sd.b, "length_m": sd.length}
+                        for sd in massing.rectangle_sides(rect)
+                    ]
+                    if ring and (rect := massing.building_rectangle([ring])) is not None
+                    else None
+                ),
+                "facades": facade_assignments(project, b.id),
             }
         )
     return out

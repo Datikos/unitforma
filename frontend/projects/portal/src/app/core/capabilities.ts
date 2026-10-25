@@ -15,7 +15,10 @@ export function detectCapabilities(): Capabilities {
   } catch {
     webgl2 = false;
   }
-  const nav = navigator as Navigator & { connection?: { saveData?: boolean }; deviceMemory?: number };
+  const nav = navigator as Navigator & {
+    connection?: { saveData?: boolean };
+    deviceMemory?: number;
+  };
   const saveData = !!nav.connection?.saveData;
   const lowMemory = typeof nav.deviceMemory === 'number' && nav.deviceMemory < 2;
   const small = typeof window !== 'undefined' && window.innerWidth < 768;

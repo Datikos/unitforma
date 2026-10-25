@@ -13,6 +13,7 @@ export interface Form {
   bedrooms: number | null;
   bathrooms: number | null;
   orientation: string;
+  layout: string;
   entrance: string;
   public_description: string;
   internal_notes: string;
@@ -55,6 +56,7 @@ export function blankForm(): Form {
     bedrooms: null,
     bathrooms: null,
     orientation: '',
+    layout: '',
     entrance: '',
     public_description: '',
     internal_notes: '',
@@ -74,6 +76,7 @@ export function formFrom(r: InventoryRow): Form {
     bedrooms: r.bedrooms ?? null,
     bathrooms: r.bathrooms ?? null,
     orientation: r.orientation ?? '',
+    layout: r.layout ?? '',
     entrance: r.entrance ?? '',
     public_description: r.public_description ?? '',
     internal_notes: r.internal_notes ?? '',
@@ -97,7 +100,7 @@ export function diffChanges(form: Form, row: InventoryRow): SalesChanges {
     if (p === undefined) throw new Error('The price must be digits with at most two decimals');
     out['list_price'] = p;
   }
-  for (const k of ['orientation', 'entrance', 'public_description', 'internal_notes'])
+  for (const k of ['orientation', 'entrance', 'layout', 'public_description', 'internal_notes'])
     if (k in out && out[k] === '') out[k] = null;
   if ('currency' in out) out['currency'] = String(out['currency']).toUpperCase();
   for (const k of ['rooms', 'bedrooms', 'bathrooms'])

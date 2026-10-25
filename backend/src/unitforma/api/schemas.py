@@ -339,6 +339,18 @@ class SiteFeatureCreate(BaseModel):
     sort_order: int = 0
 
 
+class SiteFeatureUpdate(BaseModel):
+    kind: (
+        Literal["garden", "road", "parking_zone", "amenity", "common_area", "entrance", "other"]
+        | None
+    ) = None
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    polygon: dict[str, Any] | None = None
+    clear_polygon: bool = False
+    is_public: bool | None = None
+    sort_order: int | None = None
+
+
 class SiteFeatureOut(ORM):
     id: uuid.UUID
     project_id: uuid.UUID
@@ -401,6 +413,8 @@ class DocumentUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     building_id: uuid.UUID | None = None
     clear_building: bool = False
+    # ``public`` render documents form the portal gallery (ADR-0016 Decision 1)
+    visibility: Literal["internal", "public"] | None = None
 
 
 class RevisionOut(ORM):
@@ -721,6 +735,8 @@ class FootprintOut(BaseModel):
     source_floor_level: int | None
     floors: int
     height_m: float
+    sides: list[dict[str, Any]] | None = None
+    facades: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class MassingOut(ORM):
@@ -774,6 +790,9 @@ class InventoryRow(BaseModel):
     bathrooms: int | None
     orientation: str | None
     entrance: str | None = Field(default=None, description="Staircase; public like the floor")
+    layout: str | None = Field(
+        default=None, description="Layout code shared by units with the same plan (ADR-0016)"
+    )
     public_description: str | None
     internal_notes: str | None
     public_fields: dict[str, bool]
@@ -802,6 +821,7 @@ class SalesChanges(BaseModel):
     bathrooms: int | None = Field(default=None, ge=0, le=100)
     orientation: str | None = Field(default=None, max_length=20)
     entrance: str | None = Field(default=None, max_length=20)
+    layout: str | None = Field(default=None, max_length=40)
     public_fields: dict[PublicFieldKey, bool] | None = None
 
 
