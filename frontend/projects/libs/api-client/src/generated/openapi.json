@@ -3342,6 +3342,1649 @@
      }
     }
    }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/inventory": {
+   "get": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "List Inventory",
+    "operationId": "list_inventory_api_v1_admin_tenants__tenant_id__projects__project_id__inventory_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     },
+     {
+      "name": "include_removed",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Include Removed"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/InventoryRow"
+         },
+         "title": "Response List Inventory Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Inventory Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/sales": {
+   "get": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Get Unit Sales",
+    "operationId": "get_unit_sales_api_v1_admin_tenants__tenant_id__units__unit_id__sales_get",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InventoryRow"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Update Unit Sales",
+    "description": "Inline edit. Send the row ``version`` in the body or as ``If-Match``; a stale version\nreturns 409 with the current row so the UI can show both and re-apply (plan \u00a76.4).",
+    "operationId": "update_unit_sales_api_v1_admin_tenants__tenant_id__units__unit_id__sales_patch",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     },
+     {
+      "name": "if-match",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "If-Match"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SalesUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InventoryRow"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "Version conflict; the body carries `current` (the row)"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/inventory/bulk": {
+   "post": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Bulk Update",
+    "description": "Same change on many units; ``preview=true`` returns before/after without writing.",
+    "operationId": "bulk_update_api_v1_admin_tenants__tenant_id__projects__project_id__inventory_bulk_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BulkUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BulkResult"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "Stale units listed in `stale`"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/sales/history": {
+   "get": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Unit Sales History",
+    "operationId": "unit_sales_history_api_v1_admin_tenants__tenant_id__units__unit_id__sales_history_get",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SalesHistoryOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/sales/public-preview": {
+   "get": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Public Preview",
+    "description": "What a buyer would see for this unit once published (allow-listed fields only).",
+    "operationId": "public_preview_api_v1_admin_tenants__tenant_id__units__unit_id__sales_public_preview_get",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Public Preview Api V1 Admin Tenants  Tenant Id  Units  Unit Id  Sales Public Preview Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/sales-settings": {
+   "get": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Get Sales Settings",
+    "operationId": "get_sales_settings_api_v1_admin_tenants__tenant_id__projects__project_id__sales_settings_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SalesSettingsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Put Sales Settings",
+    "operationId": "put_sales_settings_api_v1_admin_tenants__tenant_id__projects__project_id__sales_settings_put",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SalesSettingsIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SalesSettingsOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/payment-plans": {
+   "get": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "List Plans",
+    "operationId": "list_plans_api_v1_admin_tenants__tenant_id__projects__project_id__payment_plans_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/PaymentPlanOut"
+         },
+         "title": "Response List Plans Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Payment Plans Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Create Plan",
+    "operationId": "create_plan_api_v1_admin_tenants__tenant_id__projects__project_id__payment_plans_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PaymentPlanIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PaymentPlanOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/payment-plans/{plan_id}": {
+   "patch": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Update Plan",
+    "operationId": "update_plan_api_v1_admin_tenants__tenant_id__payment_plans__plan_id__patch",
+    "parameters": [
+     {
+      "name": "plan_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Plan Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PaymentPlanUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PaymentPlanOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/promotions": {
+   "get": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "List Promotions",
+    "operationId": "list_promotions_api_v1_admin_tenants__tenant_id__projects__project_id__promotions_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/PromotionOut"
+         },
+         "title": "Response List Promotions Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Promotions Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Create Promotion",
+    "operationId": "create_promotion_api_v1_admin_tenants__tenant_id__projects__project_id__promotions_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PromotionIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PromotionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/promotions/{promotion_id}": {
+   "patch": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Update Promotion",
+    "operationId": "update_promotion_api_v1_admin_tenants__tenant_id__promotions__promotion_id__patch",
+    "parameters": [
+     {
+      "name": "promotion_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Promotion Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PromotionUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PromotionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/media": {
+   "get": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "List Media",
+    "operationId": "list_media_api_v1_admin_tenants__tenant_id__units__unit_id__media_get",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/MediaOut"
+         },
+         "title": "Response List Media Api V1 Admin Tenants  Tenant Id  Units  Unit Id  Media Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Create Media",
+    "description": "Reserve a media item and return a presigned PUT URL; then call ``complete``.",
+    "operationId": "create_media_api_v1_admin_tenants__tenant_id__units__unit_id__media_post",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MediaCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MediaIntentOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/media/{media_id}/complete": {
+   "post": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Complete Media",
+    "operationId": "complete_media_api_v1_admin_tenants__tenant_id__media__media_id__complete_post",
+    "parameters": [
+     {
+      "name": "media_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Media Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MediaOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/media/{media_id}": {
+   "patch": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Update Media",
+    "operationId": "update_media_api_v1_admin_tenants__tenant_id__media__media_id__patch",
+    "parameters": [
+     {
+      "name": "media_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Media Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MediaUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MediaOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Delete Media",
+    "operationId": "delete_media_api_v1_admin_tenants__tenant_id__media__media_id__delete",
+    "parameters": [
+     {
+      "name": "media_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Media Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/media/order": {
+   "put": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Reorder Media",
+    "operationId": "reorder_media_api_v1_admin_tenants__tenant_id__units__unit_id__media_order_put",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MediaOrder"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/MediaOut"
+         },
+         "title": "Response Reorder Media Api V1 Admin Tenants  Tenant Id  Units  Unit Id  Media Order Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/imports": {
+   "post": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Upload Import",
+    "description": "Upload a CSV or XLSX file as the raw request body. Returns its columns and a suggested\nmapping (the project's saved mapping first).",
+    "operationId": "upload_import_api_v1_admin_tenants__tenant_id__projects__project_id__imports_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     },
+     {
+      "name": "file_name",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 255,
+       "title": "File Name"
+      }
+     }
+    ],
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ImportBatchOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/octet-stream": {
+       "schema": {
+        "type": "string",
+        "format": "binary"
+       }
+      }
+     }
+    }
+   },
+   "get": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "List Imports",
+    "operationId": "list_imports_api_v1_admin_tenants__tenant_id__projects__project_id__imports_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/ImportBatchOut"
+         },
+         "title": "Response List Imports Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Imports Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/imports/{batch_id}": {
+   "get": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Get Import",
+    "operationId": "get_import_api_v1_admin_tenants__tenant_id__imports__batch_id__get",
+    "parameters": [
+     {
+      "name": "batch_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Batch Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ImportBatchOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/imports/{batch_id}/dry-run": {
+   "post": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Dry Run Import",
+    "description": "Validate every row against current data and report the changes; writes nothing to units.",
+    "operationId": "dry_run_import_api_v1_admin_tenants__tenant_id__imports__batch_id__dry_run_post",
+    "parameters": [
+     {
+      "name": "batch_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Batch Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ImportDryRun"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ImportBatchOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/imports/{batch_id}/apply": {
+   "post": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Apply Import",
+    "description": "Apply the dry-run changes in one transaction; 409 if the inventory changed since.",
+    "operationId": "apply_import_api_v1_admin_tenants__tenant_id__imports__batch_id__apply_post",
+    "parameters": [
+     {
+      "name": "batch_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Batch Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ImportApply"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ImportBatchOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/imports/{batch_id}/discard": {
+   "post": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Discard Import",
+    "operationId": "discard_import_api_v1_admin_tenants__tenant_id__imports__batch_id__discard_post",
+    "parameters": [
+     {
+      "name": "batch_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Batch Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ImportBatchOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/inventory/export": {
+   "get": {
+    "tags": [
+     "sales"
+    ],
+    "summary": "Export Inventory",
+    "description": "The same column set the importer reads, so an export can be edited and re-imported.",
+    "operationId": "export_inventory_api_v1_admin_tenants__tenant_id__projects__project_id__inventory_export_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     },
+     {
+      "name": "format",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "enum": [
+        "csv",
+        "xlsx"
+       ],
+       "type": "string",
+       "default": "xlsx",
+       "title": "Format"
+      }
+     },
+     {
+      "name": "columns",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "enum": [
+        "internal",
+        "public"
+       ],
+       "type": "string",
+       "default": "internal",
+       "title": "Columns"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "text/csv": {},
+       "application/octet-stream": {}
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -3561,6 +5204,81 @@
      "total"
     ],
     "title": "AuditPage"
+   },
+   "AvailabilityHistoryOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "old_availability": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Old Availability"
+     },
+     "new_availability": {
+      "type": "string",
+      "title": "New Availability"
+     },
+     "changed_by": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Changed By"
+     },
+     "changed_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Changed At"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "import_batch_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Import Batch Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "old_availability",
+     "new_availability",
+     "changed_by",
+     "changed_at",
+     "reason",
+     "import_batch_id"
+    ],
+    "title": "AvailabilityHistoryOut"
    },
    "BoundaryCreate": {
     "properties": {
@@ -3902,6 +5620,139 @@
      "version"
     ],
     "title": "BuildingUpdate"
+   },
+   "BulkItem": {
+    "properties": {
+     "unit_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Unit Id"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "unit_id",
+     "version"
+    ],
+    "title": "BulkItem"
+   },
+   "BulkResult": {
+    "properties": {
+     "preview": {
+      "type": "boolean",
+      "title": "Preview"
+     },
+     "units": {
+      "items": {
+       "$ref": "#/components/schemas/BulkUnitResult"
+      },
+      "type": "array",
+      "title": "Units"
+     },
+     "changed_units": {
+      "type": "integer",
+      "title": "Changed Units"
+     }
+    },
+    "type": "object",
+    "required": [
+     "preview",
+     "units",
+     "changed_units"
+    ],
+    "title": "BulkResult"
+   },
+   "BulkUnitResult": {
+    "properties": {
+     "unit_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Unit Id"
+     },
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "changes": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Changes"
+     }
+    },
+    "type": "object",
+    "required": [
+     "unit_id",
+     "code",
+     "changes"
+    ],
+    "title": "BulkUnitResult"
+   },
+   "BulkUpdate": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/BulkItem"
+      },
+      "type": "array",
+      "maxItems": 5000,
+      "minItems": 1,
+      "title": "Items"
+     },
+     "changes": {
+      "$ref": "#/components/schemas/SalesChanges"
+     },
+     "price_adjust_percent": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 1000.0,
+        "minimum": -90.0
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Adjust Percent",
+      "description": "Multiply existing prices; empty prices stay empty"
+     },
+     "preview": {
+      "type": "boolean",
+      "title": "Preview",
+      "default": true
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "confirm_zero_price": {
+      "type": "boolean",
+      "title": "Confirm Zero Price",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "items"
+    ],
+    "title": "BulkUpdate"
    },
    "Calibration": {
     "properties": {
@@ -4309,6 +6160,521 @@
     "type": "object",
     "title": "HTTPValidationError"
    },
+   "ImportApply": {
+    "properties": {
+     "skip_invalid_rows": {
+      "type": "boolean",
+      "title": "Skip Invalid Rows",
+      "default": false
+     }
+    },
+    "type": "object",
+    "title": "ImportApply"
+   },
+   "ImportBatchOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Project Id"
+     },
+     "file_name": {
+      "type": "string",
+      "title": "File Name"
+     },
+     "file_format": {
+      "type": "string",
+      "title": "File Format"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "headers": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Headers"
+     },
+     "mapping": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Mapping"
+     },
+     "options": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Options"
+     },
+     "report": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Report"
+     },
+     "row_count": {
+      "type": "integer",
+      "title": "Row Count"
+     },
+     "change_count": {
+      "type": "integer",
+      "title": "Change Count"
+     },
+     "error_count": {
+      "type": "integer",
+      "title": "Error Count"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "applied_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Applied At"
+     },
+     "targets": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Targets"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "project_id",
+     "file_name",
+     "file_format",
+     "status",
+     "headers",
+     "mapping",
+     "options",
+     "report",
+     "row_count",
+     "change_count",
+     "error_count",
+     "created_at",
+     "applied_at"
+    ],
+    "title": "ImportBatchOut"
+   },
+   "ImportDryRun": {
+    "properties": {
+     "mapping": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Mapping",
+      "description": "import field \u2192 column header"
+     },
+     "options": {
+      "$ref": "#/components/schemas/ImportOptions"
+     }
+    },
+    "type": "object",
+    "required": [
+     "mapping"
+    ],
+    "title": "ImportDryRun"
+   },
+   "ImportOptions": {
+    "properties": {
+     "decimal_separator": {
+      "type": "string",
+      "enum": [
+       ".",
+       ","
+      ],
+      "title": "Decimal Separator",
+      "default": "."
+     },
+     "thousands_separator": {
+      "type": "string",
+      "enum": [
+       "",
+       ",",
+       ".",
+       " ",
+       "'"
+      ],
+      "title": "Thousands Separator",
+      "default": ""
+     },
+     "confirm_zero_price": {
+      "type": "boolean",
+      "title": "Confirm Zero Price",
+      "description": "Accept price 0 on rows whose price_on_request column is explicitly false",
+      "default": false
+     }
+    },
+    "type": "object",
+    "title": "ImportOptions"
+   },
+   "InventoryRow": {
+    "properties": {
+     "unit_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Unit Id"
+     },
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "building_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Building Id"
+     },
+     "building_code": {
+      "type": "string",
+      "title": "Building Code"
+     },
+     "floor_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Floor Id"
+     },
+     "floor_level": {
+      "type": "integer",
+      "title": "Floor Level"
+     },
+     "floor_name": {
+      "type": "string",
+      "title": "Floor Name"
+     },
+     "unit_type": {
+      "type": "string",
+      "title": "Unit Type"
+     },
+     "lifecycle_status": {
+      "type": "string",
+      "title": "Lifecycle Status"
+     },
+     "verification_status": {
+      "type": "string",
+      "title": "Verification Status"
+     },
+     "publication_status": {
+      "type": "string",
+      "title": "Publication Status"
+     },
+     "availability": {
+      "type": "string",
+      "enum": [
+       "available",
+       "reserved",
+       "sold",
+       "withdrawn"
+      ],
+      "title": "Availability"
+     },
+     "availability_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Availability Reason"
+     },
+     "availability_changed_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Availability Changed At"
+     },
+     "list_price": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "List Price",
+      "description": "NULL = price unknown / on request"
+     },
+     "currency": {
+      "type": "string",
+      "title": "Currency"
+     },
+     "price_on_request": {
+      "type": "boolean",
+      "title": "Price On Request"
+     },
+     "price_area_type": {
+      "type": "string",
+      "title": "Price Area Type",
+      "description": "Effective area type the price per m\u00b2 uses"
+     },
+     "price_area_type_override": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Area Type Override"
+     },
+     "price_area_m2": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Area M2"
+     },
+     "price_area_source": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Area Source"
+     },
+     "price_area_verified": {
+      "type": "boolean",
+      "title": "Price Area Verified"
+     },
+     "price_per_m2": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Per M2",
+      "description": "Computed on read, never stored"
+     },
+     "payment_plan_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Plan Id"
+     },
+     "payment_plan_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Plan Name"
+     },
+     "promotion_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "title": "Promotion Ids"
+     },
+     "promotion_names": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Promotion Names"
+     },
+     "rooms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms"
+     },
+     "bedrooms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bedrooms"
+     },
+     "bathrooms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bathrooms"
+     },
+     "orientation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Orientation"
+     },
+     "public_description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Public Description"
+     },
+     "internal_notes": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Internal Notes"
+     },
+     "public_fields": {
+      "additionalProperties": {
+       "type": "boolean"
+      },
+      "type": "object",
+      "title": "Public Fields"
+     },
+     "public_field_overrides": {
+      "additionalProperties": {
+       "type": "boolean"
+      },
+      "type": "object",
+      "title": "Public Field Overrides"
+     },
+     "areas": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Areas"
+     },
+     "media_count": {
+      "type": "integer",
+      "title": "Media Count"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version",
+      "description": "Sales row version; 0 = no sales data entered yet"
+     },
+     "updated_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "unit_id",
+     "code",
+     "building_id",
+     "building_code",
+     "floor_id",
+     "floor_level",
+     "floor_name",
+     "unit_type",
+     "lifecycle_status",
+     "verification_status",
+     "publication_status",
+     "availability",
+     "availability_reason",
+     "availability_changed_at",
+     "list_price",
+     "currency",
+     "price_on_request",
+     "price_area_type",
+     "price_area_type_override",
+     "price_area_m2",
+     "price_area_source",
+     "price_area_verified",
+     "price_per_m2",
+     "payment_plan_id",
+     "payment_plan_name",
+     "promotion_ids",
+     "promotion_names",
+     "rooms",
+     "bedrooms",
+     "bathrooms",
+     "orientation",
+     "public_description",
+     "internal_notes",
+     "public_fields",
+     "public_field_overrides",
+     "areas",
+     "media_count",
+     "version",
+     "updated_at"
+    ],
+    "title": "InventoryRow"
+   },
    "InvitationAccept": {
     "properties": {
      "token": {
@@ -4612,6 +6978,322 @@
     ],
     "title": "MeOut"
    },
+   "MediaCreate": {
+    "properties": {
+     "file_name": {
+      "type": "string",
+      "maxLength": 255,
+      "minLength": 1,
+      "title": "File Name"
+     },
+     "content_type": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 3,
+      "title": "Content Type"
+     },
+     "byte_size": {
+      "type": "integer",
+      "exclusiveMinimum": 0.0,
+      "title": "Byte Size"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "plan_render",
+       "interior_render",
+       "exterior_render",
+       "photo",
+       "video",
+       "document"
+      ],
+      "title": "Kind",
+      "default": "photo"
+     },
+     "is_public": {
+      "type": "boolean",
+      "title": "Is Public",
+      "default": false
+     },
+     "alt_text": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 300
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Alt Text"
+     },
+     "is_ai_generated": {
+      "type": "boolean",
+      "title": "Is Ai Generated",
+      "default": false
+     },
+     "ai_disclosure_text": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 300
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ai Disclosure Text"
+     }
+    },
+    "type": "object",
+    "required": [
+     "file_name",
+     "content_type",
+     "byte_size"
+    ],
+    "title": "MediaCreate"
+   },
+   "MediaIntentOut": {
+    "properties": {
+     "media": {
+      "$ref": "#/components/schemas/MediaOut"
+     },
+     "upload_url": {
+      "type": "string",
+      "title": "Upload Url"
+     },
+     "method": {
+      "type": "string",
+      "const": "PUT",
+      "title": "Method",
+      "default": "PUT"
+     },
+     "headers": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Headers"
+     }
+    },
+    "type": "object",
+    "required": [
+     "media",
+     "upload_url",
+     "headers"
+    ],
+    "title": "MediaIntentOut"
+   },
+   "MediaOrder": {
+    "properties": {
+     "ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "maxItems": 500,
+      "minItems": 1,
+      "title": "Ids"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ids"
+    ],
+    "title": "MediaOrder"
+   },
+   "MediaOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "unit_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Unit Id"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "file_name": {
+      "type": "string",
+      "title": "File Name"
+     },
+     "mime": {
+      "type": "string",
+      "title": "Mime"
+     },
+     "byte_size": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Byte Size"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "sort_order": {
+      "type": "integer",
+      "title": "Sort Order"
+     },
+     "is_public": {
+      "type": "boolean",
+      "title": "Is Public"
+     },
+     "alt_text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Alt Text"
+     },
+     "is_ai_generated": {
+      "type": "boolean",
+      "title": "Is Ai Generated"
+     },
+     "ai_disclosure_text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ai Disclosure Text"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Url"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "unit_id",
+     "kind",
+     "file_name",
+     "mime",
+     "byte_size",
+     "status",
+     "sort_order",
+     "is_public",
+     "alt_text",
+     "is_ai_generated",
+     "ai_disclosure_text",
+     "version",
+     "created_at"
+    ],
+    "title": "MediaOut"
+   },
+   "MediaUpdate": {
+    "properties": {
+     "kind": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "plan_render",
+         "interior_render",
+         "exterior_render",
+         "photo",
+         "video",
+         "document"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kind"
+     },
+     "is_public": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Public"
+     },
+     "alt_text": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 300
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Alt Text"
+     },
+     "is_ai_generated": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Ai Generated"
+     },
+     "ai_disclosure_text": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 300
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ai Disclosure Text"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "version"
+    ],
+    "title": "MediaUpdate"
+   },
    "MemberOut": {
     "properties": {
      "id": {
@@ -4801,6 +7483,356 @@
     ],
     "title": "MembershipSummary"
    },
+   "Milestone": {
+    "properties": {
+     "label": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Label"
+     },
+     "percent": {
+      "anyOf": [
+       {
+        "type": "number",
+        "maximum": 100.0,
+        "exclusiveMinimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Percent"
+     },
+     "due": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Due",
+      "description": "e.g. 'on signing'"
+     }
+    },
+    "type": "object",
+    "required": [
+     "label",
+     "percent"
+    ],
+    "title": "Milestone"
+   },
+   "PaymentPlanIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 4000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "schedule": {
+      "items": {
+       "$ref": "#/components/schemas/Milestone"
+      },
+      "type": "array",
+      "maxItems": 40,
+      "title": "Schedule"
+     },
+     "is_public": {
+      "type": "boolean",
+      "title": "Is Public",
+      "default": true
+     },
+     "is_active": {
+      "type": "boolean",
+      "title": "Is Active",
+      "default": true
+     },
+     "sort_order": {
+      "type": "integer",
+      "title": "Sort Order",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "PaymentPlanIn"
+   },
+   "PaymentPlanOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Project Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "schedule": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Schedule"
+     },
+     "is_public": {
+      "type": "boolean",
+      "title": "Is Public"
+     },
+     "is_active": {
+      "type": "boolean",
+      "title": "Is Active"
+     },
+     "sort_order": {
+      "type": "integer",
+      "title": "Sort Order"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "project_id",
+     "name",
+     "description",
+     "schedule",
+     "is_public",
+     "is_active",
+     "sort_order",
+     "version"
+    ],
+    "title": "PaymentPlanOut"
+   },
+   "PaymentPlanUpdate": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 4000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "schedule": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/Milestone"
+        },
+        "type": "array",
+        "maxItems": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Schedule"
+     },
+     "is_public": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Public"
+     },
+     "is_active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Active"
+     },
+     "sort_order": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sort Order"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "version"
+    ],
+    "title": "PaymentPlanUpdate"
+   },
+   "PriceHistoryOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "old_price": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Old Price"
+     },
+     "new_price": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "New Price"
+     },
+     "old_currency": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Old Currency"
+     },
+     "new_currency": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "New Currency"
+     },
+     "changed_by": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Changed By"
+     },
+     "changed_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Changed At"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "import_batch_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Import Batch Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "old_price",
+     "new_price",
+     "old_currency",
+     "new_currency",
+     "changed_by",
+     "changed_at",
+     "reason",
+     "import_batch_id"
+    ],
+    "title": "PriceHistoryOut"
+   },
    "ProjectCreate": {
     "properties": {
      "slug": {
@@ -4921,6 +7953,11 @@
       "additionalProperties": true,
       "type": "object",
       "title": "Regulatory"
+     },
+     "sales_settings": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Sales Settings"
      },
      "version": {
       "type": "integer",
@@ -5083,6 +8120,306 @@
      "version"
     ],
     "title": "ProjectUpdate"
+   },
+   "PromotionIn": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "discount_percent",
+       "discount_amount",
+       "gift",
+       "financing",
+       "other"
+      ],
+      "title": "Kind",
+      "default": "other"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": 0.0
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value"
+     },
+     "terms": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 4000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Terms"
+     },
+     "valid_from": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Valid From"
+     },
+     "valid_to": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Valid To"
+     },
+     "is_public": {
+      "type": "boolean",
+      "title": "Is Public",
+      "default": true
+     },
+     "is_active": {
+      "type": "boolean",
+      "title": "Is Active",
+      "default": true
+     }
+    },
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "PromotionIn"
+   },
+   "PromotionOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Project Id"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value"
+     },
+     "terms": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Terms"
+     },
+     "valid_from": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Valid From"
+     },
+     "valid_to": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Valid To"
+     },
+     "is_public": {
+      "type": "boolean",
+      "title": "Is Public"
+     },
+     "is_active": {
+      "type": "boolean",
+      "title": "Is Active"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "project_id",
+     "name",
+     "kind",
+     "value",
+     "terms",
+     "valid_from",
+     "valid_to",
+     "is_public",
+     "is_active",
+     "version"
+    ],
+    "title": "PromotionOut"
+   },
+   "PromotionUpdate": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "kind": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "discount_percent",
+         "discount_amount",
+         "gift",
+         "financing",
+         "other"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kind"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": 0.0
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value"
+     },
+     "terms": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 4000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Terms"
+     },
+     "valid_from": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Valid From"
+     },
+     "valid_to": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Valid To"
+     },
+     "is_public": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Public"
+     },
+     "is_active": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Active"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "version"
+    ],
+    "title": "PromotionUpdate"
    },
    "ProposalAcceptAll": {
     "properties": {
@@ -5535,6 +8872,590 @@
      "created_at"
     ],
     "title": "RevisionOut"
+   },
+   "SalesChanges": {
+    "properties": {
+     "availability": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "available",
+         "reserved",
+         "sold",
+         "withdrawn"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Availability"
+     },
+     "availability_reason": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 2000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Availability Reason"
+     },
+     "list_price": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": 0.0
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "List Price"
+     },
+     "currency": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 3,
+        "minLength": 3
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Currency"
+     },
+     "price_on_request": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price On Request"
+     },
+     "price_area_type": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Area Type"
+     },
+     "payment_plan_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Plan Id"
+     },
+     "promotion_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string",
+         "format": "uuid"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Promotion Ids"
+     },
+     "public_description": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 4000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Public Description"
+     },
+     "internal_notes": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 4000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Internal Notes"
+     },
+     "rooms": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 100.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms"
+     },
+     "bedrooms": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 100.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bedrooms"
+     },
+     "bathrooms": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 100.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bathrooms"
+     },
+     "orientation": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 20
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Orientation"
+     },
+     "public_fields": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "boolean"
+        },
+        "propertyNames": {
+         "enum": [
+          "list_price",
+          "payment_plan",
+          "promotions",
+          "description",
+          "areas",
+          "rooms",
+          "media"
+         ]
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Public Fields"
+     }
+    },
+    "type": "object",
+    "title": "SalesChanges",
+    "description": "Only the fields present in the request are changed; an explicit null clears a value."
+   },
+   "SalesHistoryOut": {
+    "properties": {
+     "prices": {
+      "items": {
+       "$ref": "#/components/schemas/PriceHistoryOut"
+      },
+      "type": "array",
+      "title": "Prices"
+     },
+     "availability": {
+      "items": {
+       "$ref": "#/components/schemas/AvailabilityHistoryOut"
+      },
+      "type": "array",
+      "title": "Availability"
+     },
+     "audit": {
+      "items": {
+       "$ref": "#/components/schemas/AuditOut"
+      },
+      "type": "array",
+      "title": "Audit"
+     }
+    },
+    "type": "object",
+    "required": [
+     "prices",
+     "availability",
+     "audit"
+    ],
+    "title": "SalesHistoryOut"
+   },
+   "SalesSettingsIn": {
+    "properties": {
+     "price_area_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Area Type"
+     },
+     "public_fields": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "boolean"
+        },
+        "propertyNames": {
+         "enum": [
+          "list_price",
+          "payment_plan",
+          "promotions",
+          "description",
+          "areas",
+          "rooms",
+          "media"
+         ]
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Public Fields"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version",
+      "description": "Project version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "version"
+    ],
+    "title": "SalesSettingsIn"
+   },
+   "SalesSettingsOut": {
+    "properties": {
+     "price_area_type": {
+      "type": "string",
+      "title": "Price Area Type"
+     },
+     "public_fields": {
+      "additionalProperties": {
+       "type": "boolean"
+      },
+      "type": "object",
+      "title": "Public Fields"
+     },
+     "import_mapping": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Import Mapping"
+     },
+     "import_options": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Import Options"
+     },
+     "area_definitions": {
+      "items": {},
+      "type": "array",
+      "title": "Area Definitions"
+     },
+     "project_version": {
+      "type": "integer",
+      "title": "Project Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "price_area_type",
+     "public_fields",
+     "import_mapping",
+     "import_options",
+     "area_definitions",
+     "project_version"
+    ],
+    "title": "SalesSettingsOut"
+   },
+   "SalesUpdate": {
+    "properties": {
+     "availability": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "available",
+         "reserved",
+         "sold",
+         "withdrawn"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Availability"
+     },
+     "availability_reason": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 2000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Availability Reason"
+     },
+     "list_price": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": 0.0
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "List Price"
+     },
+     "currency": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 3,
+        "minLength": 3
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Currency"
+     },
+     "price_on_request": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price On Request"
+     },
+     "price_area_type": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Area Type"
+     },
+     "payment_plan_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payment Plan Id"
+     },
+     "promotion_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string",
+         "format": "uuid"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Promotion Ids"
+     },
+     "public_description": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 4000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Public Description"
+     },
+     "internal_notes": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 4000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Internal Notes"
+     },
+     "rooms": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 100.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms"
+     },
+     "bedrooms": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 100.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bedrooms"
+     },
+     "bathrooms": {
+      "anyOf": [
+       {
+        "type": "integer",
+        "maximum": 100.0,
+        "minimum": 0.0
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bathrooms"
+     },
+     "orientation": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 20
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Orientation"
+     },
+     "public_fields": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "boolean"
+        },
+        "propertyNames": {
+         "enum": [
+          "list_price",
+          "payment_plan",
+          "promotions",
+          "description",
+          "areas",
+          "rooms",
+          "media"
+         ]
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Public Fields"
+     },
+     "version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Version",
+      "description": "Version you edited; or send it as the If-Match header"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "confirm_zero_price": {
+      "type": "boolean",
+      "title": "Confirm Zero Price",
+      "default": false
+     }
+    },
+    "type": "object",
+    "title": "SalesUpdate"
    },
    "SheetAssign": {
     "properties": {

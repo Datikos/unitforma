@@ -10,12 +10,19 @@ from fastapi.responses import JSONResponse
 
 class ProblemError(Exception):
     def __init__(
-        self, status: int, title: str, detail: str | None = None, type_: str = "about:blank"
+        self,
+        status: int,
+        title: str,
+        detail: str | None = None,
+        type_: str = "about:blank",
+        extra: dict | None = None,
     ):
         self.status = status
         self.title = title
         self.detail = detail
         self.type = type_
+        # RFC 9457 extension members, e.g. the current row on a 409 (plan §6.4)
+        self.extra = extra or {}
 
 
 def _problem(
@@ -31,7 +38,7 @@ def _problem(
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ProblemError)
     async def _pe(_: Request, exc: ProblemError):
-        return _problem(exc.status, exc.title, exc.detail, exc.type)
+        return _problem(exc.status, exc.title, exc.detail, exc.type, **jsonable_encoder(exc.extra))
 
     @app.exception_handler(HTTPException)
     async def _he(_: Request, exc: HTTPException):

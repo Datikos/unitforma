@@ -7,11 +7,13 @@ Only the tables needed for Phase 0/1 are declared here. Every tenant-scoped tabl
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Numeric,
@@ -160,6 +162,8 @@ class Project(TimestampMixin, Base):
     site_frame: Mapped[dict] = mapped_column(JSONB, default=dict)
     description: Mapped[str | None] = mapped_column(Text)
     regulatory: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # price_area_type, public field defaults, saved import column mapping (plan §6.2, §6.3, §6.6)
+    sales_settings: Mapped[dict] = mapped_column(JSONB, default=dict)
     version: Mapped[int] = mapped_column(default=1)
 
 
@@ -483,3 +487,161 @@ class GeometryModel(TimestampMixin, Base):
     stats: Mapped[dict] = mapped_column(JSONB, default=dict)
     error: Mapped[str | None] = mapped_column(Text)
     is_current: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+# --- sales workspace (plan §5.3, §6) ------------------------------------------------------
+class UnitSales(TimestampMixin, Base):
+    """Commercial data of a unit. Absent row = nothing entered yet (version 0 for clients)."""
+
+    __tablename__ = "unit_sales"
+    unit_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("units.id", ondelete="CASCADE"), primary_key=True
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    availability: Mapped[str] = mapped_column(String(20), default="available")
+    availability_reason: Mapped[str | None] = mapped_column(Text)
+    availability_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    list_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    currency: Mapped[str] = mapped_column(String(3))
+    price_on_request: Mapped[bool] = mapped_column(Boolean, default=False)
+    price_area_type: Mapped[str | None] = mapped_column(String(40))
+    payment_plan_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("payment_plans.id", ondelete="SET NULL")
+    )
+    promotion_ids: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), default=list)
+    public_description: Mapped[str | None] = mapped_column(Text)
+    internal_notes: Mapped[str | None] = mapped_column(Text)
+    public_fields: Mapped[dict] = mapped_column(JSONB, default=dict)  # overrides only
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    version: Mapped[int] = mapped_column(default=1)
+
+
+class PriceHistory(Base):
+    __tablename__ = "price_history"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    unit_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("units.id", ondelete="CASCADE"), index=True
+    )
+    old_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    new_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    old_currency: Mapped[str | None] = mapped_column(String(3))
+    new_currency: Mapped[str | None] = mapped_column(String(3))
+    changed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    reason: Mapped[str | None] = mapped_column(Text)
+    import_batch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+
+
+class AvailabilityHistory(Base):
+    __tablename__ = "availability_history"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    unit_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("units.id", ondelete="CASCADE"), index=True
+    )
+    old_availability: Mapped[str | None] = mapped_column(String(20))
+    new_availability: Mapped[str] = mapped_column(String(20))
+    changed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    reason: Mapped[str | None] = mapped_column(Text)
+    import_batch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+
+
+class PaymentPlan(TimestampMixin, Base):
+    __tablename__ = "payment_plans"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str | None] = mapped_column(Text)
+    schedule: Mapped[list] = mapped_column(JSONB, default=list)  # [{label, percent, due}]
+    is_public: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    sort_order: Mapped[int] = mapped_column(default=0)
+    version: Mapped[int] = mapped_column(default=1)
+
+
+class Promotion(TimestampMixin, Base):
+    __tablename__ = "promotions"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(120))
+    kind: Mapped[str] = mapped_column(String(30), default="other")
+    value: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    terms: Mapped[str | None] = mapped_column(Text)
+    valid_from: Mapped[date | None] = mapped_column(Date)
+    valid_to: Mapped[date | None] = mapped_column(Date)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    version: Mapped[int] = mapped_column(default=1)
+
+
+class UnitMedia(TimestampMixin, Base):
+    __tablename__ = "unit_media"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    unit_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("units.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(30), default="photo")
+    object_key: Mapped[str] = mapped_column(String(512))
+    file_name: Mapped[str] = mapped_column(String(255))
+    mime: Mapped[str] = mapped_column(String(120))
+    byte_size: Mapped[int | None] = mapped_column(BigInteger)
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending | ready
+    sort_order: Mapped[int] = mapped_column(default=0)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False)
+    alt_text: Mapped[str | None] = mapped_column(String(300))
+    is_ai_generated: Mapped[bool] = mapped_column(Boolean, default=False)
+    ai_disclosure_text: Mapped[str | None] = mapped_column(String(300))
+    uploaded_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    version: Mapped[int] = mapped_column(default=1)
+
+
+class ImportBatch(TimestampMixin, Base):
+    __tablename__ = "import_batches"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    file_name: Mapped[str] = mapped_column(String(255))
+    object_key: Mapped[str] = mapped_column(String(512))
+    file_format: Mapped[str] = mapped_column(String(10))  # csv | xlsx
+    status: Mapped[str] = mapped_column(String(20), default="uploaded")
+    headers: Mapped[list] = mapped_column(JSONB, default=list)
+    mapping: Mapped[dict] = mapped_column(JSONB, default=dict)
+    options: Mapped[dict] = mapped_column(JSONB, default=dict)
+    report: Mapped[dict] = mapped_column(JSONB, default=dict)
+    row_count: Mapped[int] = mapped_column(default=0)
+    change_count: Mapped[int] = mapped_column(default=0)
+    error_count: Mapped[int] = mapped_column(default=0)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    applied_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

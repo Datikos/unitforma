@@ -14,6 +14,7 @@ from unitforma.api import (
     admin_geometry,
     admin_mapping,
     admin_projects,
+    admin_sales,
     internal,
     platform,
     portal,
@@ -56,6 +57,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_documents.router)
     app.include_router(admin_mapping.router)
     app.include_router(admin_geometry.router)
+    app.include_router(admin_sales.router)
     return app
 
 

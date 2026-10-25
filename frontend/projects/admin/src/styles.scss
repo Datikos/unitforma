@@ -21,3 +21,10 @@ body {
 .uf-error { color: var(--mat-sys-error); }
 .uf-muted { color: var(--mat-sys-on-surface-variant); }
 table.uf-table { width: 100%; }
+
+/* inventory grid (AG Grid cells are outside component style encapsulation) */
+.uf-link { color: var(--mat-sys-primary); cursor: pointer; text-decoration: underline; }
+.uf-av-available { color: #047857; font-weight: 500; }
+.uf-av-reserved { color: #b45309; font-weight: 500; }
+.uf-av-sold { color: #b91c1c; font-weight: 500; }
+.uf-av-withdrawn { color: #6b7280; }

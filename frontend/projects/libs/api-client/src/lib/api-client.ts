@@ -47,6 +47,28 @@ export type FootprintOut = Schemas['FootprintOut'];
 export type MassingOut = Schemas['MassingOut'];
 export type SiteTransform = Schemas['SiteTransform'];
 export type BuildingUpdate = Schemas['BuildingUpdate'];
+export type InventoryRow = Schemas['InventoryRow'];
+export type SalesChanges = Schemas['SalesChanges'];
+export type SalesUpdate = Schemas['SalesUpdate'];
+export type BulkUpdate = Schemas['BulkUpdate'];
+export type BulkResult = Schemas['BulkResult'];
+export type SalesHistoryOut = Schemas['SalesHistoryOut'];
+export type SalesSettingsOut = Schemas['SalesSettingsOut'];
+export type SalesSettingsIn = Schemas['SalesSettingsIn'];
+export type Milestone = Schemas['Milestone'];
+export type PaymentPlanIn = Schemas['PaymentPlanIn'];
+export type PaymentPlanUpdate = Schemas['PaymentPlanUpdate'];
+export type PaymentPlanOut = Schemas['PaymentPlanOut'];
+export type PromotionIn = Schemas['PromotionIn'];
+export type PromotionUpdate = Schemas['PromotionUpdate'];
+export type PromotionOut = Schemas['PromotionOut'];
+export type MediaCreate = Schemas['MediaCreate'];
+export type MediaUpdate = Schemas['MediaUpdate'];
+export type MediaOut = Schemas['MediaOut'];
+export type MediaIntentOut = Schemas['MediaIntentOut'];
+export type ImportBatchOut = Schemas['ImportBatchOut'];
+export type ImportOptions = Schemas['ImportOptions'];
+export type Availability = InventoryRow['availability'];
 export interface Page<T> {
   items: T[];
   total: number;
@@ -253,6 +275,110 @@ export class UnitformaApi {
   }
   acceptProposalItems(tenantId: string, proposalId: string, kinds: string[]): Promise<ProposalOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/proposals/${proposalId}/accept-all`, { kinds });
+  }
+
+  // --- sales workspace (plan §6)
+  inventory(tenantId: string, projectId: string): Promise<InventoryRow[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/inventory`);
+  }
+  getUnitSales(tenantId: string, unitId: string): Promise<InventoryRow> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/sales`);
+  }
+  /** Inline edit; a stale `version` rejects with 409 whose body carries `current` (the row). */
+  updateUnitSales(tenantId: string, unitId: string, body: SalesUpdate): Promise<InventoryRow> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/sales`, body);
+  }
+  bulkUpdate(tenantId: string, projectId: string, body: BulkUpdate): Promise<BulkResult> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/inventory/bulk`, body);
+  }
+  unitSalesHistory(tenantId: string, unitId: string): Promise<SalesHistoryOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/sales/history`);
+  }
+  unitPublicPreview(tenantId: string, unitId: string): Promise<Record<string, unknown>> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/sales/public-preview`);
+  }
+  getSalesSettings(tenantId: string, projectId: string): Promise<SalesSettingsOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/sales-settings`);
+  }
+  putSalesSettings(tenantId: string, projectId: string, body: SalesSettingsIn): Promise<SalesSettingsOut> {
+    return this.put(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/sales-settings`, body);
+  }
+  listPaymentPlans(tenantId: string, projectId: string): Promise<PaymentPlanOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/payment-plans`);
+  }
+  createPaymentPlan(tenantId: string, projectId: string, body: PaymentPlanIn): Promise<PaymentPlanOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/payment-plans`, body);
+  }
+  updatePaymentPlan(tenantId: string, planId: string, body: PaymentPlanUpdate): Promise<PaymentPlanOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/payment-plans/${planId}`, body);
+  }
+  listPromotions(tenantId: string, projectId: string): Promise<PromotionOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/promotions`);
+  }
+  createPromotion(tenantId: string, projectId: string, body: PromotionIn): Promise<PromotionOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/promotions`, body);
+  }
+  updatePromotion(tenantId: string, promotionId: string, body: PromotionUpdate): Promise<PromotionOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/promotions/${promotionId}`, body);
+  }
+  listMedia(tenantId: string, unitId: string): Promise<MediaOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/media`);
+  }
+  createMedia(tenantId: string, unitId: string, body: MediaCreate): Promise<MediaIntentOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/media`, body);
+  }
+  completeMedia(tenantId: string, mediaId: string): Promise<MediaOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/media/${mediaId}/complete`, undefined);
+  }
+  updateMedia(tenantId: string, mediaId: string, body: MediaUpdate): Promise<MediaOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/media/${mediaId}`, body);
+  }
+  reorderMedia(tenantId: string, unitId: string, ids: string[]): Promise<MediaOut[]> {
+    return this.put(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/media/order`, { ids });
+  }
+  deleteMedia(tenantId: string, mediaId: string): Promise<void> {
+    return this.delete(`${BASE}/admin/tenants/${tenantId}/media/${mediaId}`);
+  }
+  /** Upload a CSV/XLSX file as the raw request body. */
+  uploadImport(tenantId: string, projectId: string, file: File): Promise<ImportBatchOut> {
+    return firstValueFrom(
+      this.http.post<ImportBatchOut>(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/imports`, file, {
+        params: toParams({ file_name: file.name }),
+        headers: { 'Content-Type': 'application/octet-stream' },
+      }),
+    );
+  }
+  listImports(tenantId: string, projectId: string): Promise<ImportBatchOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/imports`);
+  }
+  getImport(tenantId: string, batchId: string): Promise<ImportBatchOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}`);
+  }
+  dryRunImport(tenantId: string, batchId: string, mapping: Record<string, string>, options: ImportOptions): Promise<ImportBatchOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}/dry-run`, { mapping, options });
+  }
+  applyImport(tenantId: string, batchId: string, skipInvalidRows: boolean): Promise<ImportBatchOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}/apply`, { skip_invalid_rows: skipInvalidRows });
+  }
+  discardImport(tenantId: string, batchId: string): Promise<ImportBatchOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}/discard`, undefined);
+  }
+  /** Download the inventory as CSV or XLSX (same columns as the importer reads). */
+  async downloadInventory(tenantId: string, projectId: string, format: 'csv' | 'xlsx', columns: 'internal' | 'public'): Promise<void> {
+    const res = await firstValueFrom(
+      this.http.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/inventory/export`, {
+        params: toParams({ format, columns }),
+        responseType: 'blob',
+        observe: 'response',
+      }),
+    );
+    const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? `inventory.${format}`;
+    const url = URL.createObjectURL(res.body!);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   /** Upload a file to a presigned PUT URL (S3 or the local dev backend), reporting progress 0..1. */

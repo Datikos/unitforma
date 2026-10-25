@@ -1,6 +1,6 @@
 # Unitforma — Architecture and Delivery Plan
 
-**Status:** planning deliverable, v0.1 (2026-10-25). Implementation status: Phase 0 scaffold, Phase 1 core platform and Phase 2 documents/mapping (including revision diff proposals, vector-based boundary suggestions, massing GLB generation and the building placement editor) are on `main`; see README. Next: Phase 3 sales workspace.
+**Status:** planning deliverable, v0.1 (2026-10-25). Implementation status: Phase 0 scaffold, Phase 1 core platform, Phase 2 documents/mapping and Phase 3 sales workspace are on `main`; see README. Next: Phase 4 publishing and buyer portal.
 **Prepared for:** Unitforma (https://unitforma.com), repository `Datikos/unitforma`, branch `claude/epic-lovelace-sr9pyy`.
 
 ## How to read this document
@@ -614,6 +614,15 @@ A unit can be `verified + published + sold`, `unverified + published + available
 - `unit_sales.public_fields` and project defaults decide which fields enter the publication snapshot (`list_price`, `payment_plan`, `promotions`, `description`, `areas[]` by type, `media` with `is_public`).
 - Internal-only by construction: `internal_notes`, `lead_notes`, `price_history`, import batches, reviewer comments, buyer contact details of other tenants.
 - The snapshot builder is the only code path that produces public data, and it is tested with a contract test asserting the absence of internal fields (§18).
+
+### 6.7 Implementation notes (Phase 3, on `main`)
+
+- *One change engine.* Inline edit, bulk edit and import all produce field diffs that pass the same rules (`sales/rules.py`) and are written by `sales/service.apply_changes`: price and availability history rows, one `audit_log` entry per changed field (action `update` or `import` with the batch id), and a version bump. A unit without a `unit_sales` row reports version 0; the row is created on the first write.
+- *Concurrency.* `PATCH /units/{id}/sales` takes the version in the body or `If-Match`; a stale version returns 409 with `current` (the full row, decimals as strings). Bulk edit locks the rows and is all-or-nothing: stale units return 409 with `stale`, rule violations 422 with `unit_errors`. Import apply recomputes the dry run and refuses with 409 if any version or the summary changed since.
+- *Empty cells.* For nullable fields an empty mapped cell means NULL, so a missing price round-trips as NULL; for availability, currency and price_on_request it means "keep". Unmapped columns never change anything. Export-only columns (`price_per_m2`, `area_*`, building, floor, statuses) are not import targets.
+- *Rules implemented.* Price 0 needs an explicit confirmation (`confirm_zero_price`, and in imports also an explicit `price_on_request=false` on the row); a currency is required whenever an import row carries a price; leaving `sold` needs a reason; plans' milestones add up to 100 %. Currency codes are checked by format (`^[A-Z]{3}$`), not against the ISO 4217 list **[VALIDATE]**.
+- *Public view.* `sales/service.public_view` builds the buyer-facing shape from an allow-list using project defaults (`projects.sales_settings.public_fields`) and unit overrides; `internal_notes` and `availability_reason` have no switch. The Phase 4 snapshot builder must use it.
+- *Deviations.* Exports are generated synchronously in the request (fine for the pilot's sizes; move to `sales.export_inventory` in the worker when a project passes ~20 000 units). Import files are sent as the raw request body (no multipart dependency) and capped at 20 MB / 50 000 rows. The grid uses AG Grid Community through its framework-agnostic `createGrid` API with all Community modules registered (≈ 260 kB gzipped, only on the inventory route). Reservations (§6.5) remain R2.
 
 ---
 

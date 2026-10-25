@@ -915,6 +915,379 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/inventory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Inventory */
+        get: operations["list_inventory_api_v1_admin_tenants__tenant_id__projects__project_id__inventory_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/sales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Unit Sales */
+        get: operations["get_unit_sales_api_v1_admin_tenants__tenant_id__units__unit_id__sales_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Unit Sales
+         * @description Inline edit. Send the row ``version`` in the body or as ``If-Match``; a stale version
+         *     returns 409 with the current row so the UI can show both and re-apply (plan §6.4).
+         */
+        patch: operations["update_unit_sales_api_v1_admin_tenants__tenant_id__units__unit_id__sales_patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/inventory/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Update
+         * @description Same change on many units; ``preview=true`` returns before/after without writing.
+         */
+        post: operations["bulk_update_api_v1_admin_tenants__tenant_id__projects__project_id__inventory_bulk_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/sales/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Unit Sales History */
+        get: operations["unit_sales_history_api_v1_admin_tenants__tenant_id__units__unit_id__sales_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/sales/public-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Preview
+         * @description What a buyer would see for this unit once published (allow-listed fields only).
+         */
+        get: operations["public_preview_api_v1_admin_tenants__tenant_id__units__unit_id__sales_public_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/sales-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Sales Settings */
+        get: operations["get_sales_settings_api_v1_admin_tenants__tenant_id__projects__project_id__sales_settings_get"];
+        /** Put Sales Settings */
+        put: operations["put_sales_settings_api_v1_admin_tenants__tenant_id__projects__project_id__sales_settings_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/payment-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Plans */
+        get: operations["list_plans_api_v1_admin_tenants__tenant_id__projects__project_id__payment_plans_get"];
+        put?: never;
+        /** Create Plan */
+        post: operations["create_plan_api_v1_admin_tenants__tenant_id__projects__project_id__payment_plans_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/payment-plans/{plan_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Plan */
+        patch: operations["update_plan_api_v1_admin_tenants__tenant_id__payment_plans__plan_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/promotions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Promotions */
+        get: operations["list_promotions_api_v1_admin_tenants__tenant_id__projects__project_id__promotions_get"];
+        put?: never;
+        /** Create Promotion */
+        post: operations["create_promotion_api_v1_admin_tenants__tenant_id__projects__project_id__promotions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/promotions/{promotion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Promotion */
+        patch: operations["update_promotion_api_v1_admin_tenants__tenant_id__promotions__promotion_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Media */
+        get: operations["list_media_api_v1_admin_tenants__tenant_id__units__unit_id__media_get"];
+        put?: never;
+        /**
+         * Create Media
+         * @description Reserve a media item and return a presigned PUT URL; then call ``complete``.
+         */
+        post: operations["create_media_api_v1_admin_tenants__tenant_id__units__unit_id__media_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/media/{media_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Media */
+        post: operations["complete_media_api_v1_admin_tenants__tenant_id__media__media_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/media/{media_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Media */
+        delete: operations["delete_media_api_v1_admin_tenants__tenant_id__media__media_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Media */
+        patch: operations["update_media_api_v1_admin_tenants__tenant_id__media__media_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/media/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reorder Media */
+        put: operations["reorder_media_api_v1_admin_tenants__tenant_id__units__unit_id__media_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Imports */
+        get: operations["list_imports_api_v1_admin_tenants__tenant_id__projects__project_id__imports_get"];
+        put?: never;
+        /**
+         * Upload Import
+         * @description Upload a CSV or XLSX file as the raw request body. Returns its columns and a suggested
+         *     mapping (the project's saved mapping first).
+         */
+        post: operations["upload_import_api_v1_admin_tenants__tenant_id__projects__project_id__imports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/imports/{batch_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Import */
+        get: operations["get_import_api_v1_admin_tenants__tenant_id__imports__batch_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/imports/{batch_id}/dry-run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dry Run Import
+         * @description Validate every row against current data and report the changes; writes nothing to units.
+         */
+        post: operations["dry_run_import_api_v1_admin_tenants__tenant_id__imports__batch_id__dry_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/imports/{batch_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply Import
+         * @description Apply the dry-run changes in one transaction; 409 if the inventory changed since.
+         */
+        post: operations["apply_import_api_v1_admin_tenants__tenant_id__imports__batch_id__apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/imports/{batch_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Discard Import */
+        post: operations["discard_import_api_v1_admin_tenants__tenant_id__imports__batch_id__discard_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/inventory/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Inventory
+         * @description The same column set the importer reads, so an export can be edited and re-imported.
+         */
+        get: operations["export_inventory_api_v1_admin_tenants__tenant_id__projects__project_id__inventory_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -995,6 +1368,29 @@ export interface components {
             items: components["schemas"]["AuditOut"][];
             /** Total */
             total: number;
+        };
+        /** AvailabilityHistoryOut */
+        AvailabilityHistoryOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Old Availability */
+            old_availability: string | null;
+            /** New Availability */
+            new_availability: string;
+            /** Changed By */
+            changed_by: string | null;
+            /**
+             * Changed At
+             * Format: date-time
+             */
+            changed_at: string;
+            /** Reason */
+            reason: string | null;
+            /** Import Batch Id */
+            import_batch_id: string | null;
         };
         /** BoundaryCreate */
         BoundaryCreate: {
@@ -1120,6 +1516,62 @@ export interface components {
             sort_order?: number | null;
             /** Version */
             version: number;
+        };
+        /** BulkItem */
+        BulkItem: {
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /** Version */
+            version: number;
+        };
+        /** BulkResult */
+        BulkResult: {
+            /** Preview */
+            preview: boolean;
+            /** Units */
+            units: components["schemas"]["BulkUnitResult"][];
+            /** Changed Units */
+            changed_units: number;
+        };
+        /** BulkUnitResult */
+        BulkUnitResult: {
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /** Code */
+            code: string;
+            /** Changes */
+            changes: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** BulkUpdate */
+        BulkUpdate: {
+            /** Items */
+            items: components["schemas"]["BulkItem"][];
+            changes?: components["schemas"]["SalesChanges"];
+            /**
+             * Price Adjust Percent
+             * @description Multiply existing prices; empty prices stay empty
+             */
+            price_adjust_percent?: number | string | null;
+            /**
+             * Preview
+             * @default true
+             */
+            preview?: boolean;
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Confirm Zero Price
+             * @default false
+             */
+            confirm_zero_price?: boolean;
         };
         /** Calibration */
         Calibration: {
@@ -1259,6 +1711,205 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** ImportApply */
+        ImportApply: {
+            /**
+             * Skip Invalid Rows
+             * @default false
+             */
+            skip_invalid_rows?: boolean;
+        };
+        /** ImportBatchOut */
+        ImportBatchOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** File Name */
+            file_name: string;
+            /** File Format */
+            file_format: string;
+            /** Status */
+            status: string;
+            /** Headers */
+            headers: string[];
+            /** Mapping */
+            mapping: {
+                [key: string]: string;
+            };
+            /** Options */
+            options: {
+                [key: string]: unknown;
+            };
+            /** Report */
+            report: {
+                [key: string]: unknown;
+            };
+            /** Row Count */
+            row_count: number;
+            /** Change Count */
+            change_count: number;
+            /** Error Count */
+            error_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Applied At */
+            applied_at: string | null;
+            /** Targets */
+            targets?: string[];
+        };
+        /** ImportDryRun */
+        ImportDryRun: {
+            /**
+             * Mapping
+             * @description import field → column header
+             */
+            mapping: {
+                [key: string]: string;
+            };
+            options?: components["schemas"]["ImportOptions"];
+        };
+        /** ImportOptions */
+        ImportOptions: {
+            /**
+             * Decimal Separator
+             * @default .
+             * @enum {string}
+             */
+            decimal_separator?: "." | ",";
+            /**
+             * Thousands Separator
+             * @default
+             * @enum {string}
+             */
+            thousands_separator?: "" | "," | "." | " " | "'";
+            /**
+             * Confirm Zero Price
+             * @description Accept price 0 on rows whose price_on_request column is explicitly false
+             * @default false
+             */
+            confirm_zero_price?: boolean;
+        };
+        /** InventoryRow */
+        InventoryRow: {
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /** Code */
+            code: string;
+            /**
+             * Building Id
+             * Format: uuid
+             */
+            building_id: string;
+            /** Building Code */
+            building_code: string;
+            /**
+             * Floor Id
+             * Format: uuid
+             */
+            floor_id: string;
+            /** Floor Level */
+            floor_level: number;
+            /** Floor Name */
+            floor_name: string;
+            /** Unit Type */
+            unit_type: string;
+            /** Lifecycle Status */
+            lifecycle_status: string;
+            /** Verification Status */
+            verification_status: string;
+            /** Publication Status */
+            publication_status: string;
+            /**
+             * Availability
+             * @enum {string}
+             */
+            availability: "available" | "reserved" | "sold" | "withdrawn";
+            /** Availability Reason */
+            availability_reason: string | null;
+            /** Availability Changed At */
+            availability_changed_at: string | null;
+            /**
+             * List Price
+             * @description NULL = price unknown / on request
+             */
+            list_price: string | null;
+            /** Currency */
+            currency: string;
+            /** Price On Request */
+            price_on_request: boolean;
+            /**
+             * Price Area Type
+             * @description Effective area type the price per m² uses
+             */
+            price_area_type: string;
+            /** Price Area Type Override */
+            price_area_type_override: string | null;
+            /** Price Area M2 */
+            price_area_m2: string | null;
+            /** Price Area Source */
+            price_area_source: string | null;
+            /** Price Area Verified */
+            price_area_verified: boolean;
+            /**
+             * Price Per M2
+             * @description Computed on read, never stored
+             */
+            price_per_m2: string | null;
+            /** Payment Plan Id */
+            payment_plan_id: string | null;
+            /** Payment Plan Name */
+            payment_plan_name: string | null;
+            /** Promotion Ids */
+            promotion_ids: string[];
+            /** Promotion Names */
+            promotion_names: string[];
+            /** Rooms */
+            rooms: number | null;
+            /** Bedrooms */
+            bedrooms: number | null;
+            /** Bathrooms */
+            bathrooms: number | null;
+            /** Orientation */
+            orientation: string | null;
+            /** Public Description */
+            public_description: string | null;
+            /** Internal Notes */
+            internal_notes: string | null;
+            /** Public Fields */
+            public_fields: {
+                [key: string]: boolean;
+            };
+            /** Public Field Overrides */
+            public_field_overrides: {
+                [key: string]: boolean;
+            };
+            /** Areas */
+            areas: {
+                [key: string]: string;
+            };
+            /** Media Count */
+            media_count: number;
+            /**
+             * Version
+             * @description Sales row version; 0 = no sales data entered yet
+             */
+            version: number;
+            /** Updated At */
+            updated_at: string | null;
+        };
         /** InvitationAccept */
         InvitationAccept: {
             /** Token */
@@ -1386,6 +2037,113 @@ export interface components {
             /** Memberships */
             memberships: components["schemas"]["MembershipSummary"][];
         };
+        /** MediaCreate */
+        MediaCreate: {
+            /** File Name */
+            file_name: string;
+            /** Content Type */
+            content_type: string;
+            /** Byte Size */
+            byte_size: number;
+            /**
+             * Kind
+             * @default photo
+             * @enum {string}
+             */
+            kind?: "plan_render" | "interior_render" | "exterior_render" | "photo" | "video" | "document";
+            /**
+             * Is Public
+             * @default false
+             */
+            is_public?: boolean;
+            /** Alt Text */
+            alt_text?: string | null;
+            /**
+             * Is Ai Generated
+             * @default false
+             */
+            is_ai_generated?: boolean;
+            /** Ai Disclosure Text */
+            ai_disclosure_text?: string | null;
+        };
+        /** MediaIntentOut */
+        MediaIntentOut: {
+            media: components["schemas"]["MediaOut"];
+            /** Upload Url */
+            upload_url: string;
+            /**
+             * Method
+             * @default PUT
+             * @constant
+             */
+            method?: "PUT";
+            /** Headers */
+            headers: {
+                [key: string]: string;
+            };
+        };
+        /** MediaOrder */
+        MediaOrder: {
+            /** Ids */
+            ids: string[];
+        };
+        /** MediaOut */
+        MediaOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /** Kind */
+            kind: string;
+            /** File Name */
+            file_name: string;
+            /** Mime */
+            mime: string;
+            /** Byte Size */
+            byte_size: number | null;
+            /** Status */
+            status: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Is Public */
+            is_public: boolean;
+            /** Alt Text */
+            alt_text: string | null;
+            /** Is Ai Generated */
+            is_ai_generated: boolean;
+            /** Ai Disclosure Text */
+            ai_disclosure_text: string | null;
+            /** Version */
+            version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Url */
+            url?: string | null;
+        };
+        /** MediaUpdate */
+        MediaUpdate: {
+            /** Kind */
+            kind?: ("plan_render" | "interior_render" | "exterior_render" | "photo" | "video" | "document") | null;
+            /** Is Public */
+            is_public?: boolean | null;
+            /** Alt Text */
+            alt_text?: string | null;
+            /** Is Ai Generated */
+            is_ai_generated?: boolean | null;
+            /** Ai Disclosure Text */
+            ai_disclosure_text?: string | null;
+            /** Version */
+            version: number;
+        };
         /** MemberOut */
         MemberOut: {
             /**
@@ -1448,6 +2206,115 @@ export interface components {
             /** All Projects */
             all_projects: boolean;
         };
+        /** Milestone */
+        Milestone: {
+            /** Label */
+            label: string;
+            /** Percent */
+            percent: number | string;
+            /**
+             * Due
+             * @description e.g. 'on signing'
+             */
+            due?: string | null;
+        };
+        /** PaymentPlanIn */
+        PaymentPlanIn: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /** Schedule */
+            schedule?: components["schemas"]["Milestone"][];
+            /**
+             * Is Public
+             * @default true
+             */
+            is_public?: boolean;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active?: boolean;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order?: number;
+        };
+        /** PaymentPlanOut */
+        PaymentPlanOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Schedule */
+            schedule: {
+                [key: string]: unknown;
+            }[];
+            /** Is Public */
+            is_public: boolean;
+            /** Is Active */
+            is_active: boolean;
+            /** Sort Order */
+            sort_order: number;
+            /** Version */
+            version: number;
+        };
+        /** PaymentPlanUpdate */
+        PaymentPlanUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Schedule */
+            schedule?: components["schemas"]["Milestone"][] | null;
+            /** Is Public */
+            is_public?: boolean | null;
+            /** Is Active */
+            is_active?: boolean | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Version */
+            version: number;
+        };
+        /** PriceHistoryOut */
+        PriceHistoryOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Old Price */
+            old_price: string | null;
+            /** New Price */
+            new_price: string | null;
+            /** Old Currency */
+            old_currency: string | null;
+            /** New Currency */
+            new_currency: string | null;
+            /** Changed By */
+            changed_by: string | null;
+            /**
+             * Changed At
+             * Format: date-time
+             */
+            changed_at: string;
+            /** Reason */
+            reason: string | null;
+            /** Import Batch Id */
+            import_batch_id: string | null;
+        };
         /** ProjectCreate */
         ProjectCreate: {
             /** Slug */
@@ -1503,6 +2370,10 @@ export interface components {
             regulatory: {
                 [key: string]: unknown;
             };
+            /** Sales Settings */
+            sales_settings?: {
+                [key: string]: unknown;
+            };
             /** Version */
             version: number;
             /**
@@ -1546,6 +2417,87 @@ export interface components {
              * Version
              * @description Optimistic concurrency: current version
              */
+            version: number;
+        };
+        /** PromotionIn */
+        PromotionIn: {
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @default other
+             * @enum {string}
+             */
+            kind?: "discount_percent" | "discount_amount" | "gift" | "financing" | "other";
+            /** Value */
+            value?: number | string | null;
+            /** Terms */
+            terms?: string | null;
+            /** Valid From */
+            valid_from?: string | null;
+            /** Valid To */
+            valid_to?: string | null;
+            /**
+             * Is Public
+             * @default true
+             */
+            is_public?: boolean;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active?: boolean;
+        };
+        /** PromotionOut */
+        PromotionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Name */
+            name: string;
+            /** Kind */
+            kind: string;
+            /** Value */
+            value: string | null;
+            /** Terms */
+            terms: string | null;
+            /** Valid From */
+            valid_from: string | null;
+            /** Valid To */
+            valid_to: string | null;
+            /** Is Public */
+            is_public: boolean;
+            /** Is Active */
+            is_active: boolean;
+            /** Version */
+            version: number;
+        };
+        /** PromotionUpdate */
+        PromotionUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Kind */
+            kind?: ("discount_percent" | "discount_amount" | "gift" | "financing" | "other") | null;
+            /** Value */
+            value?: number | string | null;
+            /** Terms */
+            terms?: string | null;
+            /** Valid From */
+            valid_from?: string | null;
+            /** Valid To */
+            valid_to?: string | null;
+            /** Is Public */
+            is_public?: boolean | null;
+            /** Is Active */
+            is_active?: boolean | null;
+            /** Version */
             version: number;
         };
         /** ProposalAcceptAll */
@@ -1694,6 +2646,135 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * SalesChanges
+         * @description Only the fields present in the request are changed; an explicit null clears a value.
+         */
+        SalesChanges: {
+            /** Availability */
+            availability?: ("available" | "reserved" | "sold" | "withdrawn") | null;
+            /** Availability Reason */
+            availability_reason?: string | null;
+            /** List Price */
+            list_price?: number | string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Price On Request */
+            price_on_request?: boolean | null;
+            /** Price Area Type */
+            price_area_type?: string | null;
+            /** Payment Plan Id */
+            payment_plan_id?: string | null;
+            /** Promotion Ids */
+            promotion_ids?: string[] | null;
+            /** Public Description */
+            public_description?: string | null;
+            /** Internal Notes */
+            internal_notes?: string | null;
+            /** Rooms */
+            rooms?: number | null;
+            /** Bedrooms */
+            bedrooms?: number | null;
+            /** Bathrooms */
+            bathrooms?: number | null;
+            /** Orientation */
+            orientation?: string | null;
+            /** Public Fields */
+            public_fields?: {
+                [key: string]: boolean;
+            } | null;
+        };
+        /** SalesHistoryOut */
+        SalesHistoryOut: {
+            /** Prices */
+            prices: components["schemas"]["PriceHistoryOut"][];
+            /** Availability */
+            availability: components["schemas"]["AvailabilityHistoryOut"][];
+            /** Audit */
+            audit: components["schemas"]["AuditOut"][];
+        };
+        /** SalesSettingsIn */
+        SalesSettingsIn: {
+            /** Price Area Type */
+            price_area_type?: string | null;
+            /** Public Fields */
+            public_fields?: {
+                [key: string]: boolean;
+            } | null;
+            /**
+             * Version
+             * @description Project version
+             */
+            version: number;
+        };
+        /** SalesSettingsOut */
+        SalesSettingsOut: {
+            /** Price Area Type */
+            price_area_type: string;
+            /** Public Fields */
+            public_fields: {
+                [key: string]: boolean;
+            };
+            /** Import Mapping */
+            import_mapping: {
+                [key: string]: string;
+            };
+            /** Import Options */
+            import_options: {
+                [key: string]: unknown;
+            };
+            /** Area Definitions */
+            area_definitions: unknown[];
+            /** Project Version */
+            project_version: number;
+        };
+        /** SalesUpdate */
+        SalesUpdate: {
+            /** Availability */
+            availability?: ("available" | "reserved" | "sold" | "withdrawn") | null;
+            /** Availability Reason */
+            availability_reason?: string | null;
+            /** List Price */
+            list_price?: number | string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Price On Request */
+            price_on_request?: boolean | null;
+            /** Price Area Type */
+            price_area_type?: string | null;
+            /** Payment Plan Id */
+            payment_plan_id?: string | null;
+            /** Promotion Ids */
+            promotion_ids?: string[] | null;
+            /** Public Description */
+            public_description?: string | null;
+            /** Internal Notes */
+            internal_notes?: string | null;
+            /** Rooms */
+            rooms?: number | null;
+            /** Bedrooms */
+            bedrooms?: number | null;
+            /** Bathrooms */
+            bathrooms?: number | null;
+            /** Orientation */
+            orientation?: string | null;
+            /** Public Fields */
+            public_fields?: {
+                [key: string]: boolean;
+            } | null;
+            /**
+             * Version
+             * @description Version you edited; or send it as the If-Match header
+             */
+            version?: number | null;
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Confirm Zero Price
+             * @default false
+             */
+            confirm_zero_price?: boolean;
         };
         /** SheetAssign */
         SheetAssign: {
@@ -4045,6 +5126,946 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MassingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_inventory_api_v1_admin_tenants__tenant_id__projects__project_id__inventory_get: {
+        parameters: {
+            query?: {
+                include_removed?: boolean;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_unit_sales_api_v1_admin_tenants__tenant_id__units__unit_id__sales_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                unit_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryRow"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_unit_sales_api_v1_admin_tenants__tenant_id__units__unit_id__sales_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                unit_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SalesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryRow"];
+                };
+            };
+            /** @description Version conflict; the body carries `current` (the row) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_update_api_v1_admin_tenants__tenant_id__projects__project_id__inventory_bulk_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResult"];
+                };
+            };
+            /** @description Stale units listed in `stale` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unit_sales_history_api_v1_admin_tenants__tenant_id__units__unit_id__sales_history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                unit_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalesHistoryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    public_preview_api_v1_admin_tenants__tenant_id__units__unit_id__sales_public_preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                unit_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_sales_settings_api_v1_admin_tenants__tenant_id__projects__project_id__sales_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalesSettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_sales_settings_api_v1_admin_tenants__tenant_id__projects__project_id__sales_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SalesSettingsIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SalesSettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_plans_api_v1_admin_tenants__tenant_id__projects__project_id__payment_plans_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentPlanOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_plan_api_v1_admin_tenants__tenant_id__projects__project_id__payment_plans_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentPlanIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentPlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_plan_api_v1_admin_tenants__tenant_id__payment_plans__plan_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentPlanUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentPlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_promotions_api_v1_admin_tenants__tenant_id__projects__project_id__promotions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_promotion_api_v1_admin_tenants__tenant_id__projects__project_id__promotions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromotionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_promotion_api_v1_admin_tenants__tenant_id__promotions__promotion_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                promotion_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromotionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_media_api_v1_admin_tenants__tenant_id__units__unit_id__media_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                unit_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_media_api_v1_admin_tenants__tenant_id__units__unit_id__media_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                unit_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaIntentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_media_api_v1_admin_tenants__tenant_id__media__media_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_media_api_v1_admin_tenants__tenant_id__media__media_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_media_api_v1_admin_tenants__tenant_id__media__media_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                media_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_media_api_v1_admin_tenants__tenant_id__units__unit_id__media_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                unit_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaOrder"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_imports_api_v1_admin_tenants__tenant_id__projects__project_id__imports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatchOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_import_api_v1_admin_tenants__tenant_id__projects__project_id__imports_post: {
+        parameters: {
+            query: {
+                file_name: string;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_import_api_v1_admin_tenants__tenant_id__imports__batch_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dry_run_import_api_v1_admin_tenants__tenant_id__imports__batch_id__dry_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportDryRun"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_import_api_v1_admin_tenants__tenant_id__imports__batch_id__apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportApply"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_import_api_v1_admin_tenants__tenant_id__imports__batch_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_inventory_api_v1_admin_tenants__tenant_id__projects__project_id__inventory_export_get: {
+        parameters: {
+            query?: {
+                format?: "csv" | "xlsx";
+                columns?: "internal" | "public";
+            };
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": unknown;
+                    "application/octet-stream": unknown;
                 };
             };
             /** @description Validation Error */

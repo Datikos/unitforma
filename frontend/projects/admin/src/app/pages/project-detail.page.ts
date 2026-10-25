@@ -25,6 +25,7 @@ import { BuildingOut, FloorIn, FloorOut, ProjectOut, UnitformaApi, problemMessag
             <a mat-stroked-button routerLink="placement">Site placement</a>
             <a mat-stroked-button routerLink="massing">3D massing</a>
             <a mat-stroked-button routerLink="units">Units</a>
+            <a mat-stroked-button routerLink="inventory">Inventory &amp; prices</a>
           </span>
         </div>
       }

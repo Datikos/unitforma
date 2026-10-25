@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Literal
 
@@ -156,6 +156,7 @@ class ProjectOut(ORM):
     area_definitions: list[Any]
     site_frame: dict[str, Any]
     regulatory: dict[str, Any]
+    sales_settings: dict[str, Any] = Field(default_factory=dict)
     version: int
     created_at: datetime
     updated_at: datetime
@@ -550,3 +551,321 @@ class MassingOut(ORM):
     error: str | None
     created_at: datetime
     glb_url: str | None = None
+
+
+# --- sales workspace (plan §6) ------------------------------------------------------------
+Availability = Literal["available", "reserved", "sold", "withdrawn"]
+PublicFieldKey = Literal[
+    "list_price", "payment_plan", "promotions", "description", "areas", "rooms", "media"
+]
+
+
+class InventoryRow(BaseModel):
+    unit_id: uuid.UUID
+    code: str
+    building_id: uuid.UUID
+    building_code: str
+    floor_id: uuid.UUID
+    floor_level: int
+    floor_name: str
+    unit_type: str
+    lifecycle_status: str
+    verification_status: str
+    publication_status: str
+    availability: Availability
+    availability_reason: str | None
+    availability_changed_at: datetime | None
+    list_price: Decimal | None = Field(description="NULL = price unknown / on request")
+    currency: str
+    price_on_request: bool
+    price_area_type: str = Field(description="Effective area type the price per m² uses")
+    price_area_type_override: str | None
+    price_area_m2: Decimal | None
+    price_area_source: str | None
+    price_area_verified: bool
+    price_per_m2: Decimal | None = Field(description="Computed on read, never stored")
+    payment_plan_id: uuid.UUID | None
+    payment_plan_name: str | None
+    promotion_ids: list[uuid.UUID]
+    promotion_names: list[str]
+    rooms: int | None
+    bedrooms: int | None
+    bathrooms: int | None
+    orientation: str | None
+    public_description: str | None
+    internal_notes: str | None
+    public_fields: dict[str, bool]
+    public_field_overrides: dict[str, bool]
+    areas: dict[str, Decimal]
+    media_count: int
+    version: int = Field(description="Sales row version; 0 = no sales data entered yet")
+    updated_at: datetime | None
+
+
+class SalesChanges(BaseModel):
+    """Only the fields present in the request are changed; an explicit null clears a value."""
+
+    availability: Availability | None = None
+    availability_reason: str | None = Field(default=None, max_length=2000)
+    list_price: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    price_on_request: bool | None = None
+    price_area_type: str | None = Field(default=None, max_length=40)
+    payment_plan_id: uuid.UUID | None = None
+    promotion_ids: list[uuid.UUID] | None = None
+    public_description: str | None = Field(default=None, max_length=4000)
+    internal_notes: str | None = Field(default=None, max_length=4000)
+    rooms: int | None = Field(default=None, ge=0, le=100)
+    bedrooms: int | None = Field(default=None, ge=0, le=100)
+    bathrooms: int | None = Field(default=None, ge=0, le=100)
+    orientation: str | None = Field(default=None, max_length=20)
+    public_fields: dict[PublicFieldKey, bool] | None = None
+
+
+class SalesUpdate(SalesChanges):
+    version: int | None = Field(
+        default=None, description="Version you edited; or send it as the If-Match header"
+    )
+    reason: str | None = Field(default=None, max_length=500)
+    confirm_zero_price: bool = False
+
+
+class BulkItem(BaseModel):
+    unit_id: uuid.UUID
+    version: int
+
+
+class BulkUpdate(BaseModel):
+    items: list[BulkItem] = Field(min_length=1, max_length=5000)
+    changes: SalesChanges = Field(default_factory=SalesChanges)
+    price_adjust_percent: Decimal | None = Field(
+        default=None,
+        ge=-90,
+        le=1000,
+        description="Multiply existing prices; empty prices stay empty",
+    )
+    preview: bool = True
+    reason: str | None = Field(default=None, max_length=500)
+    confirm_zero_price: bool = False
+
+
+class BulkUnitResult(BaseModel):
+    unit_id: uuid.UUID
+    code: str
+    changes: list[dict[str, Any]]
+
+
+class BulkResult(BaseModel):
+    preview: bool
+    units: list[BulkUnitResult]
+    changed_units: int
+
+
+class SalesSettingsIn(BaseModel):
+    price_area_type: str | None = None
+    public_fields: dict[PublicFieldKey, bool] | None = None
+    version: int = Field(description="Project version")
+
+
+class SalesSettingsOut(BaseModel):
+    price_area_type: str
+    public_fields: dict[str, bool]
+    import_mapping: dict[str, str]
+    import_options: dict[str, Any]
+    area_definitions: list[Any]
+    project_version: int
+
+
+class Milestone(BaseModel):
+    label: str = Field(min_length=1, max_length=120)
+    percent: Decimal = Field(gt=0, le=100, decimal_places=2)
+    due: str | None = Field(default=None, max_length=120, description="e.g. 'on signing'")
+
+
+class PaymentPlanIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=4000)
+    schedule: list[Milestone] = Field(default_factory=list, max_length=40)
+    is_public: bool = True
+    is_active: bool = True
+    sort_order: int = 0
+
+
+class PaymentPlanUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=4000)
+    schedule: list[Milestone] | None = Field(default=None, max_length=40)
+    is_public: bool | None = None
+    is_active: bool | None = None
+    sort_order: int | None = None
+    version: int
+
+
+class PaymentPlanOut(ORM):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    name: str
+    description: str | None
+    schedule: list[dict[str, Any]]
+    is_public: bool
+    is_active: bool
+    sort_order: int
+    version: int
+
+
+PromotionKind = Literal["discount_percent", "discount_amount", "gift", "financing", "other"]
+
+
+class PromotionIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    kind: PromotionKind = "other"
+    value: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    terms: str | None = Field(default=None, max_length=4000)
+    valid_from: date | None = None
+    valid_to: date | None = None
+    is_public: bool = True
+    is_active: bool = True
+
+
+class PromotionUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    kind: PromotionKind | None = None
+    value: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    terms: str | None = Field(default=None, max_length=4000)
+    valid_from: date | None = None
+    valid_to: date | None = None
+    is_public: bool | None = None
+    is_active: bool | None = None
+    version: int
+
+
+class PromotionOut(ORM):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    name: str
+    kind: str
+    value: Decimal | None
+    terms: str | None
+    valid_from: date | None
+    valid_to: date | None
+    is_public: bool
+    is_active: bool
+    version: int
+
+
+MediaKind = Literal[
+    "plan_render", "interior_render", "exterior_render", "photo", "video", "document"
+]
+
+
+class MediaCreate(BaseModel):
+    file_name: str = Field(min_length=1, max_length=255)
+    content_type: str = Field(min_length=3, max_length=120)
+    byte_size: int = Field(gt=0)
+    kind: MediaKind = "photo"
+    is_public: bool = False
+    alt_text: str | None = Field(default=None, max_length=300)
+    is_ai_generated: bool = False
+    ai_disclosure_text: str | None = Field(default=None, max_length=300)
+
+
+class MediaUpdate(BaseModel):
+    kind: MediaKind | None = None
+    is_public: bool | None = None
+    alt_text: str | None = Field(default=None, max_length=300)
+    is_ai_generated: bool | None = None
+    ai_disclosure_text: str | None = Field(default=None, max_length=300)
+    version: int
+
+
+class MediaOut(ORM):
+    id: uuid.UUID
+    unit_id: uuid.UUID
+    kind: str
+    file_name: str
+    mime: str
+    byte_size: int | None
+    status: str
+    sort_order: int
+    is_public: bool
+    alt_text: str | None
+    is_ai_generated: bool
+    ai_disclosure_text: str | None
+    version: int
+    created_at: datetime
+    url: str | None = None
+
+
+class MediaIntentOut(BaseModel):
+    media: MediaOut
+    upload_url: str
+    method: Literal["PUT"] = "PUT"
+    headers: dict[str, str]
+
+
+class MediaOrder(BaseModel):
+    ids: list[uuid.UUID] = Field(min_length=1, max_length=500)
+
+
+class PriceHistoryOut(ORM):
+    id: uuid.UUID
+    old_price: Decimal | None
+    new_price: Decimal | None
+    old_currency: str | None
+    new_currency: str | None
+    changed_by: uuid.UUID | None
+    changed_at: datetime
+    reason: str | None
+    import_batch_id: uuid.UUID | None
+
+
+class AvailabilityHistoryOut(ORM):
+    id: uuid.UUID
+    old_availability: str | None
+    new_availability: str
+    changed_by: uuid.UUID | None
+    changed_at: datetime
+    reason: str | None
+    import_batch_id: uuid.UUID | None
+
+
+class SalesHistoryOut(BaseModel):
+    prices: list[PriceHistoryOut]
+    availability: list[AvailabilityHistoryOut]
+    audit: list[AuditOut]
+
+
+class ImportOptions(BaseModel):
+    decimal_separator: Literal[".", ","] = "."
+    thousands_separator: Literal["", ",", ".", " ", "'"] = ""
+    confirm_zero_price: bool = Field(
+        default=False,
+        description="Accept price 0 on rows whose price_on_request column is explicitly false",
+    )
+
+
+class ImportDryRun(BaseModel):
+    mapping: dict[str, str] = Field(description="import field → column header")
+    options: ImportOptions = Field(default_factory=ImportOptions)
+
+
+class ImportApply(BaseModel):
+    skip_invalid_rows: bool = False
+
+
+class ImportBatchOut(ORM):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    file_name: str
+    file_format: str
+    status: str
+    headers: list[str]
+    mapping: dict[str, str]
+    options: dict[str, Any]
+    report: dict[str, Any]
+    row_count: int
+    change_count: int
+    error_count: int
+    created_at: datetime
+    applied_at: datetime | None
+    targets: list[str] = Field(default_factory=list)
