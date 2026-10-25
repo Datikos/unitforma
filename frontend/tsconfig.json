@@ -14,12 +14,13 @@
     "target": "ES2022",
     "module": "preserve",
     "paths": {
-      "api-client": ["./dist/api-client"],
-      "auth-buyer": ["./dist/auth-buyer"],
-      "auth-staff": ["./dist/auth-staff"],
-      "domain-models": ["./dist/domain-models"],
-      "plan-viewer": ["./dist/plan-viewer"],
-      "ui": ["./dist/ui"]
+      "api-client": ["./projects/libs/api-client/src/public-api.ts"],
+      "auth-buyer": ["./projects/libs/auth-buyer/src/public-api.ts"],
+      "auth-staff": ["./projects/libs/auth-staff/src/public-api.ts"],
+      "domain-models": ["./projects/libs/domain-models/src/public-api.ts"],
+      "plan-viewer": ["./projects/libs/plan-viewer/src/public-api.ts"],
+      "ui": ["./projects/libs/ui/src/public-api.ts"],
+      "viewer-3d": ["./projects/libs/viewer-3d/src/public-api.ts"]
     }
   },
   "angularCompilerOptions": {

@@ -1,0 +1,134 @@
+"""Staff workspace API: projects, buildings, floors, site features."""
+
+from __future__ import annotations
+
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
+from sqlalchemy import select
+
+from unitforma.api.schemas import (
+    BuildingCreate,
+    BuildingOut,
+    BuildingUpdate,
+    FloorOut,
+    FloorsBulkCreate,
+    ProjectCreate,
+    ProjectOut,
+    ProjectUpdate,
+    SiteFeatureCreate,
+    SiteFeatureOut,
+)
+from unitforma.identity.authz import Action
+from unitforma.identity.deps import TenantContext, tenant_context
+from unitforma.projects import service as projects
+from unitforma.tenants.models import Project, SiteFeature, Tenant
+
+router = APIRouter(prefix="/api/v1/admin/tenants/{tenant_id}", tags=["projects"])
+Ctx = Annotated[TenantContext, Depends(tenant_context)]
+
+
+def _actor(ctx: TenantContext) -> tuple[uuid.UUID, str]:
+    return ctx.principal.user_id, ctx.actor_role
+
+
+@router.get("/projects", response_model=list[ProjectOut])
+async def list_projects(ctx: Ctx):
+    ctx.require("project", Action.READ)
+    q = select(Project).where(Project.tenant_id == ctx.tenant_id)
+    if ctx.scope != "platform" and not ctx.membership.all_projects:
+        q = q.where(Project.id.in_(ctx.membership.project_ids))
+    rows = await ctx.session.execute(q.order_by(Project.name))
+    return list(rows.scalars())
+
+
+@router.post("/projects", response_model=ProjectOut, status_code=201)
+async def create_project(body: ProjectCreate, ctx: Ctx):
+    ctx.require("project", Action.WRITE)
+    tenant = (
+        await ctx.session.execute(select(Tenant).where(Tenant.id == ctx.tenant_id))
+    ).scalar_one()
+    return await projects.create_project(
+        ctx.session,
+        tenant_id=ctx.tenant_id,
+        data=body.model_dump(),
+        actor=_actor(ctx),
+        default_currency=tenant.default_currency,
+    )
+
+
+@router.get("/projects/{project_id}", response_model=ProjectOut)
+async def get_project(project_id: uuid.UUID, ctx: Ctx):
+    ctx.require("project", Action.READ)
+    ctx.require_project(project_id)
+    return await projects.get_project(ctx.session, ctx.tenant_id, project_id)
+
+
+@router.patch("/projects/{project_id}", response_model=ProjectOut)
+async def update_project(project_id: uuid.UUID, body: ProjectUpdate, ctx: Ctx):
+    ctx.require("project", Action.WRITE)
+    ctx.require_project(project_id)
+    p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
+    changes = body.model_dump(exclude={"version"}, exclude_none=True)
+    return await projects.update_project(ctx.session, p, changes, body.version, _actor(ctx))
+
+
+@router.get("/projects/{project_id}/buildings", response_model=list[BuildingOut])
+async def list_buildings(project_id: uuid.UUID, ctx: Ctx):
+    ctx.require("project", Action.READ)
+    ctx.require_project(project_id)
+    await projects.get_project(ctx.session, ctx.tenant_id, project_id)
+    return await projects.list_buildings(ctx.session, project_id)
+
+
+@router.post("/projects/{project_id}/buildings", response_model=BuildingOut, status_code=201)
+async def create_building(project_id: uuid.UUID, body: BuildingCreate, ctx: Ctx):
+    ctx.require("project", Action.WRITE)
+    ctx.require_project(project_id)
+    p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
+    return await projects.create_building(ctx.session, p, body.model_dump(), _actor(ctx))
+
+
+@router.patch("/buildings/{building_id}", response_model=BuildingOut)
+async def update_building(building_id: uuid.UUID, body: BuildingUpdate, ctx: Ctx):
+    ctx.require("project", Action.WRITE)
+    b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)
+    ctx.require_project(b.project_id)
+    return await projects.update_building(
+        ctx.session,
+        b,
+        body.model_dump(exclude={"version"}, exclude_none=True),
+        body.version,
+        _actor(ctx),
+    )
+
+
+@router.put("/buildings/{building_id}/floors", response_model=list[FloorOut])
+async def set_floors(building_id: uuid.UUID, body: FloorsBulkCreate, ctx: Ctx):
+    ctx.require("project", Action.WRITE)
+    b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)
+    ctx.require_project(b.project_id)
+    return await projects.set_floors(
+        ctx.session, b, [f.model_dump() for f in body.floors], _actor(ctx)
+    )
+
+
+@router.get("/projects/{project_id}/site-features", response_model=list[SiteFeatureOut])
+async def list_site_features(project_id: uuid.UUID, ctx: Ctx):
+    ctx.require("project", Action.READ)
+    ctx.require_project(project_id)
+    rows = await ctx.session.execute(
+        select(SiteFeature)
+        .where(SiteFeature.project_id == project_id)
+        .order_by(SiteFeature.sort_order, SiteFeature.name)
+    )
+    return list(rows.scalars())
+
+
+@router.post("/projects/{project_id}/site-features", response_model=SiteFeatureOut, status_code=201)
+async def create_site_feature(project_id: uuid.UUID, body: SiteFeatureCreate, ctx: Ctx):
+    ctx.require("project", Action.WRITE)
+    ctx.require_project(project_id)
+    p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
+    return await projects.create_site_feature(ctx.session, p, body.model_dump(), _actor(ctx))

@@ -19,6 +19,10 @@ def main(argv: list[str] | None = None) -> int:
     worker.add_argument("--concurrency", type=int, default=4)
     sub.add_parser("scheduler")
     sub.add_parser("migrate")
+    ba = sub.add_parser(
+        "bootstrap-admin", help="flag an existing Kratos identity as platform admin"
+    )
+    ba.add_argument("email")
     hc = sub.add_parser("healthcheck")
     hc.add_argument("kind", choices=["live", "ready"], default="live", nargs="?")
     args = parser.parse_args(argv)
@@ -56,7 +60,21 @@ def main(argv: list[str] | None = None) -> int:
         app.run_worker(queues=["__scheduler__"], concurrency=1)
         return 0
     if args.cmd == "migrate":
-        return subprocess.call([sys.executable, "-m", "alembic", "upgrade", "head"])  # noqa: S603
+        rc = subprocess.call([sys.executable, "-m", "alembic", "upgrade", "head"])  # noqa: S603
+        if rc != 0:
+            return rc
+        import asyncio
+
+        from unitforma.jobs.schema import ensure_job_schema
+
+        asyncio.run(ensure_job_schema())
+        return 0
+    if args.cmd == "bootstrap-admin":
+        import asyncio
+
+        from unitforma.identity.bootstrap import bootstrap_platform_admin
+
+        return asyncio.run(bootstrap_platform_admin(args.email))
     if args.cmd == "healthcheck":
         from unitforma.healthcheck import main as hc_main
 

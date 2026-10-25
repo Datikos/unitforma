@@ -1,0 +1,2731 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "Unitforma API",
+  "version": "0.1.0"
+ },
+ "paths": {
+  "/internal/health/live": {
+   "get": {
+    "tags": [
+     "internal"
+    ],
+    "summary": "Live",
+    "operationId": "live_internal_health_live_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Live Internal Health Live Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/internal/health/ready": {
+   "get": {
+    "tags": [
+     "internal"
+    ],
+    "summary": "Ready",
+    "operationId": "ready_internal_health_ready_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Ready Internal Health Ready Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/internal/domains/ask": {
+   "get": {
+    "tags": [
+     "internal"
+    ],
+    "summary": "Domains Ask",
+    "description": "Caddy on-demand TLS permission endpoint: 200 allows issuance, 403 denies.",
+    "operationId": "domains_ask_internal_domains_ask_get",
+    "parameters": [
+     {
+      "name": "domain",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 253,
+       "title": "Domain"
+      }
+     },
+     {
+      "name": "x-unitforma-internal",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "X-Unitforma-Internal"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Domains Ask Internal Domains Ask Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portal/branding": {
+   "get": {
+    "tags": [
+     "portal"
+    ],
+    "summary": "Branding",
+    "operationId": "branding_api_v1_portal_branding_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Branding Api V1 Portal Branding Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/tenants": {
+   "get": {
+    "tags": [
+     "platform"
+    ],
+    "summary": "List Tenants",
+    "operationId": "list_tenants_api_v1_platform_tenants_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/TenantOut"
+         },
+         "type": "array",
+         "title": "Response List Tenants Api V1 Platform Tenants Get"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "platform"
+    ],
+    "summary": "Create Tenant",
+    "operationId": "create_tenant_api_v1_platform_tenants_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TenantCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TenantOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/platform/tenants/{tenant_id}/invitations": {
+   "post": {
+    "tags": [
+     "platform"
+    ],
+    "summary": "Invite Tenant Admin",
+    "operationId": "invite_tenant_admin_api_v1_platform_tenants__tenant_id__invitations_post",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     },
+     {
+      "name": "email",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Email"
+      }
+     }
+    ],
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InvitationOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/me": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Me",
+    "operationId": "me_api_v1_admin_me_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MeOut"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/invitations/accept": {
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Accept Invitation",
+    "operationId": "accept_invitation_api_v1_admin_invitations_accept_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/InvitationAccept"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MembershipSummary"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Get Tenant",
+    "operationId": "get_tenant_api_v1_admin_tenants__tenant_id__get",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TenantOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Update Tenant",
+    "operationId": "update_tenant_api_v1_admin_tenants__tenant_id__patch",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TenantUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TenantOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/members": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "List Members",
+    "operationId": "list_members_api_v1_admin_tenants__tenant_id__members_get",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/MemberOut"
+         },
+         "title": "Response List Members Api V1 Admin Tenants  Tenant Id  Members Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/members/{membership_id}": {
+   "patch": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Update Member",
+    "operationId": "update_member_api_v1_admin_tenants__tenant_id__members__membership_id__patch",
+    "parameters": [
+     {
+      "name": "membership_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Membership Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MemberUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MemberOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/invitations": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "List Invitations",
+    "operationId": "list_invitations_api_v1_admin_tenants__tenant_id__invitations_get",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/InvitationOut"
+         },
+         "title": "Response List Invitations Api V1 Admin Tenants  Tenant Id  Invitations Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Create Invitation",
+    "operationId": "create_invitation_api_v1_admin_tenants__tenant_id__invitations_post",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/InvitationCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/InvitationOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/invitations/{invitation_id}": {
+   "delete": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Revoke Invitation",
+    "operationId": "revoke_invitation_api_v1_admin_tenants__tenant_id__invitations__invitation_id__delete",
+    "parameters": [
+     {
+      "name": "invitation_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Invitation Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/audit": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "List Audit",
+    "operationId": "list_audit_api_v1_admin_tenants__tenant_id__audit_get",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 200,
+       "minimum": 1,
+       "default": 50,
+       "title": "Limit"
+      }
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 0,
+       "default": 0,
+       "title": "Offset"
+      }
+     },
+     {
+      "name": "entity_type",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Entity Type"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AuditPage"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects": {
+   "get": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "List Projects",
+    "operationId": "list_projects_api_v1_admin_tenants__tenant_id__projects_get",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/ProjectOut"
+         },
+         "title": "Response List Projects Api V1 Admin Tenants  Tenant Id  Projects Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Create Project",
+    "operationId": "create_project_api_v1_admin_tenants__tenant_id__projects_post",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProjectCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProjectOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}": {
+   "get": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Get Project",
+    "operationId": "get_project_api_v1_admin_tenants__tenant_id__projects__project_id__get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProjectOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Update Project",
+    "operationId": "update_project_api_v1_admin_tenants__tenant_id__projects__project_id__patch",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ProjectUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProjectOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/buildings": {
+   "get": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "List Buildings",
+    "operationId": "list_buildings_api_v1_admin_tenants__tenant_id__projects__project_id__buildings_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/BuildingOut"
+         },
+         "title": "Response List Buildings Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Buildings Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Create Building",
+    "operationId": "create_building_api_v1_admin_tenants__tenant_id__projects__project_id__buildings_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BuildingCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BuildingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}": {
+   "patch": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Update Building",
+    "operationId": "update_building_api_v1_admin_tenants__tenant_id__buildings__building_id__patch",
+    "parameters": [
+     {
+      "name": "building_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Building Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BuildingUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BuildingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/floors": {
+   "put": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Set Floors",
+    "operationId": "set_floors_api_v1_admin_tenants__tenant_id__buildings__building_id__floors_put",
+    "parameters": [
+     {
+      "name": "building_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Building Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FloorsBulkCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/FloorOut"
+         },
+         "title": "Response Set Floors Api V1 Admin Tenants  Tenant Id  Buildings  Building Id  Floors Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/site-features": {
+   "get": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "List Site Features",
+    "operationId": "list_site_features_api_v1_admin_tenants__tenant_id__projects__project_id__site_features_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SiteFeatureOut"
+         },
+         "title": "Response List Site Features Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Site Features Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Create Site Feature",
+    "operationId": "create_site_feature_api_v1_admin_tenants__tenant_id__projects__project_id__site_features_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SiteFeatureCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SiteFeatureOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "AreaDefinition": {
+    "properties": {
+     "key": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,40}$",
+      "title": "Key"
+     },
+     "label": {
+      "type": "string",
+      "title": "Label"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     }
+    },
+    "type": "object",
+    "required": [
+     "key",
+     "label"
+    ],
+    "title": "AreaDefinition"
+   },
+   "AuditOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "actor_user_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actor User Id"
+     },
+     "actor_role": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actor Role"
+     },
+     "entity_type": {
+      "type": "string",
+      "title": "Entity Type"
+     },
+     "entity_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entity Id"
+     },
+     "action": {
+      "type": "string",
+      "title": "Action"
+     },
+     "before": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Before"
+     },
+     "after": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "After"
+     },
+     "at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "actor_user_id",
+     "actor_role",
+     "entity_type",
+     "entity_id",
+     "action",
+     "before",
+     "after",
+     "at"
+    ],
+    "title": "AuditOut"
+   },
+   "AuditPage": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/AuditOut"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     }
+    },
+    "type": "object",
+    "required": [
+     "items",
+     "total"
+    ],
+    "title": "AuditPage"
+   },
+   "BuildingCreate": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 20,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]{0,19}$",
+      "title": "Code"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "building",
+       "site"
+      ],
+      "title": "Kind",
+      "default": "building"
+     },
+     "sort_order": {
+      "type": "integer",
+      "title": "Sort Order",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "required": [
+     "code"
+    ],
+    "title": "BuildingCreate"
+   },
+   "BuildingOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Project Id"
+     },
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "site_transform": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Site Transform"
+     },
+     "placement_status": {
+      "type": "string",
+      "title": "Placement Status"
+     },
+     "sort_order": {
+      "type": "integer",
+      "title": "Sort Order"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     },
+     "floors": {
+      "items": {
+       "$ref": "#/components/schemas/FloorOut"
+      },
+      "type": "array",
+      "title": "Floors"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "project_id",
+     "code",
+     "name",
+     "kind",
+     "site_transform",
+     "placement_status",
+     "sort_order",
+     "version"
+    ],
+    "title": "BuildingOut"
+   },
+   "BuildingUpdate": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "site_transform": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Site Transform"
+     },
+     "placement_status": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "unplaced",
+         "draft",
+         "confirmed"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Placement Status"
+     },
+     "sort_order": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sort Order"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "version"
+    ],
+    "title": "BuildingUpdate"
+   },
+   "FloorIn": {
+    "properties": {
+     "level": {
+      "type": "integer",
+      "title": "Level"
+     },
+     "display_name": {
+      "type": "string",
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Display Name"
+     },
+     "height_m": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Height M"
+     },
+     "elevation_m": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Elevation M"
+     }
+    },
+    "type": "object",
+    "required": [
+     "level",
+     "display_name"
+    ],
+    "title": "FloorIn"
+   },
+   "FloorOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "building_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Building Id"
+     },
+     "level": {
+      "type": "integer",
+      "title": "Level"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "height_m": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Height M"
+     },
+     "elevation_m": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Elevation M"
+     },
+     "sort_order": {
+      "type": "integer",
+      "title": "Sort Order"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "building_id",
+     "level",
+     "display_name",
+     "height_m",
+     "elevation_m",
+     "sort_order",
+     "version"
+    ],
+    "title": "FloorOut"
+   },
+   "FloorsBulkCreate": {
+    "properties": {
+     "floors": {
+      "items": {
+       "$ref": "#/components/schemas/FloorIn"
+      },
+      "type": "array",
+      "maxItems": 200,
+      "minItems": 1,
+      "title": "Floors"
+     }
+    },
+    "type": "object",
+    "required": [
+     "floors"
+    ],
+    "title": "FloorsBulkCreate"
+   },
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "type": "array",
+      "title": "Detail"
+     }
+    },
+    "type": "object",
+    "title": "HTTPValidationError"
+   },
+   "InvitationAccept": {
+    "properties": {
+     "token": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 20,
+      "title": "Token"
+     }
+    },
+    "type": "object",
+    "required": [
+     "token"
+    ],
+    "title": "InvitationAccept"
+   },
+   "InvitationCreate": {
+    "properties": {
+     "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+     },
+     "role": {
+      "type": "string",
+      "enum": [
+       "tenant_admin",
+       "project_manager",
+       "sales",
+       "architectural_reviewer"
+      ],
+      "title": "Role"
+     },
+     "all_projects": {
+      "type": "boolean",
+      "title": "All Projects",
+      "default": true
+     },
+     "project_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "title": "Project Ids"
+     }
+    },
+    "type": "object",
+    "required": [
+     "email",
+     "role"
+    ],
+    "title": "InvitationCreate"
+   },
+   "InvitationOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "role": {
+      "type": "string",
+      "enum": [
+       "tenant_admin",
+       "project_manager",
+       "sales",
+       "architectural_reviewer"
+      ],
+      "title": "Role"
+     },
+     "project_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "title": "Project Ids"
+     },
+     "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+     },
+     "accepted": {
+      "type": "boolean",
+      "title": "Accepted"
+     },
+     "accept_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Accept Url",
+      "description": "Only returned to the creator at creation time"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "email",
+     "role",
+     "project_ids",
+     "expires_at",
+     "accepted"
+    ],
+    "title": "InvitationOut"
+   },
+   "MeOut": {
+    "properties": {
+     "user_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "User Id"
+     },
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "email_verified": {
+      "type": "boolean",
+      "title": "Email Verified"
+     },
+     "is_platform_admin": {
+      "type": "boolean",
+      "title": "Is Platform Admin"
+     },
+     "aal": {
+      "type": "string",
+      "title": "Aal"
+     },
+     "memberships": {
+      "items": {
+       "$ref": "#/components/schemas/MembershipSummary"
+      },
+      "type": "array",
+      "title": "Memberships"
+     }
+    },
+    "type": "object",
+    "required": [
+     "user_id",
+     "email",
+     "email_verified",
+     "is_platform_admin",
+     "aal",
+     "memberships"
+    ],
+    "title": "MeOut"
+   },
+   "MemberOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "user_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "User Id"
+     },
+     "email": {
+      "type": "string",
+      "title": "Email"
+     },
+     "display_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Display Name"
+     },
+     "role": {
+      "type": "string",
+      "enum": [
+       "tenant_admin",
+       "project_manager",
+       "sales",
+       "architectural_reviewer"
+      ],
+      "title": "Role"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "all_projects": {
+      "type": "boolean",
+      "title": "All Projects"
+     },
+     "project_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "title": "Project Ids"
+     },
+     "accepted_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Accepted At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "user_id",
+     "email",
+     "display_name",
+     "role",
+     "status",
+     "all_projects",
+     "project_ids",
+     "accepted_at"
+    ],
+    "title": "MemberOut"
+   },
+   "MemberUpdate": {
+    "properties": {
+     "role": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "tenant_admin",
+         "project_manager",
+         "sales",
+         "architectural_reviewer"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Role"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "active",
+         "suspended"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "all_projects": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "All Projects"
+     },
+     "project_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string",
+         "format": "uuid"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Project Ids"
+     }
+    },
+    "type": "object",
+    "title": "MemberUpdate"
+   },
+   "MembershipSummary": {
+    "properties": {
+     "tenant_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Tenant Id"
+     },
+     "tenant_slug": {
+      "type": "string",
+      "title": "Tenant Slug"
+     },
+     "tenant_name": {
+      "type": "string",
+      "title": "Tenant Name"
+     },
+     "role": {
+      "type": "string",
+      "enum": [
+       "tenant_admin",
+       "project_manager",
+       "sales",
+       "architectural_reviewer"
+      ],
+      "title": "Role"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "all_projects": {
+      "type": "boolean",
+      "title": "All Projects"
+     }
+    },
+    "type": "object",
+    "required": [
+     "tenant_id",
+     "tenant_slug",
+     "tenant_name",
+     "role",
+     "status",
+     "all_projects"
+    ],
+    "title": "MembershipSummary"
+   },
+   "ProjectCreate": {
+    "properties": {
+     "slug": {
+      "type": "string",
+      "maxLength": 63,
+      "minLength": 3,
+      "title": "Slug"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "currency": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 3,
+        "minLength": 3
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Currency"
+     },
+     "address": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Address"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "area_definitions": {
+      "items": {
+       "$ref": "#/components/schemas/AreaDefinition"
+      },
+      "type": "array",
+      "title": "Area Definitions"
+     }
+    },
+    "type": "object",
+    "required": [
+     "slug",
+     "name"
+    ],
+    "title": "ProjectCreate"
+   },
+   "ProjectOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "tenant_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Tenant Id"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "currency": {
+      "type": "string",
+      "title": "Currency"
+     },
+     "address": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Address"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "code_pattern": {
+      "type": "string",
+      "title": "Code Pattern"
+     },
+     "area_definitions": {
+      "items": {},
+      "type": "array",
+      "title": "Area Definitions"
+     },
+     "site_frame": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Site Frame"
+     },
+     "regulatory": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Regulatory"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "tenant_id",
+     "slug",
+     "name",
+     "status",
+     "currency",
+     "address",
+     "description",
+     "code_pattern",
+     "area_definitions",
+     "site_frame",
+     "regulatory",
+     "version",
+     "created_at",
+     "updated_at"
+    ],
+    "title": "ProjectOut"
+   },
+   "ProjectUpdate": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "draft",
+         "active",
+         "archived"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "currency": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 3,
+        "minLength": 3
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Currency"
+     },
+     "address": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Address"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "code_pattern": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 80
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Code Pattern"
+     },
+     "area_definitions": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/AreaDefinition"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Area Definitions"
+     },
+     "site_frame": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Site Frame"
+     },
+     "regulatory": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Regulatory"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version",
+      "description": "Optimistic concurrency: current version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "version"
+    ],
+    "title": "ProjectUpdate"
+   },
+   "SiteFeatureCreate": {
+    "properties": {
+     "kind": {
+      "type": "string",
+      "enum": [
+       "garden",
+       "road",
+       "parking_zone",
+       "amenity",
+       "common_area",
+       "entrance",
+       "other"
+      ],
+      "title": "Kind"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "polygon": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Polygon"
+     },
+     "is_public": {
+      "type": "boolean",
+      "title": "Is Public",
+      "default": true
+     },
+     "sort_order": {
+      "type": "integer",
+      "title": "Sort Order",
+      "default": 0
+     }
+    },
+    "type": "object",
+    "required": [
+     "kind",
+     "name"
+    ],
+    "title": "SiteFeatureCreate"
+   },
+   "SiteFeatureOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Project Id"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "polygon": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Polygon"
+     },
+     "is_public": {
+      "type": "boolean",
+      "title": "Is Public"
+     },
+     "sort_order": {
+      "type": "integer",
+      "title": "Sort Order"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "project_id",
+     "kind",
+     "name",
+     "polygon",
+     "is_public",
+     "sort_order"
+    ],
+    "title": "SiteFeatureOut"
+   },
+   "TenantCreate": {
+    "properties": {
+     "slug": {
+      "type": "string",
+      "maxLength": 63,
+      "minLength": 3,
+      "title": "Slug"
+     },
+     "name": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "default_currency": {
+      "type": "string",
+      "maxLength": 3,
+      "minLength": 3,
+      "title": "Default Currency",
+      "default": "EUR"
+     },
+     "admin_email": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "email"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Admin Email",
+      "description": "If set, an invitation for the first tenant admin is created"
+     }
+    },
+    "type": "object",
+    "required": [
+     "slug",
+     "name"
+    ],
+    "title": "TenantCreate"
+   },
+   "TenantOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "slug": {
+      "type": "string",
+      "title": "Slug"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "default_currency": {
+      "type": "string",
+      "title": "Default Currency"
+     },
+     "branding": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Branding"
+     },
+     "settings": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Settings"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "slug",
+     "name",
+     "status",
+     "default_currency",
+     "branding",
+     "settings",
+     "created_at"
+    ],
+    "title": "TenantOut"
+   },
+   "TenantUpdate": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "default_currency": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 3,
+        "minLength": 3
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Default Currency"
+     },
+     "branding": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Branding"
+     },
+     "settings": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Settings"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "active",
+         "suspended"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     }
+    },
+    "type": "object",
+    "title": "TenantUpdate"
+   },
+   "ValidationError": {
+    "properties": {
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "type": "array",
+      "title": "Location"
+     },
+     "msg": {
+      "type": "string",
+      "title": "Message"
+     },
+     "type": {
+      "type": "string",
+      "title": "Error Type"
+     },
+     "input": {
+      "title": "Input"
+     },
+     "ctx": {
+      "type": "object",
+      "title": "Context"
+     }
+    },
+    "type": "object",
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError"
+   }
+  }
+ }
+}

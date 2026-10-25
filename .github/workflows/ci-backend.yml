@@ -46,3 +46,7 @@ jobs:
           uv run unitforma migrate
           uv run pytest -q
           uv run python -m alembic downgrade base && uv run python -m alembic upgrade head
+      - name: OpenAPI document is in sync with the committed frontend client
+        run: |
+          uv run python -c "import json; from unitforma.main import create_app; json.dump(create_app().openapi(), open('../frontend/projects/libs/api-client/src/generated/openapi.json','w'), indent=1)"
+          git diff --exit-code -- ../frontend/projects/libs/api-client/src/generated/openapi.json

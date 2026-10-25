@@ -9,9 +9,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from unitforma.core.ids import new_id
 
@@ -116,3 +116,94 @@ class AuditLog(Base):
     after: Mapped[dict | None] = mapped_column(JSONB)
     request_id: Mapped[str | None] = mapped_column(Text)
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MembershipProjectAccess(Base):
+    __tablename__ = "membership_project_access"
+    __table_args__ = (UniqueConstraint("membership_id", "project_id", name="uq_mpa"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    membership_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("memberships.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+
+
+class Project(TimestampMixin, Base):
+    __tablename__ = "projects"
+    __table_args__ = (UniqueConstraint("tenant_id", "slug", name="uq_project_slug"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    slug: Mapped[str] = mapped_column(String(63))
+    name: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(20), default="draft")  # draft | active | archived
+    currency: Mapped[str] = mapped_column(String(3), default="EUR")
+    address: Mapped[dict] = mapped_column(JSONB, default=dict)
+    code_pattern: Mapped[str] = mapped_column(String(80), default="{building}-{floor:02}-{seq:02}")
+    area_definitions: Mapped[list] = mapped_column(JSONB, default=list)
+    site_frame: Mapped[dict] = mapped_column(JSONB, default=dict)
+    description: Mapped[str | None] = mapped_column(Text)
+    regulatory: Mapped[dict] = mapped_column(JSONB, default=dict)
+    version: Mapped[int] = mapped_column(default=1)
+
+
+class Building(TimestampMixin, Base):
+    __tablename__ = "buildings"
+    __table_args__ = (UniqueConstraint("project_id", "code", name="uq_building_code"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    code: Mapped[str] = mapped_column(String(20))
+    name: Mapped[str | None] = mapped_column(String(200))
+    kind: Mapped[str] = mapped_column(String(20), default="building")  # building | site
+    site_transform: Mapped[dict] = mapped_column(JSONB, default=dict)
+    placement_status: Mapped[str] = mapped_column(String(20), default="unplaced")
+    sort_order: Mapped[int] = mapped_column(default=0)
+    version: Mapped[int] = mapped_column(default=1)
+    floors: Mapped[list[Floor]] = relationship(
+        "Floor", order_by="Floor.level", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+
+class Floor(TimestampMixin, Base):
+    __tablename__ = "floors"
+    __table_args__ = (UniqueConstraint("building_id", "level", name="uq_floor_level"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    building_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("buildings.id", ondelete="CASCADE"), index=True
+    )
+    level: Mapped[int] = mapped_column()
+    display_name: Mapped[str] = mapped_column(String(80))
+    height_m: Mapped[float | None] = mapped_column(Numeric(6, 3))
+    elevation_m: Mapped[float | None] = mapped_column(Numeric(8, 3))
+    sort_order: Mapped[int] = mapped_column(default=0)
+    version: Mapped[int] = mapped_column(default=1)
+
+
+class SiteFeature(TimestampMixin, Base):
+    __tablename__ = "site_features"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(30))
+    name: Mapped[str] = mapped_column(String(200))
+    polygon: Mapped[dict | None] = mapped_column(JSONB)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=True)
+    sort_order: Mapped[int] = mapped_column(default=0)

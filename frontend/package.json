@@ -6,15 +6,19 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "api:generate": "npx --yes openapi-typescript@7.13.0 projects/libs/api-client/src/generated/openapi.json -o projects/libs/api-client/src/generated/openapi.d.ts --default-non-nullable=false",
+    "build:all": "ng build admin --configuration production && ng build portal --configuration production"
   },
   "private": true,
   "packageManager": "npm@11.12.1",
   "dependencies": {
+    "@angular/cdk": "^22.2.4",
     "@angular/common": "^22.2.0",
     "@angular/compiler": "^22.2.0",
     "@angular/core": "^22.2.0",
     "@angular/forms": "^22.2.0",
+    "@angular/material": "^22.2.4",
     "@angular/platform-browser": "^22.2.0",
     "@angular/router": "^22.2.0",
     "@types/three": "^0.186.0",

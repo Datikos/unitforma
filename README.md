@@ -5,7 +5,7 @@ drawings and renders, prepare a human-verified unit inventory, attach prices and
 branded buyer portal on `{tenant}.unitforma.com` or the developer's own domain, and receive
 buyer inquiries authenticated with an email one-time code.
 
-**Status:** Phase 0 scaffold (foundations). See the plan in
+**Status:** Phase 1 (core platform) in progress: tenants, memberships, invitations, staff login, authorization with row-level security, projects/buildings/floors, audit log, admin workspace shell. See the plan in
 [`docs/architecture/plan-v0.1.md`](docs/architecture/plan-v0.1.md) and the decisions in
 [`docs/adr/`](docs/adr/).
 
@@ -47,6 +47,12 @@ docker compose -f compose.yaml -f compose.dev.yaml ps
 | http://127.0.0.1:8025 | Mailpit: every email, including login codes |
 
 Update one module without touching the rest: `docker compose -f compose.yaml -f compose.dev.yaml up -d --no-deps --build api`.
+
+## First platform administrator
+
+1. Sign in once at `https://app.<domain>/login` (creates the Kratos identity and the user row).
+2. `docker compose ... exec api unitforma bootstrap-admin you@example.com`
+3. Reload: the **Platform** entry appears; create a tenant and copy the first admin's invitation link.
 
 ## Without Docker
 

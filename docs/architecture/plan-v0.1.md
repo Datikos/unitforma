@@ -1,6 +1,6 @@
 # Unitforma — Architecture and Delivery Plan
 
-**Status:** planning deliverable, v0.1 (2026-10-25). No application code generated.
+**Status:** planning deliverable, v0.1 (2026-10-25). Implementation status: Phase 0 scaffold and Phase 1 core platform (backend + admin shell) are on `main`; see README.
 **Prepared for:** Unitforma (https://unitforma.com), repository `Datikos/unitforma`, branch `claude/epic-lovelace-sr9pyy`.
 
 ## How to read this document

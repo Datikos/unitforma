@@ -24,3 +24,9 @@ npx ng build admin --configuration production && npx ng build portal --configura
 
 Docker images: `Dockerfile.admin`, `Dockerfile.portal` (multi-stage build → unprivileged nginx on 8080).
 Requires Node 24 (Angular 22 needs `^22.22.3 || ^24.15 || ^26`).
+
+## Development against the backend
+
+`npx ng serve admin --proxy-config proxy.conf.json` forwards `/api`, `/internal` to the API on
+port 8000 and `/.ory` to Kratos on 4433, mirroring the Caddy routing. Regenerate the typed client
+after API changes with `npm run api:generate` (reads `projects/libs/api-client/src/generated/openapi.json`).

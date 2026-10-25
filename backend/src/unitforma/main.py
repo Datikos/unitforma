@@ -8,10 +8,11 @@ import structlog
 from fastapi import FastAPI
 
 from unitforma import __version__
-from unitforma.api import internal, portal
+from unitforma.api import admin, admin_projects, internal, platform, portal
 from unitforma.core.db import dispose_engine
 from unitforma.core.errors import install_error_handlers
 from unitforma.core.logging import configure_logging
+from unitforma.core.security import RequestedWithMiddleware
 from unitforma.core.settings import get_settings
 
 log = structlog.get_logger()
@@ -37,8 +38,12 @@ def create_app() -> FastAPI:
         lifespan=_lifespan,
     )
     install_error_handlers(app)
+    app.add_middleware(RequestedWithMiddleware)
     app.include_router(internal.router)
     app.include_router(portal.router)
+    app.include_router(platform.router)
+    app.include_router(admin.router)
+    app.include_router(admin_projects.router)
     return app
 
 
