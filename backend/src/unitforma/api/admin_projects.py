@@ -12,6 +12,7 @@ from unitforma.api.schemas import (
     BuildingCreate,
     BuildingOut,
     BuildingUpdate,
+    ElevationCandidateOut,
     FloorOut,
     FloorProposalOut,
     FloorsBulkCreate,
@@ -122,7 +123,14 @@ async def update_building(building_id: uuid.UUID, body: BuildingUpdate, ctx: Ctx
     ctx.require("project", Action.READ)
     b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)
     ctx.require_project(b.project_id)
-    changes = body.model_dump(exclude={"version"}, exclude_none=True)
+    # unset fields are kept, an explicit null clears the clearable ones (ADR-0013 Decision 3);
+    # the nested transform keeps its defaults (exclude_unset would drop scale and elevation)
+    changes = body.model_dump(exclude={"version"}, exclude_unset=True)
+    changes = {
+        k: v for k, v in changes.items() if v is not None or k in projects.BUILDING_CLEARABLE
+    }
+    if body.site_transform is not None:
+        changes["site_transform"] = body.site_transform.model_dump()
     if changes and set(changes) <= {"site_transform", "placement_status"}:
         # placing a building on the site plan is mapping work (plan §13.1 step 3a): the
         # architectural reviewer may do it even without project write rights
@@ -148,6 +156,17 @@ async def delete_building(building_id: uuid.UUID, ctx: Ctx):
     ctx.require_project(b.project_id)
     await projects.delete_building(ctx.session, b, _actor(ctx))
     return Response(status_code=204)
+
+
+@router.get(
+    "/buildings/{building_id}/elevation-candidates", response_model=list[ElevationCandidateOut]
+)
+async def elevation_candidates(building_id: uuid.UUID, ctx: Ctx):
+    """Sections and elevations of the building that can become its floor picker (ADR-0013)."""
+    ctx.require("project", Action.READ)
+    b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)
+    ctx.require_project(b.project_id)
+    return await projects.elevation_candidates(ctx.session, b)
 
 
 @router.get("/buildings/{building_id}/floor-proposal", response_model=FloorProposalOut)

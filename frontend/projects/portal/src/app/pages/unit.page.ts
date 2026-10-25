@@ -123,6 +123,9 @@ import { SiteStore } from '../core/site.store';
                 {{ areaLabel(u.price?.per_m2_area_type) }}
               </p>
             }
+            @if (doc()?.project?.price_note; as n) {
+              <p class="uf-muted uf-small">{{ n }}</p>
+            }
             <div class="action__row">
               @if (contact(); as c) {
                 <a class="uf-btn" [href]="c"
@@ -171,8 +174,18 @@ import { SiteStore } from '../core/site.store';
                 <dt>Orientation</dt>
                 <dd>{{ u.rooms?.orientation }}</dd>
               }
+              @if (u.entrance) {
+                <dt>Entrance</dt>
+                <dd>{{ u.entrance }}</dd>
+              }
             </dl>
           </section>
+          @if (building()?.terms; as t) {
+            <section class="uf-card">
+              <h2>Terms</h2>
+              <p class="pre">{{ t }}</p>
+            </section>
+          }
           @if (areaRows().length) {
             <section class="uf-card">
               <h2>Areas</h2>
@@ -374,6 +387,10 @@ export class UnitPage {
 
   readonly av = computed(() => AVAILABILITY[this.unit()?.availability ?? 'available']);
   readonly price = computed(() => money(this.unit()?.price));
+  /** The unit's building as published: its terms (ADR-0013 Decision 3). */
+  readonly building = computed(
+    () => this.doc()?.buildings.find((b) => b.code === this.unit()?.building_code) ?? null,
+  );
   readonly fav = computed(() => !!this.unit() && this.favs.has(this.slug(), this.unit()!.code));
   readonly planPolygons = computed<PlanPolygon[]>(() => {
     const u = this.unit();

@@ -53,7 +53,21 @@ PROJECT_FIELDS = (
     "regulatory",
     "portal_settings",
 )
-BUILDING_FIELDS = ("code", "name", "kind", "site_transform", "placement_status", "sort_order")
+BUILDING_FIELDS = (
+    "code",
+    "name",
+    "kind",
+    "site_transform",
+    "placement_status",
+    "sort_order",
+    "construction_status",
+    "completion",
+    "terms",
+    "elevation_sheet_id",
+)
+# an explicit null clears these (ADR-0013 Decision 3); the others keep their value on null
+BUILDING_CLEARABLE = ("name", "construction_status", "completion", "terms", "elevation_sheet_id")
+ELEVATION_SHEET_UNKNOWN = "https://unitforma.com/problems/elevation-sheet-unknown"
 
 
 def check_version(obj: Any, version: int) -> None:
@@ -230,8 +244,10 @@ async def update_building(
 ) -> Building:
     check_version(b, version)
     before = _snapshot(b, BUILDING_FIELDS)
+    if changes.get("elevation_sheet_id") is not None:
+        await _check_elevation_sheet(db, b, changes["elevation_sheet_id"])
     for k, v in changes.items():
-        if v is not None:
+        if v is not None or k in BUILDING_CLEARABLE:
             setattr(b, k, v)
     b.version += 1
     await write_audit(
@@ -246,6 +262,71 @@ async def update_building(
         after=_snapshot(b, BUILDING_FIELDS),
     )
     return b
+
+
+async def _check_elevation_sheet(db: AsyncSession, b: Building, sheet_id: uuid.UUID) -> None:
+    """The elevation sheet must be a current sheet of this project (ADR-0013 Decision 1)."""
+    from unitforma.tenants.models import DocumentRevision
+
+    ok = (
+        await db.execute(
+            select(Sheet.id)
+            .join(DocumentRevision, DocumentRevision.id == Sheet.revision_id)
+            .join(Document, Document.id == DocumentRevision.document_id)
+            .where(
+                Sheet.id == sheet_id,
+                Document.project_id == b.project_id,
+                Document.current_revision_id == DocumentRevision.id,
+            )
+        )
+    ).first()
+    if ok is None:
+        raise ProblemError(
+            422,
+            "Elevation sheet unknown",
+            "The sheet is not a current sheet of this project",
+            type_=ELEVATION_SHEET_UNKNOWN,
+        )
+
+
+async def elevation_candidates(db: AsyncSession, b: Building) -> list[dict[str, Any]]:
+    """Current sheets of the building whose level markers are stacked (sections, elevations), with
+    how many of the building's floors their markers match (ADR-0013 Decision 1)."""
+    from unitforma.documents import floor_proposal, levels
+    from unitforma.documents.service import signed_urls
+    from unitforma.publishing import elevation
+    from unitforma.tenants.models import DocumentRevision
+
+    markers = await floor_proposal.markers_for_building(db, b)
+    if not markers:
+        return []
+    rows = await db.execute(
+        select(Sheet, Document)
+        .join(DocumentRevision, DocumentRevision.id == Sheet.revision_id)
+        .join(Document, Document.id == DocumentRevision.document_id)
+        .where(Sheet.id.in_(list(markers)))
+    )
+    floors = [elevation.FloorLine(f.level, f.elevation_m) for f in b.floors]
+    out = []
+    for sheet, doc in rows:
+        ms = markers[sheet.id]
+        if not levels.is_stacked(ms):
+            continue
+        bands = elevation.bands(ms, floors)
+        out.append(
+            {
+                "sheet_id": sheet.id,
+                "document_title": doc.title,
+                "document_kind": doc.kind,
+                "page_no": sheet.page_no,
+                "markers": len(ms),
+                "matched_floors": len(bands) if bands else 0,
+                "floors": len(floors),
+                **{k: v for k, v in signed_urls(sheet).items() if k != "extract_url"},
+            }
+        )
+    out.sort(key=lambda c: (-c["matched_floors"], c["document_title"], c["page_no"]))
+    return out
 
 
 async def set_floors(

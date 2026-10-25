@@ -61,7 +61,24 @@ export interface FloorUnit {
   code: string;
   unit_type: string;
   availability: Availability;
+  /** Staircase; public like the floor (ADR-0013 Decision 2). */
+  entrance?: string | null;
   ring: Point[] | null;
+}
+
+export type ConstructionStatus = 'planned' | 'under_construction' | 'completed';
+
+/** One clickable floor band on the building's elevation drawing (ADR-0013 Decision 1). */
+export interface ElevationBand {
+  level: number;
+  /** False when the floor has no published unit: drawn, not clickable. */
+  published: boolean;
+  ring: Point[];
+}
+
+export interface ElevationDoc {
+  plan: PlanRef;
+  bands: ElevationBand[];
 }
 
 export interface FloorDoc {
@@ -76,8 +93,22 @@ export interface BuildingDoc {
   name: string | null;
   kind: string;
   floors: FloorDoc[];
+  /** Distinct entrances of the listed units (ADR-0013 Decision 2). */
+  entrances?: string[];
+  construction_status?: ConstructionStatus | null;
+  completion?: string | null;
+  /** The building's own terms, else the project default (ADR-0013 Decision 3). */
+  terms?: string | null;
   /** The architect's IFC model of this building when one was ingested and confirmed (ADR-0006 Phase C). */
-  model?: { url: string; bytes: number; kind: string; disclaimer: string; built_at: string | null } | null;
+  model?: {
+    url: string;
+    bytes: number;
+    kind: string;
+    disclaimer: string;
+    built_at: string | null;
+  } | null;
+  /** The elevation floor picker when the reviewer chose a sheet and its markers matched (ADR-0013). */
+  elevation?: ElevationDoc | null;
 }
 
 export interface AreaDefinition {
@@ -116,9 +147,23 @@ export interface ProjectDoc {
     hero_text?: string;
     construction_stage?: string;
     completion?: string;
+    /** Printed next to every price (ADR-0013 Decision 4). */
+    price_note?: string;
+    /** Default terms; each building carries its effective terms already. */
+    terms?: string;
   };
   stats: Stats;
-  site: { plan: PlanRef | null; buildings: { code: string; name: string | null; floors: number; height_m: number; ring: Point[] | null }[] } | null;
+  site: {
+    plan: PlanRef | null;
+    buildings: {
+      code: string;
+      name: string | null;
+      floors: number;
+      height_m: number;
+      construction_status?: ConstructionStatus | null;
+      ring: Point[] | null;
+    }[];
+  } | null;
   buildings: BuildingDoc[];
   massing: { url: string; units: number; bytes: number; disclaimer: string } | null;
   payment_plans: PaymentPlan[];
@@ -143,11 +188,18 @@ export interface UnitDoc {
   floor_name: string;
   unit_type: string;
   availability: Availability;
+  entrance?: string;
   indicative: boolean;
   listed: boolean;
-  price: (Money & { per_m2?: string; per_m2_area_type?: string; per_m2_area_verified?: boolean }) | null;
+  price:
+    (Money & { per_m2?: string; per_m2_area_type?: string; per_m2_area_verified?: boolean }) | null;
   areas?: Record<string, string>;
-  rooms?: { rooms: number | null; bedrooms: number | null; bathrooms: number | null; orientation: string | null };
+  rooms?: {
+    rooms: number | null;
+    bedrooms: number | null;
+    bathrooms: number | null;
+    orientation: string | null;
+  };
   description?: string;
   payment_plan?: PaymentPlan;
   promotions?: Promotion[];
@@ -160,6 +212,8 @@ export interface UnitFilters {
   unit_type?: string[];
   building?: string[];
   floor?: number[];
+  /** Applied by the API only together with `building` (ADR-0013 Decision 2). */
+  entrance?: string[];
   rooms?: number[];
   min_price?: number | null;
   max_price?: number | null;
@@ -200,7 +254,9 @@ export class PortalApi {
     return this.get(`${BASE}/projects/${encodeURIComponent(slug)}/units`, p);
   }
   unit(slug: string, code: string): Promise<UnitDoc> {
-    return this.get(`${BASE}/projects/${encodeURIComponent(slug)}/units/${encodeURIComponent(code)}`);
+    return this.get(
+      `${BASE}/projects/${encodeURIComponent(slug)}/units/${encodeURIComponent(code)}`,
+    );
   }
 
   /** Asset URLs come from the snapshot; in preview mode the token must travel with them. */

@@ -346,6 +346,28 @@
       }
      },
      {
+      "name": "entrance",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "maxItems": 20
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Applied only with building",
+       "title": "Entrance"
+      },
+      "description": "Applied only with building"
+     },
+     {
       "name": "rooms",
       "in": "query",
       "required": false,
@@ -1800,6 +1822,64 @@
     "responses": {
      "204": {
       "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/elevation-candidates": {
+   "get": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Elevation Candidates",
+    "description": "Sections and elevations of the building that can become its floor picker (ADR-0013).",
+    "operationId": "elevation_candidates_api_v1_admin_tenants__tenant_id__buildings__building_id__elevation_candidates_get",
+    "parameters": [
+     {
+      "name": "building_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Building Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/ElevationCandidateOut"
+         },
+         "title": "Response Elevation Candidates Api V1 Admin Tenants  Tenant Id  Buildings  Building Id  Elevation Candidates Get"
+        }
+       }
+      }
      },
      "422": {
       "description": "Validation Error",
@@ -7586,6 +7666,51 @@
       "type": "string",
       "title": "Placement Status"
      },
+     "construction_status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Construction Status"
+     },
+     "completion": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Completion"
+     },
+     "terms": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Terms"
+     },
+     "elevation_sheet_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Elevation Sheet Id"
+     },
      "sort_order": {
       "type": "integer",
       "title": "Sort Order"
@@ -7621,7 +7746,8 @@
      "name": {
       "anyOf": [
        {
-        "type": "string"
+        "type": "string",
+        "maxLength": 200
        },
        {
         "type": "null"
@@ -7666,6 +7792,58 @@
       ],
       "title": "Sort Order"
      },
+     "construction_status": {
+      "anyOf": [
+       {
+        "type": "string",
+        "enum": [
+         "planned",
+         "under_construction",
+         "completed"
+        ]
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Construction Status"
+     },
+     "completion": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 80
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Completion"
+     },
+     "terms": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 4000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Terms"
+     },
+     "elevation_sheet_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Elevation Sheet Id"
+     },
      "version": {
       "type": "integer",
       "title": "Version"
@@ -7675,7 +7853,8 @@
     "required": [
      "version"
     ],
-    "title": "BuildingUpdate"
+    "title": "BuildingUpdate",
+    "description": "Fields left out are kept; ``name``, ``construction_status``, ``completion``, ``terms`` and\n``elevation_sheet_id`` sent as null are cleared (ADR-0013 Decision 3)."
    },
    "BulkItem": {
     "properties": {
@@ -8054,6 +8233,73 @@
     "type": "object",
     "title": "DocumentUpdate",
     "description": "Kind set here is final: the worker never replaces a kind a person chose (ADR-0008)."
+   },
+   "ElevationCandidateOut": {
+    "properties": {
+     "sheet_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Sheet Id"
+     },
+     "document_title": {
+      "type": "string",
+      "title": "Document Title"
+     },
+     "document_kind": {
+      "type": "string",
+      "title": "Document Kind"
+     },
+     "page_no": {
+      "type": "integer",
+      "title": "Page No"
+     },
+     "markers": {
+      "type": "integer",
+      "title": "Markers"
+     },
+     "matched_floors": {
+      "type": "integer",
+      "title": "Matched Floors"
+     },
+     "floors": {
+      "type": "integer",
+      "title": "Floors"
+     },
+     "raster_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Raster Url"
+     },
+     "thumbnail_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Thumbnail Url"
+     }
+    },
+    "type": "object",
+    "required": [
+     "sheet_id",
+     "document_title",
+     "document_kind",
+     "page_no",
+     "markers",
+     "matched_floors",
+     "floors"
+    ],
+    "title": "ElevationCandidateOut",
+    "description": "A current sheet with stacked level markers (a section or an elevation) that can become the\nbuilding's elevation floor picker (ADR-0013 Decision 1)."
    },
    "FloorIn": {
     "properties": {
@@ -8942,6 +9188,18 @@
        }
       ],
       "title": "Orientation"
+     },
+     "entrance": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entrance",
+      "description": "Staircase; public like the floor"
      },
      "public_description": {
       "anyOf": [
@@ -10435,6 +10693,32 @@
        }
       ],
       "title": "Completion"
+     },
+     "price_note": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Note",
+      "description": "Printed next to every price (ADR-0013)"
+     },
+     "terms": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 4000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Terms",
+      "description": "Default terms for buildings without their own"
      },
      "branding": {
       "anyOf": [
@@ -12220,6 +12504,18 @@
       ],
       "title": "Orientation"
      },
+     "entrance": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 20
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entrance"
+     },
      "public_fields": {
       "anyOf": [
        {
@@ -12561,6 +12857,18 @@
        }
       ],
       "title": "Orientation"
+     },
+     "entrance": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 20
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entrance"
      },
      "public_fields": {
       "anyOf": [

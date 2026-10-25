@@ -7,7 +7,7 @@ import { EmptyStateComponent, StatusChipComponent, UF_ICONS } from 'ui';
 import type { MassingUnitInfo } from 'viewer-3d';
 import { MassingViewerComponent } from 'viewer-3d';
 import { detectCapabilities } from '../core/capabilities';
-import { AVAILABILITY, area, areaRange, money } from '../core/format';
+import { AVAILABILITY, CONSTRUCTION, area, areaRange, money } from '../core/format';
 import { PortalApi, ProjectDoc, problemOf } from '../core/portal-api';
 import { SiteStore } from '../core/site.store';
 
@@ -121,7 +121,12 @@ import { SiteStore } from '../core/site.store';
             mode="view"
             (polygonSelected)="openBuilding($event)"
           />
-          <p class="uf-muted small">Select a building on the site plan.</p>
+          <p class="uf-muted small legend">
+            Select a building on the site plan.
+            @for (c of constructionLegend(); track c) {
+              <uf-status-chip domain="building.construction" [value]="c" />
+            }
+          </p>
         }
         <div class="uf-grid buildings">
           @for (b of d.buildings; track b.code) {
@@ -133,6 +138,14 @@ import { SiteStore } from '../core/site.store';
               <p class="uf-muted">
                 {{ b.floors.length }} floor{{ b.floors.length === 1 ? '' : 's' }}
               </p>
+              @if (b.construction_status) {
+                <uf-status-chip domain="building.construction" [value]="b.construction_status" />
+              }
+              @if (b.completion) {
+                <p class="uf-muted uf-small">
+                  <ng-icon name="lucideCalendar" /> Completion {{ b.completion }}
+                </p>
+              }
               <uf-status-chip
                 domain="availability"
                 value="available"
@@ -302,19 +315,31 @@ export class ProjectPage {
         for (const u of f.units) out[u.id] = AVAILABILITY[u.availability].solid;
     return out;
   });
+  /** Footprints coloured by construction status when any building states one (ADR-0013 Decision 3). */
   readonly sitePolygons = computed<PlanPolygon[]>(() =>
     (this.doc()?.site?.buildings ?? [])
       .filter((b) => b.ring)
-      .map((b) => ({
-        id: b.code,
-        ring: b.ring!,
-        label: b.code,
-        kind: 'footprint' as const,
-        fill: 'color-mix(in srgb, var(--uf-primary) 30%, transparent)',
-        stroke: 'var(--uf-primary)',
-        title: `Building ${b.code}`,
-      })),
+      .map((b) => {
+        const c = b.construction_status ? CONSTRUCTION[b.construction_status] : null;
+        return {
+          id: b.code,
+          ring: b.ring!,
+          label: b.code,
+          kind: 'footprint' as const,
+          fill: c?.fill ?? 'color-mix(in srgb, var(--uf-primary) 30%, transparent)',
+          stroke: c?.stroke ?? 'var(--uf-primary)',
+          title: `Building ${b.code}${c ? ', ' + c.label : ''}`,
+        };
+      }),
   );
+  readonly constructionLegend = computed(() => {
+    const present = new Set(
+      (this.doc()?.site?.buildings ?? []).map((b) => b.construction_status).filter(Boolean),
+    );
+    return (Object.keys(CONSTRUCTION) as (keyof typeof CONSTRUCTION)[]).filter((k) =>
+      present.has(k),
+    );
+  });
 
   constructor() {
     toObservable(this.slug).subscribe((slug) => void this.load(slug));

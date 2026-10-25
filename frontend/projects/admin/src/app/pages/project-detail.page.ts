@@ -8,6 +8,8 @@ import { Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   BuildingOut,
+  BuildingUpdate,
+  ElevationCandidateOut,
   FloorIn,
   FloorOut,
   ProjectOut,
@@ -28,6 +30,13 @@ import {
   whenShort,
 } from 'ui';
 import { ProjectContext } from '../core/project-context';
+
+interface PortalFields {
+  construction_status: string;
+  completion: string;
+  terms: string;
+  elevation_sheet_id: string;
+}
 import { DialogsService } from '../ui/dialogs.service';
 import { ToastService } from '../ui/toast.service';
 
@@ -279,6 +288,87 @@ import { ToastService } from '../ui/toast.service';
               Ground.
             </p>
           }
+          <div class="portal">
+            <h4 class="portal__title"><ng-icon name="lucideGlobe" /> Shown to buyers</h4>
+            <div class="uf-form-row">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic"
+                ><mat-label>Construction status</mat-label
+                ><select
+                  matNativeControl
+                  [(ngModel)]="pf(b).construction_status"
+                  [name]="'cs' + b.id"
+                >
+                  <option value="">Not stated</option>
+                  <option value="planned">Planned</option>
+                  <option value="under_construction">Under construction</option>
+                  <option value="completed">Completed</option>
+                </select></mat-form-field
+              >
+              <mat-form-field appearance="outline" subscriptSizing="dynamic"
+                ><mat-label>Completion</mat-label
+                ><input
+                  matInput
+                  [(ngModel)]="pf(b).completion"
+                  [name]="'completion' + b.id"
+                  maxlength="80"
+                  placeholder="e.g. December 2026"
+              /></mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="elev-pick"
+                ><mat-label>Elevation drawing (floor picker)</mat-label
+                ><select
+                  matNativeControl
+                  [(ngModel)]="pf(b).elevation_sheet_id"
+                  [name]="'elev' + b.id"
+                >
+                  <option value="">None: floor list and 3D only</option>
+                  @for (c of candidatesOf(b); track c.sheet_id) {
+                    <option [value]="c.sheet_id">
+                      {{ c.document_title }}, page {{ c.page_no }} · {{ c.matched_floors }} of
+                      {{ c.floors }} floors matched
+                    </option>
+                  }
+                </select></mat-form-field
+              >
+            </div>
+            @if (candidateOf(b); as c) {
+              <figure class="elev">
+                @if (c.raster_url) {
+                  <img [src]="c.raster_url" alt="Elevation drawing preview" />
+                }
+                <figcaption class="uf-hint">
+                  @if (c.matched_floors >= 2) {
+                    {{ c.matched_floors }} floor bands from the level markers; buyers tap a band to
+                    open that floor.
+                  } @else {
+                    Fewer than two floors match this sheet's level markers; the portal keeps the
+                    floor list. Check the floors' elevations.
+                  }
+                </figcaption>
+              </figure>
+            } @else if (!candidatesOf(b).length) {
+              <p class="uf-hint">
+                No section or elevation sheet with level markers under this building yet. Upload the
+                facade drawing as a document of this building.
+              </p>
+            }
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="wide"
+              ><mat-label>Terms for this building</mat-label
+              ><textarea
+                matInput
+                rows="3"
+                [(ngModel)]="pf(b).terms"
+                [name]="'terms' + b.id"
+                maxlength="4000"
+                placeholder="Handover specification, payment options, mortgage partners; empty = the project default from Publish"
+              ></textarea>
+            </mat-form-field>
+            <div class="uf-actions">
+              <button mat-flat-button [disabled]="busy()" (click)="savePortal(b)">
+                <ng-icon name="lucideGlobe" /> Save
+              </button>
+              <span class="uf-hint">Buyers see it after the next publication.</span>
+            </div>
+          </div>
         </uf-section-card>
       } @empty {
         <uf-empty-state
@@ -331,6 +421,37 @@ import { ToastService } from '../ui/toast.service';
     button ng-icon {
       vertical-align: -0.15em;
       margin-right: 0.25rem;
+    }
+    .portal {
+      display: grid;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--uf-border);
+    }
+    .portal__title {
+      margin: 0;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .elev-pick {
+      min-width: 260px;
+    }
+    .elev {
+      margin: 0;
+      display: grid;
+      gap: 0.25rem;
+    }
+    .elev img {
+      max-width: min(100%, 520px);
+      border: 1px solid var(--uf-border);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .wide {
+      width: 100%;
     }
   `,
 })
@@ -388,6 +509,10 @@ export class ProjectDetailPage {
   });
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
+  /** Sections and elevations per building that can become its floor picker (ADR-0013). */
+  readonly candidates = signal<Record<string, ElevationCandidateOut[]>>({});
+  /** Portal fields per building as edited (ADR-0013 Decisions 1 and 3). */
+  portalForms: Record<string, PortalFields> = {};
   code = '';
   bname = '';
   from: Record<string, number> = {};
@@ -408,6 +533,12 @@ export class ProjectDetailPage {
       this.project.set(p);
       this.ctx.set(p);
       this.buildings.set(b);
+      this.portalForms = {};
+      const real = b.filter((x) => x.kind === 'building');
+      const cands = await Promise.all(
+        real.map((x) => this.api.elevationCandidates(this.tenantId(), x.id).catch(() => [])),
+      );
+      this.candidates.set(Object.fromEntries(real.map((x, i) => [x.id, cands[i]])));
       const reg = p.regulatory as Record<string, unknown>;
       this.imports.set(
         reg?.['source'] === 'tasge'
@@ -448,6 +579,40 @@ export class ProjectDetailPage {
 
   floorsOf(b: BuildingOut): FloorOut[] {
     return b.floors ?? [];
+  }
+
+  pf(b: BuildingOut): PortalFields {
+    return (this.portalForms[b.id] ??= {
+      construction_status: b.construction_status ?? '',
+      completion: b.completion ?? '',
+      terms: b.terms ?? '',
+      elevation_sheet_id: b.elevation_sheet_id ?? '',
+    });
+  }
+
+  candidatesOf(b: BuildingOut): ElevationCandidateOut[] {
+    return this.candidates()[b.id] ?? [];
+  }
+
+  candidateOf(b: BuildingOut): ElevationCandidateOut | null {
+    const id = this.pf(b).elevation_sheet_id;
+    return (id && this.candidatesOf(b).find((c) => c.sheet_id === id)) || null;
+  }
+
+  /** Empty strings clear the field: the API treats an explicit null as "clear" (ADR-0013 Decision 3). */
+  async savePortal(b: BuildingOut): Promise<void> {
+    const f = this.pf(b);
+    await this.run(async () => {
+      await this.api.updateBuilding(this.tenantId(), b.id, {
+        construction_status: (f.construction_status ||
+          null) as BuildingUpdate['construction_status'],
+        completion: f.completion.trim() || null,
+        terms: f.terms.trim() || null,
+        elevation_sheet_id: f.elevation_sheet_id || null,
+        version: b.version,
+      });
+      this.toast.ok(`Building ${b.code} saved. Publish a new version to show it to buyers.`);
+    });
   }
 
   floorSummary(b: BuildingOut): string {

@@ -36,6 +36,9 @@ import { PortalApi, UnitDoc } from '../core/portal-api';
         <ul class="uc__facts">
           <li><ng-icon name="lucideLayers" /> {{ u.floor_name }}</li>
           <li><ng-icon name="lucideBuilding2" /> Building {{ u.building_code }}</li>
+          @if (u.entrance) {
+            <li><ng-icon name="lucideMapPin" /> Entrance {{ u.entrance }}</li>
+          }
           @if (u.rooms?.rooms) {
             <li><ng-icon name="lucideDoorOpen" /> {{ u.rooms?.rooms }} rooms</li>
           }

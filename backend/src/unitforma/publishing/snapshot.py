@@ -86,7 +86,13 @@ def sanitise_branding(*layers: dict[str, Any] | None) -> dict[str, Any]:
 def sanitise_portal_settings(ps: dict[str, Any] | None) -> dict[str, Any]:
     ps = ps or {}
     out: dict[str, Any] = {}
-    for k, limit in (("hero_text", 2000), ("construction_stage", 80), ("completion", 80)):
+    for k, limit in (
+        ("hero_text", 2000),
+        ("construction_stage", 80),
+        ("completion", 80),
+        ("price_note", 200),  # ADR-0013 Decision 4
+        ("terms", 4000),  # default terms for buildings without their own (ADR-0013 Decision 3)
+    ):
         v = ps.get(k)
         if isinstance(v, str) and v.strip():
             out[k] = v.strip()[:limit]
@@ -334,6 +340,7 @@ async def build(
                 area_m2=row["price_area_m2"] if view.get("areas") is not None else None,
                 rooms=view.get("rooms", {}).get("rooms") if view.get("rooms") else None,
                 bedrooms=view.get("rooms", {}).get("bedrooms") if view.get("rooms") else None,
+                entrance=view.get("entrance"),
                 sort_order=len(read_rows),
                 data=view,
             )
@@ -364,6 +371,7 @@ async def build(
         if u.id in unit_docs:
             units_by_floor.setdefault(u.floor_id, []).append(u)
     building_docs = []
+    ps_terms = (project.portal_settings or {}).get("terms")
     for b in buildings:
         fdocs = []
         for f in [f for f in floors if f.building_id == b.id]:
@@ -384,6 +392,7 @@ async def build(
                             "code": u.code,
                             "unit_type": u.unit_type,
                             "availability": unit_docs[u.id]["availability"],
+                            "entrance": unit_docs[u.id].get("entrance"),
                             "ring": recrop(ring_on_sheet.get((u.id, sheet_id)), crop)
                             if sheet_id
                             else None,
@@ -399,12 +408,34 @@ async def build(
                     "code": b.code,
                     "name": b.name,
                     "kind": b.kind,
+                    # ADR-0013 Decisions 2 and 3: entrances of the listed units, status, terms
+                    "entrances": sorted(
+                        {u["entrance"] for f in fdocs for u in f["units"] if u.get("entrance")},
+                        key=_natural,
+                    ),
+                    "construction_status": b.construction_status,
+                    "completion": _text(b.completion, 80),
+                    "terms": _text(b.terms, 4000) or _text(ps_terms, 4000),
                     "floors": fdocs,
                     "model": await _building_model(db, b, assets, listed),
+                    "elevation": await _elevation(
+                        db,
+                        b,
+                        assets,
+                        [f for f in floors if f.building_id == b.id],
+                        plan_cache,
+                        {f["level"] for f in fdocs},
+                    ),
                 }
             )
 
-    site = await _site(db, project, assets, {d["code"] for d in building_docs}, plan_cache)
+    site = await _site(
+        db,
+        project,
+        assets,
+        {d["code"]: d["construction_status"] for d in building_docs},
+        plan_cache,
+    )
     massing_ref = await _massing(db, project, assets, listed)
 
     listed_docs = [unit_docs[u] for u in unit_docs if u in listed]
@@ -517,10 +548,11 @@ async def _site(
     db: AsyncSession,
     project: Project,
     assets: Assets,
-    public_codes: set[str],
+    public_codes: dict[str, str | None],
     cache: dict[Any, dict],
 ) -> dict[str, Any] | None:
-    """Site plan image with building footprints placed by their site transforms (plan §3.5)."""
+    """Site plan image with building footprints placed by their site transforms (plan §3.5);
+    ``public_codes`` maps each public building to its construction status (ADR-0013)."""
     sheet_id = (project.site_frame or {}).get("sheet_id")
     sheet = None
     if sheet_id:
@@ -563,12 +595,67 @@ async def _site(
                 "name": f["name"],
                 "floors": f["floors"],
                 "height_m": f["height_m"],
+                "construction_status": public_codes.get(f["code"]),
                 "ring": ring,
             }
         )
     if ref is None and not out_buildings:
         return None
     return {"plan": ref, "buildings": out_buildings}
+
+
+def _natural(key: str) -> tuple:
+    """Entrance "2" before "10"."""
+    return tuple(int(p) if p.isdigit() else p for p in re.split(r"(\d+)", key))
+
+
+def _text(v: Any, limit: int) -> str | None:
+    return v.strip()[:limit] if isinstance(v, str) and v.strip() else None
+
+
+async def _elevation(
+    db: AsyncSession,
+    b: Building,
+    assets: Assets,
+    floors: list[Floor],
+    cache: dict[Any, dict],
+    published_levels: set[int],
+) -> dict[str, Any] | None:
+    """The building's elevation floor picker (ADR-0013 Decision 1): the chosen sheet cropped to
+    its floor bands, one band per matched floor; None without a sheet, a raster or two matched
+    floors."""
+    from unitforma.documents.levels import Marker
+    from unitforma.publishing import elevation
+
+    if b.elevation_sheet_id is None:
+        return None
+    sheet = (
+        await db.execute(select(Sheet).where(Sheet.id == b.elevation_sheet_id))
+    ).scalar_one_or_none()
+    if sheet is None or not sheet.raster_key:
+        return None
+    markers = [Marker.from_dict(d) for d in (sheet.hints or {}).get("level_markers") or []]
+    bs = elevation.bands(markers, [elevation.FloorLine(f.level, f.elevation_m) for f in floors])
+    if not bs:
+        log.info("publishing.elevation_unmatched", building=b.code, sheet_id=str(sheet.id))
+        return None
+    crop = elevation.crop_of(bs)
+    ref = _plan_asset(assets, sheet, cache, crop)
+    if ref is None:
+        return None
+    return {
+        "plan": ref,
+        "bands": [
+            {
+                "level": band.level,
+                "published": band.level in published_levels,
+                "ring": recrop(
+                    [[0.0, band.y0], [1.0, band.y0], [1.0, band.y1], [0.0, band.y1]], crop
+                ),
+            }
+            for band in bs
+        ],
+    }
 
 
 async def _building_model(

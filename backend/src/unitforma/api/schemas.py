@@ -181,11 +181,21 @@ class SiteTransform(BaseModel):
     elevation: float = 0.0
 
 
+ConstructionStatus = Literal["planned", "under_construction", "completed"]
+
+
 class BuildingUpdate(BaseModel):
-    name: str | None = None
+    """Fields left out are kept; ``name``, ``construction_status``, ``completion``, ``terms`` and
+    ``elevation_sheet_id`` sent as null are cleared (ADR-0013 Decision 3)."""
+
+    name: str | None = Field(default=None, max_length=200)
     site_transform: SiteTransform | None = None
     placement_status: Literal["unplaced", "draft", "confirmed"] | None = None
     sort_order: int | None = None
+    construction_status: ConstructionStatus | None = None
+    completion: str | None = Field(default=None, max_length=80)
+    terms: str | None = Field(default=None, max_length=4000)
+    elevation_sheet_id: uuid.UUID | None = None
     version: int
 
 
@@ -241,9 +251,28 @@ class BuildingOut(ORM):
     kind: str
     site_transform: dict[str, Any]
     placement_status: str
+    construction_status: str | None = None
+    completion: str | None = None
+    terms: str | None = None
+    elevation_sheet_id: uuid.UUID | None = None
     sort_order: int
     version: int
     floors: list[FloorOut] = Field(default_factory=list)
+
+
+class ElevationCandidateOut(BaseModel):
+    """A current sheet with stacked level markers (a section or an elevation) that can become the
+    building's elevation floor picker (ADR-0013 Decision 1)."""
+
+    sheet_id: uuid.UUID
+    document_title: str
+    document_kind: str
+    page_no: int
+    markers: int
+    matched_floors: int
+    floors: int
+    raster_url: str | None = None
+    thumbnail_url: str | None = None
 
 
 class SiteFeatureCreate(BaseModel):
@@ -688,6 +717,7 @@ class InventoryRow(BaseModel):
     bedrooms: int | None
     bathrooms: int | None
     orientation: str | None
+    entrance: str | None = Field(default=None, description="Staircase; public like the floor")
     public_description: str | None
     internal_notes: str | None
     public_fields: dict[str, bool]
@@ -715,6 +745,7 @@ class SalesChanges(BaseModel):
     bedrooms: int | None = Field(default=None, ge=0, le=100)
     bathrooms: int | None = Field(default=None, ge=0, le=100)
     orientation: str | None = Field(default=None, max_length=20)
+    entrance: str | None = Field(default=None, max_length=20)
     public_fields: dict[PublicFieldKey, bool] | None = None
 
 
@@ -988,6 +1019,12 @@ class PortalSettings(BaseModel):
     hero_text: str | None = Field(default=None, max_length=2000)
     construction_stage: str | None = Field(default=None, max_length=80)
     completion: str | None = Field(default=None, max_length=80)
+    price_note: str | None = Field(
+        default=None, max_length=200, description="Printed next to every price (ADR-0013)"
+    )
+    terms: str | None = Field(
+        default=None, max_length=4000, description="Default terms for buildings without their own"
+    )
     branding: Branding | None = None
 
 

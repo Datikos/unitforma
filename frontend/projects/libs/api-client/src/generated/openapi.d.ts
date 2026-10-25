@@ -430,6 +430,26 @@ export interface paths {
         patch: operations["update_building_api_v1_admin_tenants__tenant_id__buildings__building_id__patch"];
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/elevation-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Elevation Candidates
+         * @description Sections and elevations of the building that can become its floor picker (ADR-0013).
+         */
+        get: operations["elevation_candidates_api_v1_admin_tenants__tenant_id__buildings__building_id__elevation_candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/floor-proposal": {
         parameters: {
             query?: never;
@@ -2025,6 +2045,14 @@ export interface components {
             };
             /** Placement Status */
             placement_status: string;
+            /** Construction Status */
+            construction_status?: string | null;
+            /** Completion */
+            completion?: string | null;
+            /** Terms */
+            terms?: string | null;
+            /** Elevation Sheet Id */
+            elevation_sheet_id?: string | null;
             /** Sort Order */
             sort_order: number;
             /** Version */
@@ -2032,7 +2060,11 @@ export interface components {
             /** Floors */
             floors?: components["schemas"]["FloorOut"][];
         };
-        /** BuildingUpdate */
+        /**
+         * BuildingUpdate
+         * @description Fields left out are kept; ``name``, ``construction_status``, ``completion``, ``terms`` and
+         *     ``elevation_sheet_id`` sent as null are cleared (ADR-0013 Decision 3).
+         */
         BuildingUpdate: {
             /** Name */
             name?: string | null;
@@ -2041,6 +2073,14 @@ export interface components {
             placement_status?: ("unplaced" | "draft" | "confirmed") | null;
             /** Sort Order */
             sort_order?: number | null;
+            /** Construction Status */
+            construction_status?: ("planned" | "under_construction" | "completed") | null;
+            /** Completion */
+            completion?: string | null;
+            /** Terms */
+            terms?: string | null;
+            /** Elevation Sheet Id */
+            elevation_sheet_id?: string | null;
             /** Version */
             version: number;
         };
@@ -2187,6 +2227,34 @@ export interface components {
              * @default false
              */
             clear_building?: boolean;
+        };
+        /**
+         * ElevationCandidateOut
+         * @description A current sheet with stacked level markers (a section or an elevation) that can become the
+         *     building's elevation floor picker (ADR-0013 Decision 1).
+         */
+        ElevationCandidateOut: {
+            /**
+             * Sheet Id
+             * Format: uuid
+             */
+            sheet_id: string;
+            /** Document Title */
+            document_title: string;
+            /** Document Kind */
+            document_kind: string;
+            /** Page No */
+            page_no: number;
+            /** Markers */
+            markers: number;
+            /** Matched Floors */
+            matched_floors: number;
+            /** Floors */
+            floors: number;
+            /** Raster Url */
+            raster_url?: string | null;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
         };
         /** FloorIn */
         FloorIn: {
@@ -2521,6 +2589,11 @@ export interface components {
             bathrooms: number | null;
             /** Orientation */
             orientation: string | null;
+            /**
+             * Entrance
+             * @description Staircase; public like the floor
+             */
+            entrance?: string | null;
             /** Public Description */
             public_description: string | null;
             /** Internal Notes */
@@ -3035,6 +3108,16 @@ export interface components {
             construction_stage?: string | null;
             /** Completion */
             completion?: string | null;
+            /**
+             * Price Note
+             * @description Printed next to every price (ADR-0013)
+             */
+            price_note?: string | null;
+            /**
+             * Terms
+             * @description Default terms for buildings without their own
+             */
+            terms?: string | null;
             branding?: components["schemas"]["Branding"] | null;
         };
         /** PriceHistoryOut */
@@ -3590,6 +3673,8 @@ export interface components {
             bathrooms?: number | null;
             /** Orientation */
             orientation?: string | null;
+            /** Entrance */
+            entrance?: string | null;
             /** Public Fields */
             public_fields?: {
                 [key: string]: boolean;
@@ -3669,6 +3754,8 @@ export interface components {
             bathrooms?: number | null;
             /** Orientation */
             orientation?: string | null;
+            /** Entrance */
+            entrance?: string | null;
             /** Public Fields */
             public_fields?: {
                 [key: string]: boolean;
@@ -4317,6 +4404,8 @@ export interface operations {
                 unit_type?: string[] | null;
                 building?: string[] | null;
                 floor?: number[] | null;
+                /** @description Applied only with building */
+                entrance?: string[] | null;
                 /** @description 5 = five or more */
                 rooms?: number[] | null;
                 min_price?: number | null;
@@ -5127,6 +5216,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BuildingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    elevation_candidates_api_v1_admin_tenants__tenant_id__buildings__building_id__elevation_candidates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                building_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElevationCandidateOut"][];
                 };
             };
             /** @description Validation Error */

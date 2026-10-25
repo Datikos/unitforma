@@ -176,4 +176,75 @@ describe('Floor-first navigation (ADR-0006 Decision 6)', () => {
     await fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/projects/park/buildings/A?floor=2&unit=A-22');
   });
+
+  it('a band tap on the facade drawing opens that floor (ADR-0013 Decision 1)', async () => {
+    await TestBed.inject(Router).navigateByUrl('/projects/park/buildings/A?floor=1');
+    const fixture = TestBed.createComponent(BuildingPage);
+    fixture.componentRef.setInput('slug', 'park');
+    fixture.componentRef.setInput('code', 'A');
+    fixture.componentRef.setInput('floor', '1');
+    fixture.detectChanges();
+    const withElevation: ProjectDoc = {
+      ...DOC,
+      buildings: [
+        {
+          ...DOC.buildings[0],
+          elevation: {
+            plan: {
+              asset: 'e.webp',
+              url: '/api/v1/portal/projects/park/assets/e.webp',
+              width: 1000,
+              height: 400,
+            },
+            bands: [
+              {
+                level: 1,
+                published: true,
+                ring: [
+                  [0, 0.5],
+                  [1, 0.5],
+                  [1, 1],
+                  [0, 1],
+                ],
+              },
+              {
+                level: 2,
+                published: true,
+                ring: [
+                  [0, 0],
+                  [1, 0],
+                  [1, 0.5],
+                  [0, 0.5],
+                ],
+              },
+              {
+                level: 3,
+                published: false,
+                ring: [
+                  [0, 0],
+                  [1, 0],
+                  [1, 0],
+                  [0, 0],
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    };
+    TestBed.inject(HttpTestingController)
+      .expectOne('/api/v1/portal/projects/park')
+      .flush(withElevation);
+    await new Promise((r) => setTimeout(r, 0));
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const bands = page.bandPolygons();
+    expect(bands.map((p) => p.id)).toEqual(['L1', 'L2', 'L3']);
+    expect(bands[0].selected).toBe(true); // the current floor
+    expect(bands[2].kind).toBe('region'); // nothing published on level 3: drawn, not clickable
+    page.pickBand('L2');
+    await fixture.whenStable();
+    // the router carries the floor; a router-created page gets it as its `floor` input
+    expect(TestBed.inject(Router).url).toBe('/projects/park/buildings/A?floor=2');
+  });
 });

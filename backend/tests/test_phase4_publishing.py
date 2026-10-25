@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 
 from tests.fake_kratos import FakeKratos, cookie
-from tests.pdf_fixture import make_plan_pdf, make_site_plan_pdf
+from tests.pdf_fixture import make_plan_pdf, make_section_pdf, make_site_plan_pdf
 
 pytestmark = pytest.mark.skipif(
     not (os.environ.get("UF_TEST_DATABASE_ADMIN_URL") and os.environ.get("UF_TEST_DATABASE_URL")),
@@ -685,3 +685,123 @@ def test_resolver_function_does_not_leak_scope(client, world):
         )
         assert conn.execute(text("SELECT count(*) FROM portal_domains")).scalar_one() == 0
     eng.dispose()
+
+
+# --- ADR-0013: entrance, building status and terms, price note, elevation floor picker ---------
+
+
+def test_portal_content_entrance_building_fields_price_note_and_elevation(client, world):
+    """A section sheet becomes the building's elevation picker, the entrance travels from the
+    sales PATCH to the read model, per-building status and terms and the project's price note
+    land in the snapshot (ADR-0013 Decisions 1 to 4)."""
+    base, pid, tid = world["base"], world["project"]["id"], world["tenant"]["id"]
+    adm, sales = world["adm"], world["sales"]
+    b = next(
+        x
+        for x in client.get(f"{base}/projects/{pid}/buildings", headers=adm).json()
+        if x["code"] == "A"
+    )
+    # the floors learn their elevations (ADR-0010 would propose them; here set by hand)
+    client.put(
+        f"{base}/buildings/{b['id']}/floors",
+        headers=adm,
+        json={
+            "floors": [
+                {"level": 0, "display_name": "Ground", "height_m": "3.0", "elevation_m": "0"},
+                {"level": 1, "display_name": "First", "height_m": "3.0", "elevation_m": "3.0"},
+            ]
+        },
+    )
+    assert client.get(f"{base}/buildings/{b['id']}/elevation-candidates", headers=adm).json() == []
+    [section] = _upload(
+        client, base, adm, pid, "section", "Section A-A", make_section_pdf(), tid, b["id"]
+    )
+    [cand] = client.get(f"{base}/buildings/{b['id']}/elevation-candidates", headers=adm).json()
+    assert cand["sheet_id"] == section["id"] and cand["document_title"] == "Section A-A"
+    assert cand["markers"] == 3 and cand["matched_floors"] == 2 and cand["floors"] == 2
+    assert cand["raster_url"]
+    # a sheet of another project is refused
+    bad = client.patch(
+        f"{base}/buildings/{b['id']}",
+        headers=adm,
+        json={"elevation_sheet_id": str(uuid.uuid4()), "version": b["version"]},
+    )
+    assert bad.status_code == 422 and bad.json()["type"].endswith("elevation-sheet-unknown")
+    b = client.patch(
+        f"{base}/buildings/{b['id']}",
+        headers=adm,
+        json={
+            "elevation_sheet_id": section["id"],
+            "construction_status": "under_construction",
+            "completion": "December 2026",
+            "terms": "White shell; TBC and Bank of Georgia mortgages",
+            "version": b["version"],
+        },
+    ).json()
+    assert b["construction_status"] == "under_construction" and b["completion"] == "December 2026"
+    for code, entrance in (("A-00-01", "1"), ("A-01-01", "2")):
+        u = world["units"][code]
+        row = client.get(f"{base}/units/{u['id']}/sales", headers=sales).json()
+        r = client.patch(
+            f"{base}/units/{u['id']}/sales",
+            headers=sales,
+            json={"entrance": entrance, "version": row["version"]},
+        )
+        assert r.status_code == 200 and r.json()["entrance"] == entrance, r.text
+    proj = client.get(f"{base}/projects/{pid}", headers=adm).json()
+    client.patch(
+        f"{base}/projects/{pid}",
+        headers=adm,
+        json={
+            "portal_settings": {
+                **proj["portal_settings"],
+                "price_note": "Settled in GEL at the NBG rate of the payment day",
+                "terms": "Default terms SECRET-FREE",
+            },
+            "version": proj["version"],
+        },
+    )
+    r = client.post(
+        f"{base}/projects/{pid}/publications", headers=world["pm"], json={"mode": "publish"}
+    )
+    assert r.status_code == 201, r.text
+    doc = client.get("/api/v1/portal/projects/riverside", headers=H_(world)).json()
+    assert doc["project"]["price_note"].startswith("Settled in GEL")
+    [bd] = doc["buildings"]
+    assert bd["entrances"] == ["1", "2"]
+    assert bd["construction_status"] == "under_construction" and bd["completion"] == "December 2026"
+    assert bd["terms"].startswith("White shell")  # the building's own terms win over the default
+    assert doc["site"]["buildings"][0]["construction_status"] == "under_construction"
+    el = bd["elevation"]
+    assert el["plan"]["url"].endswith(".webp") and el["plan"]["width"] > 0
+    assert [(x["level"], x["published"]) for x in el["bands"]] == [(0, True), (1, True)]
+    y_ground = el["bands"][0]["ring"][2][1]
+    y_first = el["bands"][1]["ring"][2][1]
+    assert 0 < y_first < y_ground <= 1  # the first floor's band sits above the ground band
+    assert all(x["ring"][0] == [0.0, x["ring"][1][1]] for x in el["bands"])  # full-width bands
+    ground = next(f for f in bd["floors"] if f["level"] == 0)
+    assert next(u["entrance"] for u in ground["units"] if u["code"] == "A-00-01") == "1"
+
+    def units(**p):
+        return client.get(
+            "/api/v1/portal/projects/riverside/units", headers=H_(world), params=p
+        ).json()
+
+    listed = units()["total"]  # one unit was hidden by an earlier test
+    assert units(entrance="1")["total"] == listed  # meaningless without a building: ignored
+    assert [x["code"] for x in units(building="A", entrance="1")["items"]] == ["A-00-01"]
+    one = client.get("/api/v1/portal/projects/riverside/units/A-00-01", headers=H_(world)).json()
+    assert one["entrance"] == "1"
+    # an explicit null clears the building's terms; the default terms then apply
+    b = client.patch(
+        f"{base}/buildings/{b['id']}",
+        headers=adm,
+        json={"terms": None, "version": b["version"]},
+    ).json()
+    assert b["terms"] is None and b["completion"] == "December 2026"
+    r = client.post(
+        f"{base}/projects/{pid}/publications", headers=world["pm"], json={"mode": "publish"}
+    )
+    assert r.status_code == 201
+    [bd] = client.get("/api/v1/portal/projects/riverside", headers=H_(world)).json()["buildings"]
+    assert bd["terms"] == "Default terms SECRET-FREE"

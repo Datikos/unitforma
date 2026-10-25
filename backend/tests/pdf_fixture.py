@@ -157,6 +157,21 @@ def make_site_plan_pdf() -> bytes:
     return build_pdf([p])
 
 
+def make_section_pdf() -> bytes:
+    """A one-page section: three stacked level markers (ground, first, roof) on floor lines, so
+    the sheet is "stacked" for floor suggestions and a candidate for the elevation picker
+    (ADR-0013 Decision 1)."""
+    p = (
+        _text(40, 560, "SECTION A-A scale 1:100", 14)
+        + _text(60, 100, "+0.00")
+        + _text(60, 300, "+3.00")
+        + _text(60, 500, "+6.00")
+        + "2 w 150 100 m 700 100 l S\n150 300 m 700 300 l S\n150 500 m 700 500 l S\n"
+        + _rect(150, 100, 700, 500)
+    )
+    return build_pdf([p])
+
+
 # --- split-level sheets (one sheet, three blocks at three levels) -----------------------------
 PT_M_AT_100 = 0.0254 / 72 * 100  # metres per PDF point at 1:100
 
