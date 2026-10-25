@@ -1,0 +1,19 @@
+# Garage single-node configuration (plan §4.4). Secrets are read from files.
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "lmdb"
+replication_factor = 1
+compression_level = 2
+
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "storage:3901"
+rpc_secret_file = "/run/secrets/garage_rpc_secret"
+
+[s3_api]
+s3_region = "garage"
+api_bind_addr = "[::]:3900"
+root_domain = ".s3.storage"
+
+[admin]
+api_bind_addr = "[::]:3903"
+admin_token_file = "/run/secrets/garage_admin_token"

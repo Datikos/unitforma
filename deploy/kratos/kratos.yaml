@@ -1,0 +1,127 @@
+# Ory Kratos v26.x configuration for Unitforma (plan §8).
+# Secrets (DSN, cookie/cipher secrets, SMTP URI) arrive through environment variables
+# populated from Docker secrets by the container entrypoint. SERVE_PUBLIC_BASE_URL is set per
+# environment (https://app.<platform-domain>/.ory/).
+version: v26.2.0
+
+dsn: memory # overridden by env DSN
+
+serve:
+  public:
+    base_url: http://127.0.0.1:4433/ # overridden by env SERVE_PUBLIC_BASE_URL
+    port: 4433
+    cors:
+      enabled: false
+  admin:
+    port: 4434
+    base_url: http://kratos:4434/
+
+log:
+  level: info
+  format: json
+  leak_sensitive_values: false
+
+identity:
+  default_schema_id: person
+  schemas:
+    - id: person
+      url: file:///etc/kratos/identity.schema.json
+
+selfservice:
+  default_browser_return_url: https://app.unitforma.localhost/
+  allowed_return_urls:
+    - https://app.unitforma.localhost/
+    - https://app.unitforma.com/
+
+  methods:
+    code:
+      enabled: true
+      passwordless_enabled: true
+      config:
+        lifespan: 10m
+        max_submissions: 5
+    totp:
+      enabled: true
+      config:
+        issuer: Unitforma
+    password:
+      enabled: false
+    link:
+      enabled: false
+    profile:
+      enabled: true
+
+  flows:
+    login:
+      ui_url: https://app.unitforma.localhost/login
+      lifespan: 15m
+      style: unified
+    registration:
+      ui_url: https://app.unitforma.localhost/register
+      lifespan: 15m
+      enabled: true
+      after:
+        code:
+          hooks:
+            - hook: session   # native (API) registration returns a session_token (buyer BFF, PoC V1)
+    settings:
+      ui_url: https://app.unitforma.localhost/settings
+      privileged_session_max_age: 15m
+      required_aal: highest_available
+    recovery:
+      enabled: true
+      use: code
+      ui_url: https://app.unitforma.localhost/recovery
+    verification:
+      enabled: true
+      use: code
+      ui_url: https://app.unitforma.localhost/verification
+    logout:
+      after:
+        default_browser_return_url: https://app.unitforma.localhost/login
+    error:
+      ui_url: https://app.unitforma.localhost/error
+
+session:
+  lifespan: 12h
+  earliest_possible_extend: 1h
+  cookie:
+    name: ory_kratos_session
+    persistent: false
+    same_site: Lax
+
+cookies:
+  same_site: Lax
+  path: /
+
+security:
+  account_enumeration:
+    mitigate: true
+
+courier:
+  message_retries: 5
+  smtp:
+    connection_uri: smtp://mailpit:1025/?disable_starttls=true # overridden by env COURIER_SMTP_CONNECTION_URI
+    from_address: no-reply@unitforma.localhost
+    from_name: Unitforma
+  templates:
+    login_code:
+      valid:
+        email:
+          subject: file:///etc/kratos/templates/login_code.subject.gotmpl
+          body:
+            html: file:///etc/kratos/templates/login_code.body.gotmpl
+            plaintext: file:///etc/kratos/templates/login_code.body.plaintext.gotmpl
+    registration_code:
+      valid:
+        email:
+          subject: file:///etc/kratos/templates/registration_code.subject.gotmpl
+          body:
+            html: file:///etc/kratos/templates/registration_code.body.gotmpl
+            plaintext: file:///etc/kratos/templates/registration_code.body.plaintext.gotmpl
+
+secrets:
+  cookie:
+    - CHANGE-ME-32-CHARACTERS-MINIMUM-00 # overridden by env SECRETS_COOKIE
+  cipher:
+    - CHANGE-ME-EXACTLY-32-CHARACTERS- # overridden by env SECRETS_CIPHER

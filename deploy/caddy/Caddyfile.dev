@@ -1,0 +1,68 @@
+# Development: internal CA, hosts under *.unitforma.localhost (add them to /etc/hosts or use a
+# resolver that maps *.localhost to 127.0.0.1). Unknown hosts get no certificate (on-demand ask).
+{
+	admin 0.0.0.0:2019
+	local_certs
+	on_demand_tls {
+		ask http://api:8000/internal/domains/ask
+	}
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}
+
+(api_routes) {
+	handle /api/* {
+		request_body { max_size 10MB }
+		reverse_proxy api:8000
+	}
+	handle /auth/* {
+		request_body { max_size 64KB }
+		reverse_proxy api:8000
+	}
+}
+
+# Staff workspace. Kratos public API lives under /.ory/ on the SAME host so its cookies are first-party.
+https://app.unitforma.localhost {
+	import security_headers
+	import api_routes
+	handle_path /.ory/* {
+		reverse_proxy kratos:4433
+	}
+	handle {
+		reverse_proxy web-admin:8080
+	}
+}
+
+# Marketing site placeholder.
+https://unitforma.localhost, https://www.unitforma.localhost {
+	import security_headers
+	respond "Unitforma" 200
+}
+
+# Tenant subdomains and custom domains: certificate issued on demand only if the API allows the host.
+https:// {
+	tls {
+		on_demand
+	}
+	import security_headers
+	import api_routes
+	handle {
+		reverse_proxy web-portal:8080
+	}
+}
+
+# Plain HTTP for unknown hosts: refuse.
+http:// {
+	respond "Unknown host" 421
+}

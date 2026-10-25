@@ -1,0 +1,81 @@
+/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
+/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2022",
+    "module": "preserve",
+    "paths": {
+      "api-client": ["./dist/api-client"],
+      "auth-buyer": ["./dist/auth-buyer"],
+      "auth-staff": ["./dist/auth-staff"],
+      "domain-models": ["./dist/domain-models"],
+      "plan-viewer": ["./dist/plan-viewer"],
+      "ui": ["./dist/ui"]
+    }
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./projects/admin/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/admin/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/portal/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/portal/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/libs/ui/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/libs/ui/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/libs/api-client/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/libs/api-client/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/libs/auth-staff/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/libs/auth-staff/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/libs/auth-buyer/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/libs/auth-buyer/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/libs/plan-viewer/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/libs/plan-viewer/tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/libs/domain-models/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/libs/domain-models/tsconfig.spec.json"
+    }
+  ]
+}

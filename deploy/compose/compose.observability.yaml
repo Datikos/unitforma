@@ -1,0 +1,39 @@
+# Optional profile: docker compose ... --profile observability up -d
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: [observability]
+    restart: unless-stopped
+    volumes: ["../observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro", "prom_data:/prometheus"]
+    networks: [internal]
+  grafana:
+    image: grafana/grafana:12.1.0
+    profiles: [observability]
+    restart: unless-stopped
+    environment: { GF_SERVER_ROOT_URL: "https://${ADMIN_HOST}/grafana/", GF_SERVER_SERVE_FROM_SUB_PATH: "true" }
+    volumes: ["grafana_data:/var/lib/grafana"]
+    networks: [internal, edge]
+  loki:
+    image: grafana/loki:3.5.0
+    profiles: [observability]
+    restart: unless-stopped
+    volumes: ["loki_data:/loki"]
+    networks: [internal]
+  alloy:
+    image: grafana/alloy:v1.10.0
+    profiles: [observability]
+    restart: unless-stopped
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock:ro", "../observability/config.alloy:/etc/alloy/config.alloy:ro"]
+    networks: [internal]
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    profiles: [observability]
+    restart: unless-stopped
+    volumes: ["kuma_data:/app/data"]
+    networks: [internal, edge, egress]
+
+volumes:
+  prom_data:
+  grafana_data:
+  loki_data:
+  kuma_data:

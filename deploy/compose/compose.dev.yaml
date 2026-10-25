@@ -1,0 +1,58 @@
+# Development overrides: local builds, source sync, Mailpit, debug ports on loopback only,
+# Caddy internal CA for https://*.unitforma.localhost.
+services:
+  proxy:
+    volumes:
+      - ../caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+    environment:
+      CADDY_INTERNAL_TLS: "1"
+
+  api:
+    build: { context: ../../backend, target: runtime }
+    command: ["api", "--reload"]
+    volumes:
+      - ../../backend/src:/app/src:ro
+      - ../../backend/migrations:/app/migrations:ro
+    develop:
+      watch:
+        - action: sync
+          path: ../../backend/src
+          target: /app/src
+    ports: ["127.0.0.1:8000:8000"]
+
+  worker-light:
+    volumes: ["../../backend/src:/app/src:ro"]
+  worker-heavy:
+    volumes: ["../../backend/src:/app/src:ro"]
+  scheduler:
+    volumes: ["../../backend/src:/app/src:ro"]
+
+  kratos:
+    environment:
+      LOG_LEVEL: debug
+      SERVE_PUBLIC_BASE_URL: https://app.unitforma.localhost/.ory/
+    ports: ["127.0.0.1:4433:4433", "127.0.0.1:4434:4434"]
+
+  postgres:
+    ports: ["127.0.0.1:5432:5432"]
+
+  storage:
+    ports: ["127.0.0.1:3900:3900", "127.0.0.1:3903:3903"]
+
+  mailpit:
+    image: axllent/mailpit:${MAILPIT_VERSION:-v1.28}
+    restart: unless-stopped
+    ports: ["127.0.0.1:8025:8025"]
+    volumes: ["mailpit_data:/data"]
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    networks: [internal, egress]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8025/livez"]
+      interval: 10s
+      retries: 5
+
+volumes:
+  mailpit_data:

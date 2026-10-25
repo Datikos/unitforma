@@ -1,0 +1,107 @@
+{
+	email {env.ACME_EMAIL}
+	admin 127.0.0.1:2019
+	on_demand_tls {
+		# 2xx allows issuance; anything else fails the TLS handshake (unknown-host rejection).
+		ask http://api:8000/internal/domains/ask
+	}
+	servers {
+		trusted_proxies static private_ranges
+		metrics
+	}
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+}
+
+(api_routes) {
+	handle /api/* {
+		request_body { max_size 10MB }
+		reverse_proxy api:8000 {
+			lb_policy round_robin
+			health_uri /internal/health/live
+		}
+	}
+	handle /auth/* {
+		request_body { max_size 64KB }
+		rate_limit {
+			zone auth_by_ip {
+				key {remote_host}
+				events 60
+				window 1m
+			}
+		}
+		reverse_proxy api:8000
+	}
+	# Internal endpoints are never reachable from the internet.
+	handle /internal/* {
+		respond 404
+	}
+}
+
+# Marketing site.
+{env.PLATFORM_DOMAIN}, www.{env.PLATFORM_DOMAIN} {
+	import security_headers
+	reverse_proxy web-site:8080
+}
+
+# Staff workspace + Kratos public API under /.ory/ (same host → first-party cookies).
+app.{env.PLATFORM_DOMAIN} {
+	import security_headers
+	import api_routes
+	handle_path /.ory/* {
+		rate_limit {
+			zone ory_by_ip {
+				key {remote_host}
+				events 120
+				window 1m
+			}
+		}
+		reverse_proxy kratos:4433
+	}
+	handle {
+		reverse_proxy web-admin:8080
+	}
+}
+
+# CNAME target for custom domains: explains configuration, serves nothing else.
+portals.{env.PLATFORM_DOMAIN} {
+	import security_headers
+	respond "This hostname is the CNAME target for Unitforma portals." 200
+}
+
+# Tenant subdomains ride the wildcard certificate (DNS-01) — no per-tenant ACME quota.
+*.{env.PLATFORM_DOMAIN} {
+	tls {
+		dns cloudflare {file./run/secrets/dns_provider_token}
+	}
+	import security_headers
+	import api_routes
+	handle {
+		reverse_proxy web-portal:8080
+	}
+}
+
+# Developer-owned custom domains: certificate on demand after the API verified ownership.
+https:// {
+	tls {
+		on_demand
+	}
+	import security_headers
+	import api_routes
+	handle {
+		reverse_proxy web-portal:8080
+	}
+}
+
+http:// {
+	respond "Unknown host" 421
+}

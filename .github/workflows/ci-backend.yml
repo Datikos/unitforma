@@ -1,0 +1,48 @@
+name: backend
+on:
+  push: { branches: [main], paths: ["backend/**", ".github/workflows/ci-backend.yml"] }
+  pull_request: { paths: ["backend/**", ".github/workflows/ci-backend.yml"] }
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env: { POSTGRES_PASSWORD: postgres }
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 20
+        ports: ["5432:5432"]
+    defaults: { run: { working-directory: backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "0.11.x", enable-cache: true }
+      - run: uv python install 3.14
+      - run: uv sync --frozen --extra dev
+      - run: uv run ruff check . && uv run ruff format --check .
+      - run: uv run lint-imports
+      - name: Prepare roles and database (mirrors deploy/postgres/initdb)
+        run: |
+          psql postgresql://postgres:postgres@localhost:5432/postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE app_owner LOGIN PASSWORD 'app_owner' NOBYPASSRLS;
+          CREATE ROLE app_rw LOGIN PASSWORD 'app_rw' NOBYPASSRLS;
+          CREATE ROLE app_portal LOGIN PASSWORD 'app_portal' NOBYPASSRLS;
+          CREATE DATABASE unitforma_test OWNER app_owner;
+          GRANT CONNECT ON DATABASE unitforma_test TO app_rw, app_portal;
+          SQL
+          psql postgresql://postgres:postgres@localhost:5432/unitforma_test -v ON_ERROR_STOP=1 <<'SQL'
+          REVOKE ALL ON SCHEMA public FROM PUBLIC; ALTER SCHEMA public OWNER TO app_owner;
+          GRANT USAGE ON SCHEMA public TO app_rw, app_portal;
+          ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_rw;
+          ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO app_rw;
+          SQL
+      - name: Migrate and test (including RLS)
+        env:
+          UF_DATABASE_ADMIN_URL: postgresql+psycopg://app_owner:app_owner@localhost:5432/unitforma_test
+          UF_DATABASE_URL: postgresql+asyncpg://app_rw:app_rw@localhost:5432/unitforma_test
+          UF_TEST_DATABASE_ADMIN_URL: postgresql+psycopg://app_owner:app_owner@localhost:5432/unitforma_test
+          UF_TEST_DATABASE_URL: postgresql+asyncpg://app_rw:app_rw@localhost:5432/unitforma_test
+        run: |
+          uv run unitforma migrate
+          uv run pytest -q
+          uv run python -m alembic downgrade base && uv run python -m alembic upgrade head

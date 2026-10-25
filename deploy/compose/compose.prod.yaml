@@ -1,0 +1,80 @@
+# Production overrides: pinned images (no local builds), resource limits, production Caddyfile.
+# Usage: docker compose -f compose.yaml -f compose.prod.yaml --env-file .env up -d
+services:
+  proxy:
+    build: !reset null
+    volumes:
+      - ../caddy/Caddyfile.prod:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    secrets: [internal_ask_token, dns_provider_token]
+    deploy: { resources: { limits: { cpus: "1", memory: 512m } } }
+
+  web-admin:
+    build: !reset null
+    deploy: { resources: { limits: { cpus: "0.5", memory: 128m } } }
+  web-portal:
+    build: !reset null
+    deploy: { resources: { limits: { cpus: "0.5", memory: 128m } } }
+
+  db-migrate:
+    build: !reset null
+  api:
+    build: !reset null
+    deploy:
+      replicas: 2
+      resources: { limits: { cpus: "2", memory: 1g } }
+  worker-light:
+    build: !reset null
+    deploy: { resources: { limits: { cpus: "2", memory: 2g } } }
+  worker-heavy:
+    build: !reset null
+    deploy: { resources: { limits: { cpus: "2", memory: 4g, pids: 512 } } }
+  scheduler:
+    build: !reset null
+    deploy: { resources: { limits: { cpus: "0.5", memory: 256m } } }
+
+  kratos:
+    deploy: { resources: { limits: { cpus: "1", memory: 512m } } }
+  kratos-courier:
+    deploy: { resources: { limits: { cpus: "0.5", memory: 256m } } }
+
+  postgres:
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ../postgres/initdb:/docker-entrypoint-initdb.d:ro
+      - ../postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    deploy: { resources: { limits: { cpus: "4", memory: 8g } } }
+    shm_size: 1g
+
+  storage:
+    deploy: { resources: { limits: { cpus: "2", memory: 2g } } }
+
+  backup:
+    image: ghcr.io/datikos/unitforma-backup:${BACKUP_TAG:-dev}
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD_FILE: /run/secrets/postgres_password
+      BACKUP_CRON: ${BACKUP_CRON:-0 2 * * *}
+      RCLONE_REMOTE: ${BACKUP_RCLONE_REMOTE:-offsite:unitforma-backups}
+      RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    secrets: [postgres_password, backup_rclone_conf, backup_age_recipient]
+    volumes:
+      - backup_staging:/backup
+      - garage_data:/mnt/garage_data:ro
+      - caddy_data:/mnt/caddy_data:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [internal, egress]
+    deploy: { resources: { limits: { cpus: "1", memory: 1g } } }
+
+volumes:
+  backup_staging:
+
+secrets:
+  dns_provider_token: { file: ./secrets/dns_provider_token }
+  backup_rclone_conf: { file: ./secrets/backup_rclone_conf }
+  backup_age_recipient: { file: ./secrets/backup_age_recipient }

@@ -1,0 +1,287 @@
+# Unitforma — base Compose file (environment-agnostic).
+# Combine with compose.dev.yaml or compose.prod.yaml:
+#   docker compose -f compose.yaml -f compose.dev.yaml up -d
+# Every deployable module runs in its own container. Only `proxy` publishes ports.
+name: unitforma
+
+x-backend-image: &backend-image ghcr.io/datikos/unitforma-backend:${BACKEND_TAG:-dev}
+x-backend-env: &backend-env
+  UF_ENVIRONMENT: ${UF_ENVIRONMENT:-development}
+  UF_LOG_LEVEL: ${UF_LOG_LEVEL:-INFO}
+  UF_PLATFORM_DOMAIN: ${PLATFORM_DOMAIN:-unitforma.localhost}
+  UF_ADMIN_HOST: ${ADMIN_HOST:-app.unitforma.localhost}
+  UF_PORTALS_CNAME_TARGET: ${PORTALS_CNAME_TARGET:-portals.unitforma.localhost}
+  UF_DATABASE_URL: postgresql+asyncpg://app_rw@postgres:5432/unitforma
+  UF_DATABASE_PASSWORD_FILE: /run/secrets/postgres_app_rw_password
+  UF_DATABASE_ADMIN_URL: postgresql+psycopg://app_owner@postgres:5432/unitforma
+  UF_DATABASE_ADMIN_PASSWORD_FILE: /run/secrets/postgres_app_owner_password
+  UF_KRATOS_PUBLIC_URL: http://kratos:4433
+  UF_KRATOS_ADMIN_URL: http://kratos:4434
+  UF_S3_ENDPOINT_URL: http://storage:3900
+  UF_S3_BUCKET: ${S3_BUCKET:-unitforma}
+  UF_S3_ACCESS_KEY_FILE: /run/secrets/s3_access_key
+  UF_S3_SECRET_KEY_FILE: /run/secrets/s3_secret_key
+  UF_INTERNAL_ASK_TOKEN_FILE: /run/secrets/internal_ask_token
+  UF_APP_SESSION_KEY_FILE: /run/secrets/app_session_key
+x-backend-secrets: &backend-secrets
+  - postgres_app_rw_password
+  - postgres_app_owner_password
+  - s3_access_key
+  - s3_secret_key
+  - internal_ask_token
+  - app_session_key
+x-logging: &default-logging
+  driver: json-file
+  options: { max-size: "20m", max-file: "5" }
+
+services:
+  # ---------------------------------------------------------------- edge
+  proxy:
+    image: ghcr.io/datikos/unitforma-proxy:${PROXY_TAG:-dev}
+    build: ../caddy
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      PLATFORM_DOMAIN: ${PLATFORM_DOMAIN:-unitforma.localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-ops@example.invalid}
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    secrets: [internal_ask_token]
+    depends_on:
+      api: { condition: service_healthy }
+      web-admin: { condition: service_started }
+      web-portal: { condition: service_started }
+    networks: [edge, egress]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:2019/metrics"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+
+  web-admin:
+    image: ghcr.io/datikos/unitforma-web-admin:${FRONTEND_TAG:-dev}
+    build: { context: ../../frontend, dockerfile: Dockerfile.admin }
+    restart: unless-stopped
+    networks: [edge]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+
+  web-portal:
+    image: ghcr.io/datikos/unitforma-web-portal:${FRONTEND_TAG:-dev}
+    build: { context: ../../frontend, dockerfile: Dockerfile.portal }
+    restart: unless-stopped
+    networks: [edge]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    logging: *default-logging
+
+  # ---------------------------------------------------------------- backend (one image, several roles)
+  db-migrate:
+    image: *backend-image
+    build: { context: ../../backend }
+    command: ["migrate"]
+    environment: *backend-env
+    secrets: *backend-secrets
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [internal]
+    restart: "no"
+    logging: *default-logging
+
+  api:
+    image: *backend-image
+    build: { context: ../../backend }
+    command: ["api"]
+    environment: *backend-env
+    secrets: *backend-secrets
+    depends_on:
+      db-migrate: { condition: service_completed_successfully }
+      kratos: { condition: service_healthy }
+      storage: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [edge, internal, egress]
+    healthcheck:
+      test: ["CMD", "python", "-m", "unitforma.healthcheck", "ready"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+
+  worker-light:
+    image: *backend-image
+    build: { context: ../../backend }
+    command: ["worker", "--queues", "default,docs,mail,periodic", "--concurrency", "4"]
+    environment: *backend-env
+    secrets: *backend-secrets
+    depends_on:
+      db-migrate: { condition: service_completed_successfully }
+      storage: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [internal, egress]
+    logging: *default-logging
+
+  worker-heavy:
+    image: *backend-image
+    build: { context: ../../backend }
+    command: ["worker", "--queues", "docs-heavy,geometry,geometry-heavy", "--concurrency", "1"]
+    environment: *backend-env
+    secrets: *backend-secrets
+    depends_on:
+      db-migrate: { condition: service_completed_successfully }
+      storage: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [internal]
+    tmpfs: ["/tmp:size=4g"]
+    logging: *default-logging
+
+  scheduler:
+    image: *backend-image
+    build: { context: ../../backend }
+    command: ["scheduler"]
+    environment: *backend-env
+    secrets: *backend-secrets
+    depends_on:
+      db-migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+    networks: [internal]
+    logging: *default-logging
+
+  # ---------------------------------------------------------------- identity
+  kratos-migrate:
+    image: oryd/kratos:${KRATOS_VERSION:-v26.2.0}
+    command: ["migrate", "sql", "-e", "--yes"]
+    environment:
+      DSN_FILE: /run/secrets/kratos_dsn
+    entrypoint: ["/bin/sh", "-c", "export DSN=$(cat /run/secrets/kratos_dsn) && exec kratos \"$@\"", "--"]
+    secrets: [kratos_dsn]
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [internal]
+    restart: "no"
+    logging: *default-logging
+
+  kratos:
+    image: oryd/kratos:${KRATOS_VERSION:-v26.2.0}
+    command: ["serve", "-c", "/etc/kratos/kratos.yaml"]
+    entrypoint: ["/bin/sh", "-c", "export DSN=$(cat /run/secrets/kratos_dsn) SECRETS_COOKIE=$(cat /run/secrets/kratos_cookie_secret) SECRETS_CIPHER=$(cat /run/secrets/kratos_cipher_secret) COURIER_SMTP_CONNECTION_URI=$(cat /run/secrets/smtp_connection_uri) && exec kratos \"$@\"", "--"]
+    environment:
+      SERVE_PUBLIC_BASE_URL: https://${ADMIN_HOST:-app.unitforma.localhost}/.ory/
+      LOG_LEVEL: ${KRATOS_LOG_LEVEL:-info}
+    volumes:
+      - ../kratos:/etc/kratos:ro
+    secrets: [kratos_dsn, kratos_cookie_secret, kratos_cipher_secret, smtp_connection_uri]
+    depends_on:
+      kratos-migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+    networks: [edge, internal]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4434/admin/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    logging: *default-logging
+
+  kratos-courier:
+    image: oryd/kratos:${KRATOS_VERSION:-v26.2.0}
+    command: ["courier", "watch", "-c", "/etc/kratos/kratos.yaml"]
+    entrypoint: ["/bin/sh", "-c", "export DSN=$(cat /run/secrets/kratos_dsn) SECRETS_COOKIE=$(cat /run/secrets/kratos_cookie_secret) SECRETS_CIPHER=$(cat /run/secrets/kratos_cipher_secret) COURIER_SMTP_CONNECTION_URI=$(cat /run/secrets/smtp_connection_uri) && exec kratos \"$@\"", "--"]
+    environment:
+      SERVE_PUBLIC_BASE_URL: https://${ADMIN_HOST:-app.unitforma.localhost}/.ory/
+    volumes:
+      - ../kratos:/etc/kratos:ro
+    secrets: [kratos_dsn, kratos_cookie_secret, kratos_cipher_secret, smtp_connection_uri]
+    depends_on:
+      kratos: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [internal, egress]
+    logging: *default-logging
+
+  # ---------------------------------------------------------------- data
+  postgres:
+    image: postgres:${POSTGRES_VERSION:-18}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_DB: postgres
+      APP_OWNER_PASSWORD_FILE: /run/secrets/postgres_app_owner_password
+      APP_RW_PASSWORD_FILE: /run/secrets/postgres_app_rw_password
+      APP_PORTAL_PASSWORD_FILE: /run/secrets/postgres_app_portal_password
+      KRATOS_PASSWORD_FILE: /run/secrets/postgres_kratos_password
+    secrets:
+      - postgres_password
+      - postgres_app_owner_password
+      - postgres_app_rw_password
+      - postgres_app_portal_password
+      - postgres_kratos_password
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ../postgres/initdb:/docker-entrypoint-initdb.d:ro
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d unitforma"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+    logging: *default-logging
+
+  storage:
+    image: dxflrs/garage:${GARAGE_VERSION:-v2.5.0}
+    restart: unless-stopped
+    volumes:
+      - ../garage/garage.toml:/etc/garage.toml:ro
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+    secrets: [garage_rpc_secret, garage_admin_token]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3903/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    logging: *default-logging
+
+networks:
+  edge:
+    driver: bridge
+  internal:
+    driver: bridge
+    internal: true
+  egress:
+    driver: bridge
+
+volumes:
+  pgdata:
+  garage_meta:
+  garage_data:
+  caddy_data:
+  caddy_config:
+
+secrets:
+  postgres_password: { file: ./secrets/postgres_password }
+  postgres_app_owner_password: { file: ./secrets/postgres_app_owner_password }
+  postgres_app_rw_password: { file: ./secrets/postgres_app_rw_password }
+  postgres_app_portal_password: { file: ./secrets/postgres_app_portal_password }
+  postgres_kratos_password: { file: ./secrets/postgres_kratos_password }
+  kratos_dsn: { file: ./secrets/kratos_dsn }
+  kratos_cookie_secret: { file: ./secrets/kratos_cookie_secret }
+  kratos_cipher_secret: { file: ./secrets/kratos_cipher_secret }
+  smtp_connection_uri: { file: ./secrets/smtp_connection_uri }
+  s3_access_key: { file: ./secrets/s3_access_key }
+  s3_secret_key: { file: ./secrets/s3_secret_key }
+  internal_ask_token: { file: ./secrets/internal_ask_token }
+  app_session_key: { file: ./secrets/app_session_key }
+  garage_rpc_secret: { file: ./secrets/garage_rpc_secret }
+  garage_admin_token: { file: ./secrets/garage_admin_token }
