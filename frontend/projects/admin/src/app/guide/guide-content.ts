@@ -131,6 +131,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
         does: 'Removes an empty building with its floors and 3D models; refused while any unit belongs to it, in any state.',
       },
       {
+        name: 'Shown to buyers (building)',
+        does: 'Construction status, completion and terms of this building, and the section or elevation sheet whose level markers become the floor picker on the portal. Saved per building; buyers see it after the next publication.',
+      },
+      {
         name: 'Delete project permanently',
         does: 'Tenant admin only, the slug typed in, refused while published. Removes buildings, units, documents, files and publications; the audit log keeps the record. Other roles see the button and get "not allowed".',
       },
@@ -288,7 +292,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       { name: 'Export', does: 'XLSX or CSV of the internal or the public columns.' },
     ],
     roles: SALES,
-    tips: ['An empty price means "on request" on the portal; never type 0.'],
+    tips: [
+      'An empty price means "on request" on the portal; never type 0.',
+      'Entrance (staircase) is public like the floor: buyers filter by it once they pick a building.',
+    ],
   },
   'unit-sales': {
     title: 'Unit: pricing & terms',
@@ -311,6 +318,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
     ],
     roles: SALES,
     result: 'Published units show the new values on the next publication.',
+    tips: ['Entrance (staircase) is shown to buyers next to the floor; it has no privacy switch.'],
   },
   imports: {
     title: 'Import prices',
@@ -359,6 +367,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       {
         name: 'Branding',
         does: 'Display name, tagline, colours, contact and legal text of the portal.',
+      },
+      {
+        name: 'Price note / Terms',
+        does: 'The price note is printed next to every price (for example the settlement currency rule); the terms are the default for buildings without their own.',
       },
     ],
     roles: STRUCTURE,

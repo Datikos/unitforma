@@ -14,7 +14,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 AVAILABILITY = ("available", "reserved", "sold", "withdrawn")
-UNIT_FIELDS = ("rooms", "bedrooms", "bathrooms", "orientation")
+UNIT_FIELDS = ("rooms", "bedrooms", "bathrooms", "orientation", "entrance")
 SALES_FIELDS = (
     "availability",
     "availability_reason",
@@ -312,9 +312,9 @@ def validate(
         elif f in ("rooms", "bedrooms", "bathrooms"):
             if v is not None and not (isinstance(v, int) and 0 <= v <= 100):
                 errors.append(f"{f} must be a whole number between 0 and 100")
-        elif f == "orientation":
+        elif f in ("orientation", "entrance"):
             if v is not None and len(v) > 20:
-                errors.append("orientation is limited to 20 characters")
+                errors.append(f"{f} is limited to 20 characters")
     return errors
 
 

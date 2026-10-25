@@ -29,6 +29,18 @@ import { SiteStore } from '../core/site.store';
         <span>{{ building()?.name || 'Building ' + code() }}</span>
       </nav>
       @if (building(); as b) {
+        @if (b.construction_status || b.completion) {
+          <p class="bmeta">
+            @if (b.construction_status) {
+              <uf-status-chip domain="building.construction" [value]="b.construction_status" />
+            }
+            @if (b.completion) {
+              <span class="uf-muted"
+                ><ng-icon name="lucideCalendar" /> Completion {{ b.completion }}</span
+              >
+            }
+          </p>
+        }
         <div class="layout">
           <aside class="floors" aria-label="Floors">
             @for (f of floorsTopDown(); track f.level) {
@@ -51,23 +63,56 @@ import { SiteStore } from '../core/site.store';
           <section class="plan">
             <div class="plan__bar">
               <h2>{{ floor()?.name || 'Floors' }}</h2>
-              @if (has3d()) {
+              @if (has3d() || b.elevation) {
                 <div class="uf-segmented" role="group" aria-label="Building view">
-                  <button type="button" [attr.aria-pressed]="!show3d()" (click)="show3d.set(false)">
+                  <button
+                    type="button"
+                    [attr.aria-pressed]="view() === 'plan'"
+                    (click)="view.set('plan')"
+                  >
                     Plan only
                   </button>
-                  <button type="button" [attr.aria-pressed]="show3d()" (click)="show3d.set(true)">
-                    3D + plan
-                  </button>
+                  @if (b.elevation) {
+                    <button
+                      type="button"
+                      [attr.aria-pressed]="view() === 'elevation'"
+                      (click)="view.set('elevation')"
+                    >
+                      Facade + plan
+                    </button>
+                  }
+                  @if (has3d()) {
+                    <button
+                      type="button"
+                      [attr.aria-pressed]="view() === '3d'"
+                      (click)="view.set('3d')"
+                    >
+                      3D + plan
+                    </button>
+                  }
                 </div>
               }
             </div>
-            @if (show3d() && (b.model || d.massing)) {
-              @defer (when show3d()) {
+            @if (view() === 'elevation' && b.elevation; as el) {
+              <uf-plan-viewer
+                class="facade"
+                [src]="api.asset(el.plan.url)"
+                [width]="el.plan.width"
+                [height]="el.plan.height"
+                [polygons]="bandPolygons()"
+                mode="view"
+                (polygonSelected)="pickBand($event)"
+              />
+            }
+            @if (view() === '3d' && (b.model || d.massing)) {
+              @defer (when view() === '3d') {
                 <uf-massing-viewer
                   class="model"
                   [src]="api.asset(b.model?.url ?? d.massing?.url)"
-                  [badge]="b.model?.disclaimer ?? 'Schematic model generated from floor plans — not an architectural model'"
+                  [badge]="
+                    b.model?.disclaimer ??
+                    'Schematic model generated from floor plans — not an architectural model'
+                  "
                   [buildingCode]="b.model ? null : b.code"
                   [floorLevel]="level()"
                   [selectedUnitId]="selected()"
@@ -80,8 +125,10 @@ import { SiteStore } from '../core/site.store';
             }
             <p class="uf-muted small guide">
               Pick a floor on the left
-              @if (show3d()) {
+              @if (view() === '3d') {
                 or tap a floor on the building
+              } @else if (view() === 'elevation') {
+                or tap a floor band on the facade drawing
               }
               , then tap a unit on the plan to see its status and open it.
             </p>
@@ -106,6 +153,9 @@ import { SiteStore } from '../core/site.store';
               @if (selectedUnit(); as u) {
                 <div class="uf-card pick" role="status">
                   <strong>{{ u.code }}</strong> · {{ typeLabel(u.unit_type) }} · {{ f.name }}
+                  @if (u.entrance) {
+                    · Entrance {{ u.entrance }}
+                  }
                   <uf-status-chip domain="availability" [value]="u.availability" />
                   <a class="uf-btn" [routerLink]="['/projects', slug(), 'units', u.code]"
                     >Open <ng-icon name="lucideArrowRight"
@@ -132,6 +182,12 @@ import { SiteStore } from '../core/site.store';
             }
           </section>
         </div>
+        @if (b.terms) {
+          <details class="uf-card terms">
+            <summary><h2>Terms</h2></summary>
+            <p class="pre">{{ b.terms }}</p>
+          </details>
+        }
       } @else {
         <p>Building not found.</p>
       }
@@ -244,6 +300,31 @@ import { SiteStore } from '../core/site.store';
       flex-wrap: wrap;
       gap: 0.5rem;
     }
+    .bmeta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin: 0 0 0.75rem;
+    }
+    .facade {
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .terms {
+      margin-top: 1rem;
+    }
+    .terms summary {
+      cursor: pointer;
+    }
+    .terms h2 {
+      display: inline;
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .pre {
+      white-space: pre-wrap;
+    }
   `,
 })
 export class BuildingPage {
@@ -256,7 +337,6 @@ export class BuildingPage {
   readonly unitParam = input<string | undefined>(undefined, { alias: 'unit' });
   readonly doc = signal<ProjectDoc | null>(null);
   private readonly caps = detectCapabilities();
-  readonly show3d = signal(this.caps.prefer3d);
   protected readonly legend = Object.entries(AVAILABILITY).map(([key, v]) => ({
     key,
     label: v.label,
@@ -268,7 +348,18 @@ export class BuildingPage {
       this.doc()?.buildings.find((b) => b.code.toLowerCase() === this.code().toLowerCase()) ?? null,
   );
   /** The architect's IFC model when the building has one (ADR-0006 Decision 5), else the project massing. */
-  readonly has3d = computed(() => !!(this.doc()?.massing || this.building()?.model) && this.caps.webgl2);
+  readonly has3d = computed(
+    () => !!(this.doc()?.massing || this.building()?.model) && this.caps.webgl2,
+  );
+  /**
+   * Which companion the floor plan gets (ADR-0013 Decision 1): desktops with WebGL2 start in 3D
+   * (ADR-0006 Decision 6), phones and data-saver start on the facade drawing when the building
+   * has one, else plan only. The buyer can switch.
+   */
+  readonly view = linkedSignal<'plan' | 'elevation' | '3d'>(() => {
+    if (this.has3d() && this.caps.prefer3d) return '3d';
+    return this.building()?.elevation ? 'elevation' : 'plan';
+  });
   readonly floorsTopDown = computed(() =>
     [...(this.building()?.floors ?? [])].sort((a, b) => b.level - a.level),
   );
@@ -314,6 +405,33 @@ export class BuildingPage {
         for (const u of f.units) out[u.id] = AVAILABILITY[u.availability].solid;
     return out;
   });
+  /** One clickable band per floor on the facade; floors without published units are inert regions. */
+  readonly bandPolygons = computed<PlanPolygon[]>(() => {
+    const b = this.building();
+    return (b?.elevation?.bands ?? []).map((band) => {
+      const floor = b!.floors.find((f) => f.level === band.level);
+      const name = floor?.name ?? `Level ${band.level}`;
+      if (!band.published || !floor)
+        return {
+          id: `L${band.level}`,
+          ring: band.ring,
+          label: name,
+          kind: 'region' as const,
+          title: `${name}, nothing published`,
+        };
+      const avail = floor.units.filter((u) => u.availability === 'available').length;
+      const tone = avail ? AVAILABILITY.available : AVAILABILITY.withdrawn;
+      return {
+        id: `L${band.level}`,
+        ring: band.ring,
+        label: `${name} · ${avail} of ${floor.units.length}`,
+        fill: tone.fill,
+        stroke: tone.stroke,
+        selected: band.level === this.level(),
+        title: `${name}, ${avail} of ${floor.units.length} available`,
+      };
+    });
+  });
 
   constructor() {
     toObservable(this.slug).subscribe(
@@ -329,6 +447,12 @@ export class BuildingPage {
 
   label(a: keyof typeof AVAILABILITY): string {
     return AVAILABILITY[a].label;
+  }
+
+  /** Facade band: the polygon id carries the level. */
+  pickBand(id: string): void {
+    const level = Number(id.slice(1));
+    if (Number.isFinite(level)) this.pick(level);
   }
 
   /** Floor stack: change floor, drop the unit selection. */

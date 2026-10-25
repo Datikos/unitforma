@@ -73,6 +73,7 @@ export const SETS: Record<Exclude<ColumnSet, 'all'>, string[]> = {
     'bedrooms',
     'bathrooms',
     'orientation',
+    'entrance',
     'public_description',
     'media_count',
     'publication_status',
@@ -136,6 +137,7 @@ export function toChange(
     case 'currency':
     case 'price_on_request':
     case 'orientation':
+    case 'entrance':
     case 'public_description':
     case 'internal_notes':
       return { [field]: value === '' ? null : value } as SalesChanges;
@@ -286,6 +288,7 @@ export function buildColumns(d: ColumnDeps): ColDef<InventoryRow>[] {
     num('bedrooms', 'Bedrooms'),
     num('bathrooms', 'Baths'),
     { field: 'orientation', headerName: 'Orientation', editable: true, width: 120 },
+    { field: 'entrance', headerName: 'Entrance', editable: true, width: 110 },
     {
       field: 'public_description',
       headerName: 'Public description',

@@ -148,6 +148,7 @@ def row_dict(project, unit, building, floor, sales, areas, media_count, lookups)
         "bedrooms": unit.bedrooms,
         "bathrooms": unit.bathrooms,
         "orientation": unit.orientation,
+        "entrance": unit.entrance,
         "public_description": cur["public_description"],
         "internal_notes": cur["internal_notes"],
         "public_fields": rules.effective_public_fields(project, sales),
@@ -588,6 +589,8 @@ def public_view(
         "availability": row["availability"],
         "indicative": row["verification_status"] != "verified",
     }
+    if row.get("entrance"):
+        out["entrance"] = row["entrance"]  # a location fact like the floor: public, no switch
     if pf.get("list_price") and row["list_price"] is not None and not row["price_on_request"]:
         out["price"] = {"amount": row["list_price"], "currency": row["currency"]}
         if row["price_per_m2"] is not None:

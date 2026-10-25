@@ -17,6 +17,7 @@ export type ProjectOut = Schemas['ProjectOut'];
 export type ProjectCreate = Schemas['ProjectCreate'];
 export type ProjectUpdate = Schemas['ProjectUpdate'];
 export type BuildingOut = Schemas['BuildingOut'];
+export type ElevationCandidateOut = Schemas['ElevationCandidateOut'];
 export type BuildingCreate = Schemas['BuildingCreate'];
 export type FloorIn = Schemas['FloorIn'];
 export type FloorOut = Schemas['FloorOut'];
@@ -214,6 +215,12 @@ export class UnitformaApi {
     return this.get(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/floor-proposal`);
   }  acceptBlocks(tenantId: string, buildingId: string, body: BlocksAcceptIn): Promise<BlocksAcceptOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/floor-proposal/blocks`, body);
+  }
+  /** Sections and elevations that can become the building's floor picker (ADR-0013). */
+  elevationCandidates(tenantId: string, buildingId: string): Promise<ElevationCandidateOut[]> {
+    return this.get(
+      `${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/elevation-candidates`,
+    );
   }
 
 

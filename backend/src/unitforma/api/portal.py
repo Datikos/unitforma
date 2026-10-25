@@ -80,6 +80,9 @@ async def units(
     unit_type: Annotated[list[str] | None, Query(max_length=10)] = None,
     building: Annotated[list[str] | None, Query(max_length=50)] = None,
     floor: Annotated[list[int] | None, Query(max_length=200)] = None,
+    entrance: Annotated[
+        list[str] | None, Query(max_length=20, description="Applied only with building")
+    ] = None,
     rooms: Annotated[list[int] | None, Query(max_length=10, description="5 = five or more")] = None,
     min_price: Annotated[float | None, Query(ge=0)] = None,
     max_price: Annotated[float | None, Query(ge=0)] = None,
@@ -104,6 +107,7 @@ async def units(
                 "unit_type": unit_type,
                 "building": [b.upper() for b in building] if building else None,
                 "floor": floor,
+                "entrance": entrance,
                 "rooms": rooms,
                 "min_price": min_price,
                 "max_price": max_price,

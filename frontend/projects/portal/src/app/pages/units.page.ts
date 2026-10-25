@@ -4,8 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { combineLatest } from 'rxjs';
-import { EmptyStateComponent, UF_ICONS } from 'ui';
-import { AVAILABILITY, typeLabel } from '../core/format';
+import { EmptyStateComponent, StatusChipComponent, UF_ICONS } from 'ui';
+import { AVAILABILITY, area, money, typeLabel } from '../core/format';
 import {
   Availability,
   PortalApi,
@@ -17,22 +17,35 @@ import {
 import { SiteStore } from '../core/site.store';
 import { UnitCardComponent } from '../ui/unit-card';
 
+type View = 'cards' | 'table';
+const VIEW_KEY = 'uf:units-view';
+
 interface Form {
   availability: Availability[];
   unit_type: string[];
   building: string;
+  /** Meaningful only with a building (ADR-0013 Decision 2). */
+  entrance: string[];
   rooms: number[];
   min_price: number | null;
   max_price: number | null;
   min_area: number | null;
   max_area: number | null;
   sort: NonNullable<UnitFilters['sort']>;
+  view: View;
 }
 
 /** Units list with filters; the filter state lives in the URL so results can be shared (plan §7.1). */
 @Component({
   selector: 'uf-units-page',
-  imports: [FormsModule, RouterLink, NgIcon, UnitCardComponent, EmptyStateComponent],
+  imports: [
+    FormsModule,
+    RouterLink,
+    NgIcon,
+    UnitCardComponent,
+    EmptyStateComponent,
+    StatusChipComponent,
+  ],
   viewProviders: [provideIcons(UF_ICONS)],
   template: `
     @if (doc(); as d) {
@@ -74,13 +87,34 @@ interface Form {
           @if (d.buildings.length > 1) {
             <label
               >Building
-              <select [(ngModel)]="form.building" name="building">
+              <select
+                [(ngModel)]="form.building"
+                (ngModelChange)="form.entrance = []"
+                name="building"
+              >
                 <option value="">All</option>
                 @for (b of d.buildings; track b.code) {
                   <option [value]="b.code">{{ b.name || b.code }}</option>
                 }
               </select></label
             >
+          }
+          @if (entrancesFor(d); as es) {
+            @if (es.length) {
+              <fieldset>
+                <legend>Entrance</legend>
+                @for (e of es; track e) {
+                  <label class="chip"
+                    ><input
+                      type="checkbox"
+                      [checked]="form.entrance.includes(e)"
+                      (change)="toggle(form.entrance, e)"
+                    />
+                    {{ e }}</label
+                  >
+                }
+              </fieldset>
+            }
           }
           @if (d.stats.rooms.length) {
             <fieldset>
@@ -154,14 +188,35 @@ interface Form {
         </form>
         <section aria-live="polite" class="results">
           <div class="results__bar">
-            <p class="results__count">
-              <strong>{{ total() }}</strong> unit{{ total() === 1 ? '' : 's' }}
-              @if (hasPriceFilter()) {
-                <span class="uf-muted uf-small">
-                  · units with price on request are not included in price filters</span
+            <div class="results__top">
+              <p class="results__count">
+                <strong>{{ total() }}</strong> unit{{ total() === 1 ? '' : 's' }}
+                @if (hasPriceFilter()) {
+                  <span class="uf-muted uf-small">
+                    · units with price on request are not included in price filters</span
+                  >
+                }
+              </p>
+              <div class="uf-segmented" role="group" aria-label="List view">
+                <button
+                  type="button"
+                  [attr.aria-pressed]="form.view === 'cards'"
+                  (click)="setView('cards')"
                 >
-              }
-            </p>
+                  <ng-icon name="lucideLayoutGrid" /> Cards
+                </button>
+                <button
+                  type="button"
+                  [attr.aria-pressed]="form.view === 'table'"
+                  (click)="setView('table')"
+                >
+                  <ng-icon name="lucideTable" /> Table
+                </button>
+              </div>
+            </div>
+            @if (d.project.price_note; as n) {
+              <p class="uf-muted uf-small note"><ng-icon name="lucideInfo" /> {{ n }}</p>
+            }
             @if (activeChips().length) {
               <ul class="uf-chips">
                 @for (c of activeChips(); track c.key) {
@@ -191,6 +246,53 @@ interface Form {
                 </div>
               }
             </div>
+          } @else if (!items().length) {
+            <uf-empty-state
+              icon="lucideSearch"
+              title="No units match these filters"
+              text="Widen the price or area range, or clear a filter to see more."
+            >
+              <button type="button" (click)="reset()">Clear filters</button>
+            </uf-empty-state>
+          } @else if (form.view === 'table') {
+            <div class="tablewrap">
+              <table class="units">
+                <thead>
+                  <tr>
+                    <th>Building</th>
+                    <th>Floor</th>
+                    @if (hasEntrance()) {
+                      <th>Entrance</th>
+                    }
+                    <th>Unit</th>
+                    <th>Type</th>
+                    <th class="num">Rooms</th>
+                    <th class="num">Area</th>
+                    <th class="num">Price</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (u of items(); track u.unit_id) {
+                    <tr>
+                      <td>{{ u.building_code }}</td>
+                      <td>{{ u.floor_name }}</td>
+                      @if (hasEntrance()) {
+                        <td>{{ u.entrance ?? '' }}</td>
+                      }
+                      <td>
+                        <a [routerLink]="['/projects', slug(), 'units', u.code]">{{ u.code }}</a>
+                      </td>
+                      <td>{{ typeLabel(u.unit_type) }}</td>
+                      <td class="num">{{ u.rooms?.rooms ?? '' }}</td>
+                      <td class="num">{{ areaOf(u, d.project.price_area_type) ?? '' }}</td>
+                      <td class="num">{{ money(u.price) ?? 'On request' }}</td>
+                      <td><uf-status-chip domain="availability" [value]="u.availability" /></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
           } @else {
             <div class="uf-grid">
               @for (u of items(); track u.unit_id) {
@@ -199,14 +301,6 @@ interface Form {
                   [slug]="slug()"
                   [mainAreaType]="d.project.price_area_type"
                 />
-              } @empty {
-                <uf-empty-state
-                  icon="lucideSearch"
-                  title="No units match these filters"
-                  text="Widen the price or area range, or clear a filter to see more."
-                >
-                  <button type="button" (click)="reset()">Clear filters</button>
-                </uf-empty-state>
               }
             </div>
           }
@@ -275,6 +369,44 @@ interface Form {
       display: grid;
       gap: 0.5rem;
     }
+    .results__top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .note {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .tablewrap {
+      overflow-x: auto;
+    }
+    .units {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+      background: var(--uf-surface);
+      border-radius: var(--uf-radius-sm);
+    }
+    .units th,
+    .units td {
+      padding: 0.45rem 0.6rem;
+      border-bottom: 1px solid var(--uf-border);
+      text-align: left;
+      white-space: nowrap;
+    }
+    .units th {
+      font-weight: 600;
+      color: var(--uf-muted);
+    }
+    .units .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
     .results__count {
       margin: 0;
     }
@@ -328,6 +460,8 @@ export class UnitsPage {
   }));
   protected readonly roomOptions = [1, 2, 3, 4, 5];
   protected readonly typeLabel = typeLabel;
+  protected readonly money = money;
+  readonly hasEntrance = computed(() => this.items().some((u) => !!u.entrance));
   readonly priceFilterHint = computed(() => this.hasPriceFilter());
   form: Form = blank();
 
@@ -355,11 +489,34 @@ export class UnitsPage {
     }
   }
 
+  /** Entrances of the chosen building; the filter means nothing across buildings (ADR-0013). */
+  entrancesFor(d: ProjectDoc): string[] {
+    if (!this.form.building) return [];
+    return d.buildings.find((b) => b.code === this.form.building)?.entrances ?? [];
+  }
+
+  areaOf(u: UnitDoc, type: string): string | null {
+    const areas = u.areas ?? {};
+    return area(areas[type] ?? areas[Object.keys(areas)[0]]);
+  }
+
+  /** Cards or table; remembered in this browser and carried in the link (ADR-0013 Decision 5). */
+  setView(v: View): void {
+    this.form.view = v;
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      /* storage unavailable */
+    }
+    this.apply();
+  }
+
   /** Drop one active filter (a chip) and reload. */
   remove(key: string): void {
     const f = this.form;
     if (key.startsWith('availability:'))
       f.availability = f.availability.filter((a) => a !== key.slice(13));
+    else if (key.startsWith('entrance:')) f.entrance = f.entrance.filter((e) => e !== key.slice(9));
     else if (key.startsWith('type:')) f.unit_type = f.unit_type.filter((t) => t !== key.slice(5));
     else if (key.startsWith('rooms:')) f.rooms = f.rooms.filter((r) => String(r) !== key.slice(6));
     else if (key === 'building') f.building = '';
@@ -396,6 +553,8 @@ function chipsOf(f: Form, d: ProjectDoc | null): { key: string; label: string }[
       key: 'building',
       label: d?.buildings.find((b) => b.code === f.building)?.name || `Building ${f.building}`,
     });
+  if (f.building)
+    for (const e of f.entrance) out.push({ key: `entrance:${e}`, label: `Entrance ${e}` });
   for (const r of f.rooms) out.push({ key: `rooms:${r}`, label: `${r === 5 ? '5+' : r} rooms` });
   if (f.min_price != null || f.max_price != null)
     out.push({ key: 'price', label: `Price ${f.min_price ?? '…'} – ${f.max_price ?? '…'}` });
@@ -412,17 +571,27 @@ function chipsOf(f: Form, d: ProjectDoc | null): { key: string; label: string }[
   return out;
 }
 
+function storedView(): View {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'table' ? 'table' : 'cards';
+  } catch {
+    return 'cards';
+  }
+}
+
 function blank(): Form {
   return {
     availability: [],
     unit_type: [],
     building: '',
+    entrance: [],
     rooms: [],
     min_price: null,
     max_price: null,
     min_area: null,
     max_area: null,
     sort: 'code',
+    view: storedView(),
   };
 }
 
@@ -436,6 +605,7 @@ function fromQuery(q: import('@angular/router').ParamMap): Form {
     availability: q.getAll('availability').filter((a): a is Availability => a in AVAILABILITY),
     unit_type: q.getAll('type'),
     building: q.get('building') ?? '',
+    entrance: q.getAll('entrance'),
     rooms: q
       .getAll('rooms')
       .map(Number)
@@ -448,6 +618,7 @@ function fromQuery(q: import('@angular/router').ParamMap): Form {
       sort && ['code', 'price_asc', 'price_desc', 'area_asc', 'area_desc'].includes(sort)
         ? sort
         : 'code',
+    view: q.get('view') === 'table' ? 'table' : q.get('view') === 'cards' ? 'cards' : storedView(),
   };
 }
 
@@ -456,12 +627,14 @@ function toQuery(f: Form): Record<string, unknown> {
     availability: f.availability.length ? f.availability : null,
     type: f.unit_type.length ? f.unit_type : null,
     building: f.building || null,
+    entrance: f.building && f.entrance.length ? f.entrance : null,
     rooms: f.rooms.length ? f.rooms : null,
     min_price: f.min_price ?? null,
     max_price: f.max_price ?? null,
     min_area: f.min_area ?? null,
     max_area: f.max_area ?? null,
     sort: f.sort === 'code' ? null : f.sort,
+    view: f.view === 'table' ? 'table' : null,
   };
 }
 
@@ -470,6 +643,7 @@ function toFilters(f: Form): UnitFilters {
     availability: f.availability,
     unit_type: f.unit_type,
     building: f.building ? [f.building] : [],
+    entrance: f.building ? f.entrance : [],
     rooms: f.rooms,
     min_price: f.min_price,
     max_price: f.max_price,

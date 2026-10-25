@@ -184,6 +184,15 @@ class Building(TimestampMixin, Base):
     kind: Mapped[str] = mapped_column(String(20), default="building")  # building | site
     site_transform: Mapped[dict] = mapped_column(JSONB, default=dict)
     placement_status: Mapped[str] = mapped_column(String(20), default="unplaced")
+    # portal content (ADR-0013 Decisions 1 and 3): planned | under_construction | completed
+    construction_status: Mapped[str | None] = mapped_column(String(20))
+    completion: Mapped[str | None] = mapped_column(String(80))
+    terms: Mapped[str | None] = mapped_column(Text)
+    elevation_sheet_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey(
+            "sheets.id", ondelete="SET NULL", use_alter=True, name="fk_building_elevation_sheet"
+        )
+    )
     sort_order: Mapped[int] = mapped_column(default=0)
     version: Mapped[int] = mapped_column(default=1)
     floors: Mapped[list[Floor]] = relationship(
@@ -349,6 +358,7 @@ class Unit(TimestampMixin, Base):
     bedrooms: Mapped[int | None] = mapped_column()
     bathrooms: Mapped[int | None] = mapped_column()
     orientation: Mapped[str | None] = mapped_column(String(20))
+    entrance: Mapped[str | None] = mapped_column(String(20))  # staircase, public (ADR-0013)
     attributes: Mapped[dict] = mapped_column(JSONB, default=dict)
     version: Mapped[int] = mapped_column(default=1)
 
@@ -726,6 +736,7 @@ class PublishedUnit(Base):
     area_m2: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     rooms: Mapped[int | None] = mapped_column()
     bedrooms: Mapped[int | None] = mapped_column()
+    entrance: Mapped[str | None] = mapped_column(String(20))
     sort_order: Mapped[int] = mapped_column(default=0)
     data: Mapped[dict] = mapped_column(JSONB)
 

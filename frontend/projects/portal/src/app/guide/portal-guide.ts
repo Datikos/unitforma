@@ -14,6 +14,8 @@ export const PORTAL_GUIDE: PortalGuideSection[] = [
     points: [
       'The filter state is in the address bar, so a filtered list can be shared as a link.',
       'Units with price on request are left out of price filters.',
+      'Switch the list between cards and a table (building, floor, entrance, unit, area, price); the choice is remembered in this browser.',
+      'Pick a building first to filter by entrance: entrance numbers repeat from building to building.',
     ],
   },
   {
@@ -32,6 +34,8 @@ export const PORTAL_GUIDE: PortalGuideSection[] = [
     icon: 'lucideBox',
     text: 'Floor plans and the 3D building come from the developer’s drawings. Tap a unit on a plan or on the 3D building to open it.',
     points: [
+      'Where the developer published a facade drawing, the building page shows it with one band per floor: tap a band to open that floor. Phones start there; desktops start in 3D.',
+      'A building card shows its construction status (planned, under construction, completed) and the completion the developer stated.',
       '"Indicative" means the plan or the area has not yet been verified against the final drawings; the figures may change.',
       'Areas are listed by type (for example net, gross, terrace); the definition is shown when you hover a row.',
     ],

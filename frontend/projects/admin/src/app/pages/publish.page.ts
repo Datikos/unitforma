@@ -31,6 +31,8 @@ interface PortalForm {
   hero_text: string;
   construction_stage: string;
   completion: string;
+  price_note: string;
+  terms: string;
 }
 
 interface BrandingForm {
@@ -202,6 +204,32 @@ const FIX_LINKS: [RegExp, string, string][] = [
                 placeholder="e.g. Q4 2027"
             /></mat-form-field>
           </div>
+          <mat-form-field appearance="outline" class="wide"
+            ><mat-label>Price note</mat-label
+            ><input
+              matInput
+              [(ngModel)]="portal.price_note"
+              name="price_note"
+              maxlength="200"
+              placeholder="e.g. Settled in GEL at the NBG rate of the payment day"
+            /><mat-hint
+              >Printed next to every price. Text only; prices stay in one currency.</mat-hint
+            >
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="wide"
+            ><mat-label>Terms (default for every building)</mat-label
+            ><textarea
+              matInput
+              rows="4"
+              [(ngModel)]="portal.terms"
+              name="terms"
+              maxlength="4000"
+              placeholder="Handover specification, payment options, mortgage partners"
+            ></textarea
+            ><mat-hint
+              >A building with its own terms (project overview) shows those instead.</mat-hint
+            >
+          </mat-form-field>
           <div class="uf-actions">
             <button mat-flat-button [disabled]="busy()" (click)="savePortal()">Save text</button>
           </div>
@@ -403,7 +431,13 @@ export class PublishPage {
   readonly tenant = signal<TenantOut | null>(null);
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
-  portal: PortalForm = { hero_text: '', construction_stage: '', completion: '' };
+  portal: PortalForm = {
+    hero_text: '',
+    construction_stage: '',
+    completion: '',
+    price_note: '',
+    terms: '',
+  };
   brand: BrandingForm = blankBrand();
   when = whenShort;
 
@@ -443,6 +477,8 @@ export class PublishPage {
     const parts = [this.portal.hero_text ? 'headline set' : 'no headline'];
     if (this.portal.construction_stage) parts.push(this.portal.construction_stage);
     if (this.portal.completion) parts.push(`completion ${this.portal.completion}`);
+    if (this.portal.price_note) parts.push('price note');
+    if (this.portal.terms) parts.push('default terms');
     return parts.join(' · ');
   }
 
@@ -476,6 +512,8 @@ export class PublishPage {
         hero_text: ps.hero_text ?? '',
         construction_stage: ps.construction_stage ?? '',
         completion: ps.completion ?? '',
+        price_note: ps.price_note ?? '',
+        terms: ps.terms ?? '',
       };
       const b = (t.branding ?? {}) as Partial<BrandingForm>;
       this.brand = {

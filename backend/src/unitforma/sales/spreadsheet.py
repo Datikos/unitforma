@@ -48,6 +48,7 @@ TARGETS: dict[str, str] = {
     "bedrooms": "bedrooms",
     "bathrooms": "bathrooms",
     "orientation": "orientation",
+    "entrance": "entrance",
     "public_description": "public_description",
     "internal_notes": "internal_notes",
 }
@@ -62,6 +63,7 @@ SYNONYMS: dict[str, tuple[str, ...]] = {
     "promotions": ("promotion", "offers"),
     "public_description": ("description", "აღწერა"),
     "internal_notes": ("notes", "internal_note"),
+    "entrance": ("staircase", "stair", "podezd", "სადარბაზო"),
 }
 NON_NULLABLE = ("availability", "currency", "price_on_request")
 READ_ONLY_EXPORT = (
@@ -327,8 +329,8 @@ async def _compute(
                     changes["promotion_ids"] = ids
                 elif target in ("rooms", "bedrooms", "bathrooms"):
                     changes[target] = rules.parse_int(v, fmt)
-                elif target == "orientation":
-                    changes["orientation"] = rules.parse_text(v, 20)
+                elif target in ("orientation", "entrance"):
+                    changes[target] = rules.parse_text(v, 20)
                 elif target in ("public_description", "internal_notes"):
                     changes[target] = rules.parse_text(v, 4000)
             except rules.CellError as e:
@@ -497,6 +499,7 @@ def export_columns(project: Project, column_set: str) -> list[str]:
         "bedrooms",
         "bathrooms",
         "orientation",
+        "entrance",
         "public_description",
         "internal_notes",
     ]

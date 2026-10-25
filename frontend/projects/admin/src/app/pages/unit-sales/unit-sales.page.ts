@@ -310,6 +310,19 @@ import { UnitSalesStore } from './unit-sales.store';
                     maxlength="20"
                     placeholder="S / SW"
                 /></mat-form-field>
+                <mat-form-field
+                  appearance="outline"
+                  class="num"
+                  [class.uf-changed]="store.isChanged('entrance')"
+                  ><mat-label>Entrance</mat-label
+                  ><input
+                    matInput
+                    [ngModel]="f.entrance"
+                    (ngModelChange)="store.set('entrance', $event)"
+                    name="entrance"
+                    maxlength="20"
+                    placeholder="1"
+                /></mat-form-field>
               </div>
               <mat-form-field
                 appearance="outline"
@@ -511,6 +524,7 @@ export class UnitSalesPage {
     if (f.bedrooms !== null) parts.push(`${f.bedrooms} bed`);
     if (f.bathrooms !== null) parts.push(`${f.bathrooms} bath`);
     if (f.orientation) parts.push(f.orientation);
+    if (f.entrance) parts.push(`entrance ${f.entrance}`);
     parts.push(f.public_description ? 'description set' : 'no description');
     return parts.join(' · ');
   }
