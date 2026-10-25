@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-26: 31 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, plan Phases 5 to 7 and
+State on 2026-10-26: 36 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Sizes: S up to a day, M a few days,
 L a week or more. *Needs* names the outside input, or "—".
@@ -29,6 +29,7 @@ L a week or more. *Needs* names the outside input, or "—".
 | 13 | `ng lint` is listed in AGENTS.md but no ESLint config exists: add `angular-eslint` or drop the line. | AGENTS.md rule 7 | — | S |
 | 20 | Document kind set by hand on a project-level file: queue the floor re-suggestion so the sheets are usable without a new revision. | ADR-0008 #7 | — | S |
 | 21 | IFC exports without a declared length unit: refuse or warn; show the unit in the model stats. | ADR-0006 #E7 | — | S |
+| 32 | Browser pass with screenshots over the ADR-0014 screens: facade floor picker, site plan by construction status, Terms, entrance filter, table view, building "Shown to buyers" row; publish a project and open the Preview link. | ADR-0014 Revisit | dev stack up, a published project | S |
 
 ## P2 — after
 
@@ -50,3 +51,7 @@ L a week or more. *Needs* names the outside input, or "—".
 | 29 | Permit import: review the fieldset → kind table and label map after three real imports. | ADR-0007 #9 | three real imports | S |
 | 30 | Massing page refresh after outline changes (poll or push). | ADR-0011 #5 | — | S |
 | 31 | A legend column of level markers can read as a split-level block: require labels or line work in the column's region. | ADR-0013 #6 | a real sheet | S |
+| 33 | Warn before deleting the document that holds a building's elevation sheet: ADR-0012 refuses only mapped documents, the FK clears `elevation_sheet_id` and the floor picker disappears at the next publication. | ADR-0014 Revisit | — | S |
+| 34 | Entrance proposed from the drawing: the stair-core labels next to the units on the plan, confirmed like the unit labels. | ADR-0014 Revisit | a real sheet with entrance labels | M |
+| 35 | Drawn footprints for planned buildings, so a house without drawings shows grey on the site plan as on lisihouse.ge. | ADR-0014 Revisit, plan §7.1 | — | M |
+| 36 | Second portal language (Georgian and English on one host): per-field translations of the editable texts, language switch. | ADR-0014 Revisit, plan §2.3 R3 | — | L |
