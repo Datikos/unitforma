@@ -12,8 +12,11 @@ from unitforma.audit.service import write_audit
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
 from unitforma.documents import classify
-from unitforma.storage.service import get_storage, object_key, safe_filename
-from unitforma.tenants.models import Building, Document, DocumentRevision, Sheet
+from unitforma.storage.jobs import queue_delete_prefix
+from unitforma.storage.service import get_storage, object_key, project_prefix, safe_filename
+from unitforma.tenants.models import Building, Document, DocumentRevision, Sheet, UnitBoundary
+
+DOCUMENT_MAPPED = "https://unitforma.com/problems/document-mapped"
 
 ALLOWED_MIME = {
     "application/pdf": ".pdf",
@@ -383,3 +386,66 @@ def signed_urls(sheet: Sheet) -> dict[str, str | None]:
         "thumbnail_url": st.presign_get(sheet.thumbnail_key) if sheet.thumbnail_key else None,
         "extract_url": st.presign_get(sheet.extract_key) if sheet.extract_key else None,
     }
+
+
+async def mapped_unit_ids(db: AsyncSession, document_id: uuid.UUID) -> list[uuid.UUID]:
+    """Units whose outline lies on one of the document's sheets (any revision)."""
+    rows = await db.execute(
+        select(UnitBoundary.unit_id)
+        .join(Sheet, Sheet.id == UnitBoundary.sheet_id)
+        .join(DocumentRevision, DocumentRevision.id == Sheet.revision_id)
+        .where(DocumentRevision.document_id == document_id)
+        .distinct()
+    )
+    return [r[0] for r in rows]
+
+
+async def delete_document(
+    db: AsyncSession, doc: Document, *, detach_units: bool, actor: tuple[uuid.UUID, str]
+) -> list[uuid.UUID]:
+    """Delete a document with its revisions, sheets and files (ADR-0012 Decision 2).
+
+    Refused while units are outlined on its sheets unless ``detach_units``; then the outlines go
+    with the sheets (FK cascade), the units keep their identity, and the caller queues a massing
+    rebuild. Returns the detached unit ids. The storage prefix is removed by the guarded job.
+    """
+    units = await mapped_unit_ids(db, doc.id)
+    if units and not detach_units:
+        raise ProblemError(
+            409,
+            "Document is mapped",
+            f"{len(units)} unit(s) are outlined on this document's sheets; "
+            "repeat with detach_units=true to delete it and their outlines",
+            type_=DOCUMENT_MAPPED,
+            extra={"units": len(units)},
+        )
+    n_rev = (
+        await db.execute(
+            select(func.count(DocumentRevision.id)).where(DocumentRevision.document_id == doc.id)
+        )
+    ).scalar_one()
+    await write_audit(
+        db,
+        tenant_id=doc.tenant_id,
+        actor_user_id=actor[0],
+        actor_role=actor[1],
+        entity_type="document",
+        entity_id=doc.id,
+        action="delete",
+        before={
+            "title": doc.title,
+            "kind": doc.kind,
+            "revisions": n_rev,
+            "detached_units": [str(u) for u in units],
+        },
+    )
+    tenant_id, project_id, doc_id = doc.tenant_id, doc.project_id, doc.id
+    await db.delete(doc)
+    await db.flush()
+    await queue_delete_prefix(
+        tenant_id,
+        project_prefix(tenant_id, project_id, "documents", str(doc_id)),
+        "documents",
+        doc_id,
+    )
+    return units

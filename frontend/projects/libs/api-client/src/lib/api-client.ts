@@ -188,6 +188,16 @@ export class UnitformaApi {
   updateProject(tenantId: string, projectId: string, body: ProjectUpdate): Promise<ProjectOut> {
     return this.patch(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}`, body);
   }
+  /** Permanent delete, tenant admin only; `confirm` must equal the slug (ADR-0012). */
+  deleteProject(tenantId: string, projectId: string, confirm: string): Promise<void> {
+    return this.delete(
+      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}?confirm=${encodeURIComponent(confirm)}`,
+    );
+  }
+  /** Refused with 409 `building-has-units` while any unit belongs to it (ADR-0012). */
+  deleteBuilding(tenantId: string, buildingId: string): Promise<void> {
+    return this.delete(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}`);
+  }
   listBuildings(tenantId: string, projectId: string): Promise<BuildingOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/buildings`);
   }
@@ -232,13 +242,22 @@ export class UnitformaApi {
   listIfcLinks(tenantId: string, buildingId: string): Promise<IfcSpaceLinkOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/ifc-links`);
   }
-  decideIfcLink(tenantId: string, linkId: string, body: IfcSpaceLinkDecide): Promise<IfcSpaceLinkOut> {
+  decideIfcLink(
+    tenantId: string,
+    linkId: string,
+    body: IfcSpaceLinkDecide,
+  ): Promise<IfcSpaceLinkOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/ifc-links/${linkId}`, body);
   }
-  rebuildBuildingModel(tenantId: string, buildingId: string): Promise<{ queued: boolean; revision_id: string }> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/model/rebuild`, undefined);
+  rebuildBuildingModel(
+    tenantId: string,
+    buildingId: string,
+  ): Promise<{ queued: boolean; revision_id: string }> {
+    return this.post(
+      `${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/model/rebuild`,
+      undefined,
+    );
   }
-
 
   // --- documents
   listDocuments(tenantId: string, projectId: string): Promise<DocumentOut[]> {
@@ -529,6 +548,12 @@ export class UnitformaApi {
   }
   reorderMedia(tenantId: string, unitId: string, ids: string[]): Promise<MediaOut[]> {
     return this.put(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/media/order`, { ids });
+  }
+  /** Refused with 409 `document-mapped` while units are outlined on it unless `detachUnits`. */
+  deleteDocument(tenantId: string, documentId: string, detachUnits = false): Promise<void> {
+    return this.delete(
+      `${BASE}/admin/tenants/${tenantId}/documents/${documentId}${detachUnits ? '?detach_units=true' : ''}`,
+    );
   }
   deleteMedia(tenantId: string, mediaId: string): Promise<void> {
     return this.delete(`${BASE}/admin/tenants/${tenantId}/media/${mediaId}`);

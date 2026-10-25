@@ -183,16 +183,22 @@ def _quantities(ifcopenshell: Any, space: Any) -> dict[str, float]:
 def _storey_of(ifcopenshell: Any, product: Any) -> Any:
     from ifcopenshell.util import element as ue
 
-    try:
-        c = ue.get_container(product)
-    except Exception:  # noqa: BLE001
-        return None
-    while c is not None and not c.is_a("IfcBuildingStorey"):
+    c = None
+    for getter in (ue.get_container, ue.get_aggregate):
         try:
-            c = ue.get_aggregate(c)
+            c = getter(product)
+        except Exception:  # noqa: BLE001
+            c = None
+        if c is not None:
+            break
+    steps = 0
+    while c is not None and not c.is_a("IfcBuildingStorey") and steps < 8:
+        steps += 1
+        try:
+            c = ue.get_aggregate(c) or ue.get_container(c)
         except Exception:  # noqa: BLE001
             return None
-    return c
+    return c if c is not None and c.is_a("IfcBuildingStorey") else None
 
 
 def read_ifc(data: bytes, *, deflection: float = 0.03, budget: int = MAX_GLB_BYTES) -> IfcModel:

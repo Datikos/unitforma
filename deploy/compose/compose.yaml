@@ -90,7 +90,7 @@ services:
   # ---------------------------------------------------------------- backend (one image, several roles)
   db-migrate:
     image: *backend-image
-    build: { context: ../../backend }
+    build: { context: ../../backend, target: runtime }
     command: ["migrate"]
     environment: *backend-env
     secrets: *backend-secrets
@@ -105,7 +105,7 @@ services:
 
   api:
     image: *backend-image
-    build: { context: ../../backend }
+    build: { context: ../../backend, target: runtime }
     command: ["api"]
     environment: *backend-env
     secrets: *backend-secrets
@@ -125,7 +125,7 @@ services:
 
   worker-light:
     image: *backend-image
-    build: { context: ../../backend }
+    build: { context: ../../backend, target: runtime }
     command: ["worker", "--queues", "default,docs,mail,periodic", "--concurrency", "4"]
     environment: *backend-env
     secrets: *backend-secrets
@@ -158,7 +158,7 @@ services:
 
   scheduler:
     image: *backend-image
-    build: { context: ../../backend }
+    build: { context: ../../backend, target: runtime }
     command: ["scheduler"]
     environment: *backend-env
     secrets: *backend-secrets

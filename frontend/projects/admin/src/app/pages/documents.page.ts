@@ -21,6 +21,7 @@ import {
   labelOf,
 } from 'ui';
 import { parsePages } from '../core/page-ranges';
+import { DialogsService } from '../ui/dialogs.service';
 import { ToastService } from '../ui/toast.service';
 
 type Kind =
@@ -252,6 +253,9 @@ const SOURCE_LABELS: Record<string, string> = {
             <button mat-button (click)="download(d)">
               <ng-icon name="lucideDownload" /> Download
             </button>
+            <button mat-button [disabled]="busy()" (click)="remove(d)">
+              <ng-icon name="lucideTrash2" /> Delete
+            </button>
           </div>
           @if (d.kind === 'unclassified') {
             <p class="uf-hint">
@@ -448,6 +452,7 @@ const SOURCE_LABELS: Record<string, string> = {
 export class DocumentsPage {
   private readonly api = inject(UnitformaApi);
   private readonly toast = inject(ToastService);
+  private readonly dialogs = inject(DialogsService);
   readonly tenantId = input.required<string>();
   readonly projectId = input.required<string>();
   readonly docs = signal<DocumentOut[]>([]);
@@ -677,6 +682,48 @@ export class DocumentsPage {
       this.sheets.update((m) => ({ ...m, [d.id]: list }));
     } catch (e) {
       this.error.set(problemMessage(e));
+    }
+  }
+
+  /** Two steps when units are outlined on it: the backend answers 409 `document-mapped` with the
+   *  count, the second dialog states it, and the retry detaches them (ADR-0012 Decision 2). */
+  async remove(d: DocumentOut): Promise<void> {
+    const ok = await this.dialogs.confirm({
+      title: `Delete ${d.title}?`,
+      message: 'The document, its revisions, sheets and files are removed.',
+      confirmLabel: 'Delete',
+      tone: 'bad',
+      icon: 'lucideTrash2',
+    });
+    if (!ok) return;
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      try {
+        await this.api.deleteDocument(this.tenantId(), d.id);
+      } catch (e) {
+        const p = (e as { error?: { type?: string; units?: number } }).error;
+        if (!p?.type?.endsWith('document-mapped')) throw e;
+        const n = p.units ?? 0;
+        const units = `${n} unit${n === 1 ? '' : 's'}`;
+        const again = await this.dialogs.confirm({
+          title: `${units} outlined on ${d.title}`,
+          message:
+            'Deleting it removes their outlines from the plan and the 3D model. The units keep ' +
+            'their codes, prices and history. Delete anyway?',
+          confirmLabel: `Delete and detach ${units}`,
+          tone: 'bad',
+          icon: 'lucideTrash2',
+        });
+        if (!again) return;
+        await this.api.deleteDocument(this.tenantId(), d.id, true);
+      }
+      this.docs.update((list) => list.filter((x) => x.id !== d.id));
+      this.toast.ok(`${d.title} deleted`);
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
     }
   }
 

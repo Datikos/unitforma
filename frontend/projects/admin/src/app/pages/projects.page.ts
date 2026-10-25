@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
@@ -18,6 +19,7 @@ import {
   EmptyStateComponent,
   Fact,
   FactsComponent,
+  HeaderFact,
   PageHeaderComponent,
   SectionCardComponent,
   StatusChipComponent,
@@ -36,6 +38,7 @@ import { ToastService } from '../ui/toast.service';
     FormsModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSlideToggleModule,
     MatButtonModule,
     RouterLink,
     NgIcon,
@@ -48,14 +51,7 @@ import { ToastService } from '../ui/toast.service';
   viewProviders: [provideIcons(UF_ICONS)],
   template: `
     <div class="uf-page">
-      <uf-page-header
-        title="Projects"
-        icon="lucideFolderKanban"
-        [facts]="[
-          { label: 'Projects', value: projects().length },
-          { domain: 'project', status: 'active', value: activeCount() + ' active' },
-        ]"
-      />
+      <uf-page-header title="Projects" icon="lucideFolderKanban" [facts]="facts()" />
       @if (error(); as e) {
         <div class="uf-alert uf-alert--bad" role="alert">
           <ng-icon name="lucideCircleX" />{{ e }}
@@ -223,6 +219,14 @@ import { ToastService } from '../ui/toast.service';
             />
           </mat-form-field>
           <span class="uf-count">{{ shown().length }} of {{ projects().length }}</span>
+          @if (archivedCount() > 0) {
+            <mat-slide-toggle
+              [ngModel]="showArchived()"
+              (ngModelChange)="showArchived.set($event)"
+              name="showArchived"
+              >Show archived</mat-slide-toggle
+            >
+          }
         </div>
         <div class="uf-grid3">
           @for (p of shown(); track p.id) {
@@ -332,17 +336,34 @@ export class ProjectsPage {
   readonly tenantId = input.required<string>();
   readonly projects = signal<ProjectOut[]>([]);
   readonly query = signal('');
+  /** Archived projects stay out of the list unless asked for (ADR-0012 Decision 1). */
+  readonly showArchived = signal(false);
   readonly shown = computed(() => {
     const q = this.query().trim().toLowerCase();
+    const visible = this.showArchived()
+      ? this.projects()
+      : this.projects().filter((p) => p.status !== 'archived');
     return q
-      ? this.projects().filter((p) =>
+      ? visible.filter((p) =>
           `${p.name} ${p.slug} ${p.regulatory?.['application_no'] ?? ''}`.toLowerCase().includes(q),
         )
-      : this.projects();
+      : visible;
   });
   readonly activeCount = computed(
     () => this.projects().filter((p) => p.status === 'active').length,
   );
+  readonly archivedCount = computed(
+    () => this.projects().filter((p) => p.status === 'archived').length,
+  );
+  readonly facts = computed<HeaderFact[]>(() => [
+    { label: 'Projects', value: this.projects().length },
+    { domain: 'project', status: 'active', value: this.activeCount() + ' active' },
+    ...(this.archivedCount()
+      ? ([
+          { domain: 'project', status: 'archived', value: this.archivedCount() + ' archived' },
+        ] as HeaderFact[])
+      : []),
+  ]);
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   slug = '';

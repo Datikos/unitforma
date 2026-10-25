@@ -28,7 +28,8 @@ def make_ifc(*, long_names: bool = True) -> bytes:
 
     f = ifcopenshell.api.run("project.create_file", version="IFC4")
     proj = ifcopenshell.api.run("root.create_entity", f, ifc_class="IfcProject", name="Test")
-    ifcopenshell.api.run("unit.assign_unit", f)
+    # metres, like the exports we expect (the api default is millimetres)
+    ifcopenshell.api.run("unit.assign_unit", f, length={"is_metric": True, "raw": "METERS"})
     ctx = ifcopenshell.api.run("context.add_context", f, context_type="Model")
     body = ifcopenshell.api.run(
         "context.add_context",
@@ -62,7 +63,13 @@ def make_ifc(*, long_names: bool = True) -> bytes:
         mat = np.eye(4)
         mat[:3, 3] = [x, y, z]
         ifcopenshell.api.run("geometry.edit_object_placement", f, product=e, matrix=mat)
-        ifcopenshell.api.run("spatial.assign_container", f, products=[e], relating_structure=storey)
+        if cls == "IfcSpace":
+            # spaces are spatial elements: aggregated under the storey, not "contained" like walls
+            ifcopenshell.api.run("aggregate.assign_object", f, products=[e], relating_object=storey)
+        else:
+            ifcopenshell.api.run(
+                "spatial.assign_container", f, products=[e], relating_structure=storey
+            )
         return e
 
     sp1 = box("IfcSpace", "1", 0, 0, 0, 8, 6, 3.2, st0)
@@ -303,6 +310,11 @@ def test_ifc_upload_links_spaces_to_units_and_confirmation_writes_areas(
         if n.get("extras", {}).get("ifc_global_id") == links["1"]["ifc_global_id"]
     )
     assert space1["extras"]["unit_id"] == units[0]["id"]
-    # publishing carries the model per building with only listed units pickable
-    rd = client.get(f"{base}/projects/{p['id']}/readiness", headers=root)
-    assert rd.status_code == 200
+    # an unconfirmed space keeps its space id but already carries the matched floor's level
+    space3 = next(
+        n
+        for n in gltf["nodes"]
+        if n.get("extras", {}).get("ifc_global_id") == links["3"]["ifc_global_id"]
+    )
+    assert space3["extras"]["unit_id"] == f"space:{links['3']['ifc_global_id']}"
+    assert space3["extras"]["floor_level"] == 1

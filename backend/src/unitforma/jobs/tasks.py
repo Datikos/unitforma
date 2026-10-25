@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import procrastinate
 import structlog
 
 from unitforma.jobs.app import app
@@ -20,6 +21,20 @@ async def ping(message: str = "pong") -> str:
 async def retention(context, timestamp: int) -> None:
     """Daily retention sweep (drafts, auth attempts, invitations). Implemented in Phase 5."""
     log.info("job.retention", at=timestamp)
+
+
+@app.task(
+    name="storage.delete_prefix",
+    queue="default",
+    retry=procrastinate.RetryStrategy(max_attempts=5, wait=30),
+)
+async def delete_prefix(tenant_id: str, prefix: str, guard_table: str, guard_id: str) -> dict:
+    """Delete a project's or document's objects once its row is gone (ADR-0012 Decision 5)."""
+    import uuid
+
+    from unitforma.storage.jobs import delete_prefix as run
+
+    return await run(uuid.UUID(tenant_id), prefix, guard_table, uuid.UUID(guard_id))
 
 
 @app.task(name="documents.ingest_revision", queue="docs", retry=2)

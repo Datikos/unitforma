@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy import select
 
 from unitforma.api.schemas import (
@@ -26,6 +26,7 @@ from unitforma.documents import floor_proposal as proposal
 from unitforma.identity.authz import Action, is_allowed
 from unitforma.identity.deps import TenantContext, tenant_context
 from unitforma.projects import service as projects
+from unitforma.publishing import service as publishing
 from unitforma.tenants.models import Project, SiteFeature, Tenant
 
 router = APIRouter(prefix="/api/v1/admin/tenants/{tenant_id}", tags=["projects"])
@@ -74,7 +75,30 @@ async def update_project(project_id: uuid.UUID, body: ProjectUpdate, ctx: Ctx):
     ctx.require_project(project_id)
     p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
     changes = body.model_dump(exclude={"version"}, exclude_none=True)
+    if changes.get("status") == "archived" and p.status != "archived":
+        await _refuse_if_published(ctx, p, "archived")
     return await projects.update_project(ctx.session, p, changes, body.version, _actor(ctx))
+
+
+async def _refuse_if_published(ctx: TenantContext, p, verb: str) -> None:
+    if await publishing.current_publication(ctx.session, p.id) is not None:
+        raise ProblemError(
+            409,
+            "Project is published",
+            f"Unpublish {p.name} before it can be {verb}",
+            type_=projects.PROJECT_PUBLISHED,
+        )
+
+
+@router.delete("/projects/{project_id}", status_code=204)
+async def delete_project(project_id: uuid.UUID, confirm: str, ctx: Ctx):
+    """Permanent delete, tenant admin only, typed slug, never while published (ADR-0012)."""
+    ctx.require("project", Action.MANAGE)
+    ctx.require_project(project_id)
+    p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
+    await _refuse_if_published(ctx, p, "deleted")
+    await projects.delete_project(ctx.session, p, confirm, _actor(ctx))
+    return Response(status_code=204)
 
 
 @router.get("/projects/{project_id}/buildings", response_model=list[BuildingOut])
@@ -114,6 +138,16 @@ async def update_building(building_id: uuid.UUID, body: BuildingUpdate, ctx: Ctx
         changes["placement_status"] = "draft" if b.placement_status == "unplaced" else None
         changes = {k: v for k, v in changes.items() if v is not None}
     return await projects.update_building(ctx.session, b, changes, body.version, _actor(ctx))
+
+
+@router.delete("/buildings/{building_id}", status_code=204)
+async def delete_building(building_id: uuid.UUID, ctx: Ctx):
+    """Delete an empty building; 409 building-has-units otherwise (ADR-0012 Decision 3)."""
+    ctx.require("project", Action.WRITE)
+    b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)
+    ctx.require_project(b.project_id)
+    await projects.delete_building(ctx.session, b, _actor(ctx))
+    return Response(status_code=204)
 
 
 @router.get("/buildings/{building_id}/floor-proposal", response_model=FloorProposalOut)

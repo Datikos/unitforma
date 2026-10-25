@@ -33,6 +33,7 @@ class Storage(Protocol):
     def get_bytes(self, key: str) -> bytes: ...
     def put_bytes(self, key: str, data: bytes, content_type: str) -> None: ...
     def delete(self, key: str) -> None: ...
+    def delete_prefix(self, prefix: str) -> int: ...
     def copy(self, src: str, dst: str) -> None: ...
 
 
@@ -93,6 +94,17 @@ class LocalStorage:
             p.unlink()
         elif p.is_dir():
             shutil.rmtree(p)
+
+    def delete_prefix(self, prefix: str) -> int:
+        """Remove every object under ``prefix`` (a directory here); never the root (ADR-0012)."""
+        p = self._path(prefix.rstrip("/"))
+        if p == self.root.resolve() or not prefix.strip("/"):
+            raise ValueError("refusing to delete the storage root")
+        if not p.is_dir():
+            return 0
+        n = sum(1 for f in p.rglob("*") if f.is_file())
+        shutil.rmtree(p)
+        return n
 
     def copy(self, src: str, dst: str) -> None:
         d = self._path(dst)
@@ -159,6 +171,22 @@ class S3Storage:
     def delete(self, key: str) -> None:
         self.client.delete_object(Bucket=self.bucket, Key=key)
 
+    def delete_prefix(self, prefix: str) -> int:
+        """List and delete in batches of at most 1000 keys, the S3 limit (ADR-0012 Decision 5)."""
+        if not prefix.strip("/"):
+            raise ValueError("refusing to delete the whole bucket")
+        n = 0
+        paginator = self.client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix):
+            keys = [{"Key": o["Key"]} for o in page.get("Contents", [])]
+            for i in range(0, len(keys), 1000):
+                batch = keys[i : i + 1000]
+                self.client.delete_objects(
+                    Bucket=self.bucket, Delete={"Objects": batch, "Quiet": True}
+                )
+                n += len(batch)
+        return n
+
     def copy(self, src: str, dst: str) -> None:
         # server-side copy: published media never streams through the API (plan §9.3 pub/)
         self.client.copy_object(
@@ -190,6 +218,11 @@ def reset_storage() -> None:
 def object_key(tenant_id, project_id, *parts: str) -> str:
     safe = [quote(str(p), safe="._-") for p in parts]
     return "/".join(["t", str(tenant_id), "p", str(project_id), *safe])
+
+
+def project_prefix(tenant_id, project_id, *parts: str) -> str:
+    """Prefix of everything a project (or one of its documents) stores; ends with ``/``."""
+    return object_key(tenant_id, project_id, *parts) + "/"
 
 
 def safe_filename(name: str) -> str:

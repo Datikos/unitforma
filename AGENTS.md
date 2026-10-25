@@ -7,8 +7,9 @@ Read `docs/architecture/plan-v0.1.md` before changing structure. Key rules:
 2. **Tenant isolation is mandatory.** Every tenant-owned table has `tenant_id`, RLS policies from
    `backend/migrations/rls.py`, and queries run inside `tenant_session(...)`. Never bypass RLS to
    "make a test pass".
-3. **Unit identity.** Never delete or re-key `units` rows; use lineage events. Prices and areas are
-   `numeric`, nullable means unknown — never default to 0.
+3. **Unit identity.** Never delete or re-key `units` rows while their project exists; use lineage
+   events. The one exception is the tenant admin's permanent project delete (ADR-0012), which removes
+   the whole project. Prices and areas are `numeric`, nullable means unknown — never default to 0.
 4. **Migrations** are backward compatible with the previous release (expand/contract). Run
    `uv run python -m alembic revision --autogenerate` only after reviewing the generated SQL.
 5. **Docker.** Each deployable module has its own Dockerfile; Compose files live in

@@ -95,6 +95,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
         does: 'Paste a tas.ge permit address. Preview shows the permit facts and which drawings will be imported; Import creates the project, one building and queues the drawings for Documents.',
       },
       { name: 'Search', does: 'Filters the list by name, slug or permit number.' },
+      {
+        name: 'Show archived',
+        does: 'Archived projects are hidden by default; the toggle lists them. Open one to reactivate it.',
+      },
     ],
     roles: STRUCTURE,
     waits:
@@ -118,10 +122,23 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
         name: 'Check registry for new files',
         does: 'Fetches the permit again and imports only drawings that are not here yet.',
       },
+      {
+        name: 'Archive / Reactivate',
+        does: 'Archive hides the project from the list and changes nothing else; refused while the portal is published.',
+      },
+      {
+        name: 'Delete (building)',
+        does: 'Removes an empty building with its floors and 3D models; refused while any unit belongs to it, in any state.',
+      },
+      {
+        name: 'Delete project permanently',
+        does: 'Tenant admin only, the slug typed in, refused while published. Removes buildings, units, documents, files and publications; the audit log keeps the record. Other roles see the button and get "not allowed".',
+      },
     ],
     roles: STRUCTURE,
     tips: [
       'Floors can be regenerated while no unit is mapped on them. After that, change floors one by one.',
+      'To delete a building that has units, delete the project instead: units are never removed one by one.',
     ],
   },
   documents: {
@@ -145,6 +162,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       {
         name: 'Upload new revision',
         does: 'A newer drawing of the same document. Processed revisions of mapped documents produce a revision diff.',
+      },
+      {
+        name: 'Delete',
+        does: 'Removes the document with its revisions, sheets and files. When units are outlined on it, a second dialog states how many; deleting then removes their outlines and queues a 3D rebuild, the units themselves stay.',
       },
     ],
     roles: MAPPING,

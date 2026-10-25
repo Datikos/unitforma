@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   BuildingOut,
@@ -28,6 +28,7 @@ import {
   whenShort,
 } from 'ui';
 import { ProjectContext } from '../core/project-context';
+import { DialogsService } from '../ui/dialogs.service';
 import { ToastService } from '../ui/toast.service';
 
 /** Project overview: header facts, permit (ADR-0007), structure of buildings and floors (plan §3.5). */
@@ -57,6 +58,14 @@ import { ToastService } from '../ui/toast.service';
         [facts]="facts()"
       >
         <ng-container actions>
+          @if (p) {
+            <button mat-stroked-button [disabled]="busy()" (click)="toggleArchive(p)">
+              <ng-icon
+                [name]="p.status === 'archived' ? 'lucideArchiveRestore' : 'lucideArchive'"
+              />
+              {{ p.status === 'archived' ? 'Reactivate' : 'Archive' }}
+            </button>
+          }
           <a mat-stroked-button routerLink="documents"
             ><ng-icon name="lucideFileText" /> Documents</a
           >
@@ -201,6 +210,9 @@ import { ToastService } from '../ui/toast.service';
           <div actions class="uf-actions">
             <uf-status-chip domain="building.placement" [value]="b.placement_status" />
             <a mat-button routerLink="placement"><ng-icon name="lucideMap" /> Place</a>
+            <button mat-button [disabled]="busy()" (click)="deleteBuilding(b)">
+              <ng-icon name="lucideTrash2" /> Delete
+            </button>
           </div>
           <div class="uf-form-row">
             <mat-form-field appearance="outline" subscriptSizing="dynamic" class="num"
@@ -275,6 +287,34 @@ import { ToastService } from '../ui/toast.service';
           text="Add a building above. Floors are what sheets, units and the 3D model attach to."
         />
       }
+
+      @if (p) {
+        <uf-section-card
+          title="Archive or delete"
+          icon="lucideTriangleAlert"
+          summary="archive keeps everything; delete is permanent"
+          storageKey="project-danger"
+          [open]="false"
+        >
+          <p class="uf-hint">
+            Archive hides the project from the projects list and changes nothing else; Reactivate
+            brings it back. Delete removes the project with its buildings, units, documents, files
+            and publications; the audit log keeps who did it. Both are refused while the portal is
+            published: unpublish first. Delete needs the tenant admin role and the slug typed in.
+          </p>
+          <div class="uf-actions">
+            <button mat-stroked-button [disabled]="busy()" (click)="toggleArchive(p)">
+              <ng-icon
+                [name]="p.status === 'archived' ? 'lucideArchiveRestore' : 'lucideArchive'"
+              />
+              {{ p.status === 'archived' ? 'Reactivate' : 'Archive' }}
+            </button>
+            <button mat-stroked-button [disabled]="busy()" (click)="deleteProject(p)">
+              <ng-icon name="lucideTrash2" /> Delete project permanently
+            </button>
+          </div>
+        </uf-section-card>
+      }
     </div>
   `,
   styles: `
@@ -298,6 +338,8 @@ export class ProjectDetailPage {
   private readonly api = inject(UnitformaApi);
   private readonly ctx = inject(ProjectContext);
   private readonly toast = inject(ToastService);
+  private readonly dialogs = inject(DialogsService);
+  private readonly router = inject(Router);
   readonly tenantId = input.required<string>();
   readonly projectId = input.required<string>();
   readonly project = signal<ProjectOut | null>(null);
@@ -456,6 +498,76 @@ export class ProjectDetailPage {
       await this.api.setFloors(this.tenantId(), b.id, floors);
       this.toast.ok(`${floors.length} floors set on ${b.code}`);
     });
+  }
+
+  /** Archive keeps every row and file (ADR-0012 Decision 1); the backend refuses it while published. */
+  async toggleArchive(p: ProjectOut): Promise<void> {
+    const archive = p.status !== 'archived';
+    if (archive) {
+      const ok = await this.dialogs.confirm({
+        title: `Archive ${p.name}?`,
+        message:
+          'The project leaves the projects list; nothing is deleted and Reactivate brings it back.',
+        confirmLabel: 'Archive',
+        icon: 'lucideArchive',
+      });
+      if (!ok) return;
+    }
+    await this.run(async () => {
+      await this.api.updateProject(this.tenantId(), this.projectId(), {
+        status: archive ? 'archived' : 'active',
+        version: p.version,
+      });
+      this.toast.ok(archive ? `${p.name} archived` : `${p.name} reactivated`);
+    });
+  }
+
+  /** Only an empty building goes; the backend answers 409 with the unit count otherwise. */
+  async deleteBuilding(b: BuildingOut): Promise<void> {
+    const ok = await this.dialogs.confirm({
+      title: `Delete building ${b.code}?`,
+      message:
+        'Its floors and 3D models are removed; documents filed under it stay with the project. ' +
+        'A building with units cannot be deleted.',
+      confirmLabel: 'Delete',
+      tone: 'bad',
+      icon: 'lucideTrash2',
+    });
+    if (!ok) return;
+    await this.run(async () => {
+      await this.api.deleteBuilding(this.tenantId(), b.id);
+      this.toast.ok(`Building ${b.code} deleted`);
+    });
+  }
+
+  /** Tenant admin only, typed slug, never while published (ADR-0012 Decision 4). */
+  async deleteProject(p: ProjectOut): Promise<void> {
+    const typed = await this.dialogs.prompt({
+      title: `Delete ${p.name} permanently?`,
+      message:
+        `Type the slug "${p.slug}" to confirm. Buildings, units, documents, files and ` +
+        'publications are removed; the audit log keeps a record. This cannot be undone.',
+      label: 'Project slug',
+      placeholder: p.slug,
+      required: true,
+      confirmLabel: 'Delete permanently',
+    });
+    if (typed === null) return;
+    if (typed.trim() !== p.slug) {
+      this.error.set(`The slug does not match (${p.slug}); nothing was deleted`);
+      return;
+    }
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      await this.api.deleteProject(this.tenantId(), this.projectId(), p.slug);
+      this.toast.ok(`${p.name} deleted`);
+      await this.router.navigate(['/t', this.tenantId(), 'projects']);
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   private async run(fn: () => Promise<unknown>): Promise<void> {

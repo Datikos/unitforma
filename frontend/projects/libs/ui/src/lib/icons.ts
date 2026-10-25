@@ -1,5 +1,6 @@
 import {
   lucideArchive,
+  lucideArchiveRestore,
   lucideArrowLeft,
   lucideArrowRight,
   lucideBan,
@@ -98,6 +99,7 @@ import {
  */
 export const UF_ICONS: Record<string, string> = {
   lucideArchive,
+  lucideArchiveRestore,
   lucideArrowLeft,
   lucideArrowRight,
   lucideBan,

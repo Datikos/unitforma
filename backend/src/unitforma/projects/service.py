@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -13,7 +13,23 @@ from unitforma.audit.service import write_audit
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
 from unitforma.core.slugs import SlugError, validate_slug
-from unitforma.tenants.models import Building, Floor, Project, SiteFeature
+from unitforma.storage.jobs import queue_delete_prefix
+from unitforma.storage.service import get_storage, project_prefix
+from unitforma.tenants.models import (
+    Building,
+    Document,
+    Floor,
+    GeometryModel,
+    PortalDomain,
+    Project,
+    Sheet,
+    SiteFeature,
+    Unit,
+)
+
+PROJECT_PUBLISHED = "https://unitforma.com/problems/project-published"
+BUILDING_HAS_UNITS = "https://unitforma.com/problems/building-has-units"
+CONFIRM_MISMATCH = "https://unitforma.com/problems/confirm-mismatch"
 
 
 def _snapshot(obj: Any, fields: tuple[str, ...]) -> dict[str, Any]:
@@ -294,3 +310,116 @@ async def create_site_feature(
         after={"kind": sf.kind, "name": sf.name},
     )
     return sf
+
+
+async def delete_building(db: AsyncSession, b: Building, actor: tuple[uuid.UUID, str]) -> None:
+    """Delete an empty building (ADR-0012 Decision 3).
+
+    Refused while any unit row points to it, in any lifecycle state: unit identity is permanent
+    and ``units.building_id`` is RESTRICT. Its geometry models and their GLB objects go explicitly
+    (the FK would only null ``building_id`` and leave them looking like site models); sheets that
+    were assigned or suggested to its floors become unassigned; its documents become project-level
+    (FK SET NULL); floors and IFC space links cascade.
+    """
+    n_units = (
+        await db.execute(select(func.count(Unit.id)).where(Unit.building_id == b.id))
+    ).scalar_one()
+    if n_units:
+        raise ProblemError(
+            409,
+            "Building has units",
+            f"{n_units} unit(s) belong to building {b.code}; "
+            "a building with units cannot be deleted",
+            type_=BUILDING_HAS_UNITS,
+            extra={"units": n_units},
+        )
+    floor_ids = [f.id for f in b.floors]
+    if floor_ids:
+        await db.execute(
+            update(Sheet)
+            .where(Sheet.floor_id.in_(floor_ids) | Sheet.suggested_floor_id.in_(floor_ids))
+            .values(floor_id=None, suggested_floor_id=None, assignment_status="unassigned")
+        )
+    models = list(
+        (await db.execute(select(GeometryModel).where(GeometryModel.building_id == b.id))).scalars()
+    )
+    storage = get_storage()
+    for m in models:
+        if m.glb_key:
+            try:
+                storage.delete(m.glb_key)
+            except Exception:  # noqa: BLE001,S110 - an orphaned object is cleaned by retention later
+                pass
+        await db.delete(m)
+    await write_audit(
+        db,
+        tenant_id=b.tenant_id,
+        actor_user_id=actor[0],
+        actor_role=actor[1],
+        entity_type="building",
+        entity_id=b.id,
+        action="delete",
+        before={**_snapshot(b, BUILDING_FIELDS), "floors": len(floor_ids), "models": len(models)},
+    )
+    await db.delete(b)
+    await db.flush()
+
+
+async def delete_project(
+    db: AsyncSession, project: Project, confirm: str, actor: tuple[uuid.UUID, str]
+) -> dict[str, int]:
+    """The tenant admin's permanent delete (ADR-0012 Decision 4).
+
+    The caller has already refused a published project. ``confirm`` must equal the slug. Units are
+    deleted explicitly before the project row because ``units.building_id`` is RESTRICT and the
+    nested cascade through ``buildings`` must not meet one. Project-scoped portal domains become
+    ``removed``. The audit row is written first and survives (``audit_log`` has no foreign keys);
+    the storage prefix is removed by the guarded job once this transaction has committed.
+    """
+    if confirm != project.slug:
+        raise ProblemError(
+            400,
+            "Confirmation does not match",
+            f"Type the project slug ({project.slug}) to delete it",
+            type_=CONFIRM_MISMATCH,
+        )
+    counts = {
+        "buildings": (
+            await db.execute(
+                select(func.count(Building.id)).where(
+                    Building.project_id == project.id, Building.kind == "building"
+                )
+            )
+        ).scalar_one(),
+        "units": (
+            await db.execute(select(func.count(Unit.id)).where(Unit.project_id == project.id))
+        ).scalar_one(),
+        "documents": (
+            await db.execute(
+                select(func.count(Document.id)).where(Document.project_id == project.id)
+            )
+        ).scalar_one(),
+    }
+    await write_audit(
+        db,
+        tenant_id=project.tenant_id,
+        actor_user_id=actor[0],
+        actor_role=actor[1],
+        entity_type="project",
+        entity_id=project.id,
+        action="delete",
+        before={"slug": project.slug, "name": project.name, **counts},
+    )
+    await db.execute(
+        update(PortalDomain)
+        .where(PortalDomain.tenant_id == project.tenant_id, PortalDomain.project_id == project.id)
+        .values(status="removed", removed_at=func.now())
+    )
+    await db.execute(delete(Unit).where(Unit.project_id == project.id))
+    tenant_id, project_id = project.tenant_id, project.id
+    await db.delete(project)
+    await db.flush()
+    await queue_delete_prefix(
+        tenant_id, project_prefix(tenant_id, project_id), "projects", project_id
+    )
+    return counts

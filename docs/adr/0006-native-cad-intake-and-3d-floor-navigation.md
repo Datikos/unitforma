@@ -301,6 +301,13 @@ Phase C: IFC ingestion (L, plan Phase 8 pulled forward)
       placed on the site, so the project page keeps the massing and the building page shows the IFC
       model alone. Space nodes carry the matched floor's `level` (not the storey index) and, once
       confirmed, the unit's code, so floor isolation and the portal's unit route work on them.
+      Verified locally with IfcOpenShell 0.9.0 on the synthetic IFC4 building (metres declared;
+      the api default is millimetres and an undeclared model comes out a thousand times too small
+      in the footprints, so a real export's unit declaration matters): storeys, spaces with
+      footprints and quantities, the GLB nodes, label matching at 0.9, confirmation writing
+      `ifc_quantity` areas, the 409 on a second confirmation of the same unit, and the relinked
+      extras. Spaces are aggregated under storeys (not "contained"), which the storey lookup
+      follows. The wheel is 42 MB; CI installs the `ifc` extra so these tests run there.
 
 Phase D: DWG conversion (M, after the owner picks B1, B2 or B3)
 - [ ] D1 `documents/service.py`: accept `application/acad`, `image/vnd.dwg`, `.dwg`; sniff `AC10`

@@ -380,7 +380,11 @@ export interface paths {
         get: operations["get_project_api_v1_admin_tenants__tenant_id__projects__project_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Project
+         * @description Permanent delete, tenant admin only, typed slug, never while published (ADR-0012).
+         */
+        delete: operations["delete_project_api_v1_admin_tenants__tenant_id__projects__project_id__delete"];
         options?: never;
         head?: never;
         /** Update Project */
@@ -415,7 +419,11 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Building
+         * @description Delete an empty building; 409 building-has-units otherwise (ADR-0012 Decision 3).
+         */
+        delete: operations["delete_building_api_v1_admin_tenants__tenant_id__buildings__building_id__delete"];
         options?: never;
         head?: never;
         /** Update Building */
@@ -505,7 +513,12 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Document
+         * @description Delete the document, its revisions, sheets and files; 409 document-mapped while units are
+         *     outlined on it unless ``detach_units`` (ADR-0012 Decision 2).
+         */
+        delete: operations["delete_document_api_v1_admin_tenants__tenant_id__documents__document_id__delete"];
         options?: never;
         head?: never;
         /**
@@ -4925,6 +4938,38 @@ export interface operations {
             };
         };
     };
+    delete_project_api_v1_admin_tenants__tenant_id__projects__project_id__delete: {
+        parameters: {
+            query: {
+                confirm: string;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     update_project_api_v1_admin_tenants__tenant_id__projects__project_id__patch: {
         parameters: {
             query?: never;
@@ -5017,6 +5062,36 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BuildingOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_building_api_v1_admin_tenants__tenant_id__buildings__building_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                building_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -5257,6 +5332,38 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DocumentOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_document_api_v1_admin_tenants__tenant_id__documents__document_id__delete: {
+        parameters: {
+            query?: {
+                detach_units?: boolean;
+            };
+            header?: never;
+            path: {
+                document_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

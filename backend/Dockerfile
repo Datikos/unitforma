@@ -36,6 +36,8 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
 ENTRYPOINT ["unitforma"]
 CMD ["api"]
 
-# Same image, same roles, plus the IFC extra: used by worker-heavy only.
+# Same image, same roles, plus the IFC extra: used by worker-heavy only. This is the LAST stage,
+# so a build without --target gets it: every Compose service and the images workflow name their
+# target explicitly (runtime for api/worker-light/scheduler/db-migrate, runtime-ifc for worker-heavy).
 FROM runtime AS runtime-ifc
 COPY --from=builder-ifc /opt/venv /opt/venv

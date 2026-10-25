@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - { name: backend,    context: backend,      file: backend/Dockerfile }
+          - { name: backend,    context: backend,      file: backend/Dockerfile, target: runtime }
           # heavy worker: same Dockerfile, runtime-ifc target with IfcOpenShell (ADR-0006 Phase C)
           - { name: backend-ifc, context: backend,     file: backend/Dockerfile, target: runtime-ifc }
           - { name: web-admin,  context: frontend,     file: frontend/Dockerfile.admin }
