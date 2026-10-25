@@ -91,6 +91,28 @@ class StaffInvitation(TimestampMixin, Base):
     accepted_membership_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
 
+class ApiToken(Base):
+    """A personal API token for non-browser clients such as MCP assistants (ADR-0015 Decision 2).
+
+    The secret is shown once at creation; only its SHA-256 and a short prefix are stored.
+    """
+
+    __tablename__ = "api_tokens"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(120))
+    token_prefix: Mapped[str] = mapped_column(String(16))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    scope: Mapped[str] = mapped_column(String(10))  # read | write
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ReservedSubdomain(Base):
     __tablename__ = "reserved_subdomains"
     name: Mapped[str] = mapped_column(String(63), primary_key=True)

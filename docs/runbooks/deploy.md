@@ -10,6 +10,10 @@
 
 Kratos upgrades: bump `KRATOS_VERSION` in `.env`, run `docker compose up -d kratos-migrate && docker compose wait kratos-migrate`, then `up -d --no-deps kratos kratos-courier`. Read Ory release notes first.
 
+## MCP endpoint
+
+`app.<domain>/mcp` is the MCP server for staff assistants (ADR-0015). The Caddyfile proxies it only on the app host, with a 1 MB body limit and the `mcp_by_ip` rate limit zone (120 requests per minute per IP); tenant hosts serve the portal for that path. It takes bearer API tokens created on the "API tokens" page, never a cookie. `UF_MCP_ENABLED=false` in `.env` turns it off (404) without a redeploy of the proxy. Check after a rollout: `curl -sS -o /dev/null -w '%{http_code}\n' https://app.<domain>/mcp` prints `401`.
+
 ## Heavy worker image
 
 `worker-heavy` runs the `runtime-ifc` target of `backend/Dockerfile` (image `unitforma-backend-ifc`), which adds IfcOpenShell for IFC ingestion and Node 22 with the glTF-Transform CLI for Draco compression of the resulting models (ADR-0006 C2a); `api`, `worker-light` and `scheduler` run the plain `runtime` target. Both targets come from one `uv.lock`; build and tag them together per release. The heavy worker keeps its 4 GB memory limit in `compose.prod.yaml` for IFC tessellation (ADR-0006 Phase C).

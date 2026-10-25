@@ -47,6 +47,13 @@
 https://app.unitforma.localhost {
 	import security_headers
 	import api_routes
+	# MCP server for staff assistants (ADR-0015), app host only
+	handle /mcp* {
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy api:8000
+	}
 	handle_path /.ory/* {
 		reverse_proxy kratos:4433
 	}

@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -128,3 +129,16 @@ async def accept_blocks(
             await projects.set_floors(db, b, floors, actor)
         created.append(b)
     return created, removed
+
+
+async def queue_resuggest(tenant_id: uuid.UUID, project_id: uuid.UUID) -> None:
+    """Refresh the sheets' page → floor suggestions after floors changed; a missing queue only logs
+    (minimal setups run without a worker)."""
+    try:
+        from unitforma.jobs.app import app as jobs
+
+        await jobs.configure_task(name="documents.resuggest_floors", queue="docs").defer_async(
+            tenant_id=str(tenant_id), project_id=str(project_id)
+        )
+    except Exception as e:  # noqa: BLE001
+        structlog.get_logger().warning("documents.resuggest_enqueue_failed", error=str(e)[:200])

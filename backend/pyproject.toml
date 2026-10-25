@@ -25,6 +25,7 @@ dependencies = [
   "shapely>=2.0",
   "openpyxl>=3.1",
   "ezdxf>=1.4.5",
+  "mcp>=2.3,<3",
 ]
 
 [project.optional-dependencies]
@@ -75,4 +76,4 @@ root_package = "unitforma"
 name = "core does not import feature modules"
 type = "forbidden"
 source_modules = ["unitforma.core"]
-forbidden_modules = ["unitforma.api", "unitforma.identity", "unitforma.tenants", "unitforma.domains", "unitforma.jobs"]
+forbidden_modules = ["unitforma.api", "unitforma.identity", "unitforma.tenants", "unitforma.domains", "unitforma.jobs", "unitforma.mcp"]

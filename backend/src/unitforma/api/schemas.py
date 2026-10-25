@@ -103,6 +103,34 @@ class InvitationOut(BaseModel):
     )
 
 
+class ApiTokenCreate(BaseModel):
+    """A personal API token for MCP assistants and scripts (ADR-0015 Decision 2)."""
+
+    name: str = Field(min_length=1, max_length=120)
+    scope: Literal["read", "write"] = "read"
+    expires_in_days: int = Field(default=90, ge=1, le=365)
+
+
+class ApiTokenOut(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    user_email: str
+    name: str
+    token_prefix: str
+    scope: str
+    status: Literal["active", "expired", "revoked"]
+    expires_at: datetime
+    last_used_at: datetime | None
+    revoked_at: datetime | None
+    created_at: datetime
+
+
+class ApiTokenCreated(ApiTokenOut):
+    """The secret is in this response only; it is never stored or shown again."""
+
+    secret: str
+
+
 class InvitationAccept(BaseModel):
     token: str = Field(min_length=20, max_length=200)
 

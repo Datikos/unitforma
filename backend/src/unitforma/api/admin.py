@@ -1,4 +1,4 @@
-"""Staff workspace API: me, tenant settings, members, invitations, audit."""
+"""Staff workspace API: me, tenant settings, members, invitations, API tokens, audit."""
 
 from __future__ import annotations
 
@@ -9,6 +9,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 
 from unitforma.api.schemas import (
+    ApiTokenCreate,
+    ApiTokenCreated,
+    ApiTokenOut,
     AuditOut,
     AuditPage,
     InvitationAccept,
@@ -25,7 +28,8 @@ from unitforma.audit.service import write_audit
 from unitforma.core.db import tenant_session
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
-from unitforma.identity.authz import Action
+from unitforma.identity import tokens
+from unitforma.identity.authz import Action, is_allowed
 from unitforma.identity.deps import TenantContext, current_staff, tenant_context
 from unitforma.identity.principal import StaffPrincipal
 from unitforma.tenants import service as tenants
@@ -280,6 +284,68 @@ async def revoke_invitation(invitation_id: uuid.UUID, ctx: Ctx):
         entity_id=inv.id,
         action="revoke",
         request_id=ctx.request_id,
+    )
+    return None
+
+
+# --- API tokens (ADR-0015) ------------------------------------------------------------
+def _token_out(t, email: str) -> ApiTokenOut:
+    return ApiTokenOut(
+        id=t.id,
+        user_id=t.user_id,
+        user_email=email,
+        name=t.name,
+        token_prefix=t.token_prefix,
+        scope=t.scope,
+        status=tokens.status_of(t),
+        expires_at=t.expires_at,
+        last_used_at=t.last_used_at,
+        revoked_at=t.revoked_at,
+        created_at=t.created_at,
+    )
+
+
+def _manages_tokens(ctx: TenantContext) -> bool:
+    return ctx.scope == "platform" or is_allowed(ctx.membership, "tenant.users", Action.MANAGE)
+
+
+@router.get("/tenants/{tenant_id}/tokens", response_model=list[ApiTokenOut])
+async def list_api_tokens(ctx: Ctx):
+    """Own tokens; every token of the tenant for whoever manages its users."""
+    owner = None if _manages_tokens(ctx) else ctx.principal.user_id
+    rows = await tokens.list_tokens(ctx.session, ctx.tenant_id, user_id=owner)
+    return [_token_out(t, email) for t, email in rows]
+
+
+@router.post("/tenants/{tenant_id}/tokens", response_model=ApiTokenCreated, status_code=201)
+async def create_api_token(body: ApiTokenCreate, ctx: Ctx):
+    """A token for the caller; it never does more than the caller's role allows."""
+    if ctx.scope == "platform":
+        raise ProblemError(
+            403, "Platform scope cannot hold a token", "Tokens belong to tenant members"
+        )
+    t, secret = await tokens.create_token(
+        ctx.session,
+        tenant_id=ctx.tenant_id,
+        user_id=ctx.principal.user_id,
+        name=body.name,
+        scope=body.scope,
+        expires_in_days=body.expires_in_days,
+        actor=(ctx.principal.user_id, ctx.actor_role),
+    )
+    out = _token_out(t, ctx.principal.email)
+    return ApiTokenCreated(**out.model_dump(), secret=secret)
+
+
+@router.delete("/tenants/{tenant_id}/tokens/{token_id}", status_code=204)
+async def revoke_api_token(token_id: uuid.UUID, ctx: Ctx):
+    owner = None if _manages_tokens(ctx) else ctx.principal.user_id
+    await tokens.revoke_token(
+        ctx.session,
+        ctx.tenant_id,
+        token_id,
+        actor=(ctx.principal.user_id, ctx.actor_role),
+        owner_only=owner,
     )
     return None
 

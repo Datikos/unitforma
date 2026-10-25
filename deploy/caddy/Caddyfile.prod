@@ -61,6 +61,23 @@
 app.{$PLATFORM_DOMAIN} {
 	import security_headers
 	import api_routes
+	# MCP server for staff assistants (ADR-0015): bearer API tokens, never a cookie, app host only.
+	handle /mcp* {
+		request_body {
+			max_size 1MB
+		}
+		rate_limit {
+			zone mcp_by_ip {
+				key {remote_host}
+				events 120
+				window 1m
+			}
+		}
+		reverse_proxy api:8000 {
+			lb_policy round_robin
+			health_uri /internal/health/live
+		}
+	}
 	handle_path /.ory/* {
 		rate_limit {
 			zone ory_by_ip {

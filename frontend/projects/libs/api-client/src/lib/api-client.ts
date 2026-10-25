@@ -13,6 +13,9 @@ export type MemberOut = Schemas['MemberOut'];
 export type MemberUpdate = Schemas['MemberUpdate'];
 export type InvitationCreate = Schemas['InvitationCreate'];
 export type InvitationOut = Schemas['InvitationOut'];
+export type ApiTokenCreate = Schemas['ApiTokenCreate'];
+export type ApiTokenOut = Schemas['ApiTokenOut'];
+export type ApiTokenCreated = Schemas['ApiTokenCreated'];
 export type ProjectOut = Schemas['ProjectOut'];
 export type ProjectCreate = Schemas['ProjectCreate'];
 export type ProjectUpdate = Schemas['ProjectUpdate'];
@@ -158,6 +161,17 @@ export class UnitformaApi {
   revokeInvitation(tenantId: string, invitationId: string): Promise<void> {
     return this.delete(`${BASE}/admin/tenants/${tenantId}/invitations/${invitationId}`);
   }
+
+  // --- API tokens (ADR-0015)
+  listApiTokens(tenantId: string): Promise<ApiTokenOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/tokens`);
+  }
+  createApiToken(tenantId: string, body: ApiTokenCreate): Promise<ApiTokenCreated> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/tokens`, body);
+  }
+  revokeApiToken(tenantId: string, tokenId: string): Promise<void> {
+    return this.delete(`${BASE}/admin/tenants/${tenantId}/tokens/${tokenId}`);
+  }
   listAudit(tenantId: string, limit = 50, offset = 0): Promise<Page<AuditOut>> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/audit`, { limit, offset });
   }
@@ -213,8 +227,16 @@ export class UnitformaApi {
   }
   floorProposal(tenantId: string, buildingId: string): Promise<FloorProposalOut> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/floor-proposal`);
-  }  acceptBlocks(tenantId: string, buildingId: string, body: BlocksAcceptIn): Promise<BlocksAcceptOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/floor-proposal/blocks`, body);
+  }
+  acceptBlocks(
+    tenantId: string,
+    buildingId: string,
+    body: BlocksAcceptIn,
+  ): Promise<BlocksAcceptOut> {
+    return this.post(
+      `${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/floor-proposal/blocks`,
+      body,
+    );
   }
   /** Sections and elevations that can become the building's floor picker (ADR-0014). */
   elevationCandidates(tenantId: string, buildingId: string): Promise<ElevationCandidateOut[]> {
@@ -222,7 +244,6 @@ export class UnitformaApi {
       `${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/elevation-candidates`,
     );
   }
-
 
   listSiteFeatures(tenantId: string, projectId: string): Promise<SiteFeatureOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/site-features`);

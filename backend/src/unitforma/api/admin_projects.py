@@ -195,16 +195,7 @@ async def accept_blocks(building_id: uuid.UUID, body: BlocksAcceptIn, ctx: Ctx):
         delete_source=body.delete_source,
         actor=_actor(ctx),
     )
-    try:
-        from unitforma.jobs.app import app as jobs
-
-        await jobs.configure_task(name="documents.resuggest_floors", queue="docs").defer_async(
-            tenant_id=str(ctx.tenant_id), project_id=str(project_id)
-        )
-    except Exception as e:  # noqa: BLE001
-        import structlog
-
-        structlog.get_logger().warning("documents.resuggest_enqueue_failed", error=str(e)[:200])
+    await proposal.queue_resuggest(ctx.tenant_id, project_id)
     out = [await projects.get_building(ctx.session, ctx.tenant_id, c.id) for c in created]
     return BlocksAcceptOut(buildings=out, source_removed=removed)
 
@@ -218,16 +209,7 @@ async def set_floors(building_id: uuid.UUID, body: FloorsBulkCreate, ctx: Ctx):
         ctx.session, b, [f.model_dump() for f in body.floors], _actor(ctx)
     )
     # sheets processed before these floors existed get their page → floor suggestions now
-    try:
-        from unitforma.jobs.app import app as jobs
-
-        await jobs.configure_task(name="documents.resuggest_floors", queue="docs").defer_async(
-            tenant_id=str(ctx.tenant_id), project_id=str(b.project_id)
-        )
-    except Exception as e:  # noqa: BLE001 - the queue may be absent in minimal setups
-        import structlog
-
-        structlog.get_logger().warning("documents.resuggest_enqueue_failed", error=str(e)[:200])
+    await proposal.queue_resuggest(ctx.tenant_id, b.project_id)
     return floors
 
 

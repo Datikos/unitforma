@@ -285,6 +285,7 @@ flowchart LR
 |---|---|---|---|
 | `unitforma.com`, `www.` | `/*` | `web-site` | Static. |
 | `app.unitforma.com` | `/api/*`, `/auth/*` | `api` | Admin API and app-session endpoints. |
+| `app.unitforma.com` | `/mcp` | `api` | MCP server for staff assistants (ADR-0015): bearer API tokens, 1 MB bodies, 120 requests/min per IP. Not served on tenant hosts. |
 | `app.unitforma.com` | `/*` | `web-admin` | SPA fallback to `index.html`. |
 | `app.unitforma.com` | `/.ory/*` | `kratos` public (strip prefix) | Staff browser flows; same host as the admin UI so Kratos CSRF/session cookies are first-party (host-only cookies). |
 | `{tenant}.unitforma.com`, custom domains | `/api/portal/*`, `/auth/*` | `api` | Host header resolves tenant/project; `/auth/*` is the buyer email-code BFF and session endpoints (§8.3). |
@@ -787,6 +788,7 @@ sequenceDiagram
 | Enumeration | Uniform responses (BFF); `security.account_enumeration.mitigate: true` additionally on staff browser flows. |
 | Session theft | HttpOnly/Secure cookies, host-only, rotation on privilege change, server-side revocation, UA/IP hash anomaly logging. |
 | Staff account takeover | aal2 for admins, invitation tokens hashed and single-use, membership status checks on every request, audit of role changes. |
+| API token theft (ADR-0015) | Secret shown once, SHA-256 at rest, expiry required (≤ 365 days), revocation refused on the next call, scope read/write below the role, membership checked per call, Host/Origin validation, 120 requests/min per IP at the proxy, token prefix in every audit row. |
 | Kratos exposure | Admin API internal-only; public API reachable only via `/.ory/` on the app host; `secrets.cookie`/`secrets.cipher` in Docker secrets, rotation documented (rotating `secrets.cookie` logs everyone out). |
 
 ### 8.7 One platform identity per buyer — trade-offs **[REQ to explain; REC]**
@@ -989,6 +991,7 @@ Dependency rule: `api` → module services → `core`; modules may depend on `in
 | Portal (public) | `/api/v1/portal/…` | none | `Host` → `portal_domains` |
 | Portal (buyer) | `/api/v1/portal/me/…` | `uf_session` app cookie | `Host` + session host match |
 | Auth BFF | `/auth/email/start`, `/auth/email/verify`, `/auth/email/resend`, `/auth/logout`, `/auth/session`, `/auth/settings/email/*` | none / app cookie | `Host` |
+| MCP (ADR-0015) | `/mcp` (Streamable HTTP, stateless, JSON responses) | `Authorization: Bearer ufm_…` personal API token (`api_tokens`, SHA-256 at rest, scope read/write, expiry, revocation) → the owner's membership and the same policy matrix; known gap: bearer tokens, not the MCP spec's OAuth path | Token |
 | Internal | `/internal/domains/ask`, `/internal/health/live`, `/internal/health/ready`, `/internal/metrics` | network-only (proxy/Prometheus); `ask` additionally checks a shared header secret | n/a |
 
 Versioning: URL major version; additive changes only within `v1`; breaking changes → `v2` router side by side for one release window (§17.6).
@@ -1568,6 +1571,7 @@ Several official sites were unreachable from the planning environment (DNS/proxy
 - Node.js releases https://nodejs.org/en/about/previous-releases and https://github.com/nodejs/Release; Docker Hub `node`, `nginx`, `caddy` official images.
 
 **Backend and infrastructure**
+- Model Context Protocol specification 2026-07-28 (transports: Origin validation, `Mcp-Session-Id`; authorization: RFC 9728 metadata, "MUST NOT accept or transit any other tokens"): https://modelcontextprotocol.io/specification/2026-07-28; Python SDK `mcp` 2.3.0 (2026-10-02, MIT, `MCPServer`, `streamable_http_app`, `json_response`, `stateless_http`, `TransportSecuritySettings`): https://pypi.org/project/mcp/ and https://py.sdk.modelcontextprotocol.io/; Claude Code `claude mcp add --transport http … --header`: https://code.claude.com/docs/en/mcp; claude.ai custom connectors with fixed credentials: https://support.claude.com/en/articles/11175166 (all checked 2026-10-26).
 - FastAPI https://pypi.org/project/fastapi/ (0.162, MIT); Pydantic https://pypi.org/project/pydantic/; SQLAlchemy https://pypi.org/project/SQLAlchemy/ (2.1.x, Python ≥ 3.11); Alembic https://pypi.org/project/alembic/; asyncpg https://pypi.org/project/asyncpg/; psycopg https://pypi.org/project/psycopg/ (LGPL-3.0); Python image https://hub.docker.com/_/python (3.14.9).
 - PostgreSQL image https://hub.docker.com/_/postgres (18.6); RLS https://www.postgresql.org/docs/current/ddl-rowsecurity.html; CREATE POLICY https://www.postgresql.org/docs/current/sql-createpolicy.html; SET LOCAL https://www.postgresql.org/docs/current/sql-set.html; custom options https://www.postgresql.org/docs/current/runtime-config-custom.html; pgBackRest https://github.com/pgbackrest/pgbackrest (MIT).
 - Redis licence https://github.com/redis/redis/blob/unstable/LICENSE.txt; Valkey https://github.com/valkey-io/valkey (BSD-3), image https://hub.docker.com/r/valkey/valkey.

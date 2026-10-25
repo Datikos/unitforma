@@ -80,6 +80,9 @@ class Settings(BaseSettings):
     # Regulatory sources (ADR-0007): project bootstrap from a tas.ge building permit
     regulatory_tasge_enabled: bool = True
 
+    # MCP server for staff assistants at /mcp on the admin host (ADR-0015); false leaves /mcp 404
+    mcp_enabled: bool = True
+
     @model_validator(mode="after")
     def _inject_passwords(self) -> Settings:
         """Allow passwords to arrive separately (Docker secrets) and be merged into the URLs."""

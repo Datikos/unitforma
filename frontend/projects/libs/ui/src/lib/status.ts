@@ -168,6 +168,16 @@ export const STATUS_TABLES = {
     pending: v('pending', 'Uploading', 'lucideClock'),
     ready: v('good', 'Ready', 'lucideImage'),
   },
+  // personal API tokens for assistants and scripts (ADR-0015)
+  token: {
+    active: v('good', 'Active', 'lucideCircleCheck'),
+    expired: v('neutral', 'Expired', 'lucideClock'),
+    revoked: v('bad', 'Revoked', 'lucideBan'),
+  },
+  'token.scope': {
+    read: v('info', 'Read', 'lucideEye'),
+    write: v('warning', 'Write', 'lucidePencil'),
+  },
   role: {
     tenant_admin: v('info', 'Tenant admin', 'lucideShieldCheck'),
     project_manager: v('info', 'Project manager', 'lucideFolderKanban'),

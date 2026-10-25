@@ -116,6 +116,7 @@ export function buildMenu(
               exact: true,
             },
             { key: 'members', label: 'Members', icon: 'lucideUsers', link: [...t, 'members'] },
+            { key: 'tokens', label: 'API tokens', icon: 'lucideKeyRound', link: [...t, 'tokens'] },
             { key: 'audit', label: 'Audit log', icon: 'lucideScrollText', link: [...t, 'audit'] },
           ],
         },

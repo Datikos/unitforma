@@ -145,7 +145,7 @@ class TenantContext:
         return "platform_admin" if self.scope == "platform" else self.membership.role.value
 
 
-async def _load_membership(
+async def load_membership(
     db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID
 ) -> MembershipContext | None:
     m = (
@@ -187,7 +187,7 @@ async def tenant_context(
     """
     scope = "platform" if principal.is_platform_admin else "tenant"
     async with tenant_session(tenant_id, user_id=principal.user_id, scope=scope) as db:
-        membership = await _load_membership(db, tenant_id, principal.user_id)
+        membership = await load_membership(db, tenant_id, principal.user_id)
         if scope == "tenant":
             if membership is None or not membership.is_active:
                 raise ProblemError(404, "Tenant not found")

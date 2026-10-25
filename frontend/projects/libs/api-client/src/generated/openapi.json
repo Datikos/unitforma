@@ -1262,6 +1262,152 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/tokens": {
+   "get": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "List Api Tokens",
+    "description": "Own tokens; every token of the tenant for whoever manages its users.",
+    "operationId": "list_api_tokens_api_v1_admin_tenants__tenant_id__tokens_get",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/ApiTokenOut"
+         },
+         "title": "Response List Api Tokens Api V1 Admin Tenants  Tenant Id  Tokens Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Create Api Token",
+    "description": "A token for the caller; it never does more than the caller's role allows.",
+    "operationId": "create_api_token_api_v1_admin_tenants__tenant_id__tokens_post",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ApiTokenCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ApiTokenCreated"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/tokens/{token_id}": {
+   "delete": {
+    "tags": [
+     "admin"
+    ],
+    "summary": "Revoke Api Token",
+    "operationId": "revoke_api_token_api_v1_admin_tenants__tenant_id__tokens__token_id__delete",
+    "parameters": [
+     {
+      "name": "token_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Token Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/audit": {
    "get": {
     "tags": [
@@ -6977,6 +7123,220 @@
  },
  "components": {
   "schemas": {
+   "ApiTokenCreate": {
+    "properties": {
+     "name": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name"
+     },
+     "scope": {
+      "type": "string",
+      "enum": [
+       "read",
+       "write"
+      ],
+      "title": "Scope",
+      "default": "read"
+     },
+     "expires_in_days": {
+      "type": "integer",
+      "maximum": 365.0,
+      "minimum": 1.0,
+      "title": "Expires In Days",
+      "default": 90
+     }
+    },
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "title": "ApiTokenCreate",
+    "description": "A personal API token for MCP assistants and scripts (ADR-0015 Decision 2)."
+   },
+   "ApiTokenCreated": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "user_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "User Id"
+     },
+     "user_email": {
+      "type": "string",
+      "title": "User Email"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "token_prefix": {
+      "type": "string",
+      "title": "Token Prefix"
+     },
+     "scope": {
+      "type": "string",
+      "title": "Scope"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "active",
+       "expired",
+       "revoked"
+      ],
+      "title": "Status"
+     },
+     "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+     },
+     "last_used_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Used At"
+     },
+     "revoked_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revoked At"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "secret": {
+      "type": "string",
+      "title": "Secret"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "user_id",
+     "user_email",
+     "name",
+     "token_prefix",
+     "scope",
+     "status",
+     "expires_at",
+     "last_used_at",
+     "revoked_at",
+     "created_at",
+     "secret"
+    ],
+    "title": "ApiTokenCreated",
+    "description": "The secret is in this response only; it is never stored or shown again."
+   },
+   "ApiTokenOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "user_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "User Id"
+     },
+     "user_email": {
+      "type": "string",
+      "title": "User Email"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "token_prefix": {
+      "type": "string",
+      "title": "Token Prefix"
+     },
+     "scope": {
+      "type": "string",
+      "title": "Scope"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "active",
+       "expired",
+       "revoked"
+      ],
+      "title": "Status"
+     },
+     "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Expires At"
+     },
+     "last_used_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Used At"
+     },
+     "revoked_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revoked At"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "user_id",
+     "user_email",
+     "name",
+     "token_prefix",
+     "scope",
+     "status",
+     "expires_at",
+     "last_used_at",
+     "revoked_at",
+     "created_at"
+    ],
+    "title": "ApiTokenOut"
+   },
    "AreaDefinition": {
     "properties": {
      "key": {

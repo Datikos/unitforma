@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
+from starlette.routing import Route
 
 from unitforma import __version__
 from unitforma.api import (
@@ -26,6 +27,7 @@ from unitforma.core.errors import install_error_handlers
 from unitforma.core.logging import configure_logging
 from unitforma.core.security import RequestedWithMiddleware
 from unitforma.core.settings import get_settings
+from unitforma.mcp.server import mcp_asgi
 
 log = structlog.get_logger()
 
@@ -45,7 +47,12 @@ async def _lifespan(app: FastAPI):
         jobs_open = True
     except Exception as e:  # noqa: BLE001 - the API still serves reads; enqueue errors surface
         log.warning("api.jobs_unavailable", error=str(e))
-    yield
+    async with AsyncExitStack() as stack:
+        # the mounted MCP app's own lifespan never runs; its session manager starts here
+        mcp_server = getattr(app.state, "mcp_server", None)
+        if mcp_server is not None:
+            await stack.enter_async_context(mcp_server.session_manager.run())
+        yield
     if jobs_open:
         await jobs_app.close_async()
     await dispose_engine()
@@ -74,6 +81,11 @@ def create_app() -> FastAPI:
     app.include_router(admin_sales.router)
     app.include_router(admin_publishing.router)
     app.include_router(admin_regulatory.router)
+    app.state.mcp_server = None
+    if settings.mcp_enabled:
+        # one route, not a Mount: a Mount would answer /mcp with a redirect to /mcp/
+        app.state.mcp_server, mcp_app = mcp_asgi(settings)
+        app.router.routes.append(Route("/mcp", endpoint=mcp_app, methods=["GET", "POST", "DELETE"]))
     return app
 
 

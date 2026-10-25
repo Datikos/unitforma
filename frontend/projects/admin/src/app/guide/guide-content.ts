@@ -34,6 +34,7 @@ export const GUIDE_ORDER = [
   'sales-setup',
   'publish',
   'members',
+  'tokens',
   'audit',
 ] as const;
 
@@ -393,6 +394,31 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
     ],
     roles: ['tenant_admin'],
+  },
+  tokens: {
+    title: 'API tokens',
+    icon: 'lucideKeyRound',
+    purpose:
+      'Personal tokens that let an AI assistant (Claude Code, Claude.ai) or a script work in this workspace as you, through the MCP server at /mcp. A token never does more than your role allows; a read token changes nothing.',
+    controls: [
+      {
+        name: 'Create token',
+        does: 'Name, scope (read or write) and expiry (90 days by default, one year at most). The secret is shown once; copy it into your assistant right away.',
+      },
+      {
+        name: 'Connect command',
+        does: 'The exact command for Claude Code with the host filled in; Claude.ai custom connectors take the same URL and token as an API key.',
+      },
+      {
+        name: 'Revoke',
+        does: 'Stops the token on its next call. Tenant admins see and revoke every token of the workspace; other members only their own.',
+      },
+    ],
+    roles: ALL,
+    tips: [
+      'Tokens are bearer secrets, not OAuth sign-ins: anyone holding the secret acts as you until it expires or is revoked.',
+      'Every change made through a token lands in the audit log with the token prefix as its request id.',
+    ],
   },
   audit: {
     title: 'Audit log',
