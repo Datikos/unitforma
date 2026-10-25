@@ -21,6 +21,9 @@ ALLOWED_MIME = {
     "image/webp": ".webp",
     "model/gltf-binary": ".glb",
     "application/x-step": ".ifc",
+    "application/dxf": ".dxf",
+    "image/vnd.dxf": ".dxf",
+    "application/x-dxf": ".dxf",
     "application/octet-stream": "",
 }
 MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024

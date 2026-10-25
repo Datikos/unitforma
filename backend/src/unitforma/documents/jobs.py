@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from unitforma.core.db import tenant_session
 from unitforma.core.ids import new_id
-from unitforma.documents import assignments, levels, processing
+from unitforma.documents import assignments, cad_dxf, levels, processing
 from unitforma.mapping.jobs import propose_revision_diff
 from unitforma.storage.service import get_storage
 from unitforma.tenants.models import Building, Document, DocumentRevision, Floor, Sheet
@@ -34,8 +34,11 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
         rev.processing_status = "processing"
         rev.processing_error = None
         data = storage.get_bytes(rev.object_key)
+        cad: cad_dxf.DxfDrawing | None = None
         try:
             info = processing.inspect(data, rev.mime)
+            if info.mime == cad_dxf.MIME:
+                cad = cad_dxf.DxfDrawing(data)  # parsed once for every layout (ADR-0006)
         except Exception as e:  # noqa: BLE001
             rev.processing_status = "failed"
             rev.processing_error = f"inspect: {e}"[:2000]
@@ -80,8 +83,12 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
     page_lines: dict[int, int] = {}
     for page_no in range(1, page_count + 1):
         try:
-            png, thumb, w, h = processing.rasterize_page(data, mime, page_no)
-            extract = processing.extract_page(data, mime, page_no)
+            if cad is not None:
+                png, thumb, w, h = cad.rasterize(page_no)
+                extract = cad.extract(page_no)
+            else:
+                png, thumb, w, h = processing.rasterize_page(data, mime, page_no)
+                extract = processing.extract_page(data, mime, page_no)
         except Exception as e:  # noqa: BLE001
             log.warning(
                 "documents.page_failed", revision_id=str(revision_id), page=page_no, error=str(e)
@@ -106,6 +113,11 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
             )
             sheet.raster_width, sheet.raster_height = w, h
             sheet.hints = extract["hints"]
+            # a DXF with units arrives calibrated; a reviewer's own calibration is never replaced
+            if cad is not None and sheet.calibration_status == "none":
+                cal = cad.calibration(page_no, w, h)
+                if cal:
+                    sheet.calibration, sheet.calibration_status = cal, "calibrated"
         markers[page_no] = levels.markers_from_words(extract.get("words") or [])
         page_hints[page_no] = extract["hints"]
         page_lines[page_no] = int((extract.get("vectors") or {}).get("lines") or 0)

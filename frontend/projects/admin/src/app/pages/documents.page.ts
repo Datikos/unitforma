@@ -41,8 +41,11 @@ type Kind = 'site_plan' | 'floor_plan' | 'section' | 'elevation' | 'render' | 's
           </mat-form-field>
           <mat-form-field appearance="outline"><mat-label>Title</mat-label><input matInput [(ngModel)]="title" name="title" /></mat-form-field>
           <mat-form-field appearance="outline"><mat-label>Source note</mat-label><input matInput [(ngModel)]="note" name="note" placeholder="Rev C from architect" /></mat-form-field>
-          <input type="file" #file accept="application/pdf,image/png,image/jpeg" (change)="onFile($event)" />
+          <input type="file" #file accept="application/pdf,image/png,image/jpeg,.dxf,application/dxf,image/vnd.dxf" (change)="onFile($event)" />
           <button mat-flat-button [disabled]="busy() || !selected" (click)="upload()">Upload</button>
+        </mat-card-content>
+        <mat-card-content class="uf-muted formats">
+          Accepted: PDF and PNG/JPG (plans, renders, schedules) and DXF exported from AutoCAD or ArchiCAD (one sheet per layout, scale taken from the drawing units). DWG must be saved as DXF first; IFC and GLB are stored but not processed yet. Any 2D source gives the schematic 3D model; exact 3D needs an IFC export.
         </mat-card-content>
         @if (progress() !== null) { <mat-progress-bar mode="determinate" [value]="(progress() ?? 0) * 100" /> }
       </mat-card>
@@ -91,6 +94,7 @@ type Kind = 'site_plan' | 'floor_plan' | 'section' | 'elevation' | 'render' | 's
     </div>
   `,
   styles: `
+    .formats { font-size: 0.85rem; padding-top: 0; }
     .uf-form-row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
     .uf-actions { display: flex; gap: 0.5rem; }
     .uf-sheets { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem; }
@@ -185,7 +189,7 @@ export class DocumentsPage {
     this.progress.set(0);
     try {
       const doc = this.targetDoc ?? (await this.api.createDocument(this.tenantId(), this.projectId(), { kind: this.kind, title: this.title || file.name, building_id: this.buildingId, visibility: 'internal', source: {} }));
-      const ct = file.type || 'application/octet-stream';
+      const ct = file.type || (/\.dxf$/i.test(file.name) ? 'application/dxf' : 'application/octet-stream');
       const intent = await this.api.createUpload(this.tenantId(), doc.id, { file_name: file.name, content_type: ct, byte_size: file.size, source_note: this.note || null });
       await this.api.uploadToPresignedUrl(intent.upload_url, file, ct, (p) => this.progress.set(p));
       await this.api.completeUpload(this.tenantId(), intent.revision.id);

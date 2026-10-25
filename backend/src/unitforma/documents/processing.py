@@ -5,6 +5,9 @@ Pure functions over bytes so they are testable without storage or a database:
 * ``rasterize_page`` — PNG at a target long edge plus a thumbnail (pypdfium2 / Pillow)
 * ``extract_page`` — text with positions, vector segment statistics, hints (levels, scale,
   apartment labels) for floor suggestions (pdfplumber)
+
+DXF files take the same route through ``documents.cad_dxf`` (ADR-0006): one sheet per layout,
+the same extract shape, a raster drawn from the vectors.
 """
 
 from __future__ import annotations
@@ -55,6 +58,10 @@ def sniff_mime(data: bytes, declared: str | None) -> str:
         return "model/gltf-binary"
     if data[:20].upper().startswith(b"ISO-10303-21"):
         return "application/x-step"
+    from unitforma.documents import cad_dxf
+
+    if cad_dxf.is_dxf(data):
+        return cad_dxf.MIME
     return declared or "application/octet-stream"
 
 
@@ -74,6 +81,11 @@ def inspect(data: bytes, declared_mime: str | None = None) -> FileInspection:
 
         with Image.open(io.BytesIO(data)) as im:
             pages.append(PageInfo(1, float(im.width), float(im.height)))
+    elif mime == "application/dxf":
+        from unitforma.documents import cad_dxf
+
+        for lay in cad_dxf.DxfDrawing(data).layouts:
+            pages.append(PageInfo(lay.page_no, lay.width_pt, lay.height_pt))
     return FileInspection(sha256=sha, mime=mime, page_count=len(pages), pages=pages)
 
 

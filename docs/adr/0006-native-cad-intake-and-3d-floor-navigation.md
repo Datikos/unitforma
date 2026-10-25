@@ -1,6 +1,6 @@
 # ADR-0006: Native CAD intake (DXF, DWG, IFC) beside PDF, and floor-first 3D navigation in the portal
 
-- **Status:** accepted (2026-10-25; Phase A implemented 2026-10-25; Phases B to D open; DWG backend B1 `none` until the owner picks otherwise)
+- **Status:** accepted (2026-10-25; Phase A implemented 2026-10-25; Phase B implemented 2026-10-25 except the real-file acceptance B8; Phases C and D open; DWG backend B1 `none` until the owner picks otherwise)
 - **Date:** 2026-10-25
 - **Deciders:** David Sakhelashvili (platform owner); the DWG conversion option needs his licence decision
 - **Plan reference:** §1.1, §2.1, §2.2, §4.2, §7.3, §13.2, Phase 8
@@ -225,18 +225,31 @@ Phase A: floor-first navigation (S, no backend)
       `ng test portal` and `ng build portal` are.
 
 Phase B: DXF intake (M)
-- [ ] B1 `pyproject.toml`: add `ezdxf>=1.4.5`; `uv lock`.
-- [ ] B2 `documents/service.py`: accept `application/dxf`, `image/vnd.dxf`, `.dxf` by extension when
+- [x] B1 `pyproject.toml`: add `ezdxf>=1.4.5`; `uv lock`.
+- [x] B2 `documents/service.py`: accept `application/dxf`, `image/vnd.dxf`, `.dxf` by extension when
       declared `octet-stream`; `processing.sniff_mime` detects the DXF header (`0\nSECTION`).
-- [ ] B3 `documents/cad_dxf.py`: `inspect_dxf` (layouts as pages), `extract_layout` producing the
+- [x] B3 `documents/cad_dxf.py`: `inspect_dxf` (layouts as pages), `extract_layout` producing the
       extract shape of Decision 2, `rasterize_layout` with Pillow; legacy font decoding by style name.
-- [ ] B4 `documents/jobs.py` `process_revision`: dispatch on mime; write `calibration` with status
+- [x] B4 `documents/jobs.py` `process_revision`: dispatch on mime; write `calibration` with status
       `from_file` when `$INSUNITS` is metres, centimetres or millimetres.
-- [ ] B5 Tests `test_dxf_intake.py`: a synthetic DXF with two zones as closed `LWPOLYLINE` and one
+- [x] B5 Tests `test_dxf_intake.py`: a synthetic DXF with two zones as closed `LWPOLYLINE` and one
       `HATCH`, labels in `TEXT`, `$INSUNITS = 6`; asserts two fill candidates at confidence 0.95
       with the printed areas, calibration `from_file`, raster dimensions.
-- [ ] B6 Admin documents page: accepted-format list and the Decision 7 note next to the picker.
-- [ ] B7 Docs: plan §13.2 table gets a "DXF" row per step; README status.
+- [x] B6 Admin documents page: accepted-format list and the Decision 7 note next to the picker.
+- [x] B7 Docs: plan §13.2 table gets a "DXF" row per step; README status.
+      *Found while implementing (2026-10-25):* the file-derived calibration is stored with
+      `calibration_status = calibrated` and `calibration.source = dxf_insunits` instead of a new
+      `from_file` status, so the three consumers of the status (`mapping/service.py`,
+      `inventory/service.py`, the revision diff inheritance) stay unchanged; the editor labels it
+      "from the drawing units". Segments keep the flat `[x0, y0, x1, y1]` shape of the PDF extract;
+      layer names live in `hints.layers` (counts) and on each fill, not on each segment. The DXF is
+      parsed once per revision in `documents/jobs.py` and reused for every layout. Text boxes are
+      estimated from the style height and ignore rotation. Binary DXF is refused with a message.
+      Two gaps left open: a unitless drawing (`$INSUNITS = 0`) that prints "1:100" keeps its
+      `page_pt` in raw drawing units, so areas compare wrongly until the reviewer calibrates by hand
+      (calibrate before trusting suggestions); and the preview raster draws text with Pillow's default
+      font, which has no Georgian glyphs, so decoded labels show as boxes on the PNG while the extract,
+      the word list and the suggestions carry the right text.
 - [ ] B8 Acceptance on a real ArchiCAD DXF export from the pilot office (owner provides the file, it
       stays outside git): zones arrive as fills, labels decode, calibration `from_file` within 1 % of
       the printed scale; result recorded here as "*Found while implementing*". Decision 2 is not done

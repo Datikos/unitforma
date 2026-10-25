@@ -79,7 +79,7 @@ import { PlanMode, PlanPolygon, PlanViewerComponent, Point, Ring } from 'plan-vi
           </mat-button-toggle-group>
           <button mat-stroked-button [disabled]="busy() || !confirmedFloors().length" (click)="suggest()">Suggest boundaries</button>
           <span class="uf-muted">
-            @if (pxPerMetre(); as ppm) { {{ ppm | number: '1.0-0' }} px/m @if (s.calibration_status === 'inherited') { (inherited) } } @else { not calibrated }
+            @if (pxPerMetre(); as ppm) { {{ ppm | number: '1.0-0' }} px/m @if (s.calibration_status === 'inherited') { (inherited) } @else if (calibrationSource()) { (from the drawing units) } } @else { not calibrated }
             · {{ hintsText() }}
           </span>
           <span class="uf-spacer"></span>
@@ -348,6 +348,12 @@ export class SheetPage {
   saveFloors(): Promise<void> {
     const floors = this.draft().map((a) => ({ floor_id: a.floor_id, region: a.region ? { ring: a.region['ring'] as number[][] } : null }));
     return this.run(() => this.api.setSheetFloors(this.tenantId(), this.sheetId(), floors, this.sheet()!.version));
+  }
+
+  /** Set when the calibration came from the file itself (DXF $INSUNITS, ADR-0006). */
+  calibrationSource(): string | null {
+    const c = this.sheet()?.calibration as { source?: string } | null | undefined;
+    return c?.source ?? null;
   }
 
   calibrate(): Promise<void> {

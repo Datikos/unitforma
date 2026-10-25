@@ -24,6 +24,7 @@ dependencies = [
   "pillow>=10.4",
   "shapely>=2.0",
   "openpyxl>=3.1",
+  "ezdxf>=1.4.5",
 ]
 
 [project.optional-dependencies]
