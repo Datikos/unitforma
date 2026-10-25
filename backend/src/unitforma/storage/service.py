@@ -44,6 +44,12 @@ class LocalStorage:
         self.secret = secret.encode()
         self.public_base = public_base.rstrip("/")
         root.mkdir(parents=True, exist_ok=True)
+        if not os.access(root, os.W_OK):
+            # One clear error per use instead of an Errno 13 deep inside a job (root-owned volume).
+            raise PermissionError(
+                f"storage root {root} is not writable; fix the volume ownership "
+                "(README, Local development)"
+            )
 
     def _path(self, key: str) -> Path:
         p = (self.root / key).resolve()

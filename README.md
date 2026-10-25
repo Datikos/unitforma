@@ -51,6 +51,12 @@ stopped with "dependency failed to start", run `init-garage.sh` and repeat `up -
 | http://127.0.0.1:8000/api/docs | API docs (dev only) |
 | http://127.0.0.1:8025 | Mailpit: every email, including login codes |
 
+The dev stack stores uploaded files in the `local_storage` volume (`UF_STORAGE_BACKEND=local`), not
+in Garage. A volume created by an image built before 2026-10-25 is owned by root and every upload
+fails with `Permission denied: '/data/storage/t'`. Fix the ownership once, then rebuild:
+`docker compose -f compose.yaml -f compose.dev.yaml run --rm --no-deps -u root --entrypoint chown api 10001:10001 /data/storage`
+and `up -d --build api worker-light worker-heavy`.
+
 Update one module without touching the rest: `docker compose -f compose.yaml -f compose.dev.yaml up -d --no-deps --build api`.
 
 ## First platform administrator
