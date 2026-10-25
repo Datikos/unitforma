@@ -51,6 +51,9 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     secrets: [internal_ask_token]
+    # Caddy's on-demand TLS `ask` is a plain GET: the shared secret travels as ?token= (Caddyfile),
+    # read from the secret file here so it never sits in the image or in .env.
+    entrypoint: ["/bin/sh", "-c", "export UF_INTERNAL_ASK_TOKEN=$(cat /run/secrets/internal_ask_token) && exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"]
     depends_on:
       api: { condition: service_healthy }
       web-admin: { condition: service_started }

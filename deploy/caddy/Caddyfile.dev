@@ -3,8 +3,9 @@
 {
 	admin 0.0.0.0:2019
 	local_certs
+	# The token is the internal_ask_token secret, exported by the container entrypoint (compose.yaml).
 	on_demand_tls {
-		ask http://api:8000/internal/domains/ask
+		ask http://api:8000/internal/domains/ask?token={$UF_INTERNAL_ASK_TOKEN}
 	}
 	servers {
 		trusted_proxies static private_ranges

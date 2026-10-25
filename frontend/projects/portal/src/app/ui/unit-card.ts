@@ -20,7 +20,18 @@ import { PortalApi, UnitDoc } from '../core/portal-api';
     >
       <a [routerLink]="link()" class="uc__cover" [attr.aria-label]="'Open ' + u.code">
         @if (cover(); as c) {
-          <img [src]="c" [alt]="typeLabel(u.unit_type) + ' ' + u.code" loading="lazy" />
+          @if (crop(); as cr) {
+            <span
+              class="uc__plan"
+              role="img"
+              [attr.aria-label]="typeLabel(u.unit_type) + ' ' + u.code + ' on the floor plan'"
+              [style.background-image]="'url(' + c + ')'"
+              [style.background-size]="cr.size"
+              [style.background-position]="cr.position"
+            ></span>
+          } @else {
+            <img [src]="c" [alt]="typeLabel(u.unit_type) + ' ' + u.code" loading="lazy" />
+          }
         } @else {
           <span class="uc__ph"><ng-icon [name]="typeIcon()" /></span>
         }
@@ -86,6 +97,13 @@ import { PortalApi, UnitDoc } from '../core/portal-api';
       height: 100%;
       object-fit: cover;
       display: block;
+    }
+    .uc__plan {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background-repeat: no-repeat;
+      background-color: #fff;
     }
     .uc__ph {
       display: grid;
@@ -179,6 +197,35 @@ export class UnitCardComponent {
     const img = u.media?.find((m) => m.mime.startsWith('image/'));
     const url = img?.url ?? u.plan?.url ?? null;
     return url ? this.api.asset(url) : null;
+  });
+  /** Zoom the plan onto the unit: background-size and position from the outline's bounding box (with a margin). */
+  readonly crop = computed(() => {
+    const u = this.unit();
+    const ring = u.plan?.ring;
+    if (!ring?.length || u.media?.some((m) => m.mime.startsWith('image/'))) return null;
+    const xs = ring.map((p) => p[0]);
+    const ys = ring.map((p) => p[1]);
+    const pad = 0.6; // show the neighbours too, so the unit reads in context
+    let w = Math.max(...xs) - Math.min(...xs);
+    let h = Math.max(...ys) - Math.min(...ys);
+    const cx = (Math.max(...xs) + Math.min(...xs)) / 2;
+    const cy = (Math.max(...ys) + Math.min(...ys)) / 2;
+    // the card cover is 4:3; widen the window to that ratio in sheet space, then pad
+    const sheet = (u.plan?.width ?? 4) / (u.plan?.height ?? 3);
+    const want = 4 / 3 / sheet; // window width/height in normalised units
+    if (w / h < want) w = h * want;
+    else h = w / want;
+    w *= 1 + pad;
+    h *= 1 + pad;
+    w = Math.min(1, w);
+    h = Math.min(1, h);
+    const x0 = Math.min(Math.max(cx - w / 2, 0), 1 - w);
+    const y0 = Math.min(Math.max(cy - h / 2, 0), 1 - h);
+    const pos = (v: number, span: number) => (span >= 1 ? 50 : (v / (1 - span)) * 100);
+    return {
+      size: `${(100 / w).toFixed(2)}% ${(100 / h).toFixed(2)}%`,
+      position: `${pos(x0, w).toFixed(2)}% ${pos(y0, h).toFixed(2)}%`,
+    };
   });
   readonly mainArea = computed(() => {
     const areas = this.unit().areas ?? {};

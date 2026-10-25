@@ -3,7 +3,8 @@
 	admin 127.0.0.1:2019
 	on_demand_tls {
 		# 2xx allows issuance; anything else fails the TLS handshake (unknown-host rejection).
-		ask http://api:8000/internal/domains/ask
+		# The token is the internal_ask_token secret, exported by the container entrypoint.
+		ask http://api:8000/internal/domains/ask?token={$UF_INTERNAL_ASK_TOKEN}
 	}
 	metrics
 	servers {

@@ -168,9 +168,10 @@ export interface PolygonMove {
       position: relative;
       overflow: hidden;
       width: 100%;
-      height: var(--uf-plan-height, 70vh);
+      max-width: 100%;
+      height: auto;
       aspect-ratio: var(--uf-plan-aspect, auto);
-      max-height: var(--uf-plan-max-height, none);
+      max-height: var(--uf-plan-max-height, var(--uf-plan-height, 70vh));
       min-height: var(--uf-plan-min-height, 420px);
       background: #e5e7eb;
       cursor: grab;

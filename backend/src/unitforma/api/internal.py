@@ -40,13 +40,19 @@ async def ready(response: Response) -> dict:
 async def domains_ask(
     response: Response,
     domain: str = Query(min_length=1, max_length=253),
+    token: str | None = Query(default=None, max_length=200),
     x_unitforma_internal: str | None = Header(default=None),
 ) -> dict:
-    """Caddy on-demand TLS permission endpoint: 200 allows issuance, 403 denies."""
+    """Caddy on-demand TLS permission endpoint: 200 allows issuance, 403 denies.
+
+    The shared secret arrives as ``?token=`` (Caddy's ``ask`` sends a plain GET and cannot add
+    headers; the Caddyfile appends the value of the ``internal_ask_token`` secret) or, for other
+    internal callers, as the ``X-Unitforma-Internal`` header.
+    """
     settings = get_settings()
+    presented = x_unitforma_internal or token
     if settings.internal_ask_token and not (
-        x_unitforma_internal
-        and hmac.compare_digest(x_unitforma_internal, settings.internal_ask_token)
+        presented and hmac.compare_digest(presented, settings.internal_ask_token)
     ):
         response.status_code = 403
         return {"allowed": False, "reason": "unauthorised"}
