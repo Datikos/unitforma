@@ -14,6 +14,7 @@ from unitforma.api import (
     admin_geometry,
     admin_mapping,
     admin_projects,
+    admin_publishing,
     admin_sales,
     internal,
     platform,
@@ -33,7 +34,19 @@ async def _lifespan(app: FastAPI):
     settings = get_settings()
     configure_logging(settings.log_level, settings.log_json)
     log.info("api.start", version=__version__, environment=settings.environment)
+    # The API enqueues jobs (upload processing, massing, diffs); Procrastinate needs its
+    # connector opened in this process too, not only in the worker.
+    from unitforma.jobs.app import app as jobs_app
+
+    jobs_open = False
+    try:
+        await jobs_app.open_async()
+        jobs_open = True
+    except Exception as e:  # noqa: BLE001 - the API still serves reads; enqueue errors surface
+        log.warning("api.jobs_unavailable", error=str(e))
     yield
+    if jobs_open:
+        await jobs_app.close_async()
     await dispose_engine()
     log.info("api.stop")
 
@@ -58,6 +71,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_mapping.router)
     app.include_router(admin_geometry.router)
     app.include_router(admin_sales.router)
+    app.include_router(admin_publishing.router)
     return app
 
 

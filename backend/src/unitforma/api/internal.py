@@ -84,14 +84,11 @@ async def local_file(
         return Response(status_code=200)
     if st.head(key) is None:
         return Response(status_code=404)
+    import mimetypes
+
     data = st.get_bytes(key)
-    ctype = (
-        "application/pdf"
-        if key.endswith(".pdf")
-        else "image/png"
-        if key.endswith(".png")
-        else "application/json"
-        if key.endswith(".json")
-        else "application/octet-stream"
+    ext = key.rsplit(".", 1)[-1].lower() if "." in key else ""
+    ctype = {"glb": "model/gltf-binary", "webp": "image/webp"}.get(ext) or (
+        mimetypes.guess_type(key)[0] or "application/octet-stream"
     )
     return Response(content=data, media_type=ctype)

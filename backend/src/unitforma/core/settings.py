@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     # Internal endpoint protection (Caddy on-demand TLS ask endpoint)
     internal_ask_token: str = ""
 
+    # Scheme of public portal URLs (dev Caddy serves https with its local CA as well)
+    public_scheme: str = "https"
+    # Seconds a portal host → publication lookup is cached per process (unpublish latency)
+    portal_cache_seconds: float = 5.0
+
     # Buyer sessions
     app_session_key: str = Field(default="dev-only-change-me", min_length=16)
     app_session_ttl_days: int = 30

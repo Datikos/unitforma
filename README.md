@@ -5,7 +5,7 @@ drawings and renders, prepare a human-verified unit inventory, attach prices and
 branded buyer portal on `{tenant}.unitforma.com` or the developer's own domain, and receive
 buyer inquiries authenticated with an email one-time code.
 
-**Status:** Phase 3 (sales workspace) complete on top of Phases 1–2: inventory grid with inline and bulk edit and optimistic concurrency (409 with the current row), nullable prices with explicit currency and computed price per m², availability with reasons, payment plans, promotions, unit media with the AI-generated flag, CSV/XLSX import with column mapping and dry run, exports with the same columns, price/availability history and per-field audit, public-field controls with a buyer preview. Next: Phase 4 (publishing and buyer portal). See the plan in
+**Status:** Phase 4 (publishing and buyer portal) complete on top of Phases 1–3: readiness checklist, unit publication flags, immutable publication snapshots with a filterable read model, signed preview links, atomic publish and unpublish, host-based tenant and single-project portals, and the buyer portal (site plan and 3D massing, buildings and floor plans coloured by availability, unit list with filters, unit pages with labelled media, favourites). Next: Phase 5 (buyer accounts and inquiries). See the plan in
 [`docs/architecture/plan-v0.1.md`](docs/architecture/plan-v0.1.md) and the decisions in
 [`docs/adr/`](docs/adr/).
 

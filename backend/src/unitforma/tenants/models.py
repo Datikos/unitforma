@@ -164,6 +164,8 @@ class Project(TimestampMixin, Base):
     regulatory: Mapped[dict] = mapped_column(JSONB, default=dict)
     # price_area_type, public field defaults, saved import column mapping (plan §6.2, §6.3, §6.6)
     sales_settings: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # portal presentation: branding overrides, hero text, construction stage (plan §9.3)
+    portal_settings: Mapped[dict] = mapped_column(JSONB, default=dict)
     version: Mapped[int] = mapped_column(default=1)
 
 
@@ -645,3 +647,55 @@ class ImportBatch(TimestampMixin, Base):
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     applied_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# --- publishing (plan §5.3 publications, §9.3) -------------------------------------------
+class Publication(Base):
+    __tablename__ = "publications"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    version_no: Mapped[int] = mapped_column()
+    status: Mapped[str] = mapped_column(String(20))  # preview | published | retired
+    snapshot_key: Mapped[str] = mapped_column(String(512))
+    summary: Mapped[dict] = mapped_column(JSONB, default=dict)
+    assets: Mapped[dict] = mapped_column(JSONB, default=dict)  # public name -> storage key
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class PublishedUnit(Base):
+    """Read model for portal filters; ``data`` is the allow-listed public view of the unit."""
+
+    __tablename__ = "published_units"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    publication_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("publications.id", ondelete="CASCADE")
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    unit_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True))
+    code: Mapped[str] = mapped_column(String(40))
+    building_code: Mapped[str] = mapped_column(String(20))
+    floor_level: Mapped[int] = mapped_column()
+    unit_type: Mapped[str] = mapped_column(String(20))
+    availability: Mapped[str] = mapped_column(String(20))
+    listed: Mapped[bool] = mapped_column(Boolean, default=True)
+    price_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    currency: Mapped[str | None] = mapped_column(String(3))
+    area_m2: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    rooms: Mapped[int | None] = mapped_column()
+    bedrooms: Mapped[int | None] = mapped_column()
+    sort_order: Mapped[int] = mapped_column(default=0)
+    data: Mapped[dict] = mapped_column(JSONB)

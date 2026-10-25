@@ -113,6 +113,10 @@ const SETS: Record<Exclude<ColumnSet, 'all'>, string[]> = {
             <button mat-stroked-button [disabled]="busy()" (click)="runBulk(true)">Preview</button>
             <button mat-flat-button [disabled]="busy() || !preview()" (click)="runBulk(false)">Apply to {{ selected().length }} unit(s)</button>
             <button mat-button (click)="clearSelection()">Clear selection</button>
+            <span class="uf-spacer"></span>
+            <button mat-button [disabled]="busy()" (click)="setPublication('published')">Make public</button>
+            <button mat-button [disabled]="busy()" (click)="setPublication('hidden')">Link only</button>
+            <button mat-button [disabled]="busy()" (click)="setPublication('unpublished')">Withdraw</button>
           </mat-card-actions>
           @if (preview(); as p) {
             <div class="uf-preview">
@@ -151,6 +155,7 @@ const SETS: Record<Exclude<ColumnSet, 'all'>, string[]> = {
     .uf-preview td, .uf-preview th { text-align: left; padding: 0.25rem 0.5rem; border-bottom: 1px solid #e5e7eb; }
     .uf-chg { display: inline-block; margin-right: 0.75rem; }
     .uf-legend { font-size: 0.8rem; }
+    .uf-spacer { flex: 1; }
   `,
 })
 export class InventoryPage {
@@ -466,6 +471,20 @@ export class InventoryPage {
       } else {
         this.error.set(problemMessage(e));
       }
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** Publication flags of the selected units (project managers; reach buyers with the next publication). */
+  async setPublication(status: 'published' | 'hidden' | 'unpublished'): Promise<void> {
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      await this.api.setUnitPublication(this.tenantId(), this.projectId(), status, this.selected().map((r) => r.unit_id));
+      await this.load();
+    } catch (e) {
+      this.error.set(problemMessage(e));
     } finally {
       this.busy.set(false);
     }

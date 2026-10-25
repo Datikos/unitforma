@@ -28,7 +28,7 @@ export interface MassingUnitInfo {
   `,
   styles: `
     :host { display: block; }
-    .mv { position: relative; width: 100%; height: 70vh; min-height: 420px; background: #f3f4f6; overflow: hidden; }
+    .mv { position: relative; width: 100%; height: var(--uf-3d-height, 70vh); min-height: var(--uf-3d-min-height, 420px); background: #f3f4f6; overflow: hidden; }
     canvas { display: block; width: 100%; height: 100%; }
     .mv__badge { position: absolute; left: 0.5rem; bottom: 0.5rem; font: 12px system-ui, sans-serif; color: #374151; background: rgba(255,255,255,0.85); padding: 0.25rem 0.5rem; border-radius: 4px; }
     .mv__status { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 14px system-ui, sans-serif; color: #374151; }
@@ -42,12 +42,16 @@ export class MassingViewerComponent implements OnDestroy {
   readonly floorLevel = input<number | null>(null);
   /** Selected unit id (highlighted). */
   readonly selectedUnitId = input<string | null>(null);
+  /** Per-unit base colours (e.g. by availability), keyed by unit id; others keep the GLB colour. */
+  readonly unitColors = input<Record<string, string> | null>(null);
 
   readonly unitPicked = output<MassingUnitInfo>();
   readonly loadedUnits = output<MassingUnitInfo[]>();
 
   readonly status = signal<string | null>('No model loaded');
   readonly hovered = signal<MassingUnitInfo | null>(null);
+  /** Bumped after each model load so colour effects re-run. */
+  readonly loadedTick = signal(0);
 
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
   private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
@@ -75,6 +79,16 @@ export class MassingViewerComponent implements OnDestroy {
     effect(() => {
       const sel = this.selectedUnitId();
       for (const m of this.meshes) this.paint(m, m.userData['unit_id'] === sel ? 'selected' : null);
+    });
+    effect(() => {
+      const colours = this.unitColors();
+      this.loadedTick();
+      if (!colours) return;
+      for (const m of this.meshes) {
+        const c = colours[m.userData['unit_id'] as string];
+        if (c) this.baseColours.set(m, new THREE.Color(c));
+        this.paint(m, m.userData['unit_id'] === this.selectedUnitId() ? 'selected' : null);
+      }
     });
   }
 
@@ -155,6 +169,7 @@ export class MassingViewerComponent implements OnDestroy {
       this.frameAll();
       this.status.set(this.meshes.length ? null : 'Model has no units yet');
       this.loadedUnits.emit(infos);
+      this.loadedTick.update((n) => n + 1);
       const lvl = this.floorLevel();
       for (const m of this.meshes) m.visible = lvl === null || m.userData['floor_level'] === lvl;
     } catch (e) {

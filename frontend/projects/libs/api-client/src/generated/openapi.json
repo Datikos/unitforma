@@ -114,6 +114,30 @@
     }
    }
   },
+  "/api/v1/portal/site": {
+   "get": {
+    "tags": [
+     "portal"
+    ],
+    "summary": "Site",
+    "description": "Landing data for this host: branding, mode (tenant portal or single project) and the\nlive projects. ``status`` is ``coming_soon`` when nothing is published.",
+    "operationId": "site_api_v1_portal_site_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Site Api V1 Portal Site Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/portal/branding": {
    "get": {
     "tags": [
@@ -130,6 +154,559 @@
          "additionalProperties": true,
          "type": "object",
          "title": "Response Branding Api V1 Portal Branding Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portal/projects/{slug}": {
+   "get": {
+    "tags": [
+     "portal"
+    ],
+    "summary": "Project",
+    "description": "The project snapshot: project text, site, buildings \u2192 floors \u2192 unit polygons, massing.",
+    "operationId": "project_api_v1_portal_projects__slug__get",
+    "parameters": [
+     {
+      "name": "slug",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Slug"
+      }
+     },
+     {
+      "name": "preview",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 512
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Signed preview token",
+       "title": "Preview"
+      },
+      "description": "Signed preview token"
+     },
+     {
+      "name": "X-Unitforma-Preview",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 512
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "X-Unitforma-Preview"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Project Api V1 Portal Projects  Slug  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portal/projects/{slug}/units": {
+   "get": {
+    "tags": [
+     "portal"
+    ],
+    "summary": "Units",
+    "description": "Listed units with filters (published read model). A price filter excludes units\nwhose price is on request.",
+    "operationId": "units_api_v1_portal_projects__slug__units_get",
+    "parameters": [
+     {
+      "name": "slug",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Slug"
+      }
+     },
+     {
+      "name": "availability",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "enum": [
+           "available",
+           "reserved",
+           "sold",
+           "withdrawn"
+          ],
+          "type": "string"
+         }
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Availability"
+      }
+     },
+     {
+      "name": "unit_type",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "maxItems": 10
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Unit Type"
+      }
+     },
+     {
+      "name": "building",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "maxItems": 50
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Building"
+      }
+     },
+     {
+      "name": "floor",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "type": "integer"
+         },
+         "maxItems": 200
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Floor"
+      }
+     },
+     {
+      "name": "rooms",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "type": "integer"
+         },
+         "maxItems": 10
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "5 = five or more",
+       "title": "Rooms"
+      },
+      "description": "5 = five or more"
+     },
+     {
+      "name": "min_price",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "number",
+         "minimum": 0
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Min Price"
+      }
+     },
+     {
+      "name": "max_price",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "number",
+         "minimum": 0
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Max Price"
+      }
+     },
+     {
+      "name": "min_area",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "number",
+         "minimum": 0
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Min Area"
+      }
+     },
+     {
+      "name": "max_area",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "number",
+         "minimum": 0
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Max Area"
+      }
+     },
+     {
+      "name": "sort",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "enum": [
+        "code",
+        "price_asc",
+        "price_desc",
+        "area_asc",
+        "area_desc"
+       ],
+       "type": "string",
+       "default": "code",
+       "title": "Sort"
+      }
+     },
+     {
+      "name": "offset",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "minimum": 0,
+       "default": 0,
+       "title": "Offset"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "maximum": 500,
+       "minimum": 1,
+       "default": 200,
+       "title": "Limit"
+      }
+     },
+     {
+      "name": "preview",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 512
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Signed preview token",
+       "title": "Preview"
+      },
+      "description": "Signed preview token"
+     },
+     {
+      "name": "X-Unitforma-Preview",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 512
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "X-Unitforma-Preview"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Units Api V1 Portal Projects  Slug  Units Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portal/projects/{slug}/units/{code}": {
+   "get": {
+    "tags": [
+     "portal"
+    ],
+    "summary": "Unit",
+    "description": "One unit (listed or hidden-but-linkable) as published.",
+    "operationId": "unit_api_v1_portal_projects__slug__units__code__get",
+    "parameters": [
+     {
+      "name": "slug",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Slug"
+      }
+     },
+     {
+      "name": "code",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Code"
+      }
+     },
+     {
+      "name": "preview",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 512
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Signed preview token",
+       "title": "Preview"
+      },
+      "description": "Signed preview token"
+     },
+     {
+      "name": "X-Unitforma-Preview",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 512
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "X-Unitforma-Preview"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Unit Api V1 Portal Projects  Slug  Units  Code  Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portal/projects/{slug}/assets/{name}": {
+   "get": {
+    "tags": [
+     "portal"
+    ],
+    "summary": "Asset",
+    "description": "Redirect to a short-lived signed URL of a published asset. Only names listed in the\npublication being served resolve, so internal objects are unreachable by construction.",
+    "operationId": "asset_api_v1_portal_projects__slug__assets__name__get",
+    "parameters": [
+     {
+      "name": "slug",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Slug"
+      }
+     },
+     {
+      "name": "name",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Name"
+      }
+     },
+     {
+      "name": "preview",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 512
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Signed preview token",
+       "title": "Preview"
+      },
+      "description": "Signed preview token"
+     },
+     {
+      "name": "X-Unitforma-Preview",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 512
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "X-Unitforma-Preview"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
         }
        }
       }
@@ -4985,6 +5562,296 @@
      }
     }
    }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/publish/readiness": {
+   "get": {
+    "tags": [
+     "publishing"
+    ],
+    "summary": "Readiness",
+    "operationId": "readiness_api_v1_admin_tenants__tenant_id__projects__project_id__publish_readiness_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ReadinessOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/units/publication": {
+   "put": {
+    "tags": [
+     "publishing"
+    ],
+    "summary": "Set Unit Publication",
+    "description": "Mark units published / hidden (linkable, not listed) / unpublished (plan \u00a76.1).",
+    "operationId": "set_unit_publication_api_v1_admin_tenants__tenant_id__projects__project_id__units_publication_put",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UnitPublicationIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UnitPublicationOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/publications": {
+   "get": {
+    "tags": [
+     "publishing"
+    ],
+    "summary": "List Publications",
+    "operationId": "list_publications_api_v1_admin_tenants__tenant_id__projects__project_id__publications_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/PublicationOut"
+         },
+         "title": "Response List Publications Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Publications Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "publishing"
+    ],
+    "summary": "Publish",
+    "description": "``preview``: build a snapshot visible only with the returned 1 h link.\n``publish``: build it and switch the portal to it atomically.",
+    "operationId": "publish_api_v1_admin_tenants__tenant_id__projects__project_id__publications_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PublishRequest"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PublishResult"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/unpublish": {
+   "post": {
+    "tags": [
+     "publishing"
+    ],
+    "summary": "Unpublish",
+    "description": "Retire the live publication; the portal shows \"coming soon\" within seconds.",
+    "operationId": "unpublish_api_v1_admin_tenants__tenant_id__projects__project_id__unpublish_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PublicationOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -5448,6 +6315,110 @@
      "version"
     ],
     "title": "BoundaryUpdate"
+   },
+   "Branding": {
+    "properties": {
+     "primary_color": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^#[0-9a-fA-F]{6}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Primary Color"
+     },
+     "accent_color": {
+      "anyOf": [
+       {
+        "type": "string",
+        "pattern": "^#[0-9a-fA-F]{6}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Accent Color"
+     },
+     "display_name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Display Name"
+     },
+     "tagline": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tagline"
+     },
+     "contact_email": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "email"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Email"
+     },
+     "contact_phone": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 50
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contact Phone"
+     },
+     "website": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200,
+        "pattern": "^https://"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Website"
+     },
+     "legal_text": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 4000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Legal Text"
+     }
+    },
+    "type": "object",
+    "title": "Branding",
+    "description": "Allow-listed branding keys; anything else is dropped by the snapshot builder."
    },
    "BuildingCreate": {
     "properties": {
@@ -7727,6 +8698,58 @@
     ],
     "title": "PaymentPlanUpdate"
    },
+   "PortalSettings": {
+    "properties": {
+     "hero_text": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 2000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Hero Text"
+     },
+     "construction_stage": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 80
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Construction Stage"
+     },
+     "completion": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 80
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Completion"
+     },
+     "branding": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Branding"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "title": "PortalSettings"
+   },
    "PriceHistoryOut": {
     "properties": {
      "id": {
@@ -7959,6 +8982,11 @@
       "type": "object",
       "title": "Sales Settings"
      },
+     "portal_settings": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Portal Settings"
+     },
      "version": {
       "type": "integer",
       "title": "Version"
@@ -8108,6 +9136,16 @@
        }
       ],
       "title": "Regulatory"
+     },
+     "portal_settings": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PortalSettings"
+       },
+       {
+        "type": "null"
+       }
+      ]
      },
      "version": {
       "type": "integer",
@@ -8759,6 +9797,226 @@
      "resolved_at"
     ],
     "title": "ProposalOut"
+   },
+   "PublicationOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Project Id"
+     },
+     "version_no": {
+      "type": "integer",
+      "title": "Version No"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "summary": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Summary"
+     },
+     "published_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Published At"
+     },
+     "retired_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Retired At"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "project_id",
+     "version_no",
+     "status",
+     "summary",
+     "published_at",
+     "retired_at",
+     "created_at"
+    ],
+    "title": "PublicationOut"
+   },
+   "PublishRequest": {
+    "properties": {
+     "mode": {
+      "type": "string",
+      "enum": [
+       "preview",
+       "publish"
+      ],
+      "title": "Mode",
+      "default": "preview"
+     }
+    },
+    "type": "object",
+    "title": "PublishRequest"
+   },
+   "PublishResult": {
+    "properties": {
+     "publication": {
+      "$ref": "#/components/schemas/PublicationOut"
+     },
+     "portal_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Portal Url"
+     },
+     "preview_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Preview Url"
+     },
+     "preview_token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Preview Token"
+     }
+    },
+    "type": "object",
+    "required": [
+     "publication",
+     "portal_url"
+    ],
+    "title": "PublishResult"
+   },
+   "ReadinessItem": {
+    "properties": {
+     "key": {
+      "type": "string",
+      "title": "Key"
+     },
+     "level": {
+      "type": "string",
+      "enum": [
+       "ok",
+       "warning",
+       "error"
+      ],
+      "title": "Level"
+     },
+     "message": {
+      "type": "string",
+      "title": "Message"
+     },
+     "count": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Count"
+     }
+    },
+    "type": "object",
+    "required": [
+     "key",
+     "level",
+     "message"
+    ],
+    "title": "ReadinessItem"
+   },
+   "ReadinessOut": {
+    "properties": {
+     "ok": {
+      "type": "boolean",
+      "title": "Ok"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ReadinessItem"
+      },
+      "type": "array",
+      "title": "Items"
+     },
+     "published_version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Published Version"
+     },
+     "portal_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Portal Url"
+     },
+     "unit_counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Unit Counts"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ok",
+     "items",
+     "published_version",
+     "portal_url"
+    ],
+    "title": "ReadinessOut"
    },
    "RevisionOut": {
     "properties": {
@@ -10213,6 +11471,67 @@
      "version"
     ],
     "title": "UnitOut"
+   },
+   "UnitPublicationIn": {
+    "properties": {
+     "status": {
+      "type": "string",
+      "enum": [
+       "unpublished",
+       "published",
+       "hidden"
+      ],
+      "title": "Status"
+     },
+     "unit_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string",
+         "format": "uuid"
+        },
+        "type": "array",
+        "maxItems": 10000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit Ids"
+     },
+     "all_active": {
+      "type": "boolean",
+      "title": "All Active",
+      "description": "Apply to every approved (active) unit",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "status"
+    ],
+    "title": "UnitPublicationIn"
+   },
+   "UnitPublicationOut": {
+    "properties": {
+     "changed": {
+      "type": "integer",
+      "title": "Changed"
+     },
+     "unit_counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Unit Counts"
+     }
+    },
+    "type": "object",
+    "required": [
+     "changed",
+     "unit_counts"
+    ],
+    "title": "UnitPublicationOut"
    },
    "UnitRelabel": {
     "properties": {

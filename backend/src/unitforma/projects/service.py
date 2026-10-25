@@ -35,6 +35,7 @@ PROJECT_FIELDS = (
     "area_definitions",
     "site_frame",
     "regulatory",
+    "portal_settings",
 )
 BUILDING_FIELDS = ("code", "name", "kind", "site_transform", "placement_status", "sort_order")
 

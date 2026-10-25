@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -140,6 +140,7 @@ class ProjectUpdate(BaseModel):
     area_definitions: list[AreaDefinition] | None = None
     site_frame: dict[str, Any] | None = None
     regulatory: dict[str, Any] | None = None
+    portal_settings: PortalSettings | None = None
     version: int = Field(description="Optimistic concurrency: current version")
 
 
@@ -157,6 +158,7 @@ class ProjectOut(ORM):
     site_frame: dict[str, Any]
     regulatory: dict[str, Any]
     sales_settings: dict[str, Any] = Field(default_factory=dict)
+    portal_settings: dict[str, Any] = Field(default_factory=dict)
     version: int
     created_at: datetime
     updated_at: datetime
@@ -869,3 +871,75 @@ class ImportBatchOut(ORM):
     created_at: datetime
     applied_at: datetime | None
     targets: list[str] = Field(default_factory=list)
+
+
+# --- publishing (plan §9.3) -----------------------------------------------------------------
+HexColor = Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}$")]
+
+
+class Branding(BaseModel):
+    """Allow-listed branding keys; anything else is dropped by the snapshot builder."""
+
+    primary_color: HexColor | None = None
+    accent_color: HexColor | None = None
+    display_name: str | None = Field(default=None, max_length=120)
+    tagline: str | None = Field(default=None, max_length=200)
+    contact_email: EmailStr | None = None
+    contact_phone: str | None = Field(default=None, max_length=50)
+    website: str | None = Field(default=None, max_length=200, pattern=r"^https://")
+    legal_text: str | None = Field(default=None, max_length=4000)
+
+
+class PortalSettings(BaseModel):
+    hero_text: str | None = Field(default=None, max_length=2000)
+    construction_stage: str | None = Field(default=None, max_length=80)
+    completion: str | None = Field(default=None, max_length=80)
+    branding: Branding | None = None
+
+
+class PublicationOut(ORM):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    version_no: int
+    status: str
+    summary: dict[str, Any]
+    published_at: datetime | None
+    retired_at: datetime | None
+    created_at: datetime
+
+
+class PublishRequest(BaseModel):
+    mode: Literal["preview", "publish"] = "preview"
+
+
+class PublishResult(BaseModel):
+    publication: PublicationOut
+    portal_url: str | None
+    preview_url: str | None = None
+    preview_token: str | None = None
+
+
+class ReadinessItem(BaseModel):
+    key: str
+    level: Literal["ok", "warning", "error"]
+    message: str
+    count: int | None = None
+
+
+class ReadinessOut(BaseModel):
+    ok: bool
+    items: list[ReadinessItem]
+    published_version: int | None
+    portal_url: str | None
+    unit_counts: dict[str, int] = Field(default_factory=dict)
+
+
+class UnitPublicationIn(BaseModel):
+    status: Literal["unpublished", "published", "hidden"]
+    unit_ids: list[uuid.UUID] | None = Field(default=None, max_length=10000)
+    all_active: bool = Field(default=False, description="Apply to every approved (active) unit")
+
+
+class UnitPublicationOut(BaseModel):
+    changed: int
+    unit_counts: dict[str, int]

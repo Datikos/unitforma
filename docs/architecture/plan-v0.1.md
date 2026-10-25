@@ -1,6 +1,6 @@
 # Unitforma — Architecture and Delivery Plan
 
-**Status:** planning deliverable, v0.1 (2026-10-25). Implementation status: Phase 0 scaffold, Phase 1 core platform, Phase 2 documents/mapping and Phase 3 sales workspace are on `main`; see README. Next: Phase 4 publishing and buyer portal.
+**Status:** planning deliverable, v0.1 (2026-10-25). Implementation status: Phases 0–4 (scaffold, core platform, documents/mapping, sales workspace, publishing and buyer portal) are on `main`; see README. Next: Phase 5 buyer accounts and inquiries.
 **Prepared for:** Unitforma (https://unitforma.com), repository `Datikos/unitforma`, branch `claude/epic-lovelace-sr9pyy`.
 
 ## How to read this document
@@ -845,6 +845,16 @@ stateDiagram-v2
 - **Unpublish**: retires the current publication; the portal shows a "coming soon" page; `pub/` objects unique to that publication are deleted after a grace period (CDN/browser caches may still hold them for their max-age).
 - **Branding**: tenant-level (logo, palette, fonts, legal text, contact), project-level overrides; applied by the portal at runtime via `/api/portal/branding` (cached per host).
 - **Publication of a project does not depend on construction status** **[REQ]**: a project exposes `construction_stage` as content only.
+
+### 9.5 Implementation notes (Phase 4, on `main`)
+
+- *Host resolution.* `portal_domains` is tenant-scoped under forced RLS, so an anonymous request cannot read it. Migration 0006 adds `portal_resolve_host(text)`, a `SECURITY DEFINER` PL/pgSQL function that raises `app.scope` to `platform` around its single query, restores the caller's value and returns only routing columns of one active hostname. Both the portal API and the Caddy `ask` endpoint use it; before this, `ask` could never approve a custom domain (the same RLS rule hid every row). A function-level `SET app.scope` clause would be simpler but needs superuser on PostgreSQL 15+.
+- *Snapshot.* `publishing/snapshot.build` is the only producer of public data: units through `sales.public_view` (allow-list), branding and portal text through `sanitise_*` allow-lists (hex colours, https URLs, length limits). The JSON document goes to `t/{tenant}/p/{project}/publications/{id}.json`; `published_units` holds the filterable read model. Floor and site plans are re-encoded as WebP ≤ 2 400 px; public media are copied server-side (`storage.copy`) and the massing GLB is rebuilt with listed units only and without internal node attributes. Assets live under `pub/` and are served by `/api/v1/portal/projects/{slug}/assets/{name}` as a 302 to a short-lived signed URL, only for names listed in the publication being served.
+- *Publish and preview.* Publishing retires the live version and inserts the new one in one transaction (partial unique index: one `published` row per project). Preview builds a `preview` snapshot and returns an HMAC token (1 h, bound to publication and user, key derived from the app session secret); the portal accepts it as `?preview=` or `X-Unitforma-Preview`, responds `no-store` and shows a banner. Live responses carry `Cache-Control: public, max-age=5`; host and live-publication lookups are cached 5 s per process (`UF_PORTAL_CACHE_SECONDS`), so an unpublish is visible within seconds everywhere and immediately in the publishing process. Snapshots are built synchronously in the request rather than by `publishing.build_snapshot` (pilot sizes); move to the worker when a build exceeds a few seconds.
+- *Unit visibility.* `publication_status = published` lists a unit; `hidden` keeps it out of lists, floor plans and the 3D model but reachable by direct link; changes reach buyers with the next publication.
+- *Portal app.* Initial bundle ≈ 81 kB gzipped (budget 300 kB); every page is lazy and three.js loads in a deferred chunk only when the 3D view is shown. Desktop with WebGL2 starts in 3D; phones, data-saver and low-memory devices start in 2D and can switch. Availability colours are always paired with text. AI-generated media carry a visible "Illustrative — AI generated" label and the stored disclosure text. Favourites are per host and project in localStorage. Inquiry buttons are a mailto to the tenant's sales e-mail until Phase 5.
+- *Fixed on the way.* The API process now opens the Procrastinate app in its lifespan; without it every enqueue (upload processing, massing rebuilds, diffs) failed with `AppNotOpen` and uploads stayed unprocessed. The plan viewer focuses itself with `preventScroll`, because a scroll between pointer-down and pointer-up swallowed clicks on partly visible plans.
+- *Not yet.* Custom-domain lifecycle API and DNS verification (§9.2, E8), SSR/SEO (R2), the `app_portal` database role for portal reads (the portal currently uses `app_rw` with a tenant-scoped session and only reads publication tables).
 
 ### 9.4 SEO and sharing (R2)
 

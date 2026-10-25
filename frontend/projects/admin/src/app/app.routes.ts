@@ -28,6 +28,7 @@ export const routes: Routes = [
       { path: 'projects/:projectId/inventory', loadComponent: () => import('./pages/inventory.page').then((m) => m.InventoryPage) },
       { path: 'projects/:projectId/inventory/:unitId', loadComponent: () => import('./pages/unit-sales.page').then((m) => m.UnitSalesPage) },
       { path: 'projects/:projectId/imports', loadComponent: () => import('./pages/import.page').then((m) => m.ImportPage) },
+      { path: 'projects/:projectId/publish', loadComponent: () => import('./pages/publish.page').then((m) => m.PublishPage) },
       { path: 'projects/:projectId/sales-setup', loadComponent: () => import('./pages/sales-setup.page').then((m) => m.SalesSetupPage) },
       { path: 'members', loadComponent: () => import('./pages/members.page').then((m) => m.MembersPage) },
       { path: 'audit', loadComponent: () => import('./pages/audit.page').then((m) => m.AuditPage) },

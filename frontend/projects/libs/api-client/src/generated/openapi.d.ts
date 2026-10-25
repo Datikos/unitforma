@@ -58,6 +58,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/portal/site": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Site
+         * @description Landing data for this host: branding, mode (tenant portal or single project) and the
+         *     live projects. ``status`` is ``coming_soon`` when nothing is published.
+         */
+        get: operations["site_api_v1_portal_site_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/portal/branding": {
         parameters: {
             query?: never;
@@ -67,6 +88,88 @@ export interface paths {
         };
         /** Branding */
         get: operations["branding_api_v1_portal_branding_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/projects/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project
+         * @description The project snapshot: project text, site, buildings → floors → unit polygons, massing.
+         */
+        get: operations["project_api_v1_portal_projects__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/projects/{slug}/units": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Units
+         * @description Listed units with filters (published read model). A price filter excludes units
+         *     whose price is on request.
+         */
+        get: operations["units_api_v1_portal_projects__slug__units_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/projects/{slug}/units/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Unit
+         * @description One unit (listed or hidden-but-linkable) as published.
+         */
+        get: operations["unit_api_v1_portal_projects__slug__units__code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/portal/projects/{slug}/assets/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Asset
+         * @description Redirect to a short-lived signed URL of a published asset. Only names listed in the
+         *     publication being served resolve, so internal objects are unreachable by construction.
+         */
+        get: operations["asset_api_v1_portal_projects__slug__assets__name__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1288,6 +1391,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/publish/readiness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Readiness */
+        get: operations["readiness_api_v1_admin_tenants__tenant_id__projects__project_id__publish_readiness_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/units/publication": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Unit Publication
+         * @description Mark units published / hidden (linkable, not listed) / unpublished (plan §6.1).
+         */
+        put: operations["set_unit_publication_api_v1_admin_tenants__tenant_id__projects__project_id__units_publication_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Publications */
+        get: operations["list_publications_api_v1_admin_tenants__tenant_id__projects__project_id__publications_get"];
+        put?: never;
+        /**
+         * Publish
+         * @description ``preview``: build a snapshot visible only with the returned 1 h link.
+         *     ``publish``: build it and switch the portal to it atomically.
+         */
+        post: operations["publish_api_v1_admin_tenants__tenant_id__projects__project_id__publications_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/unpublish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unpublish
+         * @description Retire the live publication; the portal shows "coming soon" within seconds.
+         */
+        post: operations["unpublish_api_v1_admin_tenants__tenant_id__projects__project_id__unpublish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1455,6 +1637,28 @@ export interface components {
             ring: number[][];
             /** Version */
             version: number;
+        };
+        /**
+         * Branding
+         * @description Allow-listed branding keys; anything else is dropped by the snapshot builder.
+         */
+        Branding: {
+            /** Primary Color */
+            primary_color?: string | null;
+            /** Accent Color */
+            accent_color?: string | null;
+            /** Display Name */
+            display_name?: string | null;
+            /** Tagline */
+            tagline?: string | null;
+            /** Contact Email */
+            contact_email?: string | null;
+            /** Contact Phone */
+            contact_phone?: string | null;
+            /** Website */
+            website?: string | null;
+            /** Legal Text */
+            legal_text?: string | null;
         };
         /** BuildingCreate */
         BuildingCreate: {
@@ -2288,6 +2492,16 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** PortalSettings */
+        PortalSettings: {
+            /** Hero Text */
+            hero_text?: string | null;
+            /** Construction Stage */
+            construction_stage?: string | null;
+            /** Completion */
+            completion?: string | null;
+            branding?: components["schemas"]["Branding"] | null;
+        };
         /** PriceHistoryOut */
         PriceHistoryOut: {
             /**
@@ -2374,6 +2588,10 @@ export interface components {
             sales_settings?: {
                 [key: string]: unknown;
             };
+            /** Portal Settings */
+            portal_settings?: {
+                [key: string]: unknown;
+            };
             /** Version */
             version: number;
             /**
@@ -2413,6 +2631,7 @@ export interface components {
             regulatory?: {
                 [key: string]: unknown;
             } | null;
+            portal_settings?: components["schemas"]["PortalSettings"] | null;
             /**
              * Version
              * @description Optimistic concurrency: current version
@@ -2610,6 +2829,84 @@ export interface components {
             resolved_at: string | null;
             /** Items */
             items?: components["schemas"]["ProposalItemOut"][];
+        };
+        /** PublicationOut */
+        PublicationOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Version No */
+            version_no: number;
+            /** Status */
+            status: string;
+            /** Summary */
+            summary: {
+                [key: string]: unknown;
+            };
+            /** Published At */
+            published_at: string | null;
+            /** Retired At */
+            retired_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** PublishRequest */
+        PublishRequest: {
+            /**
+             * Mode
+             * @default preview
+             * @enum {string}
+             */
+            mode?: "preview" | "publish";
+        };
+        /** PublishResult */
+        PublishResult: {
+            publication: components["schemas"]["PublicationOut"];
+            /** Portal Url */
+            portal_url: string | null;
+            /** Preview Url */
+            preview_url?: string | null;
+            /** Preview Token */
+            preview_token?: string | null;
+        };
+        /** ReadinessItem */
+        ReadinessItem: {
+            /** Key */
+            key: string;
+            /**
+             * Level
+             * @enum {string}
+             */
+            level: "ok" | "warning" | "error";
+            /** Message */
+            message: string;
+            /** Count */
+            count?: number | null;
+        };
+        /** ReadinessOut */
+        ReadinessOut: {
+            /** Ok */
+            ok: boolean;
+            /** Items */
+            items: components["schemas"]["ReadinessItem"][];
+            /** Published Version */
+            published_version: number | null;
+            /** Portal Url */
+            portal_url: string | null;
+            /** Unit Counts */
+            unit_counts?: {
+                [key: string]: number;
+            };
         };
         /** RevisionOut */
         RevisionOut: {
@@ -3063,6 +3360,31 @@ export interface components {
             /** Boundaries */
             boundaries?: components["schemas"]["BoundaryOut"][];
         };
+        /** UnitPublicationIn */
+        UnitPublicationIn: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "unpublished" | "published" | "hidden";
+            /** Unit Ids */
+            unit_ids?: string[] | null;
+            /**
+             * All Active
+             * @description Apply to every approved (active) unit
+             * @default false
+             */
+            all_active?: boolean;
+        };
+        /** UnitPublicationOut */
+        UnitPublicationOut: {
+            /** Changed */
+            changed: number;
+            /** Unit Counts */
+            unit_counts: {
+                [key: string]: number;
+            };
+        };
         /** UnitRelabel */
         UnitRelabel: {
             /** Code */
@@ -3221,6 +3543,28 @@ export interface operations {
             };
         };
     };
+    site_api_v1_portal_site_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     branding_api_v1_portal_branding_get: {
         parameters: {
             query?: never;
@@ -3239,6 +3583,171 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    project_api_v1_portal_projects__slug__get: {
+        parameters: {
+            query?: {
+                /** @description Signed preview token */
+                preview?: string | null;
+            };
+            header?: {
+                "X-Unitforma-Preview"?: string | null;
+            };
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    units_api_v1_portal_projects__slug__units_get: {
+        parameters: {
+            query?: {
+                availability?: ("available" | "reserved" | "sold" | "withdrawn")[] | null;
+                unit_type?: string[] | null;
+                building?: string[] | null;
+                floor?: number[] | null;
+                /** @description 5 = five or more */
+                rooms?: number[] | null;
+                min_price?: number | null;
+                max_price?: number | null;
+                min_area?: number | null;
+                max_area?: number | null;
+                sort?: "code" | "price_asc" | "price_desc" | "area_asc" | "area_desc";
+                offset?: number;
+                limit?: number;
+                /** @description Signed preview token */
+                preview?: string | null;
+            };
+            header?: {
+                "X-Unitforma-Preview"?: string | null;
+            };
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unit_api_v1_portal_projects__slug__units__code__get: {
+        parameters: {
+            query?: {
+                /** @description Signed preview token */
+                preview?: string | null;
+            };
+            header?: {
+                "X-Unitforma-Preview"?: string | null;
+            };
+            path: {
+                slug: string;
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    asset_api_v1_portal_projects__slug__assets__name__get: {
+        parameters: {
+            query?: {
+                /** @description Signed preview token */
+                preview?: string | null;
+            };
+            header?: {
+                "X-Unitforma-Preview"?: string | null;
+            };
+            path: {
+                slug: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -6066,6 +6575,174 @@ export interface operations {
                 content: {
                     "text/csv": unknown;
                     "application/octet-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readiness_api_v1_admin_tenants__tenant_id__projects__project_id__publish_readiness_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadinessOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_unit_publication_api_v1_admin_tenants__tenant_id__projects__project_id__units_publication_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnitPublicationIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnitPublicationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_publications_api_v1_admin_tenants__tenant_id__projects__project_id__publications_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_api_v1_admin_tenants__tenant_id__projects__project_id__publications_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unpublish_api_v1_admin_tenants__tenant_id__projects__project_id__unpublish_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicationOut"];
                 };
             };
             /** @description Validation Error */

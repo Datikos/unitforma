@@ -1,1 +1,61 @@
-/* You can add global styles to this file, and also import other style files */
+/* Buyer portal base styles. Tenant colours arrive as CSS variables (plan §11.4). */
+:root {
+  color-scheme: light;
+  --uf-primary: #1d4ed8;
+  --uf-accent: #0f766e;
+  --uf-bg: #f8fafc;
+  --uf-surface: #ffffff;
+  --uf-text: #0f172a;
+  --uf-muted: #475569;
+  --uf-border: #e2e8f0;
+  --uf-radius: 12px;
+  --uf-plan-height: min(70vh, 720px);
+  --uf-plan-min-height: 320px;
+  --uf-3d-height: min(70vh, 720px);
+  --uf-3d-min-height: 320px;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; background: var(--uf-bg); color: var(--uf-text); }
+body { font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--uf-primary); }
+h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5rem; }
+h1 { font-size: clamp(1.6rem, 4vw, 2.4rem); }
+h2 { font-size: clamp(1.25rem, 3vw, 1.6rem); }
+button, .uf-btn {
+  font: inherit; cursor: pointer; border-radius: 999px; padding: 0.55rem 1.1rem;
+  border: 1px solid var(--uf-primary); background: var(--uf-primary); color: #fff; text-decoration: none; display: inline-block;
+}
+button.uf-ghost, .uf-btn.uf-ghost { background: transparent; color: var(--uf-primary); }
+button:disabled { opacity: 0.5; cursor: default; }
+:focus-visible { outline: 3px solid var(--uf-accent); outline-offset: 2px; }
+input, select { font: inherit; padding: 0.45rem 0.6rem; border: 1px solid var(--uf-border); border-radius: 8px; background: #fff; color: inherit; }
+
+.uf-header { display: flex; align-items: baseline; gap: 1rem; padding: 0.9rem clamp(1rem, 4vw, 2.5rem); background: var(--uf-surface); border-bottom: 1px solid var(--uf-border); flex-wrap: wrap; }
+.uf-brand { font-weight: 700; font-size: 1.15rem; color: var(--uf-text); text-decoration: none; }
+.uf-tagline { color: var(--uf-muted); font-size: 0.9rem; }
+.uf-main { padding: clamp(1rem, 3vw, 2rem) clamp(1rem, 4vw, 2.5rem); max-width: 1280px; margin: 0 auto; min-height: 70vh; }
+.uf-footer { padding: 1.5rem clamp(1rem, 4vw, 2.5rem); color: var(--uf-muted); font-size: 0.85rem; border-top: 1px solid var(--uf-border); background: var(--uf-surface); }
+.uf-legal { white-space: pre-line; }
+.uf-powered { opacity: 0.7; }
+.uf-preview { background: #fef3c7; color: #78350f; padding: 0.5rem 1rem; text-align: center; font-size: 0.9rem; }
+.uf-preview button { margin-left: 0.75rem; padding: 0.2rem 0.8rem; background: #78350f; border-color: #78350f; }
+.uf-muted { color: var(--uf-muted); }
+.uf-center { text-align: center; }
+.uf-empty { text-align: center; padding: 4rem 1rem; max-width: 560px; margin: 0 auto; }
+.uf-card { background: var(--uf-surface); border: 1px solid var(--uf-border); border-radius: var(--uf-radius); padding: 1rem 1.25rem; }
+.uf-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); }
+.uf-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; padding: 0; margin: 0.5rem 0; list-style: none; }
+.uf-chip { background: var(--uf-surface); border: 1px solid var(--uf-border); border-radius: 999px; padding: 0.2rem 0.75rem; font-size: 0.9rem; }
+.uf-badge { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 0.1rem 0.6rem; font-size: 0.8rem; font-weight: 600; border: 1px solid currentColor; }
+.uf-badge::before { content: ""; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: currentColor; }
+.uf-av-available { color: #047857; } .uf-av-reserved { color: #b45309; } .uf-av-sold { color: #b91c1c; } .uf-av-withdrawn { color: #4b5563; }
+.uf-crumbs { font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--uf-muted); }
+.uf-crumbs a { color: inherit; }
+.uf-segmented { display: inline-flex; border: 1px solid var(--uf-border); border-radius: 999px; overflow: hidden; }
+.uf-segmented button { border: 0; border-radius: 0; background: var(--uf-surface); color: var(--uf-text); padding: 0.4rem 1rem; }
+.uf-segmented button[aria-pressed="true"] { background: var(--uf-primary); color: #fff; }
+.uf-ai-label { position: absolute; left: 0.5rem; bottom: 0.5rem; background: rgba(15, 23, 42, 0.8); color: #fff; font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 6px; }
+.uf-indicative { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.9rem; }
+@media (max-width: 760px) {
+  :root { --uf-plan-height: min(70vh, 78vw); --uf-plan-min-height: 240px; --uf-3d-height: min(70vh, 110vw); --uf-3d-min-height: 280px; }
+}

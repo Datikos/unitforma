@@ -14,6 +14,11 @@ export interface PlanPolygon {
   selected?: boolean;
   /** unit (default), candidate (dashed suggestion), ghost (previous revision), footprint (building outline) */
   kind?: PlanPolygonKind;
+  /** Explicit colours (e.g. availability in the buyer portal); override the kind styles. */
+  fill?: string;
+  stroke?: string;
+  /** Accessible name announced for the polygon. */
+  title?: string;
 }
 
 export type PlanMode = 'view' | 'draw' | 'calibrate' | 'move' | 'pick';
@@ -67,9 +72,11 @@ export interface PolygonMove {
               [class.pv__poly--ghost]="p.kind === 'ghost'"
               [class.pv__poly--footprint]="p.kind === 'footprint'"
               [class.pv__poly--selected]="p.selected"
+              [style.fill]="p.fill ?? null"
+              [style.stroke]="p.stroke ?? null"
               (click)="select(p, $event)"
               (pointerdown)="grab(p, $event)"
-            />
+            >@if (p.title) { <title>{{ p.title }}</title> }</polygon>
             <text [attr.x]="centroid(p.ring, p.id)[0]" [attr.y]="centroid(p.ring, p.id)[1]" class="pv__label" [attr.font-size]="labelSize()">{{ p.label ?? '' }}</text>
           }
           @if (draft().length) {
@@ -93,7 +100,7 @@ export interface PolygonMove {
   `,
   styles: `
     :host { display: block; }
-    .pv { position: relative; overflow: hidden; width: 100%; height: 70vh; min-height: 420px; background: #e5e7eb; cursor: grab; outline: none; touch-action: none; }
+    .pv { position: relative; overflow: hidden; width: 100%; height: var(--uf-plan-height, 70vh); min-height: var(--uf-plan-min-height, 420px); background: #e5e7eb; cursor: grab; outline: none; touch-action: none; }
     .pv--draw { cursor: crosshair; }
     .pv--move .pv__poly { cursor: move; }
     .pv__stage { position: absolute; transform-origin: 0 0; }
@@ -195,7 +202,7 @@ export class PlanViewerComponent {
   grab(p: PlanPolygon, ev: PointerEvent): void {
     if (this.mode() !== 'move' || p.kind === 'ghost') return;
     ev.stopPropagation();
-    this.host().nativeElement.focus();
+    this.host().nativeElement.focus({ preventScroll: true }); // scrolling here would move the target between pointerdown and click
     this.grabbed = p.id;
     this.grabStart = this.toSheet(ev, false);
     this.dragDelta.set({ id: p.id, dx: 0, dy: 0 });
@@ -224,7 +231,7 @@ export class PlanViewerComponent {
   }
 
   onPointerDown(ev: PointerEvent): void {
-    this.host().nativeElement.focus();
+    this.host().nativeElement.focus({ preventScroll: true }); // scrolling here would move the target between pointerdown and click
     if (this.grabbed) return;
     this.dragging = true;
     this.moved = false;

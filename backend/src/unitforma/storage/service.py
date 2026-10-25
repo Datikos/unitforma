@@ -33,6 +33,7 @@ class Storage(Protocol):
     def get_bytes(self, key: str) -> bytes: ...
     def put_bytes(self, key: str, data: bytes, content_type: str) -> None: ...
     def delete(self, key: str) -> None: ...
+    def copy(self, src: str, dst: str) -> None: ...
 
 
 class LocalStorage:
@@ -86,6 +87,11 @@ class LocalStorage:
             p.unlink()
         elif p.is_dir():
             shutil.rmtree(p)
+
+    def copy(self, src: str, dst: str) -> None:
+        d = self._path(dst)
+        d.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(self._path(src), d)
 
 
 class S3Storage:
@@ -146,6 +152,12 @@ class S3Storage:
 
     def delete(self, key: str) -> None:
         self.client.delete_object(Bucket=self.bucket, Key=key)
+
+    def copy(self, src: str, dst: str) -> None:
+        # server-side copy: published media never streams through the API (plan §9.3 pub/)
+        self.client.copy_object(
+            Bucket=self.bucket, Key=dst, CopySource={"Bucket": self.bucket, "Key": src}
+        )
 
 
 _storage: Storage | None = None

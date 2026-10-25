@@ -69,6 +69,12 @@ export type MediaIntentOut = Schemas['MediaIntentOut'];
 export type ImportBatchOut = Schemas['ImportBatchOut'];
 export type ImportOptions = Schemas['ImportOptions'];
 export type Availability = InventoryRow['availability'];
+export type ReadinessOut = Schemas['ReadinessOut'];
+export type PublicationOut = Schemas['PublicationOut'];
+export type PublishResult = Schemas['PublishResult'];
+export type UnitPublicationOut = Schemas['UnitPublicationOut'];
+export type PortalSettings = Schemas['PortalSettings'];
+export type Branding = Schemas['Branding'];
 export interface Page<T> {
   items: T[];
   total: number;
@@ -379,6 +385,23 @@ export class UnitformaApi {
     a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // --- publishing (plan §9.3)
+  publishReadiness(tenantId: string, projectId: string): Promise<ReadinessOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/publish/readiness`);
+  }
+  setUnitPublication(tenantId: string, projectId: string, status: 'unpublished' | 'published' | 'hidden', unitIds: string[] | null, allActive = false): Promise<UnitPublicationOut> {
+    return this.put(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/units/publication`, { status, unit_ids: unitIds, all_active: allActive });
+  }
+  listPublications(tenantId: string, projectId: string): Promise<PublicationOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/publications`);
+  }
+  publish(tenantId: string, projectId: string, mode: 'preview' | 'publish'): Promise<PublishResult> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/publications`, { mode });
+  }
+  unpublish(tenantId: string, projectId: string): Promise<PublicationOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/unpublish`, undefined);
   }
 
   /** Upload a file to a presigned PUT URL (S3 or the local dev backend), reporting progress 0..1. */

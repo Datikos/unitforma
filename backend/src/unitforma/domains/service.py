@@ -34,11 +34,20 @@ async def is_host_allowed(session: AsyncSession, host: str, settings: Settings) 
     host = normalise_hostname(host)
     if is_platform_host(host, settings):
         return True
-    row = await session.execute(
-        text(
-            "SELECT 1 FROM portal_domains "
-            "WHERE hostname = :h AND status = 'active' AND verification_status = 'verified' LIMIT 1"
-        ),
-        {"h": host},
+    r = await resolve_host(session, host)
+    return r is not None and r["verification_status"] == "verified"
+
+
+async def resolve_host(session: AsyncSession, host: str) -> dict | None:
+    """Active portal domain for a hostname, through the ``portal_resolve_host`` SECURITY
+    DEFINER function (migration 0006): portal_domains is tenant-scoped under forced RLS, and
+    an anonymous request has no tenant yet. Returns routing columns only."""
+    host = normalise_hostname(host)
+    if not host:
+        return None
+    row = (
+        (await session.execute(text("SELECT * FROM portal_resolve_host(:h)"), {"h": host}))
+        .mappings()
+        .first()
     )
-    return row.first() is not None
+    return dict(row) if row else None
