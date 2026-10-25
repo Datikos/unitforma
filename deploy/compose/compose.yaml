@@ -97,6 +97,9 @@ services:
       postgres: { condition: service_healthy }
     networks: [internal]
     restart: "no"
+    # Inherits the image HEALTHCHECK (HTTP probe on :8000) but serves no HTTP; disabled until the
+    # Procrastinate heartbeat check from plan §17 exists.
+    healthcheck: { disable: true }
     logging: *default-logging
 
   api:
@@ -130,6 +133,9 @@ services:
       storage: { condition: service_healthy }
     restart: unless-stopped
     networks: [internal, egress]
+    # Inherits the image HEALTHCHECK (HTTP probe on :8000) but serves no HTTP; disabled until the
+    # Procrastinate heartbeat check from plan §17 exists.
+    healthcheck: { disable: true }
     logging: *default-logging
 
   worker-heavy:
@@ -144,6 +150,9 @@ services:
     restart: unless-stopped
     networks: [internal]
     tmpfs: ["/tmp:size=4g"]
+    # Inherits the image HEALTHCHECK (HTTP probe on :8000) but serves no HTTP; disabled until the
+    # Procrastinate heartbeat check from plan §17 exists.
+    healthcheck: { disable: true }
     logging: *default-logging
 
   scheduler:
@@ -156,6 +165,9 @@ services:
       db-migrate: { condition: service_completed_successfully }
     restart: unless-stopped
     networks: [internal]
+    # Inherits the image HEALTHCHECK (HTTP probe on :8000) but serves no HTTP; disabled until the
+    # Procrastinate heartbeat check from plan §17 exists.
+    healthcheck: { disable: true }
     logging: *default-logging
 
   # ---------------------------------------------------------------- identity
@@ -248,11 +260,15 @@ services:
       - garage_data:/var/lib/garage/data
     secrets: [garage_rpc_secret, garage_admin_token]
     networks: [internal]
+    # The Garage image has no shell and no wget; the CLI's own health command exits 1 while the
+    # cluster is unavailable. A node with no layout is unavailable, so on a fresh install run
+    # `scripts/init-garage.sh` before starting the services that depend on storage (README).
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3903/health || exit 1"]
+      test: ["CMD", "/garage", "-c", "/etc/garage.toml", "health", "-q"]
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 10
+      start_period: 15s
     logging: *default-logging
 
 networks:

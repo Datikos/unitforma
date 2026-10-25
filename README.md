@@ -34,10 +34,15 @@ Prerequisites: Docker Engine 27+ with Compose v2.30+, and hostnames `app.unitfor
 cd deploy
 ./scripts/init-secrets.sh                       # random secrets for a dev stack (git-ignored)
 cd compose && cp .env.example .env              # dev values are fine as defaults
-docker compose -f compose.yaml -f compose.dev.yaml up -d --build
+docker compose -f compose.yaml -f compose.dev.yaml up -d storage
 ../scripts/init-garage.sh                       # first run only: storage layout, bucket, key
+docker compose -f compose.yaml -f compose.dev.yaml up -d --build
 docker compose -f compose.yaml -f compose.dev.yaml ps
 ```
+
+Order matters on a fresh install: `storage` reports unhealthy until `init-garage.sh` has applied
+the layout, and `api` and the workers wait for a healthy `storage`. If `up` was started first and
+stopped with "dependency failed to start", run `init-garage.sh` and repeat `up -d --build`.
 
 | URL | What |
 |---|---|
