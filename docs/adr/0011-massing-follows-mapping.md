@@ -80,3 +80,5 @@ push to the admin page (it polls after Regenerate; a manual reload shows the new
 - [x] 3 Tests: GLB extras carry the lifecycle status; `queue_massing` swallows `AlreadyEnqueued`
       and queue failures.
 - [x] 4 Docs: plan §13.2 row and notes, README status.
+- [ ] 5 The massing page does not refresh after an outline change (reload shows the new model):
+      poll `GET /projects/{id}/massing` while the page is open, or push the new model id.

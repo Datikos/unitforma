@@ -216,7 +216,7 @@ export class UnitformaApi {
   }  acceptBlocks(tenantId: string, buildingId: string, body: BlocksAcceptIn): Promise<BlocksAcceptOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/floor-proposal/blocks`, body);
   }
-  /** Sections and elevations that can become the building's floor picker (ADR-0013). */
+  /** Sections and elevations that can become the building's floor picker (ADR-0014). */
   elevationCandidates(tenantId: string, buildingId: string): Promise<ElevationCandidateOut[]> {
     return this.get(
       `${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/elevation-candidates`,

@@ -65,7 +65,7 @@ BUILDING_FIELDS = (
     "terms",
     "elevation_sheet_id",
 )
-# an explicit null clears these (ADR-0013 Decision 3); the others keep their value on null
+# an explicit null clears these (ADR-0014 Decision 3); the others keep their value on null
 BUILDING_CLEARABLE = ("name", "construction_status", "completion", "terms", "elevation_sheet_id")
 ELEVATION_SHEET_UNKNOWN = "https://unitforma.com/problems/elevation-sheet-unknown"
 
@@ -265,7 +265,7 @@ async def update_building(
 
 
 async def _check_elevation_sheet(db: AsyncSession, b: Building, sheet_id: uuid.UUID) -> None:
-    """The elevation sheet must be a current sheet of this project (ADR-0013 Decision 1)."""
+    """The elevation sheet must be a current sheet of this project (ADR-0014 Decision 1)."""
     from unitforma.tenants.models import DocumentRevision
 
     ok = (
@@ -291,7 +291,7 @@ async def _check_elevation_sheet(db: AsyncSession, b: Building, sheet_id: uuid.U
 
 async def elevation_candidates(db: AsyncSession, b: Building) -> list[dict[str, Any]]:
     """Current sheets of the building whose level markers are stacked (sections, elevations), with
-    how many of the building's floors their markers match (ADR-0013 Decision 1)."""
+    how many of the building's floors their markers match (ADR-0014 Decision 1)."""
     from unitforma.documents import floor_proposal, levels
     from unitforma.documents.service import signed_urls
     from unitforma.publishing import elevation

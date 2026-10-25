@@ -652,7 +652,7 @@ export class ProjectDetailPage {
   /** Floor proposals per building (ADR-0010); hidden when every storey already exists. */
   readonly proposals = signal<Record<string, FloorProposalOut>>({});
   private readonly picks = signal<Record<string, Set<number>>>({});
-  /** Split-level blocks (ADR-0013): edited codes, the "one building" switch, the remove-source choice. */
+  /** Split-level blocks (ADR-0014): edited codes, the "one building" switch, the remove-source choice. */
   readonly blockCodes = signal<Record<string, string>>({});
   readonly asOneBuilding = signal<Record<string, boolean>>({});
   readonly removeSource = signal<Record<string, boolean>>({});
@@ -687,9 +687,9 @@ export class ProjectDetailPage {
   });
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
-  /** Sections and elevations per building that can become its floor picker (ADR-0013). */
+  /** Sections and elevations per building that can become its floor picker (ADR-0014). */
   readonly candidates = signal<Record<string, ElevationCandidateOut[]>>({});
-  /** Portal fields per building as edited (ADR-0013 Decisions 1 and 3). */
+  /** Portal fields per building as edited (ADR-0014 Decisions 1 and 3). */
   portalForms: Record<string, PortalFields> = {};
   code = '';
   bname = '';
@@ -876,7 +876,7 @@ export class ProjectDetailPage {
     return (id && this.candidatesOf(b).find((c) => c.sheet_id === id)) || null;
   }
 
-  /** Empty strings clear the field: the API treats an explicit null as "clear" (ADR-0013 Decision 3). */
+  /** Empty strings clear the field: the API treats an explicit null as "clear" (ADR-0014 Decision 3). */
   async savePortal(b: BuildingOut): Promise<void> {
     const f = this.pf(b);
     await this.run(async () => {

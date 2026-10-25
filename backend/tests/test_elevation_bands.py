@@ -1,4 +1,4 @@
-"""Floor bands from the level markers of a section or elevation sheet (ADR-0013 Decision 1):
+"""Floor bands from the level markers of a section or elevation sheet (ADR-0014 Decision 1):
 match by elevation, fallback by order, roof marker, median top, too few floors, noise ignored."""
 
 from __future__ import annotations

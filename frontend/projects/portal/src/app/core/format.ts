@@ -62,7 +62,7 @@ export function typeLabel(t: string): string {
   return UNIT_TYPES[t] ?? t;
 }
 
-/** Site-plan colours per construction status (ADR-0013 Decision 3); the tones of `libs/ui`. */
+/** Site-plan colours per construction status (ADR-0014 Decision 3); the tones of `libs/ui`. */
 export const CONSTRUCTION: Record<
   ConstructionStatus,
   { label: string; fill: string; stroke: string }

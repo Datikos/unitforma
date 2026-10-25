@@ -160,7 +160,7 @@ def make_site_plan_pdf() -> bytes:
 def make_section_pdf() -> bytes:
     """A one-page section: three stacked level markers (ground, first, roof) on floor lines, so
     the sheet is "stacked" for floor suggestions and a candidate for the elevation picker
-    (ADR-0013 Decision 1)."""
+    (ADR-0014 Decision 1)."""
     p = (
         _text(40, 560, "SECTION A-A scale 1:100", 14)
         + _text(60, 100, "+0.00")

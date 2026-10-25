@@ -90,8 +90,8 @@ def sanitise_portal_settings(ps: dict[str, Any] | None) -> dict[str, Any]:
         ("hero_text", 2000),
         ("construction_stage", 80),
         ("completion", 80),
-        ("price_note", 200),  # ADR-0013 Decision 4
-        ("terms", 4000),  # default terms for buildings without their own (ADR-0013 Decision 3)
+        ("price_note", 200),  # ADR-0014 Decision 4
+        ("terms", 4000),  # default terms for buildings without their own (ADR-0014 Decision 3)
     ):
         v = ps.get(k)
         if isinstance(v, str) and v.strip():
@@ -408,7 +408,7 @@ async def build(
                     "code": b.code,
                     "name": b.name,
                     "kind": b.kind,
-                    # ADR-0013 Decisions 2 and 3: entrances of the listed units, status, terms
+                    # ADR-0014 Decisions 2 and 3: entrances of the listed units, status, terms
                     "entrances": sorted(
                         {u["entrance"] for f in fdocs for u in f["units"] if u.get("entrance")},
                         key=_natural,
@@ -552,7 +552,7 @@ async def _site(
     cache: dict[Any, dict],
 ) -> dict[str, Any] | None:
     """Site plan image with building footprints placed by their site transforms (plan §3.5);
-    ``public_codes`` maps each public building to its construction status (ADR-0013)."""
+    ``public_codes`` maps each public building to its construction status (ADR-0014)."""
     sheet_id = (project.site_frame or {}).get("sheet_id")
     sheet = None
     if sheet_id:
@@ -621,7 +621,7 @@ async def _elevation(
     cache: dict[Any, dict],
     published_levels: set[int],
 ) -> dict[str, Any] | None:
-    """The building's elevation floor picker (ADR-0013 Decision 1): the chosen sheet cropped to
+    """The building's elevation floor picker (ADR-0014 Decision 1): the chosen sheet cropped to
     its floor bands, one band per matched floor; None without a sheet, a raster or two matched
     floors."""
     from unitforma.documents.levels import Marker

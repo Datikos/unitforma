@@ -1,9 +1,9 @@
 """portal_content: entrance on units; construction status, completion, terms and elevation sheet on
-buildings; entrance in the portal read model (ADR-0013 Decision 6)
+buildings; entrance in the portal read model (ADR-0014 Decision 6)
 
 Everything is nullable and additive: the running release ignores the new columns, the next one reads
 them. ``elevation_sheet_id`` points at the sheet whose stacked level markers give the portal's
-elevation floor picker (ADR-0013 Decision 1) and is cleared when the sheet goes.
+elevation floor picker (ADR-0014 Decision 1) and is cleared when the sheet goes.
 
 Revision ID: 0012
 Revises: 0011

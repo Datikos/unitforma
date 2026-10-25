@@ -194,3 +194,9 @@ Phase C: docs
       building page of the dev stack was not rebuilt here; the containers run the committed images.
       The permit's explanatory note is not copied into `project.description`: that field is shown to
       buyers on the portal's project page and in snapshots; the note stays in `regulatory_imports.record`.
+
+Follow-ups (open)
+- [ ] 8 Preview and import hold the request's database connection across the registry call (up
+      to 20 s): fetch the record in a worker job and poll, or open the session after the fetch.
+- [ ] 9 Review the fieldset → kind keyword table and the field label map after three real imports.
+

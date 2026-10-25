@@ -1,4 +1,4 @@
-"""Floor bands on an elevation or section sheet from its level markers (ADR-0013 Decision 1).
+"""Floor bands on an elevation or section sheet from its level markers (ADR-0014 Decision 1).
 
 The markers were extracted when the sheet was processed (``sheet.hints["level_markers"]``, sheet
 space, ``y`` top-down). Each floor's marker line starts its band; the band ends at the next higher

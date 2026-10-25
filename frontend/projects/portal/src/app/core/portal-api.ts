@@ -61,14 +61,14 @@ export interface FloorUnit {
   code: string;
   unit_type: string;
   availability: Availability;
-  /** Staircase; public like the floor (ADR-0013 Decision 2). */
+  /** Staircase; public like the floor (ADR-0014 Decision 2). */
   entrance?: string | null;
   ring: Point[] | null;
 }
 
 export type ConstructionStatus = 'planned' | 'under_construction' | 'completed';
 
-/** One clickable floor band on the building's elevation drawing (ADR-0013 Decision 1). */
+/** One clickable floor band on the building's elevation drawing (ADR-0014 Decision 1). */
 export interface ElevationBand {
   level: number;
   /** False when the floor has no published unit: drawn, not clickable. */
@@ -93,11 +93,11 @@ export interface BuildingDoc {
   name: string | null;
   kind: string;
   floors: FloorDoc[];
-  /** Distinct entrances of the listed units (ADR-0013 Decision 2). */
+  /** Distinct entrances of the listed units (ADR-0014 Decision 2). */
   entrances?: string[];
   construction_status?: ConstructionStatus | null;
   completion?: string | null;
-  /** The building's own terms, else the project default (ADR-0013 Decision 3). */
+  /** The building's own terms, else the project default (ADR-0014 Decision 3). */
   terms?: string | null;
   /** The architect's IFC model of this building when one was ingested and confirmed (ADR-0006 Phase C). */
   model?: {
@@ -107,7 +107,7 @@ export interface BuildingDoc {
     disclaimer: string;
     built_at: string | null;
   } | null;
-  /** The elevation floor picker when the reviewer chose a sheet and its markers matched (ADR-0013). */
+  /** The elevation floor picker when the reviewer chose a sheet and its markers matched (ADR-0014). */
   elevation?: ElevationDoc | null;
 }
 
@@ -147,7 +147,7 @@ export interface ProjectDoc {
     hero_text?: string;
     construction_stage?: string;
     completion?: string;
-    /** Printed next to every price (ADR-0013 Decision 4). */
+    /** Printed next to every price (ADR-0014 Decision 4). */
     price_note?: string;
     /** Default terms; each building carries its effective terms already. */
     terms?: string;
@@ -212,7 +212,7 @@ export interface UnitFilters {
   unit_type?: string[];
   building?: string[];
   floor?: number[];
-  /** Applied by the API only together with `building` (ADR-0013 Decision 2). */
+  /** Applied by the API only together with `building` (ADR-0014 Decision 2). */
   entrance?: string[];
   rooms?: number[];
   min_price?: number | null;

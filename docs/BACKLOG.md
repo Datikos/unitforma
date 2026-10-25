@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-26: 19 open items across ADR-0006, ADR-0012, four "Revisit" notes, plan Phases 5 to 7 and
+State on 2026-10-26: 31 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Sizes: S up to a day, M a few days,
 L a week or more. *Needs* names the outside input, or "—".
@@ -27,6 +27,8 @@ L a week or more. *Needs* names the outside input, or "—".
 | 11 | Hosting target and region: single EU VPS with containers, or managed Postgres and S3. Decides backup design. | plan O1 | owner's decision | — |
 | 12 | Transactional enqueue: `defer_async` is not part of the request transaction (worked around with the row guard in `storage.delete_prefix`); decide whether to keep the pattern or enqueue through the request connection. | ADR-0004 (pending PoC V5), ADR-0012 Decision 5 | — | S |
 | 13 | `ng lint` is listed in AGENTS.md but no ESLint config exists: add `angular-eslint` or drop the line. | AGENTS.md rule 7 | — | S |
+| 20 | Document kind set by hand on a project-level file: queue the floor re-suggestion so the sheets are usable without a new revision. | ADR-0008 #7 | — | S |
+| 21 | IFC exports without a declared length unit: refuse or warn; show the unit in the model stats. | ADR-0006 #E7 | — | S |
 
 ## P2 — after
 
@@ -38,3 +40,13 @@ L a week or more. *Needs* names the outside input, or "—".
 | 17 | Massing rebuilds: a minimum interval per project if a project with thousands of units makes builds slow. | ADR-0011 Revisit | a measurement | S |
 | 18 | Draco in the browser: measure a ≈ 10 MB IFC model on desktop Chrome, iOS Safari and a mid-range Android (PoC V7); `<model-viewer>` fallback. | plan PoC V7, ADR-0006 C2a | devices | S |
 | 19 | Remaining open questions: O2 countries and currencies, O3 reservations, O4 email provider, O7 marketing site, O8 pilot developer. | plan §1 O2–O8 | owner's decisions | — |
+| 22 | Unitless DXF with a printed scale: derive the sheet size from the scale before manual calibration. | ADR-0006 #E1 | a real DXF | S |
+| 23 | Georgian glyphs on the DXF preview raster: ship a Georgian font in the worker image. | ADR-0006 #E2 | — | S |
+| 24 | IFC link confirmation rewrites the GLB inside the request: move it to a geometry job. | ADR-0006 #E3 | — | S |
+| 25 | IFC view: cut or fade the envelope above the isolated floor (interior view). | ADR-0006 #E4 | — | M |
+| 26 | IFC tessellation through the iterator with threads; measure on a real export first. | ADR-0006 #E5 | a real IFC | M |
+| 27 | Place the IFC model on the site so the project page can show it in the site frame. | ADR-0006 #E6 | placement of the building | M |
+| 28 | Permit preview and import hold a database connection across the registry call: fetch in a job. | ADR-0007 #8 | — | S |
+| 29 | Permit import: review the fieldset → kind table and label map after three real imports. | ADR-0007 #9 | three real imports | S |
+| 30 | Massing page refresh after outline changes (poll or push). | ADR-0011 #5 | — | S |
+| 31 | A legend column of level markers can read as a split-level block: require labels or line work in the column's region. | ADR-0013 #6 | a real sheet | S |

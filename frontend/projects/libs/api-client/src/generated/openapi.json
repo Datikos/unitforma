@@ -1842,7 +1842,7 @@
      "projects"
     ],
     "summary": "Elevation Candidates",
-    "description": "Sections and elevations of the building that can become its floor picker (ADR-0013).",
+    "description": "Sections and elevations of the building that can become its floor picker (ADR-0014).",
     "operationId": "elevation_candidates_api_v1_admin_tenants__tenant_id__buildings__building_id__elevation_candidates_get",
     "parameters": [
      {
@@ -1954,7 +1954,7 @@
      "projects"
     ],
     "summary": "Accept Blocks",
-    "description": "Split-level blocks become buildings with their floors (ADR-0013); the source building is\nremoved when asked and empty; the sheets' floor suggestions are refreshed afterwards.",
+    "description": "Split-level blocks become buildings with their floors (ADR-0014); the source building is\nremoved when asked and empty; the sheets' floor suggestions are refreshed afterwards.",
     "operationId": "accept_blocks_api_v1_admin_tenants__tenant_id__buildings__building_id__floor_proposal_blocks_post",
     "parameters": [
      {
@@ -7342,7 +7342,7 @@
      "roof"
     ],
     "title": "BlockProposalOut",
-    "description": "A split-level block drawn beside the others on the sheets (ADR-0013)."
+    "description": "A split-level block drawn beside the others on the sheets (ADR-0014)."
    },
    "BlocksAcceptIn": {
     "properties": {
@@ -8038,7 +8038,7 @@
      "version"
     ],
     "title": "BuildingUpdate",
-    "description": "Fields left out are kept; ``name``, ``construction_status``, ``completion``, ``terms`` and\n``elevation_sheet_id`` sent as null are cleared (ADR-0013 Decision 3)."
+    "description": "Fields left out are kept; ``name``, ``construction_status``, ``completion``, ``terms`` and\n``elevation_sheet_id`` sent as null are cleared (ADR-0014 Decision 3)."
    },
    "BulkItem": {
     "properties": {
@@ -8483,7 +8483,7 @@
      "floors"
     ],
     "title": "ElevationCandidateOut",
-    "description": "A current sheet with stacked level markers (a section or an elevation) that can become the\nbuilding's elevation floor picker (ADR-0013 Decision 1)."
+    "description": "A current sheet with stacked level markers (a section or an elevation) that can become the\nbuilding's elevation floor picker (ADR-0014 Decision 1)."
    },
    "FloorIn": {
     "properties": {
@@ -10901,7 +10901,7 @@
        }
       ],
       "title": "Price Note",
-      "description": "Printed next to every price (ADR-0013)"
+      "description": "Printed next to every price (ADR-0014)"
      },
      "terms": {
       "anyOf": [

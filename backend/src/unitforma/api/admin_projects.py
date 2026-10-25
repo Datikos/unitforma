@@ -125,7 +125,7 @@ async def update_building(building_id: uuid.UUID, body: BuildingUpdate, ctx: Ctx
     ctx.require("project", Action.READ)
     b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)
     ctx.require_project(b.project_id)
-    # unset fields are kept, an explicit null clears the clearable ones (ADR-0013 Decision 3);
+    # unset fields are kept, an explicit null clears the clearable ones (ADR-0014 Decision 3);
     # the nested transform keeps its defaults (exclude_unset would drop scale and elevation)
     changes = body.model_dump(exclude={"version"}, exclude_unset=True)
     changes = {
@@ -164,7 +164,7 @@ async def delete_building(building_id: uuid.UUID, ctx: Ctx):
     "/buildings/{building_id}/elevation-candidates", response_model=list[ElevationCandidateOut]
 )
 async def elevation_candidates(building_id: uuid.UUID, ctx: Ctx):
-    """Sections and elevations of the building that can become its floor picker (ADR-0013)."""
+    """Sections and elevations of the building that can become its floor picker (ADR-0014)."""
     ctx.require("project", Action.READ)
     b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)
     ctx.require_project(b.project_id)
@@ -182,7 +182,7 @@ async def floor_proposal(building_id: uuid.UUID, ctx: Ctx):
 
 @router.post("/buildings/{building_id}/floor-proposal/blocks", response_model=BlocksAcceptOut)
 async def accept_blocks(building_id: uuid.UUID, body: BlocksAcceptIn, ctx: Ctx):
-    """Split-level blocks become buildings with their floors (ADR-0013); the source building is
+    """Split-level blocks become buildings with their floors (ADR-0014); the source building is
     removed when asked and empty; the sheets' floor suggestions are refreshed afterwards."""
     ctx.require("project", Action.WRITE)
     b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)

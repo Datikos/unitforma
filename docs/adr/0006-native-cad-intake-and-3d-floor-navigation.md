@@ -321,6 +321,23 @@ Phase C: IFC ingestion (L, plan Phase 8 pulled forward)
       extras. Spaces are aggregated under storeys (not "contained"), which the storey lookup
       follows. The wheel is 42 MB; CI installs the `ifc` extra so these tests run there.
 
+Phase E: follow-ups found while implementing B and C (open)
+- [ ] E1 Unitless DXF (`$INSUNITS = 0`) that prints a scale string: derive `page_pt` from the
+      printed scale instead of raw drawing units so printed-area matches are trustworthy before
+      a manual calibration (`documents/cad_dxf.py`, `mapping/service.sheet_metres`).
+- [ ] E2 Preview raster of a DXF: ship a font with Georgian glyphs (e.g. Noto Sans Georgian, OFL)
+      in the worker image and use it in `DxfDrawing.rasterize` instead of Pillow's default font.
+- [ ] E3 IFC link confirmation: move the GLB rewrite (`ifc_service.relink_model`) out of the request
+      into a `geometry` job so no database connection is held across storage I/O.
+- [ ] E4 IFC view with a floor isolated: cut or fade the envelope above the chosen floor so interior
+      spaces are visible (plan §7.3 interior view).
+- [ ] E5 IFC tessellation through the IfcOpenShell iterator with threads instead of
+      `create_shape` per product; measure on a real export first.
+- [ ] E6 Place the IFC model on the site (`model_transform` from the building's `site_transform`)
+      so the project page can show it in the site frame.
+- [ ] E7 Reject or warn on an IFC export whose length unit is not declared (footprints a thousand
+      times too small); show the unit in the model stats.
+
 Phase D: DWG conversion (M, after the owner picks B1, B2 or B3)
 - [ ] D1 `documents/service.py`: accept `application/acad`, `image/vnd.dwg`, `.dwg`; sniff `AC10`
       header; revision waits in `processing_status = converting`.

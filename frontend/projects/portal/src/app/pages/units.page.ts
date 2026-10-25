@@ -24,7 +24,7 @@ interface Form {
   availability: Availability[];
   unit_type: string[];
   building: string;
-  /** Meaningful only with a building (ADR-0013 Decision 2). */
+  /** Meaningful only with a building (ADR-0014 Decision 2). */
   entrance: string[];
   rooms: number[];
   min_price: number | null;
@@ -489,7 +489,7 @@ export class UnitsPage {
     }
   }
 
-  /** Entrances of the chosen building; the filter means nothing across buildings (ADR-0013). */
+  /** Entrances of the chosen building; the filter means nothing across buildings (ADR-0014). */
   entrancesFor(d: ProjectDoc): string[] {
     if (!this.form.building) return [];
     return d.buildings.find((b) => b.code === this.form.building)?.entrances ?? [];
@@ -500,7 +500,7 @@ export class UnitsPage {
     return area(areas[type] ?? areas[Object.keys(areas)[0]]);
   }
 
-  /** Cards or table; remembered in this browser and carried in the link (ADR-0013 Decision 5). */
+  /** Cards or table; remembered in this browser and carried in the link (ADR-0014 Decision 5). */
   setView(v: View): void {
     this.form.view = v;
     try {

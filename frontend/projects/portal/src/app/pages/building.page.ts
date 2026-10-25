@@ -352,7 +352,7 @@ export class BuildingPage {
     () => !!(this.doc()?.massing || this.building()?.model) && this.caps.webgl2,
   );
   /**
-   * Which companion the floor plan gets (ADR-0013 Decision 1): desktops with WebGL2 start in 3D
+   * Which companion the floor plan gets (ADR-0014 Decision 1): desktops with WebGL2 start in 3D
    * (ADR-0006 Decision 6), phones and data-saver start on the facade drawing when the building
    * has one, else plan only. The buyer can switch.
    */

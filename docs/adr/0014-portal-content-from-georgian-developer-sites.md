@@ -1,4 +1,4 @@
-# ADR-0013: The buyer portal shows what Georgian developers' sites show: elevation floor picker, entrance, building status and terms, price note, table of units
+# ADR-0014: The buyer portal shows what Georgian developers' sites show: elevation floor picker, entrance, building status and terms, price note, table of units
 
 - **Status:** accepted (2026-10-26; implemented 2026-10-26)
 - **Date:** 2026-10-26
@@ -92,7 +92,7 @@ booking and leads (Phase 5), proposing the entrance from the drawing (revisit, s
    shares it, the last choice remembered in `localStorage` (`uf:units-view`). Columns: building, floor,
    entrance (when any unit of the result has one), unit, type, rooms, area, price, status; every row links
    to the unit page; the same filters and sort apply.
-6. **Migration `0012_portal_content` is additive** (five nullable columns, one check constraint, one
+6. **Migration `0012_portal_content` (the migration sequence is independent of the ADR numbers) is additive** (five nullable columns, one check constraint, one
    foreign key, one read-model column), backward compatible with the running release; the snapshot
    `schema` stays 1 because every new key is optional and the portal treats a missing key as "not
    stated".
@@ -158,7 +158,10 @@ candidate only when the project has one building, because `markers_for_building`
 documents only then.
 
 Revisit: proposing the entrance from the drawing (the stair core labels sit on the plan next to the
-units); a second language; drawn footprints for planned buildings.
+units); a second language; drawn footprints for planned buildings; a warning before the document that
+holds a building's elevation sheet is deleted; a browser pass with screenshots over the new screens, not
+done on 2026-10-26 because the dev stack belonged to another session (the Preview link after a publish
+shows them).
 
 **Out of scope here:** booking and leads (Phase 5), a mortgage calculator, a second currency, a second
 portal language, drawn footprints for planned buildings, deleting a floor.
@@ -182,7 +185,7 @@ portal language, drawn footprints for planned buildings, deleting a floor.
       `api/portal.units` parameter.
 - [x] A5 `projects/service.py` (`BUILDING_FIELDS`, clearable fields, `elevation_candidates`,
       sheet ownership check) and `api/admin_projects.py` (`exclude_unset`, candidates route).
-- [x] A6 `tests/test_phase4_publishing.py`: ADR-0013 section: entrance through sales PATCH, building
+- [x] A6 `tests/test_phase4_publishing.py`: ADR-0014 section: entrance through sales PATCH, building
       fields, price note and terms in the snapshot, entrance filter with and without building, elevation
       candidates and bands from an uploaded section PDF, `null` clears a building field.
 - [x] A7 Regenerate `openapi.json` and the typings.

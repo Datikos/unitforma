@@ -687,13 +687,13 @@ def test_resolver_function_does_not_leak_scope(client, world):
     eng.dispose()
 
 
-# --- ADR-0013: entrance, building status and terms, price note, elevation floor picker ---------
+# --- ADR-0014: entrance, building status and terms, price note, elevation floor picker ---------
 
 
 def test_portal_content_entrance_building_fields_price_note_and_elevation(client, world):
     """A section sheet becomes the building's elevation picker, the entrance travels from the
     sales PATCH to the read model, per-building status and terms and the project's price note
-    land in the snapshot (ADR-0013 Decisions 1 to 4)."""
+    land in the snapshot (ADR-0014 Decisions 1 to 4)."""
     base, pid, tid = world["base"], world["project"]["id"], world["tenant"]["id"]
     adm, sales = world["adm"], world["sales"]
     b = next(

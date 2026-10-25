@@ -177,7 +177,7 @@ describe('Floor-first navigation (ADR-0006 Decision 6)', () => {
     expect(TestBed.inject(Router).url).toBe('/projects/park/buildings/A?floor=2&unit=A-22');
   });
 
-  it('a band tap on the facade drawing opens that floor (ADR-0013 Decision 1)', async () => {
+  it('a band tap on the facade drawing opens that floor (ADR-0014 Decision 1)', async () => {
     await TestBed.inject(Router).navigateByUrl('/projects/park/buildings/A?floor=1');
     const fixture = TestBed.createComponent(BuildingPage);
     fixture.componentRef.setInput('slug', 'park');

@@ -212,7 +212,7 @@ async def list_units(db: AsyncSession, pub: Publication, f: dict[str, Any]) -> d
     if f.get("floor") is not None:
         q = q.where(PublishedUnit.floor_level.in_(f["floor"]))
     if f.get("entrance") and f.get("building"):
-        # entrance numbers repeat across buildings; the filter means nothing alone (ADR-0013)
+        # entrance numbers repeat across buildings; the filter means nothing alone (ADR-0014)
         q = q.where(PublishedUnit.entrance.in_(f["entrance"]))
     if f.get("min_price") is not None:
         q = q.where(PublishedUnit.price_amount >= Decimal(f["min_price"]))

@@ -387,7 +387,7 @@ export class UnitPage {
 
   readonly av = computed(() => AVAILABILITY[this.unit()?.availability ?? 'available']);
   readonly price = computed(() => money(this.unit()?.price));
-  /** The unit's building as published: its terms (ADR-0013 Decision 3). */
+  /** The unit's building as published: its terms (ADR-0014 Decision 3). */
   readonly building = computed(
     () => this.doc()?.buildings.find((b) => b.code === this.unit()?.building_code) ?? null,
   );

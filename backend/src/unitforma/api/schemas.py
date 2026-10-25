@@ -186,7 +186,7 @@ ConstructionStatus = Literal["planned", "under_construction", "completed"]
 
 class BuildingUpdate(BaseModel):
     """Fields left out are kept; ``name``, ``construction_status``, ``completion``, ``terms`` and
-    ``elevation_sheet_id`` sent as null are cleared (ADR-0013 Decision 3)."""
+    ``elevation_sheet_id`` sent as null are cleared (ADR-0014 Decision 3)."""
 
     name: str | None = Field(default=None, max_length=200)
     site_transform: SiteTransform | None = None
@@ -224,7 +224,7 @@ class ProposedFloorOut(BaseModel):
 
 
 class BlockProposalOut(BaseModel):
-    """A split-level block drawn beside the others on the sheets (ADR-0013)."""
+    """A split-level block drawn beside the others on the sheets (ADR-0014)."""
 
     code: str
     column_x: float
@@ -290,7 +290,7 @@ class BuildingOut(ORM):
 
 class ElevationCandidateOut(BaseModel):
     """A current sheet with stacked level markers (a section or an elevation) that can become the
-    building's elevation floor picker (ADR-0013 Decision 1)."""
+    building's elevation floor picker (ADR-0014 Decision 1)."""
 
     sheet_id: uuid.UUID
     document_title: str
@@ -1048,7 +1048,7 @@ class PortalSettings(BaseModel):
     construction_stage: str | None = Field(default=None, max_length=80)
     completion: str | None = Field(default=None, max_length=80)
     price_note: str | None = Field(
-        default=None, max_length=200, description="Printed next to every price (ADR-0013)"
+        default=None, max_length=200, description="Printed next to every price (ADR-0014)"
     )
     terms: str | None = Field(
         default=None, max_length=4000, description="Default terms for buildings without their own"

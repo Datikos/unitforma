@@ -89,3 +89,5 @@ splitting a building that already has units.
       suggestions per block floor.
 - [x] 4 Admin project page: blocks view in the proposal card.
 - [x] 5 Docs: plan §13.2 split-level note, README; ADR-0010 Revisit line closed by this ADR.
+- [ ] 6 A legend column of level markers (a caption listing levels, printed beside the plan) can
+      read as a block: require a block column to hold a unit label or line work in its region.

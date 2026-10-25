@@ -153,7 +153,7 @@ export const STATUS_TABLES = {
     draft: v('pending', 'Placement draft', 'lucideMapPin'),
     confirmed: v('good', 'Placed', 'lucideMapPin'),
   },
-  // per-building construction status shown to buyers (ADR-0013 Decision 3)
+  // per-building construction status shown to buyers (ADR-0014 Decision 3)
   'building.construction': {
     planned: v('neutral', 'Planned', 'lucideClipboardList'),
     under_construction: v('warning', 'Under construction', 'lucideHardHat'),

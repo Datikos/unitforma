@@ -99,3 +99,7 @@ blocks on scans, moving pages between documents.
       by hand does not re-run floor suggestions (the card says so); permit-imported documents show
       "set by you" because the import passes the registry's kind explicitly. The 0010 downgrade needs
       the platform RLS scope to rewrite rows, as 0007 did.
+
+- [ ] 7 When a kind set by hand turns a project-level document into `floor_plan`, queue
+      `documents.resuggest_floors` (it exists since ADR-0010) so its sheets get floor suggestions
+      without a new revision.

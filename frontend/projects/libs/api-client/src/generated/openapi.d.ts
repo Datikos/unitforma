@@ -439,7 +439,7 @@ export interface paths {
         };
         /**
          * Elevation Candidates
-         * @description Sections and elevations of the building that can become its floor picker (ADR-0013).
+         * @description Sections and elevations of the building that can become its floor picker (ADR-0014).
          */
         get: operations["elevation_candidates_api_v1_admin_tenants__tenant_id__buildings__building_id__elevation_candidates_get"];
         put?: never;
@@ -481,7 +481,7 @@ export interface paths {
         put?: never;
         /**
          * Accept Blocks
-         * @description Split-level blocks become buildings with their floors (ADR-0013); the source building is
+         * @description Split-level blocks become buildings with their floors (ADR-0014); the source building is
          *     removed when asked and empty; the sheets' floor suggestions are refreshed afterwards.
          */
         post: operations["accept_blocks_api_v1_admin_tenants__tenant_id__buildings__building_id__floor_proposal_blocks_post"];
@@ -1911,7 +1911,7 @@ export interface components {
         };
         /**
          * BlockProposalOut
-         * @description A split-level block drawn beside the others on the sheets (ADR-0013).
+         * @description A split-level block drawn beside the others on the sheets (ADR-0014).
          */
         BlockProposalOut: {
             /** Code */
@@ -2128,7 +2128,7 @@ export interface components {
         /**
          * BuildingUpdate
          * @description Fields left out are kept; ``name``, ``construction_status``, ``completion``, ``terms`` and
-         *     ``elevation_sheet_id`` sent as null are cleared (ADR-0013 Decision 3).
+         *     ``elevation_sheet_id`` sent as null are cleared (ADR-0014 Decision 3).
          */
         BuildingUpdate: {
             /** Name */
@@ -2296,7 +2296,7 @@ export interface components {
         /**
          * ElevationCandidateOut
          * @description A current sheet with stacked level markers (a section or an elevation) that can become the
-         *     building's elevation floor picker (ADR-0013 Decision 1).
+         *     building's elevation floor picker (ADR-0014 Decision 1).
          */
         ElevationCandidateOut: {
             /**
@@ -3182,7 +3182,7 @@ export interface components {
             completion?: string | null;
             /**
              * Price Note
-             * @description Printed next to every price (ADR-0013)
+             * @description Printed next to every price (ADR-0014)
              */
             price_note?: string | null;
             /**

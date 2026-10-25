@@ -315,7 +315,7 @@ export class ProjectPage {
         for (const u of f.units) out[u.id] = AVAILABILITY[u.availability].solid;
     return out;
   });
-  /** Footprints coloured by construction status when any building states one (ADR-0013 Decision 3). */
+  /** Footprints coloured by construction status when any building states one (ADR-0014 Decision 3). */
   readonly sitePolygons = computed<PlanPolygon[]>(() =>
     (this.doc()?.site?.buildings ?? [])
       .filter((b) => b.ring)
