@@ -31,10 +31,10 @@ from unitforma.api.schemas import (
 )
 from unitforma.core.errors import ProblemError
 from unitforma.documents import service as documents
+from unitforma.geometry import service as geometry_service
 from unitforma.identity.authz import Action
 from unitforma.identity.deps import TenantContext, tenant_context
 from unitforma.inventory import service as inventory
-from unitforma.jobs.app import app as jobs
 from unitforma.mapping import service as mapping
 from unitforma.projects import service as projects
 from unitforma.tenants.models import (
@@ -123,6 +123,7 @@ async def create_boundary(sheet_id: uuid.UUID, body: BoundaryCreate, ctx: Ctx):
         )
     except ValueError as e:
         raise ProblemError(422, "Invalid boundary", str(e)) from e
+    await geometry_service.queue_massing(ctx.tenant_id, project_id)
     return UnitCreated(
         unit=await _unit_out(ctx, unit), boundary=BoundaryOut.model_validate(boundary)
     )
@@ -173,11 +174,13 @@ async def update_boundary(boundary_id: uuid.UUID, body: BoundaryUpdate, ctx: Ctx
     ).scalar_one_or_none()
     if b is None:
         raise ProblemError(404, "Boundary not found")
-    await _get_unit(ctx, b.unit_id)
+    unit = await _get_unit(ctx, b.unit_id)
     try:
-        return await inventory.update_boundary(ctx.session, b, body.ring, body.version, _actor(ctx))
+        out = await inventory.update_boundary(ctx.session, b, body.ring, body.version, _actor(ctx))
     except ValueError as e:
         raise ProblemError(422, "Invalid boundary", str(e)) from e
+    await geometry_service.queue_massing(ctx.tenant_id, unit.project_id)
+    return out
 
 
 @router.post("/sheets/{sheet_id}/approve", response_model=dict)
@@ -188,18 +191,8 @@ async def approve_sheet(sheet_id: uuid.UUID, ctx: Ctx):
     project_id = await documents.sheet_project_id(ctx.session, sheet)
     ctx.require_project(project_id)
     n = await inventory.approve_sheet(ctx.session, sheet, _actor(ctx))
-    massing_queued = False
-    if n:
-        # approval → massing regeneration in the same transaction (plan §4.3 transactional enqueue)
-        try:
-            await jobs.configure_task(name="geometry.build_massing", queue="geometry").defer_async(
-                tenant_id=str(ctx.tenant_id), project_id=str(project_id)
-            )
-            massing_queued = True
-        except Exception as e:  # noqa: BLE001 - approval must not fail because the queue is down
-            import structlog
-
-            structlog.get_logger().warning("geometry.enqueue_failed", error=str(e))
+    # approval → massing regeneration in the same transaction (plan §4.3, ADR-0011)
+    massing_queued = bool(n) and await geometry_service.queue_massing(ctx.tenant_id, project_id)
     return {"approved_units": n, "massing_queued": massing_queued}
 
 
@@ -271,9 +264,12 @@ async def decide_item(proposal_id: uuid.UUID, item_id: uuid.UUID, body: Proposal
     if item is None:
         raise ProblemError(404, "Proposal item not found")
     overrides = body.model_dump(exclude={"decision"}, exclude_none=True)
-    return await mapping.decide_item(
+    out = await mapping.decide_item(
         ctx.session, p, item, decision=body.decision, overrides=overrides, actor=_actor(ctx)
     )
+    if body.decision == "accept":
+        await geometry_service.queue_massing(ctx.tenant_id, p.project_id)
+    return out
 
 
 @router.post("/proposals/{proposal_id}/accept-all", response_model=ProposalOut)
@@ -283,6 +279,7 @@ async def accept_all(proposal_id: uuid.UUID, body: ProposalAcceptAll, ctx: Ctx):
     p = await mapping.get_proposal(ctx.session, ctx.tenant_id, proposal_id)
     ctx.require_project(p.project_id)
     await mapping.accept_all(ctx.session, p, set(body.kinds), _actor(ctx))
+    await geometry_service.queue_massing(ctx.tenant_id, p.project_id)
     return await _proposal_out(ctx, p, True)
 
 
@@ -309,7 +306,7 @@ async def relabel_unit(unit_id: uuid.UUID, body: UnitRelabel, ctx: Ctx):
     ctx.require("mapping", Action.WRITE)
     u = await _get_unit(ctx, unit_id)
     try:
-        return await _unit_out(
+        out = await _unit_out(
             ctx,
             await inventory.relabel(
                 ctx.session, u, body.code, body.version, _actor(ctx), body.reason
@@ -317,15 +314,19 @@ async def relabel_unit(unit_id: uuid.UUID, body: UnitRelabel, ctx: Ctx):
         )
     except ValueError as e:
         raise ProblemError(422, "Invalid code", str(e)) from e
+    await geometry_service.queue_massing(ctx.tenant_id, u.project_id)
+    return out
 
 
 @router.post("/units/{unit_id}/remove", response_model=UnitOut)
 async def remove_unit(unit_id: uuid.UUID, body: UnitRemove, ctx: Ctx):
     ctx.require("mapping", Action.APPROVE)
     u = await _get_unit(ctx, unit_id)
-    return await _unit_out(
+    out = await _unit_out(
         ctx, await inventory.remove_unit(ctx.session, u, body.version, _actor(ctx), None, body.note)
     )
+    await geometry_service.queue_massing(ctx.tenant_id, u.project_id)
+    return out
 
 
 @router.post("/projects/{project_id}/units/merge", response_model=UnitOut)
@@ -346,6 +347,7 @@ async def merge_units(project_id: uuid.UUID, body: UnitMerge, ctx: Ctx):
         )
     except ValueError as e:
         raise ProblemError(422, "Invalid boundary", str(e)) from e
+    await geometry_service.queue_massing(ctx.tenant_id, project_id)
     return await _unit_out(ctx, u)
 
 
@@ -361,6 +363,7 @@ async def split_unit(unit_id: uuid.UUID, body: UnitSplit, ctx: Ctx):
         )
     except ValueError as e:
         raise ProblemError(422, "Invalid boundary", str(e)) from e
+    await geometry_service.queue_massing(ctx.tenant_id, u.project_id)
     return [await _unit_out(ctx, x) for x in units]
 
 

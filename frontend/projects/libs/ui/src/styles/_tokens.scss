@@ -1,0 +1,65 @@
+/* Unitforma design tokens (ADR-0009 Decision 4). One home for colours, type and spacing of both
+   apps. The portal's tenant branding overrides --uf-primary and --uf-accent at runtime (plan §11.4). */
+:root {
+  --uf-font:
+    'Inter Variable', 'Noto Sans Georgian', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --uf-font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --uf-primary: #1d4ed8;
+  --uf-primary-strong: #1e40af;
+  --uf-primary-soft: #e0e7ff;
+  --uf-on-primary: #ffffff;
+  --uf-accent: #0f766e;
+
+  --uf-bg: #f4f6fb;
+  --uf-surface: #ffffff;
+  --uf-surface-2: #f8fafc;
+  --uf-text: #0f172a;
+  --uf-muted: #64748b;
+  --uf-border: #e2e8f0;
+  --uf-border-strong: #cbd5e1;
+  --uf-focus: #2563eb;
+
+  --uf-radius: 12px;
+  --uf-radius-sm: 8px;
+  --uf-radius-pill: 999px;
+  --uf-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.08);
+  --uf-shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.14);
+
+  --uf-space-1: 0.25rem;
+  --uf-space-2: 0.5rem;
+  --uf-space-3: 0.75rem;
+  --uf-space-4: 1rem;
+  --uf-space-5: 1.5rem;
+  --uf-space-6: 2rem;
+
+  /* Admin shell */
+  --uf-nav-width: 264px;
+  --uf-nav-bg: #0f172a;
+  --uf-nav-text: #cbd5e1;
+  --uf-nav-muted: #7c8aa5;
+  --uf-nav-hover: rgba(255, 255, 255, 0.06);
+  --uf-nav-active: rgba(129, 140, 248, 0.22);
+  --uf-nav-active-text: #ffffff;
+  --uf-topbar-height: 56px;
+
+  /* Status tones (ADR-0009 Decision 3): good / warning / bad / info / neutral / pending */
+  --uf-tone-good-fg: #047857;
+  --uf-tone-good-bg: #ecfdf5;
+  --uf-tone-good-border: #a7f3d0;
+  --uf-tone-warning-fg: #b45309;
+  --uf-tone-warning-bg: #fffbeb;
+  --uf-tone-warning-border: #fde68a;
+  --uf-tone-bad-fg: #b91c1c;
+  --uf-tone-bad-bg: #fef2f2;
+  --uf-tone-bad-border: #fecaca;
+  --uf-tone-info-fg: #1d4ed8;
+  --uf-tone-info-bg: #eff6ff;
+  --uf-tone-info-border: #bfdbfe;
+  --uf-tone-neutral-fg: #475569;
+  --uf-tone-neutral-bg: #f1f5f9;
+  --uf-tone-neutral-border: #cbd5e1;
+  --uf-tone-pending-fg: #6d28d9;
+  --uf-tone-pending-bg: #f5f3ff;
+  --uf-tone-pending-border: #ddd6fe;
+}

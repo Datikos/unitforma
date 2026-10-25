@@ -20,6 +20,8 @@ export type BuildingOut = Schemas['BuildingOut'];
 export type BuildingCreate = Schemas['BuildingCreate'];
 export type FloorIn = Schemas['FloorIn'];
 export type FloorOut = Schemas['FloorOut'];
+export type FloorProposalOut = Schemas['FloorProposalOut'];
+export type ProposedFloorOut = Schemas['ProposedFloorOut'];
 export type SiteFeatureOut = Schemas['SiteFeatureOut'];
 export type SiteFeatureCreate = Schemas['SiteFeatureCreate'];
 export type AuditOut = Schemas['AuditOut'];
@@ -49,6 +51,9 @@ export type ProposalItemOut = Schemas['ProposalItemOut'];
 export type ProposalDecide = Schemas['ProposalDecide'];
 export type FootprintOut = Schemas['FootprintOut'];
 export type MassingOut = Schemas['MassingOut'];
+export type BuildingModelOut = Schemas['BuildingModelOut'];
+export type IfcSpaceLinkOut = Schemas['IfcSpaceLinkOut'];
+export type IfcSpaceLinkDecide = Schemas['IfcSpaceLinkDecide'];
 export type SiteTransform = Schemas['SiteTransform'];
 export type BuildingUpdate = Schemas['BuildingUpdate'];
 export type InventoryRow = Schemas['InventoryRow'];
@@ -169,7 +174,10 @@ export class UnitformaApi {
     return this.post(`${BASE}/admin/tenants/${tenantId}/regulatory/tasge/import`, body);
   }
   refreshPermit(tenantId: string, projectId: string): Promise<RegulatoryImportOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/regulatory/tasge/refresh`, undefined);
+    return this.post(
+      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/regulatory/tasge/refresh`,
+      undefined,
+    );
   }
   listRegulatoryImports(tenantId: string, projectId: string): Promise<RegulatoryImportOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/regulatory/imports`);
@@ -189,10 +197,18 @@ export class UnitformaApi {
   setFloors(tenantId: string, buildingId: string, floors: FloorIn[]): Promise<FloorOut[]> {
     return this.put(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/floors`, { floors });
   }
+  floorProposal(tenantId: string, buildingId: string): Promise<FloorProposalOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/floor-proposal`);
+  }
+
   listSiteFeatures(tenantId: string, projectId: string): Promise<SiteFeatureOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/site-features`);
   }
-  createSiteFeature(tenantId: string, projectId: string, body: SiteFeatureCreate): Promise<SiteFeatureOut> {
+  createSiteFeature(
+    tenantId: string,
+    projectId: string,
+    body: SiteFeatureCreate,
+  ): Promise<SiteFeatureOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/site-features`, body);
   }
   updateBuilding(tenantId: string, buildingId: string, body: BuildingUpdate): Promise<BuildingOut> {
@@ -209,6 +225,20 @@ export class UnitformaApi {
   regenerateMassing(tenantId: string, projectId: string): Promise<MassingOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/massing`, undefined);
   }
+  // --- IFC models per building (ADR-0006 Phase C)
+  buildingModel(tenantId: string, buildingId: string): Promise<BuildingModelOut | null> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/model`);
+  }
+  listIfcLinks(tenantId: string, buildingId: string): Promise<IfcSpaceLinkOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/ifc-links`);
+  }
+  decideIfcLink(tenantId: string, linkId: string, body: IfcSpaceLinkDecide): Promise<IfcSpaceLinkOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/ifc-links/${linkId}`, body);
+  }
+  rebuildBuildingModel(tenantId: string, buildingId: string): Promise<{ queued: boolean; revision_id: string }> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/model/rebuild`, undefined);
+  }
+
 
   // --- documents
   listDocuments(tenantId: string, projectId: string): Promise<DocumentOut[]> {
@@ -216,15 +246,23 @@ export class UnitformaApi {
   }
   createDocument(tenantId: string, projectId: string, body: DocumentCreate): Promise<DocumentOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/documents`, body);
-  }  updateDocument(tenantId: string, documentId: string, body: DocumentUpdate): Promise<DocumentOut> {
+  }
+  updateDocument(tenantId: string, documentId: string, body: DocumentUpdate): Promise<DocumentOut> {
     return this.patch(`${BASE}/admin/tenants/${tenantId}/documents/${documentId}`, body);
   }
 
-  createUpload(tenantId: string, documentId: string, body: UploadIntentCreate): Promise<UploadIntentOut> {
+  createUpload(
+    tenantId: string,
+    documentId: string,
+    body: UploadIntentCreate,
+  ): Promise<UploadIntentOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/documents/${documentId}/uploads`, body);
   }
   completeUpload(tenantId: string, revisionId: string): Promise<RevisionOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/complete`, undefined);
+    return this.post(
+      `${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/complete`,
+      undefined,
+    );
   }
   listRevisions(tenantId: string, documentId: string): Promise<RevisionOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/documents/${documentId}/revisions`);
@@ -238,27 +276,74 @@ export class UnitformaApi {
   getSheet(tenantId: string, sheetId: string): Promise<SheetOut> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}`);
   }
-  assignSheetFloor(tenantId: string, sheetId: string, floorId: string | null, version: number): Promise<SheetOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/floor`, { floor_id: floorId, version });
+  assignSheetFloor(
+    tenantId: string,
+    sheetId: string,
+    floorId: string | null,
+    version: number,
+  ): Promise<SheetOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/floor`, {
+      floor_id: floorId,
+      version,
+    });
   }
   /** Every floor the sheet shows, each optionally limited to a region (split-level / multi-block sheets). */
-  setSheetFloors(tenantId: string, sheetId: string, floors: SheetFloorIn[], version: number): Promise<SheetOut> {
-    return this.put(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/floors`, { floors, version });
+  setSheetFloors(
+    tenantId: string,
+    sheetId: string,
+    floors: SheetFloorIn[],
+    version: number,
+  ): Promise<SheetOut> {
+    return this.put(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/floors`, {
+      floors,
+      version,
+    });
   }
   /** Take a sheet out of mapping (a reprint, a detail, a schedule) or bring it back. */
-  excludeSheet(tenantId: string, sheetId: string, excluded: boolean, reason: string | null, version: number): Promise<SheetOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/exclusion`, { excluded, reason, version });
+  excludeSheet(
+    tenantId: string,
+    sheetId: string,
+    excluded: boolean,
+    reason: string | null,
+    version: number,
+  ): Promise<SheetOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/exclusion`, {
+      excluded,
+      reason,
+      version,
+    });
   }
   /** Exclude or include several pages of a revision at once. */
-  excludePages(tenantId: string, revisionId: string, pages: number[], excluded: boolean, reason: string | null): Promise<SheetOut[]> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/exclusions`, { pages, excluded, reason });
+  excludePages(
+    tenantId: string,
+    revisionId: string,
+    pages: number[],
+    excluded: boolean,
+    reason: string | null,
+  ): Promise<SheetOut[]> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/exclusions`, {
+      pages,
+      excluded,
+      reason,
+    });
   }
   /** Store the areas printed on the sheet as the documented areas of its units. */
   readPrintedAreas(tenantId: string, sheetId: string): Promise<PrintedAreasOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/printed-areas`, undefined);
+    return this.post(
+      `${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/printed-areas`,
+      undefined,
+    );
   }
-  calibrateSheet(tenantId: string, sheetId: string, calibration: Calibration, version: number): Promise<SheetOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/calibration`, { calibration, version });
+  calibrateSheet(
+    tenantId: string,
+    sheetId: string,
+    calibration: Calibration,
+    version: number,
+  ): Promise<SheetOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/calibration`, {
+      calibration,
+      version,
+    });
   }
 
   // --- mapping
@@ -268,23 +353,46 @@ export class UnitformaApi {
   createBoundary(tenantId: string, sheetId: string, body: BoundaryCreate): Promise<UnitCreated> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/boundaries`, body);
   }
-  updateBoundary(tenantId: string, boundaryId: string, ring: number[][], version: number): Promise<BoundaryOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/boundaries/${boundaryId}`, { ring, version });
+  updateBoundary(
+    tenantId: string,
+    boundaryId: string,
+    ring: number[][],
+    version: number,
+  ): Promise<BoundaryOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/boundaries/${boundaryId}`, {
+      ring,
+      version,
+    });
   }
   approveSheet(tenantId: string, sheetId: string): Promise<{ approved_units: number }> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/approve`, undefined);
   }
   listUnits(tenantId: string, projectId: string, includeRemoved = false): Promise<UnitOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/units`, { include_removed: String(includeRemoved) });
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/units`, {
+      include_removed: String(includeRemoved),
+    });
   }
   getUnit(tenantId: string, unitId: string): Promise<UnitOut> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}`);
   }
-  relabelUnit(tenantId: string, unitId: string, code: string, version: number, reason?: string): Promise<UnitOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/relabel`, { code, version, reason: reason ?? null });
+  relabelUnit(
+    tenantId: string,
+    unitId: string,
+    code: string,
+    version: number,
+    reason?: string,
+  ): Promise<UnitOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/relabel`, {
+      code,
+      version,
+      reason: reason ?? null,
+    });
   }
   removeUnit(tenantId: string, unitId: string, version: number, note?: string): Promise<UnitOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/remove`, { version, note: note ?? null });
+    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/remove`, {
+      version,
+      note: note ?? null,
+    });
   }
   mergeUnits(tenantId: string, projectId: string, body: UnitMerge): Promise<UnitOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/units/merge`, body);
@@ -298,7 +406,10 @@ export class UnitformaApi {
   verifyArea(tenantId: string, areaId: string): Promise<AreaOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/areas/${areaId}/verify`, undefined);
   }
-  unitHistory(tenantId: string, unitId: string): Promise<{ codes: unknown[]; lineage: LineageOut[] }> {
+  unitHistory(
+    tenantId: string,
+    unitId: string,
+  ): Promise<{ codes: unknown[]; lineage: LineageOut[] }> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/history`);
   }
   projectLineage(tenantId: string, projectId: string): Promise<LineageOut[]> {
@@ -310,19 +421,35 @@ export class UnitformaApi {
     return this.post(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/suggestions`, undefined);
   }
   listProposals(tenantId: string, projectId: string, status?: string): Promise<ProposalOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/proposals`, status ? { status } : undefined);
+    return this.get(
+      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/proposals`,
+      status ? { status } : undefined,
+    );
   }
   getProposal(tenantId: string, proposalId: string): Promise<ProposalOut> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/proposals/${proposalId}`);
   }
   buildProposal(tenantId: string, revisionId: string): Promise<ProposalOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/proposals`, undefined);
+    return this.post(
+      `${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/proposals`,
+      undefined,
+    );
   }
-  decideProposalItem(tenantId: string, proposalId: string, itemId: string, body: ProposalDecide): Promise<ProposalItemOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/proposals/${proposalId}/items/${itemId}`, body);
+  decideProposalItem(
+    tenantId: string,
+    proposalId: string,
+    itemId: string,
+    body: ProposalDecide,
+  ): Promise<ProposalItemOut> {
+    return this.post(
+      `${BASE}/admin/tenants/${tenantId}/proposals/${proposalId}/items/${itemId}`,
+      body,
+    );
   }
   acceptProposalItems(tenantId: string, proposalId: string, kinds: string[]): Promise<ProposalOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/proposals/${proposalId}/accept-all`, { kinds });
+    return this.post(`${BASE}/admin/tenants/${tenantId}/proposals/${proposalId}/accept-all`, {
+      kinds,
+    });
   }
 
   // --- sales workspace (plan §6)
@@ -337,7 +464,10 @@ export class UnitformaApi {
     return this.patch(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/sales`, body);
   }
   bulkUpdate(tenantId: string, projectId: string, body: BulkUpdate): Promise<BulkResult> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/inventory/bulk`, body);
+    return this.post(
+      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/inventory/bulk`,
+      body,
+    );
   }
   unitSalesHistory(tenantId: string, unitId: string): Promise<SalesHistoryOut> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/sales/history`);
@@ -348,16 +478,28 @@ export class UnitformaApi {
   getSalesSettings(tenantId: string, projectId: string): Promise<SalesSettingsOut> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/sales-settings`);
   }
-  putSalesSettings(tenantId: string, projectId: string, body: SalesSettingsIn): Promise<SalesSettingsOut> {
+  putSalesSettings(
+    tenantId: string,
+    projectId: string,
+    body: SalesSettingsIn,
+  ): Promise<SalesSettingsOut> {
     return this.put(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/sales-settings`, body);
   }
   listPaymentPlans(tenantId: string, projectId: string): Promise<PaymentPlanOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/payment-plans`);
   }
-  createPaymentPlan(tenantId: string, projectId: string, body: PaymentPlanIn): Promise<PaymentPlanOut> {
+  createPaymentPlan(
+    tenantId: string,
+    projectId: string,
+    body: PaymentPlanIn,
+  ): Promise<PaymentPlanOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/payment-plans`, body);
   }
-  updatePaymentPlan(tenantId: string, planId: string, body: PaymentPlanUpdate): Promise<PaymentPlanOut> {
+  updatePaymentPlan(
+    tenantId: string,
+    planId: string,
+    body: PaymentPlanUpdate,
+  ): Promise<PaymentPlanOut> {
     return this.patch(`${BASE}/admin/tenants/${tenantId}/payment-plans/${planId}`, body);
   }
   listPromotions(tenantId: string, projectId: string): Promise<PromotionOut[]> {
@@ -366,7 +508,11 @@ export class UnitformaApi {
   createPromotion(tenantId: string, projectId: string, body: PromotionIn): Promise<PromotionOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/promotions`, body);
   }
-  updatePromotion(tenantId: string, promotionId: string, body: PromotionUpdate): Promise<PromotionOut> {
+  updatePromotion(
+    tenantId: string,
+    promotionId: string,
+    body: PromotionUpdate,
+  ): Promise<PromotionOut> {
     return this.patch(`${BASE}/admin/tenants/${tenantId}/promotions/${promotionId}`, body);
   }
   listMedia(tenantId: string, unitId: string): Promise<MediaOut[]> {
@@ -390,10 +536,14 @@ export class UnitformaApi {
   /** Upload a CSV/XLSX file as the raw request body. */
   uploadImport(tenantId: string, projectId: string, file: File): Promise<ImportBatchOut> {
     return firstValueFrom(
-      this.http.post<ImportBatchOut>(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/imports`, file, {
-        params: toParams({ file_name: file.name }),
-        headers: { 'Content-Type': 'application/octet-stream' },
-      }),
+      this.http.post<ImportBatchOut>(
+        `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/imports`,
+        file,
+        {
+          params: toParams({ file_name: file.name }),
+          headers: { 'Content-Type': 'application/octet-stream' },
+        },
+      ),
     );
   }
   listImports(tenantId: string, projectId: string): Promise<ImportBatchOut[]> {
@@ -402,17 +552,36 @@ export class UnitformaApi {
   getImport(tenantId: string, batchId: string): Promise<ImportBatchOut> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}`);
   }
-  dryRunImport(tenantId: string, batchId: string, mapping: Record<string, string>, options: ImportOptions): Promise<ImportBatchOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}/dry-run`, { mapping, options });
+  dryRunImport(
+    tenantId: string,
+    batchId: string,
+    mapping: Record<string, string>,
+    options: ImportOptions,
+  ): Promise<ImportBatchOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}/dry-run`, {
+      mapping,
+      options,
+    });
   }
-  applyImport(tenantId: string, batchId: string, skipInvalidRows: boolean): Promise<ImportBatchOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}/apply`, { skip_invalid_rows: skipInvalidRows });
+  applyImport(
+    tenantId: string,
+    batchId: string,
+    skipInvalidRows: boolean,
+  ): Promise<ImportBatchOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}/apply`, {
+      skip_invalid_rows: skipInvalidRows,
+    });
   }
   discardImport(tenantId: string, batchId: string): Promise<ImportBatchOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}/discard`, undefined);
   }
   /** Download the inventory as CSV or XLSX (same columns as the importer reads). */
-  async downloadInventory(tenantId: string, projectId: string, format: 'csv' | 'xlsx', columns: 'internal' | 'public'): Promise<void> {
+  async downloadInventory(
+    tenantId: string,
+    projectId: string,
+    format: 'csv' | 'xlsx',
+    columns: 'internal' | 'public',
+  ): Promise<void> {
     const res = await firstValueFrom(
       this.http.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/inventory/export`, {
         params: toParams({ format, columns }),
@@ -420,7 +589,9 @@ export class UnitformaApi {
         observe: 'response',
       }),
     );
-    const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? `inventory.${format}`;
+    const name =
+      /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ??
+      `inventory.${format}`;
     const url = URL.createObjectURL(res.body!);
     const a = document.createElement('a');
     a.href = url;
@@ -433,21 +604,45 @@ export class UnitformaApi {
   publishReadiness(tenantId: string, projectId: string): Promise<ReadinessOut> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/publish/readiness`);
   }
-  setUnitPublication(tenantId: string, projectId: string, status: 'unpublished' | 'published' | 'hidden', unitIds: string[] | null, allActive = false): Promise<UnitPublicationOut> {
-    return this.put(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/units/publication`, { status, unit_ids: unitIds, all_active: allActive });
+  setUnitPublication(
+    tenantId: string,
+    projectId: string,
+    status: 'unpublished' | 'published' | 'hidden',
+    unitIds: string[] | null,
+    allActive = false,
+  ): Promise<UnitPublicationOut> {
+    return this.put(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/units/publication`, {
+      status,
+      unit_ids: unitIds,
+      all_active: allActive,
+    });
   }
   listPublications(tenantId: string, projectId: string): Promise<PublicationOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/publications`);
   }
-  publish(tenantId: string, projectId: string, mode: 'preview' | 'publish'): Promise<PublishResult> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/publications`, { mode });
+  publish(
+    tenantId: string,
+    projectId: string,
+    mode: 'preview' | 'publish',
+  ): Promise<PublishResult> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/publications`, {
+      mode,
+    });
   }
   unpublish(tenantId: string, projectId: string): Promise<PublicationOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/unpublish`, undefined);
+    return this.post(
+      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/unpublish`,
+      undefined,
+    );
   }
 
   /** Upload a file to a presigned PUT URL (S3 or the local dev backend), reporting progress 0..1. */
-  uploadToPresignedUrl(url: string, file: File, contentType: string, onProgress?: (p: number) => void): Promise<void> {
+  uploadToPresignedUrl(
+    url: string,
+    file: File,
+    contentType: string,
+    onProgress?: (p: number) => void,
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('PUT', url, true);
@@ -455,7 +650,10 @@ export class UnitformaApi {
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
       };
-      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`upload failed (${xhr.status})`)));
+      xhr.onload = () =>
+        xhr.status >= 200 && xhr.status < 300
+          ? resolve()
+          : reject(new Error(`upload failed (${xhr.status})`));
       xhr.onerror = () => reject(new Error('upload failed (network)'));
       xhr.send(file);
     });
@@ -465,7 +663,11 @@ export class UnitformaApi {
   private get<T>(url: string, params?: Record<string, string | number>): Promise<T> {
     return firstValueFrom(this.http.get<T>(url, { params: toParams(params) }));
   }
-  private post<T>(url: string, body: unknown, params?: Record<string, string | number>): Promise<T> {
+  private post<T>(
+    url: string,
+    body: unknown,
+    params?: Record<string, string | number>,
+  ): Promise<T> {
     return firstValueFrom(this.http.post<T>(url, body ?? null, { params: toParams(params) }));
   }
   private put<T>(url: string, body: unknown): Promise<T> {
@@ -490,7 +692,8 @@ function toParams(params?: Record<string, string | number>): HttpParams | undefi
 export function problemMessage(err: unknown): string {
   const e = err as { error?: Problem; message?: string; status?: number };
   const p = e?.error;
-  if (p && typeof p === 'object' && 'title' in p) return p.detail ? `${p.title}: ${p.detail}` : p.title;
+  if (p && typeof p === 'object' && 'title' in p)
+    return p.detail ? `${p.title}: ${p.detail}` : p.title;
   if (e?.status === 0) return 'Network error';
   return e?.message ?? 'Unexpected error';
 }

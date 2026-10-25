@@ -1,7 +1,9 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { NgIcon, provideIcons } from '@ng-icons/core';
 import { combineLatest } from 'rxjs';
+import { EmptyStateComponent, StatusChipComponent, UF_ICONS } from 'ui';
 import { PlanPolygon, PlanViewerComponent } from 'plan-viewer';
 import { Favourites } from '../core/favourites';
 import { AVAILABILITY, area, money, typeLabel } from '../core/format';
@@ -11,28 +13,64 @@ import { SiteStore } from '../core/site.store';
 /** Unit page: plan, labelled media, areas with definitions, price and terms (plan §7.1, §7.4). */
 @Component({
   selector: 'uf-unit-page',
-  imports: [RouterLink, PlanViewerComponent],
+  imports: [RouterLink, NgIcon, PlanViewerComponent, StatusChipComponent, EmptyStateComponent],
+  viewProviders: [provideIcons(UF_ICONS)],
   template: `
     @if (notFound()) {
-      <section class="uf-empty"><h1>Unit not available</h1><p>This unit is not published.</p><a class="uf-btn" [routerLink]="['/projects', slug(), 'units']">All units</a></section>
+      <uf-empty-state
+        icon="lucideEyeOff"
+        title="Unit not available"
+        text="This unit is not published."
+        ><a class="uf-btn" [routerLink]="['/projects', slug(), 'units']"
+          >All units</a
+        ></uf-empty-state
+      >
     } @else if (unit(); as u) {
       <nav class="uf-crumbs">
-        <a [routerLink]="['/projects', slug()]">{{ doc()?.project?.name }}</a> ›
-        <a [routerLink]="['/projects', slug(), 'buildings', u.building_code]" [queryParams]="{ floor: u.floor_level }">{{ u.floor_name }}</a> › {{ u.code }}
+        <a [routerLink]="['/projects', slug()]">{{ doc()?.project?.name }}</a>
+        <ng-icon name="lucideChevronRight" />
+        <a [routerLink]="['/projects', slug(), 'buildings', u.building_code]"
+          >Building {{ u.building_code }}</a
+        >
+        <ng-icon name="lucideChevronRight" />
+        <a
+          [routerLink]="['/projects', slug(), 'buildings', u.building_code]"
+          [queryParams]="{ floor: u.floor_level }"
+          >{{ u.floor_name }}</a
+        >
+        <ng-icon name="lucideChevronRight" /> <span>{{ u.code }}</span>
       </nav>
       <header class="head">
-        <div>
+        <div class="head__main">
           <h1>{{ typeLabel(u.unit_type) }} {{ u.code }}</h1>
-          <span [class]="'uf-badge uf-av-' + u.availability">{{ av().label }}</span>
+          <uf-status-chip domain="availability" [value]="u.availability" size="lg" />
         </div>
-        <button type="button" class="uf-ghost" [attr.aria-pressed]="fav()" (click)="favs.toggle(slug(), u.code)">{{ fav() ? '♥ Saved' : '♡ Save' }}</button>
+        <button
+          type="button"
+          class="uf-ghost"
+          [attr.aria-pressed]="fav()"
+          (click)="favs.toggle(slug(), u.code)"
+        >
+          <ng-icon name="lucideHeart" [class.is-on]="fav()" /> {{ fav() ? 'Saved' : 'Save' }}
+        </button>
       </header>
-      @if (u.indicative) { <p class="uf-indicative">Plan and areas are indicative: they have not been verified against the final drawings yet.</p> }
+      @if (u.indicative) {
+        <p class="uf-indicative">
+          <ng-icon name="lucideInfo" /> Plan and areas are indicative: they have not been verified
+          against the final drawings yet.
+        </p>
+      }
 
       <div class="layout">
         <section class="main">
           @if (u.plan; as plan) {
-            <uf-plan-viewer [src]="api.asset(plan.url)" [width]="plan.width" [height]="plan.height" [polygons]="planPolygons()" mode="view" />
+            <uf-plan-viewer
+              [src]="api.asset(plan.url)"
+              [width]="plan.width"
+              [height]="plan.height"
+              [polygons]="planPolygons()"
+              mode="view"
+            />
           }
           @if (u.media?.length) {
             <div class="gallery">
@@ -40,40 +78,99 @@ import { SiteStore } from '../core/site.store';
                 <figure>
                   <div class="media">
                     @if (m.mime.startsWith('image/')) {
-                      <img [src]="api.asset(m.url)" [alt]="m.alt_text || typeLabel(u.unit_type) + ' ' + u.code" loading="lazy" />
+                      <img
+                        [src]="api.asset(m.url)"
+                        [alt]="m.alt_text || typeLabel(u.unit_type) + ' ' + u.code"
+                        loading="lazy"
+                      />
                     } @else if (m.mime === 'video/mp4') {
                       <video [src]="api.asset(m.url)" controls preload="none"></video>
-                    } @else { <a [href]="api.asset(m.url)" target="_blank" rel="noopener">Open document</a> }
-                    @if (m.is_ai_generated) { <span class="uf-ai-label">Illustrative — AI generated</span> }
+                    } @else {
+                      <a [href]="api.asset(m.url)" target="_blank" rel="noopener">Open document</a>
+                    }
+                    @if (m.is_ai_generated) {
+                      <span class="uf-ai-label">Illustrative — AI generated</span>
+                    }
                   </div>
-                  @if (m.is_ai_generated && m.ai_disclosure_text) { <figcaption class="uf-muted small">{{ m.ai_disclosure_text }}</figcaption> }
+                  @if (m.is_ai_generated && m.ai_disclosure_text) {
+                    <figcaption class="uf-muted small">{{ m.ai_disclosure_text }}</figcaption>
+                  }
                 </figure>
               }
             </div>
           }
-          @if (u.description) { <section class="uf-card"><h2>Description</h2><p class="pre">{{ u.description }}</p></section> }
+          @if (u.description) {
+            <section class="uf-card">
+              <h2>Description</h2>
+              <p class="pre">{{ u.description }}</p>
+            </section>
+          }
         </section>
 
         <aside class="side">
-          <section class="uf-card">
+          <section class="uf-card action" aria-label="Price and actions">
             <p class="price">{{ price() ?? 'Price on request' }}</p>
             @if (u.price?.per_m2) {
-              <p class="uf-muted" [title]="'Per m² of ' + areaLabel(u.price?.per_m2_area_type) + (u.price?.per_m2_area_verified ? ' (verified)' : ' (indicative)')">
-                {{ money({ amount: u.price!.per_m2!, currency: u.price!.currency }) }} per m² {{ areaLabel(u.price?.per_m2_area_type) }}
+              <p
+                class="uf-muted"
+                [title]="
+                  'Per m² of ' +
+                  areaLabel(u.price?.per_m2_area_type) +
+                  (u.price?.per_m2_area_verified ? ' (verified)' : ' (indicative)')
+                "
+              >
+                {{ money({ amount: u.price!.per_m2!, currency: u.price!.currency }) }} per m²
+                {{ areaLabel(u.price?.per_m2_area_type) }}
               </p>
             }
-            @if (contact(); as c) {
-              <p><a class="uf-btn" [href]="c">Ask about {{ u.code }}</a></p>
+            <div class="action__row">
+              @if (contact(); as c) {
+                <a class="uf-btn" [href]="c"
+                  ><ng-icon name="lucideMail" /> Ask about {{ u.code }}</a
+                >
+              }
+              <button
+                type="button"
+                class="uf-ghost"
+                [attr.aria-pressed]="fav()"
+                (click)="favs.toggle(slug(), u.code)"
+              >
+                <ng-icon name="lucideHeart" [class.is-on]="fav()" /> {{ fav() ? 'Saved' : 'Save' }}
+              </button>
+            </div>
+            @if (u.payment_plan; as p) {
+              <p class="uf-muted uf-small"><ng-icon name="lucideCalendar" /> {{ p.name }}</p>
             }
           </section>
           <section class="uf-card">
             <h2>Facts</h2>
             <dl>
-              <dt>Floor</dt><dd>{{ u.floor_name }} (building {{ u.building_code }})</dd>
-              @if (u.rooms?.rooms != null) { <dt>Rooms</dt><dd>{{ u.rooms?.rooms }}</dd> }
-              @if (u.rooms?.bedrooms != null) { <dt>Bedrooms</dt><dd>{{ u.rooms?.bedrooms }}</dd> }
-              @if (u.rooms?.bathrooms != null) { <dt>Bathrooms</dt><dd>{{ u.rooms?.bathrooms }}</dd> }
-              @if (u.rooms?.orientation) { <dt>Orientation</dt><dd>{{ u.rooms?.orientation }}</dd> }
+              <dt>Type</dt>
+              <dd>{{ typeLabel(u.unit_type) }}</dd>
+              <dt>Floor</dt>
+              <dd>
+                <a
+                  [routerLink]="['/projects', slug(), 'buildings', u.building_code]"
+                  [queryParams]="{ floor: u.floor_level, unit: u.code }"
+                  >{{ u.floor_name }}, building {{ u.building_code }}</a
+                >
+              </dd>
+              @if (u.rooms?.rooms != null) {
+                <dt>Rooms</dt>
+                <dd>{{ u.rooms?.rooms }}</dd>
+              }
+              @if (u.rooms?.bedrooms != null) {
+                <dt>Bedrooms</dt>
+                <dd>{{ u.rooms?.bedrooms }}</dd>
+              }
+              @if (u.rooms?.bathrooms != null) {
+                <dt>Bathrooms</dt>
+                <dd>{{ u.rooms?.bathrooms }}</dd>
+              }
+              @if (u.rooms?.orientation) {
+                <dt>Orientation</dt>
+                <dd>{{ u.rooms?.orientation }}</dd>
+              }
             </dl>
           </section>
           @if (areaRows().length) {
@@ -81,41 +178,186 @@ import { SiteStore } from '../core/site.store';
               <h2>Areas</h2>
               <table>
                 @for (a of areaRows(); track a.key) {
-                  <tr><th scope="row" [title]="a.description ?? ''">{{ a.label }}</th><td>{{ a.value }}</td></tr>
+                  <tr>
+                    <th scope="row" [title]="a.description ?? ''">{{ a.label }}</th>
+                    <td>{{ a.value }}</td>
+                  </tr>
                 }
               </table>
-              <p class="uf-muted small">@if (u.indicative) { Measured from the plan, indicative. } @else { Verified against the drawings. }</p>
+              <p class="uf-muted small">
+                @if (u.indicative) {
+                  Measured from the plan, indicative.
+                } @else {
+                  Verified against the drawings.
+                }
+              </p>
             </section>
           }
           @if (u.payment_plan; as p) {
-            <section class="uf-card"><h2>{{ p.name }}</h2>@if (p.description) { <p>{{ p.description }}</p> }
-              <ol>@for (m of p.schedule; track $index) { <li>{{ m.label }} — {{ +m.percent }} %@if (m.due) { , {{ m.due }} }</li> }</ol>
+            <section class="uf-card">
+              <h2>{{ p.name }}</h2>
+              @if (p.description) {
+                <p>{{ p.description }}</p>
+              }
+              <ol>
+                @for (m of p.schedule; track $index) {
+                  <li>
+                    {{ m.label }} — {{ +m.percent }} %
+                    @if (m.due) {
+                      , {{ m.due }}
+                    }
+                  </li>
+                }
+              </ol>
             </section>
           }
           @for (p of u.promotions ?? []; track p.name) {
-            <section class="uf-card"><h2>{{ p.name }}</h2>@if (p.terms) { <p>{{ p.terms }}</p> }@if (p.valid_to) { <p class="uf-muted">Until {{ p.valid_to }}</p> }</section>
+            <section class="uf-card">
+              <h2>{{ p.name }}</h2>
+              @if (p.terms) {
+                <p>{{ p.terms }}</p>
+              }
+              @if (p.valid_to) {
+                <p class="uf-muted">Until {{ p.valid_to }}</p>
+              }
+            </section>
           }
         </aside>
       </div>
-    } @else { <p class="uf-muted">Loading…</p> }
+    } @else {
+      <p class="uf-muted">Loading…</p>
+    }
   `,
   styles: `
-    .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
-    .layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 1rem; margin-top: 0.75rem; }
-    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } .side { order: -1; } }
-    .main, .side { display: grid; gap: 1rem; align-content: start; min-width: 0; }
-    .price { font-size: 1.6rem; font-weight: 700; margin: 0; }
-    .gallery { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
-    figure { margin: 0; display: grid; gap: 0.25rem; }
-    .media { position: relative; }
-    figure img, figure video { width: 100%; border-radius: var(--uf-radius); display: block; background: #e2e8f0; aspect-ratio: 4 / 3; object-fit: cover; }
-    dl { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; margin: 0; }
-    dt { color: var(--uf-muted); } dd { margin: 0; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 0.3rem 0; border-bottom: 1px solid var(--uf-border); font-weight: normal; }
-    td { text-align: right; font-weight: 600; }
-    .small { font-size: 0.85rem; }
-    .pre { white-space: pre-line; }
+    .head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .head__main {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .head__main h1 {
+      margin: 0;
+    }
+    ng-icon.is-on {
+      color: var(--uf-tone-bad-fg);
+    }
+    .action {
+      position: sticky;
+      top: calc(4.5rem);
+      display: grid;
+      gap: 0.5rem;
+    }
+    .action__row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .action .uf-small ng-icon {
+      vertical-align: -0.15em;
+    }
+    @media (max-width: 900px) {
+      .action {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        border-radius: var(--uf-radius) var(--uf-radius) 0 0;
+        box-shadow: var(--uf-shadow-lg);
+        z-index: 6;
+      }
+      .layout {
+        padding-bottom: 9rem;
+      }
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .side {
+        order: -1;
+      }
+    }
+    .main,
+    .side {
+      display: grid;
+      gap: 1rem;
+      align-content: start;
+      min-width: 0;
+    }
+    .price {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin: 0;
+    }
+    .gallery {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+    }
+    figure {
+      margin: 0;
+      display: grid;
+      gap: 0.25rem;
+    }
+    .media {
+      position: relative;
+    }
+    figure img,
+    figure video {
+      width: 100%;
+      border-radius: var(--uf-radius);
+      display: block;
+      background: #e2e8f0;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+    }
+    dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.25rem 1rem;
+      margin: 0;
+    }
+    dt {
+      color: var(--uf-muted);
+    }
+    dd {
+      margin: 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th,
+    td {
+      text-align: left;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid var(--uf-border);
+      font-weight: normal;
+    }
+    td {
+      text-align: right;
+      font-weight: 600;
+    }
+    .small {
+      font-size: 0.85rem;
+    }
+    .pre {
+      white-space: pre-line;
+    }
   `,
 })
 export class UnitPage {
@@ -136,7 +378,16 @@ export class UnitPage {
   readonly planPolygons = computed<PlanPolygon[]>(() => {
     const u = this.unit();
     if (!u?.plan?.ring) return [];
-    return [{ id: u.unit_id, ring: u.plan.ring, label: u.code, fill: 'color-mix(in srgb, var(--uf-primary) 28%, transparent)', stroke: 'var(--uf-primary)', title: u.code }];
+    return [
+      {
+        id: u.unit_id,
+        ring: u.plan.ring,
+        label: u.code,
+        fill: 'color-mix(in srgb, var(--uf-primary) 28%, transparent)',
+        stroke: 'var(--uf-primary)',
+        title: u.code,
+      },
+    ];
   });
   readonly areaRows = computed(() => {
     const areas = this.unit()?.areas ?? {};
@@ -154,11 +405,19 @@ export class UnitPage {
   });
 
   constructor() {
-    combineLatest([toObservable(this.slug), toObservable(this.code)]).subscribe(([s, c]) => void this.load(s, c));
+    combineLatest([toObservable(this.slug), toObservable(this.code)]).subscribe(
+      ([s, c]) => void this.load(s, c),
+    );
   }
 
   areaLabel(key: string | null | undefined): string {
-    return (this.doc()?.project.area_definitions ?? []).find((d) => d.key === key)?.label?.toLowerCase() ?? key ?? '';
+    return (
+      (this.doc()?.project.area_definitions ?? [])
+        .find((d) => d.key === key)
+        ?.label?.toLowerCase() ??
+      key ??
+      ''
+    );
   }
 
   private async load(slug: string, code: string): Promise<void> {

@@ -140,8 +140,8 @@ services:
     logging: *default-logging
 
   worker-heavy:
-    image: *backend-image
-    build: { context: ../../backend }
+    image: ghcr.io/datikos/unitforma-backend-ifc:${BACKEND_TAG:-dev}
+    build: { context: ../../backend, target: runtime-ifc }
     command: ["worker", "--queues", "docs-heavy,geometry,geometry-heavy", "--concurrency", "1"]
     environment: *backend-env
     secrets: *backend-secrets

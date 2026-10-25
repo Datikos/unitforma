@@ -26,6 +26,7 @@ from unitforma.api.schemas import (
 from unitforma.core.errors import ProblemError
 from unitforma.documents import assignments
 from unitforma.documents import service as documents
+from unitforma.geometry import service as geometry_service
 from unitforma.identity.authz import Action
 from unitforma.identity.deps import TenantContext, tenant_context
 from unitforma.inventory import geometry
@@ -246,7 +247,8 @@ async def exclude_pages(revision_id: uuid.UUID, body: PagesExclude, ctx: Ctx):
 async def calibrate_sheet(sheet_id: uuid.UUID, body: SheetCalibrate, ctx: Ctx):
     ctx.require("mapping", Action.WRITE)
     sheet = await documents.get_sheet(ctx.session, ctx.tenant_id, sheet_id)
-    ctx.require_project(await documents.sheet_project_id(ctx.session, sheet))
+    project_id = await documents.sheet_project_id(ctx.session, sheet)
+    ctx.require_project(project_id)
     if sheet.version != body.version:
         raise ProblemError(409, "Conflict", f"Sheet changed concurrently (version {sheet.version})")
     if not sheet.raster_width or not sheet.raster_height:
@@ -275,6 +277,7 @@ async def calibrate_sheet(sheet_id: uuid.UUID, body: SheetCalibrate, ctx: Ctx):
         action="calibrate",
         after={"m_per_px": cal["m_per_px"], "boundaries_recomputed": n},
     )
+    await geometry_service.queue_massing(ctx.tenant_id, project_id)  # outlines moved (ADR-0011)
     return await _sheet_out(ctx, sheet)
 
 

@@ -2,129 +2,313 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatTableModule } from '@angular/material/table';
 import { RouterLink } from '@angular/router';
-import { BuildingOut, FloorIn, FloorOut, ProjectOut, RegulatoryImportOut, UnitformaApi, problemMessage } from 'api-client';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import {
+  BuildingOut,
+  FloorIn,
+  FloorOut,
+  ProjectOut,
+  RegulatoryImportOut,
+  UnitformaApi,
+  problemMessage,
+} from 'api-client';
+import {
+  EmptyStateComponent,
+  Fact,
+  FactsComponent,
+  HeaderFact,
+  PageHeaderComponent,
+  SectionCardComponent,
+  StatusChipComponent,
+  UF_ICONS,
+  dayOf,
+  whenShort,
+} from 'ui';
+import { ProjectContext } from '../core/project-context';
+import { ToastService } from '../ui/toast.service';
 
-/** Project structure: buildings and their floors (plan §3.5). */
+/** Project overview: header facts, permit (ADR-0007), structure of buildings and floors (plan §3.5). */
 @Component({
   selector: 'uf-project-detail-page',
-  imports: [FormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, RouterLink],
+  imports: [
+    FormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    RouterLink,
+    NgIcon,
+    PageHeaderComponent,
+    SectionCardComponent,
+    StatusChipComponent,
+    FactsComponent,
+    EmptyStateComponent,
+  ],
+  viewProviders: [provideIcons(UF_ICONS)],
   template: `
     <div class="uf-page">
-      @if (project(); as p) {
-        <div class="uf-page-header">
-          <h2>{{ p.name }}</h2>
-          <span class="uf-muted">{{ p.slug }} · {{ p.status }} · {{ p.currency }} · code pattern {{ p.code_pattern }}</span>
-          <span class="uf-links">
-            <a mat-stroked-button routerLink="documents">Documents</a>
-            <a mat-stroked-button routerLink="proposals">Revision diffs</a>
-            <a mat-stroked-button routerLink="placement">Site placement</a>
-            <a mat-stroked-button routerLink="massing">3D massing</a>
-            <a mat-stroked-button routerLink="units">Units</a>
-            <a mat-stroked-button routerLink="inventory">Inventory &amp; prices</a>
-            <a mat-stroked-button routerLink="publish">Publish</a>
-          </span>
+      @let p = project();
+      <uf-page-header
+        [title]="p?.name ?? 'Project'"
+        icon="lucideLayoutDashboard"
+        [kicker]="p ? p.slug : null"
+        [facts]="facts()"
+      >
+        <ng-container actions>
+          <a mat-stroked-button routerLink="documents"
+            ><ng-icon name="lucideFileText" /> Documents</a
+          >
+          <a mat-stroked-button routerLink="inventory"><ng-icon name="lucideTable" /> Inventory</a>
+          <a mat-flat-button routerLink="publish"><ng-icon name="lucideRocket" /> Publish</a>
+        </ng-container>
+      </uf-page-header>
+      @if (error(); as e) {
+        <div class="uf-alert uf-alert--bad" role="alert">
+          <ng-icon name="lucideCircleX" />{{ e }}
         </div>
       }
-      @if (error()) { <p class="uf-error">{{ error() }}</p> }
+
+      <div class="uf-stats">
+        <div class="uf-stat">
+          <span class="uf-stat__label">Buildings</span
+          ><span class="uf-stat__value">{{ realBuildings().length }}</span
+          ><span class="uf-stat__hint">{{ placedCount() }} placed on the site plan</span>
+        </div>
+        <div class="uf-stat">
+          <span class="uf-stat__label">Floors</span
+          ><span class="uf-stat__value">{{ floorCount() }}</span
+          ><span class="uf-stat__hint">across all buildings</span>
+        </div>
+        <div class="uf-stat">
+          <span class="uf-stat__label">Currency</span
+          ><span class="uf-stat__value">{{ p?.currency ?? '—' }}</span
+          ><span class="uf-stat__hint">code pattern {{ p?.code_pattern ?? '—' }}</span>
+        </div>
+      </div>
 
       @if (permit(); as r) {
-        <mat-card appearance="outlined" class="permit">
-          <mat-card-header>
-            <mat-card-title>Building permit {{ r['application_no'] || r['external_id'] }}</mat-card-title>
-            <mat-card-subtitle>
-              {{ r['status'] }} · decided {{ day(r['decided_at']) }} · {{ r['address'] || '' }}
-              @if (codes(r).length) { · parcel {{ codes(r).join(', ') }} }
-              · <a [href]="str(r['public_page'])" target="_blank" rel="noopener">registry page</a>
-            </mat-card-subtitle>
-          </mat-card-header>
-          <mat-card-content>
+        <uf-section-card
+          title="Building permit"
+          icon="lucideScrollText"
+          [summary]="(r['application_no'] || r['external_id']) + ' · ' + (r['status'] || '')"
+          storageKey="project-permit"
+        >
+          <div actions>
             @if (latestImport(); as j) {
-              <p>
-                <strong [class]="'status-' + j.status">{{ importLabel(j) }}</strong>
-                <span class="uf-muted"> · fetched {{ (j.started_at || j.created_at).slice(0, 16).replace('T', ' ') }}</span>
-                @if (j.status === 'done') {
-                  <span class="uf-muted"> · {{ count(j, 'imported') }} files imported, {{ count(j, 'existing') }} already present, {{ count(j, 'skipped') }} skipped, {{ count(j, 'failed') }} failed</span>
+              <uf-status-chip domain="regulatory_import" [value]="j.status" />
+            }
+          </div>
+          <uf-facts [facts]="permitFacts(r)" />
+          @if (latestImport(); as j) {
+            <p class="uf-small">
+              <span class="uf-muted">Last import {{ when(j.started_at || j.created_at) }}</span>
+              @if (j.status === 'done') {
+                · {{ count(j, 'imported') }} files imported, {{ count(j, 'existing') }} already
+                present, {{ count(j, 'skipped') }} skipped, {{ count(j, 'failed') }} failed
+              }
+              @if (j.error) {
+                <span class="uf-error"> · {{ j.error }}</span>
+              }
+            </p>
+            @if (count(j, 'failed')) {
+              <ul class="uf-muted uf-small">
+                @for (f of failed(j); track f['attached_file_id']) {
+                  <li>{{ f['file_name'] }}: {{ f['error'] }}</li>
                 }
-                @if (j.error) { <span class="uf-error"> · {{ j.error }}</span> }
+              </ul>
+            }
+            @if (j.status === 'importing') {
+              <p class="uf-hint">
+                The worker is downloading the drawings. They appear under Documents within a minute
+                and propose floors from their level markers.
               </p>
-              @if (count(j, 'failed')) {
-                <ul class="uf-muted small">
-                  @for (f of failed(j); track f['attached_file_id']) { <li>{{ f['file_name'] }}: {{ f['error'] }}</li> }
-                </ul>
-              }
-              @if (j.status === 'importing') {
-                <p class="uf-muted small">The worker is downloading the drawings. Reload this page in a minute; they appear under Documents and propose floors from their level markers.</p>
-              }
             }
-            @if (heights(); as h) {
-              <p class="uf-muted small">Permit heights: {{ h.above ?? '—' }} m above 0.00, {{ h.below ?? '—' }} m below. Use them when you generate floors below (for example 4 floors of about 3.5 m above ground and one basement).</p>
-            }
-            <div class="uf-form-row">
-              <a mat-stroked-button routerLink="documents">Documents</a>
-              <button mat-stroked-button [disabled]="busy() || latestImport()?.status === 'importing'" (click)="refreshPermit()">Check registry for new files</button>
-              <span class="uf-muted small">Fetches the permit again and imports only files that are not here yet.</span>
-            </div>
-          </mat-card-content>
-        </mat-card>
+          }
+          @if (heights(); as h) {
+            <p class="uf-hint">
+              Permit heights: {{ h.above ?? '—' }} m above 0.00, {{ h.below ?? '—' }} m below. Use
+              them when you generate floors below (for example 4 floors of about 3.5 m above ground
+              and one basement).
+            </p>
+          }
+          <div class="uf-actions">
+            <a mat-stroked-button routerLink="documents"
+              ><ng-icon name="lucideFileText" /> Documents</a
+            >
+            <button
+              mat-stroked-button
+              [disabled]="busy() || latestImport()?.status === 'importing'"
+              (click)="refreshPermit()"
+            >
+              <ng-icon name="lucideRefreshCw" /> Check registry for new files
+            </button>
+            <a mat-button [href]="str(r['public_page'])" target="_blank" rel="noopener"
+              ><ng-icon name="lucideExternalLink" /> Registry page</a
+            >
+            <span class="uf-hint"
+              >Fetches the permit again and imports only files that are not here yet.</span
+            >
+          </div>
+        </uf-section-card>
       }
 
-      <mat-card appearance="outlined">
-        <mat-card-header><mat-card-title>Add building</mat-card-title></mat-card-header>
-        <mat-card-content class="uf-form-row">
-          <mat-form-field appearance="outline"><mat-label>Code</mat-label><input matInput [(ngModel)]="code" name="code" placeholder="A" /></mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Name</mat-label><input matInput [(ngModel)]="bname" name="bname" /></mat-form-field>
-          <button mat-flat-button [disabled]="busy()" (click)="addBuilding()">Add</button>
-        </mat-card-content>
-      </mat-card>
+      <uf-section-card
+        title="Add building"
+        icon="lucidePlus"
+        summary="code and optional name"
+        storageKey="project-add-building"
+        [open]="realBuildings().length === 0"
+      >
+        <div class="uf-form-row">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="code"
+            ><mat-label>Code</mat-label
+            ><input
+              matInput
+              [(ngModel)]="code"
+              name="code"
+              placeholder="A"
+              (keyup.enter)="addBuilding()"
+          /></mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic"
+            ><mat-label>Name</mat-label
+            ><input
+              matInput
+              [(ngModel)]="bname"
+              name="bname"
+              placeholder="Block A"
+              (keyup.enter)="addBuilding()"
+          /></mat-form-field>
+          <button mat-flat-button [disabled]="busy() || !code.trim()" (click)="addBuilding()">
+            Add
+          </button>
+          <span class="uf-hint"
+            >The code appears in unit codes ({{ p?.code_pattern ?? 'A-3-01' }}) and on the
+            portal.</span
+          >
+        </div>
+      </uf-section-card>
 
-      @for (b of buildings(); track b.id) {
-        <mat-card appearance="outlined">
-          <mat-card-header>
-            <mat-card-title>{{ b.code }} {{ b.name ?? '' }}</mat-card-title>
-            <mat-card-subtitle>{{ b.kind }} · placement {{ b.placement_status }} · {{ floorsOf(b).length }} floors</mat-card-subtitle>
-          </mat-card-header>
-          <mat-card-content>
-            @if (b.kind === 'building') {
-              <div class="uf-form-row">
-                <mat-form-field appearance="outline"><mat-label>Lowest level</mat-label><input matInput type="number" [(ngModel)]="from[b.id]" [name]="'from' + b.id" /></mat-form-field>
-                <mat-form-field appearance="outline"><mat-label>Highest level</mat-label><input matInput type="number" [(ngModel)]="to[b.id]" [name]="'to' + b.id" /></mat-form-field>
-                <mat-form-field appearance="outline"><mat-label>Floor height (m)</mat-label><input matInput type="number" step="0.01" [(ngModel)]="height[b.id]" [name]="'h' + b.id" /></mat-form-field>
-                <button mat-stroked-button [disabled]="busy()" (click)="generateFloors(b)">Generate floors</button>
-              </div>
-            }
+      @for (b of realBuildings(); track b.id) {
+        <uf-section-card
+          [title]="b.code + (b.name ? ' · ' + b.name : '')"
+          icon="lucideBuilding2"
+          [count]="floorsOf(b).length"
+          [summary]="floorSummary(b)"
+          [storageKey]="'project-building-' + b.id"
+        >
+          <div actions class="uf-actions">
+            <uf-status-chip domain="building.placement" [value]="b.placement_status" />
+            <a mat-button routerLink="placement"><ng-icon name="lucideMap" /> Place</a>
+          </div>
+          <div class="uf-form-row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="num"
+              ><mat-label>Lowest level</mat-label
+              ><input
+                matInput
+                type="number"
+                [(ngModel)]="from[b.id]"
+                [name]="'from' + b.id"
+                placeholder="-1"
+            /></mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="num"
+              ><mat-label>Highest level</mat-label
+              ><input
+                matInput
+                type="number"
+                [(ngModel)]="to[b.id]"
+                [name]="'to' + b.id"
+                placeholder="12"
+            /></mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="num"
+              ><mat-label>Floor height (m)</mat-label
+              ><input
+                matInput
+                type="number"
+                step="0.01"
+                [(ngModel)]="height[b.id]"
+                [name]="'h' + b.id"
+                placeholder="3.3"
+            /></mat-form-field>
+            <button mat-stroked-button [disabled]="busy()" (click)="generateFloors(b)">
+              <ng-icon name="lucideLayers" />
+              {{ floorsOf(b).length ? 'Regenerate floors' : 'Generate floors' }}
+            </button>
             @if (floorsOf(b).length) {
-              <table mat-table [dataSource]="floorsOf(b)" class="uf-table">
-                <ng-container matColumnDef="level"><th mat-header-cell *matHeaderCellDef>Level</th><td mat-cell *matCellDef="let f">{{ f.level }}</td></ng-container>
-                <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef>Name</th><td mat-cell *matCellDef="let f">{{ f.display_name }}</td></ng-container>
-                <ng-container matColumnDef="height"><th mat-header-cell *matHeaderCellDef>Height (m)</th><td mat-cell *matCellDef="let f">{{ f.height_m ?? '—' }}</td></ng-container>
-                <tr mat-header-row *matHeaderRowDef="floorCols"></tr>
-                <tr mat-row *matRowDef="let row; columns: floorCols"></tr>
-              </table>
+              <span class="uf-hint"
+                >Regenerating replaces the floor list; floors with mapped units cannot be
+                removed.</span
+              >
             }
-          </mat-card-content>
-        </mat-card>
+          </div>
+          @if (floorsOf(b).length) {
+            <table class="uf-plain floors">
+              <thead>
+                <tr>
+                  <th>Level</th>
+                  <th>Name</th>
+                  <th class="uf-num">Height (m)</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (f of floorsOf(b); track f.id) {
+                  <tr>
+                    <td class="uf-num">{{ f.level }}</td>
+                    <td>{{ f.display_name }}</td>
+                    <td class="uf-num">{{ f.height_m ?? '—' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <p class="uf-muted uf-small">
+              No floors yet. Generate them above; negative levels become basements (B1), 0 is
+              Ground.
+            </p>
+          }
+        </uf-section-card>
+      } @empty {
+        <uf-empty-state
+          icon="lucideBuilding2"
+          title="No buildings yet"
+          text="Add a building above. Floors are what sheets, units and the 3D model attach to."
+        />
       }
     </div>
   `,
   styles: `
-    .uf-form-row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
-    .small { font-size: 0.85rem; }
-    .status-done { color: #047857; }
-    .status-importing { color: #b45309; }
-    .status-failed { color: #b91c1c; }
+    .code {
+      width: 8rem;
+    }
+    .num {
+      width: 10rem;
+    }
+    .floors {
+      max-width: 36rem;
+    }
+    a ng-icon,
+    button ng-icon {
+      vertical-align: -0.15em;
+      margin-right: 0.25rem;
+    }
   `,
 })
 export class ProjectDetailPage {
   private readonly api = inject(UnitformaApi);
+  private readonly ctx = inject(ProjectContext);
+  private readonly toast = inject(ToastService);
   readonly tenantId = input.required<string>();
   readonly projectId = input.required<string>();
   readonly project = signal<ProjectOut | null>(null);
   readonly buildings = signal<BuildingOut[]>([]);
+  readonly realBuildings = computed(() => this.buildings().filter((b) => b.kind === 'building'));
+  readonly floorCount = computed(() =>
+    this.realBuildings().reduce((a, b) => a + (b.floors?.length ?? 0), 0),
+  );
+  readonly placedCount = computed(
+    () => this.realBuildings().filter((b) => b.placement_status === 'confirmed').length,
+  );
   /** Permit summary stored on the project (ADR-0007 Decision 4), when it was imported from one. */
   readonly permit = computed(() => {
     const r = this.project()?.regulatory as Record<string, unknown> | undefined;
@@ -134,17 +318,40 @@ export class ProjectDetailPage {
   readonly latestImport = computed(() => this.imports()[0] ?? null);
   readonly heights = computed(() => {
     const p = this.latestImport()?.permit as Record<string, unknown> | undefined;
-    const h = (p?.['heights'] ?? null) as { above_zero_m?: number | null; below_zero_m?: number | null } | null;
+    const h = (p?.['heights'] ?? null) as {
+      above_zero_m?: number | null;
+      below_zero_m?: number | null;
+    } | null;
     return h ? { above: h.above_zero_m ?? null, below: h.below_zero_m ?? null } : null;
+  });
+  readonly facts = computed<HeaderFact[]>(() => {
+    const p = this.project();
+    if (!p) return [];
+    const addr = (p.address ?? {}) as Record<string, unknown>;
+    return [
+      { domain: 'project', status: p.status },
+      ...(typeof addr['line'] === 'string'
+        ? [{ icon: 'lucideMapPin', value: String(addr['line']) }]
+        : []),
+      ...(this.permit()
+        ? [
+            {
+              icon: 'lucideScrollText',
+              label: 'Permit',
+              value: String(this.permit()!['application_no'] ?? ''),
+            },
+          ]
+        : []),
+    ];
   });
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
-  readonly floorCols = ['level', 'name', 'height'];
   code = '';
   bname = '';
   from: Record<string, number> = {};
   to: Record<string, number> = {};
   height: Record<string, number> = {};
+  when = whenShort;
 
   constructor() {
     toObservable(this.projectId).subscribe(() => void this.load());
@@ -157,16 +364,27 @@ export class ProjectDetailPage {
         this.api.listBuildings(this.tenantId(), this.projectId()),
       ]);
       this.project.set(p);
+      this.ctx.set(p);
       this.buildings.set(b);
       const reg = p.regulatory as Record<string, unknown>;
-      this.imports.set(reg?.['source'] === 'tasge' ? await this.api.listRegulatoryImports(this.tenantId(), this.projectId()) : []);
+      this.imports.set(
+        reg?.['source'] === 'tasge'
+          ? await this.api.listRegulatoryImports(this.tenantId(), this.projectId())
+          : [],
+      );
     } catch (e) {
       this.error.set(problemMessage(e));
     }
   }
 
-  day(v: unknown): string {
-    return typeof v === 'string' && v ? v.slice(0, 10) : '—';
+  permitFacts(r: Record<string, unknown>): Fact[] {
+    return [
+      { label: 'Permit', value: String(r['application_no'] ?? r['external_id'] ?? '') },
+      { label: 'Status', value: this.str(r['status']) },
+      { label: 'Decided', value: dayOf(this.str(r['decided_at'])) },
+      { label: 'Address', value: this.str(r['address']) },
+      { label: 'Parcels', value: this.codes(r).join(', ') },
+    ];
   }
 
   str(v: unknown): string {
@@ -186,21 +404,34 @@ export class ProjectDetailPage {
     return Array.isArray(f) ? (f as Record<string, unknown>[]) : [];
   }
 
-  importLabel(j: RegulatoryImportOut): string {
-    return { importing: 'Import running', done: 'Import finished', failed: 'Import failed', fetched: 'Fetched' }[j.status] ?? j.status;
-  }
-
-  async refreshPermit(): Promise<void> {
-    await this.run(() => this.api.refreshPermit(this.tenantId(), this.projectId()));
-  }
-
   floorsOf(b: BuildingOut): FloorOut[] {
     return b.floors ?? [];
   }
 
-  async addBuilding(): Promise<void> {
+  floorSummary(b: BuildingOut): string {
+    const f = this.floorsOf(b);
+    if (!f.length) return 'no floors yet';
+    const lv = f.map((x) => x.level);
+    return `levels ${Math.min(...lv)} to ${Math.max(...lv)}`;
+  }
+
+  async refreshPermit(): Promise<void> {
     await this.run(async () => {
-      await this.api.createBuilding(this.tenantId(), this.projectId(), { code: this.code, name: this.bname || null, kind: 'building', sort_order: 0 });
+      await this.api.refreshPermit(this.tenantId(), this.projectId());
+      this.toast.ok('Registry checked; new files are being imported');
+    });
+  }
+
+  async addBuilding(): Promise<void> {
+    if (!this.code.trim()) return;
+    await this.run(async () => {
+      await this.api.createBuilding(this.tenantId(), this.projectId(), {
+        code: this.code.trim(),
+        name: this.bname || null,
+        kind: 'building',
+        sort_order: 0,
+      });
+      this.toast.ok(`Building ${this.code.trim()} added`);
       this.code = this.bname = '';
     });
   }
@@ -215,9 +446,16 @@ export class ProjectDetailPage {
     }
     const floors: FloorIn[] = [];
     for (let lvl = from; lvl <= to; lvl++) {
-      floors.push({ level: lvl, display_name: lvl < 0 ? `B${-lvl}` : lvl === 0 ? 'Ground' : String(lvl), height_m: h ? String(h) : null });
+      floors.push({
+        level: lvl,
+        display_name: lvl < 0 ? `B${-lvl}` : lvl === 0 ? 'Ground' : String(lvl),
+        height_m: h ? String(h) : null,
+      });
     }
-    await this.run(() => this.api.setFloors(this.tenantId(), b.id, floors));
+    await this.run(async () => {
+      await this.api.setFloors(this.tenantId(), b.id, floors);
+      this.toast.ok(`${floors.length} floors set on ${b.code}`);
+    });
   }
 
   private async run(fn: () => Promise<unknown>): Promise<void> {

@@ -60,3 +60,13 @@ async def import_attachments(tenant_id: str, import_id: str) -> dict:
     from unitforma.regulatory.service import import_attachments as run
 
     return await run(uuid.UUID(tenant_id), uuid.UUID(import_id))
+
+
+@app.task(name="geometry.ingest_ifc", queue="geometry-heavy", retry=1)
+async def ingest_ifc(tenant_id: str, revision_id: str) -> dict:
+    """IFC → GLB per building + space list for review (ADR-0006 Phase C); heavy worker only."""
+    import uuid
+
+    from unitforma.geometry.ifc_service import ingest_ifc as run
+
+    return await run(uuid.UUID(tenant_id), uuid.UUID(revision_id))

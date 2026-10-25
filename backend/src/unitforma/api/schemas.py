@@ -200,6 +200,28 @@ class FloorsBulkCreate(BaseModel):
     floors: list[FloorIn] = Field(min_length=1, max_length=200)
 
 
+class ProposedFloorOut(BaseModel):
+    """A storey read from the drawings' level markers (ADR-0010)."""
+
+    level: int
+    display_name: str
+    elevation_m: float
+    height_m: float | None
+    status: Literal["new", "update", "existing"]
+    floor_id: uuid.UUID | None
+    sheets: int
+    markers: list[str]
+
+
+class FloorProposalOut(BaseModel):
+    building_id: uuid.UUID
+    sheets_with_markers: int
+    floors: list[ProposedFloorOut]
+    unmatched_existing: list[dict[str, Any]]
+    roof: dict[str, Any]
+    counts: dict[str, int]
+
+
 class FloorOut(ORM):
     id: uuid.UUID
     building_id: uuid.UUID
@@ -1079,3 +1101,43 @@ class PermitImportResult(BaseModel):
     project: ProjectOut
     building: BuildingOut
     job: RegulatoryImportOut
+
+
+# --- IFC models and space links (ADR-0006 Phase C) -----------------------------------------
+class IfcSpaceLinkOut(ORM):
+    id: uuid.UUID
+    building_id: uuid.UUID
+    geometry_model_id: uuid.UUID
+    ifc_global_id: str
+    name: str | None
+    long_name: str | None
+    storey_name: str | None
+    storey_elevation_m: Decimal | None
+    floor_id: uuid.UUID | None
+    unit_id: uuid.UUID | None
+    status: str
+    confidence: Decimal | None
+    areas: dict[str, Any]
+    unit_code: str | None = None
+    floor_level: int | None = None
+
+
+class IfcSpaceLinkDecide(BaseModel):
+    """Confirm a space as a unit (optionally another unit than suggested) or reject it."""
+
+    decision: Literal["confirm", "reject", "reset"]
+    unit_id: uuid.UUID | None = None
+
+
+class BuildingModelOut(ORM):
+    """The current IFC-derived model of a building (kind ``ifc``), if any."""
+
+    id: uuid.UUID
+    building_id: uuid.UUID | None
+    kind: str
+    status: str
+    stats: dict[str, Any]
+    error: str | None
+    created_at: datetime
+    glb_url: str | None = None
+    links: dict[str, int] = Field(default_factory=dict)

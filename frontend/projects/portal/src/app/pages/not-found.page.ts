@@ -1,9 +1,15 @@
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { EmptyStateComponent } from 'ui';
 
 @Component({
   selector: 'uf-not-found-page',
-  imports: [RouterLink],
-  template: `<section class="uf-empty"><h1>Page not found</h1><p>This page does not exist or is no longer published.</p><a routerLink="/" class="uf-btn">Home</a></section>`,
+  imports: [RouterLink, EmptyStateComponent],
+  template: `<uf-empty-state
+    icon="lucideCircleHelp"
+    title="Page not found"
+    text="This page does not exist or is no longer published."
+    ><a routerLink="/" class="uf-btn">Home</a></uf-empty-state
+  >`,
 })
 export class NotFoundPage {}

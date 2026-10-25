@@ -29,7 +29,17 @@
                 "input": "projects/admin/public"
               }
             ],
-            "styles": ["projects/admin/src/styles.scss"]
+            "styles": [
+              "node_modules/@fontsource-variable/inter/index.css",
+              "node_modules/@fontsource/noto-sans-georgian/400.css",
+              "node_modules/@fontsource/noto-sans-georgian/600.css",
+              "projects/admin/src/styles.scss"
+            ],
+            "stylePreprocessorOptions": {
+              "includePaths": [
+                "projects/libs/ui/src/styles"
+              ]
+            }
           },
           "configurations": {
             "production": {
@@ -95,7 +105,17 @@
                 "input": "projects/portal/public"
               }
             ],
-            "styles": ["projects/portal/src/styles.scss"]
+            "styles": [
+              "node_modules/@fontsource-variable/inter/index.css",
+              "node_modules/@fontsource/noto-sans-georgian/400.css",
+              "node_modules/@fontsource/noto-sans-georgian/600.css",
+              "projects/portal/src/styles.scss"
+            ],
+            "stylePreprocessorOptions": {
+              "includePaths": [
+                "projects/libs/ui/src/styles"
+              ]
+            }
           },
           "configurations": {
             "production": {

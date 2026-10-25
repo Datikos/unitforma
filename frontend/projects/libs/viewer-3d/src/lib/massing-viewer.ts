@@ -1,4 +1,13 @@
-import { Component, ElementRef, OnDestroy, effect, input, output, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  OnDestroy,
+  effect,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -9,7 +18,12 @@ export interface MassingUnitInfo {
   unit_type: string;
   building_code: string;
   floor_level: number;
+  /** draft | active | removed; drafts are drawn translucent (ADR-0011). */
+  lifecycle_status?: string;
 }
+
+/** Opacity of a unit whose mapping is not approved yet. */
+const DRAFT_OPACITY = 0.55;
 
 /** Opacity of units outside the focused floor or building (ADR-0006 Decision 6). */
 const FADE_OTHER_FLOOR = 0.18;
@@ -31,17 +45,71 @@ const FADE_OTHER_BUILDING = 0.08;
     <div class="mv" #host (pointermove)="onMove($event)" (click)="onClick($event)">
       <canvas #canvas></canvas>
       <div class="mv__badge">{{ badge() }}</div>
-      @if (status(); as s) { <div class="mv__status">{{ s }}</div> }
-      @if (hovered(); as h) { <div class="mv__hover">{{ h.building_code }} · {{ h.code }} · level {{ h.floor_level }}</div> }
+      @if (status(); as s) {
+        <div class="mv__status">{{ s }}</div>
+      }
+      @if (hovered(); as h) {
+        <div class="mv__hover">
+          {{ h.building_code }} · {{ h.code }} · level {{ h.floor_level }}
+          @if (h.lifecycle_status === 'draft') {
+            · draft
+          }
+        </div>
+      }
     </div>
   `,
   styles: `
-    :host { display: block; }
-    .mv { position: relative; width: 100%; height: var(--uf-3d-height, 70vh); min-height: var(--uf-3d-min-height, 420px); background: #f3f4f6; overflow: hidden; }
-    canvas { display: block; width: 100%; height: 100%; }
-    .mv__badge { position: absolute; left: 0.5rem; bottom: 0.5rem; font: 12px system-ui, sans-serif; color: #374151; background: rgba(255,255,255,0.85); padding: 0.25rem 0.5rem; border-radius: 4px; }
-    .mv__status { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 14px system-ui, sans-serif; color: #374151; }
-    .mv__hover { position: absolute; right: 0.5rem; top: 0.5rem; font: 13px system-ui, sans-serif; background: rgba(17,24,39,0.85); color: #fff; padding: 0.25rem 0.5rem; border-radius: 4px; pointer-events: none; }
+    :host {
+      display: block;
+    }
+    .mv {
+      position: relative;
+      width: 100%;
+      height: var(--uf-3d-height, 70vh);
+      min-height: var(--uf-3d-min-height, 420px);
+      background: #f3f4f6;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .mv__badge {
+      position: absolute;
+      left: 0.5rem;
+      bottom: 0.5rem;
+      font:
+        12px system-ui,
+        sans-serif;
+      color: #374151;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+    }
+    .mv__status {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font:
+        14px system-ui,
+        sans-serif;
+      color: #374151;
+    }
+    .mv__hover {
+      position: absolute;
+      right: 0.5rem;
+      top: 0.5rem;
+      font:
+        13px system-ui,
+        sans-serif;
+      background: rgba(17, 24, 39, 0.85);
+      color: #fff;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      pointer-events: none;
+    }
   `,
 })
 export class MassingViewerComponent implements OnDestroy {
@@ -52,7 +120,9 @@ export class MassingViewerComponent implements OnDestroy {
   /** Focus one building: other buildings are faded and not pickable (null = all). */
   readonly buildingCode = input<string | null>(null);
   /** Disclaimer shown on the model (plan §7.3); changes with the model kind. */
-  readonly badge = input<string>('Schematic model generated from floor plans — not an architectural model');
+  readonly badge = input<string>(
+    'Schematic model generated from floor plans — not an architectural model',
+  );
   /** Selected unit id (highlighted). */
   readonly selectedUnitId = input<string | null>(null);
   /** Per-unit base colours (e.g. by availability), keyed by unit id; others keep the GLB colour. */
@@ -177,7 +247,14 @@ export class MassingViewerComponent implements OnDestroy {
           const x = (o.userData ?? {}) as Partial<MassingUnitInfo>;
           if (x.unit_id) {
             this.meshes.push(o);
-            infos.push({ unit_id: x.unit_id, code: x.code ?? o.name, unit_type: x.unit_type ?? 'apartment', building_code: x.building_code ?? '', floor_level: Number(x.floor_level ?? 0) });
+            infos.push({
+              unit_id: x.unit_id,
+              code: x.code ?? o.name,
+              unit_type: x.unit_type ?? 'apartment',
+              building_code: x.building_code ?? '',
+              floor_level: Number(x.floor_level ?? 0),
+              lifecycle_status: x.lifecycle_status,
+            });
           }
         }
       });
@@ -198,14 +275,19 @@ export class MassingViewerComponent implements OnDestroy {
     const size = box.getSize(new THREE.Vector3());
     const span = Math.max(size.x, size.z, 20) * 1.5;
     const grid = new THREE.GridHelper(span, Math.round(span / 5), 0xd1d5db, 0xe5e7eb);
-    grid.position.set((box.min.x + box.max.x) / 2, Math.min(box.min.y, 0) - 0.01, (box.min.z + box.max.z) / 2);
+    grid.position.set(
+      (box.min.x + box.max.x) / 2,
+      Math.min(box.min.y, 0) - 0.01,
+      (box.min.z + box.max.z) / 2,
+    );
     this.model!.add(grid);
   }
 
   /** Unit meshes of the focused building (all units when no building is focused). */
   private focused(): THREE.Mesh[] {
     const code = this.buildingCode();
-    const own = code === null ? this.meshes : this.meshes.filter((m) => m.userData['building_code'] === code);
+    const own =
+      code === null ? this.meshes : this.meshes.filter((m) => m.userData['building_code'] === code);
     return own.length ? own : this.meshes;
   }
 
@@ -214,7 +296,12 @@ export class MassingViewerComponent implements OnDestroy {
     const own = new Set(this.focused());
     for (const m of this.meshes) {
       const mat = m.material as THREE.MeshStandardMaterial;
-      const opacity = !own.has(m) ? FADE_OTHER_BUILDING : lvl !== null && m.userData['floor_level'] !== lvl ? FADE_OTHER_FLOOR : 1;
+      const focus = !own.has(m)
+        ? FADE_OTHER_BUILDING
+        : lvl !== null && m.userData['floor_level'] !== lvl
+          ? FADE_OTHER_FLOOR
+          : 1;
+      const opacity = m.userData['lifecycle_status'] === 'draft' ? focus * DRAFT_OPACITY : focus;
       m.visible = true;
       mat.transparent = opacity < 1;
       mat.opacity = opacity;
@@ -242,9 +329,15 @@ export class MassingViewerComponent implements OnDestroy {
   private pick(ev: MouseEvent): THREE.Mesh | null {
     if (!this.renderer || !this.meshes.length) return null;
     const rect = this.canvas().nativeElement.getBoundingClientRect();
-    const ndc = new THREE.Vector2(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
+    const ndc = new THREE.Vector2(
+      ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+      -((ev.clientY - rect.top) / rect.height) * 2 + 1,
+    );
     this.raycaster.setFromCamera(ndc, this.camera);
-    const hit = this.raycaster.intersectObjects(this.meshes.filter((m) => m.visible && m.userData['pickable'] !== false), false)[0];
+    const hit = this.raycaster.intersectObjects(
+      this.meshes.filter((m) => m.visible && m.userData['pickable'] !== false),
+      false,
+    )[0];
     return (hit?.object as THREE.Mesh) ?? null;
   }
 
@@ -260,7 +353,8 @@ export class MassingViewerComponent implements OnDestroy {
   onMove(ev: PointerEvent): void {
     const m = this.pick(ev);
     const sel = this.selectedUnitId();
-    for (const mesh of this.meshes) this.paint(mesh, mesh.userData['unit_id'] === sel ? 'selected' : mesh === m ? 'hover' : null);
+    for (const mesh of this.meshes)
+      this.paint(mesh, mesh.userData['unit_id'] === sel ? 'selected' : mesh === m ? 'hover' : null);
     this.hovered.set(m ? (m.userData as MassingUnitInfo) : null);
   }
 

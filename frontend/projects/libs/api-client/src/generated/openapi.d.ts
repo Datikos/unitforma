@@ -422,6 +422,26 @@ export interface paths {
         patch: operations["update_building_api_v1_admin_tenants__tenant_id__buildings__building_id__patch"];
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/floor-proposal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Floor Proposal
+         * @description Floors read from the drawings' level markers; accept them with PUT /floors (ADR-0010).
+         */
+        get: operations["floor_proposal_api_v1_admin_tenants__tenant_id__buildings__building_id__floor_proposal_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/floors": {
         parameters: {
             query?: never;
@@ -1119,6 +1139,83 @@ export interface paths {
          *     current model; until then the previous one stays available.
          */
         post: operations["regenerate_massing_api_v1_admin_tenants__tenant_id__projects__project_id__massing_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Building Model
+         * @description The building's current IFC-derived model, or null when none was ingested.
+         */
+        get: operations["get_building_model_api_v1_admin_tenants__tenant_id__buildings__building_id__model_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/ifc-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Ifc Links */
+        get: operations["list_ifc_links_api_v1_admin_tenants__tenant_id__buildings__building_id__ifc_links_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/ifc-links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Decide Ifc Link
+         * @description Confirm a space as a unit (the suggested one or another), reject it, or reset it.
+         */
+        post: operations["decide_ifc_link_api_v1_admin_tenants__tenant_id__ifc_links__link_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/model/rebuild": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rebuild Building Model
+         * @description Queue the IFC ingestion again for the revision the current model came from.
+         */
+        post: operations["rebuild_building_model_api_v1_admin_tenants__tenant_id__buildings__building_id__model_rebuild_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1857,6 +1954,40 @@ export interface components {
              */
             sort_order?: number;
         };
+        /**
+         * BuildingModelOut
+         * @description The current IFC-derived model of a building (kind ``ifc``), if any.
+         */
+        BuildingModelOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Building Id */
+            building_id: string | null;
+            /** Kind */
+            kind: string;
+            /** Status */
+            status: string;
+            /** Stats */
+            stats: {
+                [key: string]: unknown;
+            };
+            /** Error */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Glb Url */
+            glb_url?: string | null;
+            /** Links */
+            links?: {
+                [key: string]: number;
+            };
+        };
         /** BuildingOut */
         BuildingOut: {
             /**
@@ -2080,6 +2211,30 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** FloorProposalOut */
+        FloorProposalOut: {
+            /**
+             * Building Id
+             * Format: uuid
+             */
+            building_id: string;
+            /** Sheets With Markers */
+            sheets_with_markers: number;
+            /** Floors */
+            floors: components["schemas"]["ProposedFloorOut"][];
+            /** Unmatched Existing */
+            unmatched_existing: {
+                [key: string]: unknown;
+            }[];
+            /** Roof */
+            roof: {
+                [key: string]: unknown;
+            };
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+        };
         /** FloorRegion */
         FloorRegion: {
             /** Ring */
@@ -2122,6 +2277,63 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * IfcSpaceLinkDecide
+         * @description Confirm a space as a unit (optionally another unit than suggested) or reject it.
+         */
+        IfcSpaceLinkDecide: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "confirm" | "reject" | "reset";
+            /** Unit Id */
+            unit_id?: string | null;
+        };
+        /** IfcSpaceLinkOut */
+        IfcSpaceLinkOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Building Id
+             * Format: uuid
+             */
+            building_id: string;
+            /**
+             * Geometry Model Id
+             * Format: uuid
+             */
+            geometry_model_id: string;
+            /** Ifc Global Id */
+            ifc_global_id: string;
+            /** Name */
+            name: string | null;
+            /** Long Name */
+            long_name: string | null;
+            /** Storey Name */
+            storey_name: string | null;
+            /** Storey Elevation M */
+            storey_elevation_m: string | null;
+            /** Floor Id */
+            floor_id: string | null;
+            /** Unit Id */
+            unit_id: string | null;
+            /** Status */
+            status: string;
+            /** Confidence */
+            confidence: string | null;
+            /** Areas */
+            areas: {
+                [key: string]: unknown;
+            };
+            /** Unit Code */
+            unit_code?: string | null;
+            /** Floor Level */
+            floor_level?: number | null;
         };
         /** ImportApply */
         ImportApply: {
@@ -3148,6 +3360,31 @@ export interface components {
             resolved_at: string | null;
             /** Items */
             items?: components["schemas"]["ProposalItemOut"][];
+        };
+        /**
+         * ProposedFloorOut
+         * @description A storey read from the drawings' level markers (ADR-0010).
+         */
+        ProposedFloorOut: {
+            /** Level */
+            level: number;
+            /** Display Name */
+            display_name: string;
+            /** Elevation M */
+            elevation_m: number;
+            /** Height M */
+            height_m: number | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "new" | "update" | "existing";
+            /** Floor Id */
+            floor_id: string | null;
+            /** Sheets */
+            sheets: number;
+            /** Markers */
+            markers: string[];
         };
         /** PublicationOut */
         PublicationOut: {
@@ -4828,6 +5065,38 @@ export interface operations {
             };
         };
     };
+    floor_proposal_api_v1_admin_tenants__tenant_id__buildings__building_id__floor_proposal_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                building_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FloorProposalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     set_floors_api_v1_admin_tenants__tenant_id__buildings__building_id__floors_put: {
         parameters: {
             query?: never;
@@ -6246,6 +6515,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MassingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_building_model_api_v1_admin_tenants__tenant_id__buildings__building_id__model_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                building_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildingModelOut"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_ifc_links_api_v1_admin_tenants__tenant_id__buildings__building_id__ifc_links_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                building_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IfcSpaceLinkOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_ifc_link_api_v1_admin_tenants__tenant_id__ifc_links__link_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                link_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IfcSpaceLinkDecide"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IfcSpaceLinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rebuild_building_model_api_v1_admin_tenants__tenant_id__buildings__building_id__model_rebuild_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                building_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

@@ -10,6 +10,8 @@ jobs:
       matrix:
         include:
           - { name: backend,    context: backend,      file: backend/Dockerfile }
+          # heavy worker: same Dockerfile, runtime-ifc target with IfcOpenShell (ADR-0006 Phase C)
+          - { name: backend-ifc, context: backend,     file: backend/Dockerfile, target: runtime-ifc }
           - { name: web-admin,  context: frontend,     file: frontend/Dockerfile.admin }
           - { name: web-portal, context: frontend,     file: frontend/Dockerfile.portal }
           - { name: proxy,      context: deploy/caddy, file: deploy/caddy/Dockerfile }
@@ -31,6 +33,7 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
+          target: ${{ matrix.target || '' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

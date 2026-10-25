@@ -50,6 +50,19 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
             info.page_count,
             len(data),
         )
+        if info.mime == "application/x-step":
+            # an IFC model has no pages: the heavy worker converts it (ADR-0006 Phase C)
+            rev.processing_status = "queued"
+            try:
+                from unitforma.jobs.app import app as jobs
+
+                await jobs.configure_task(
+                    name="geometry.ingest_ifc", queue="geometry-heavy"
+                ).defer_async(tenant_id=str(tenant_id), revision_id=str(revision_id))
+            except Exception as e:  # noqa: BLE001 - visible to the reviewer, re-run by hand
+                rev.processing_status = "failed"
+                rev.processing_error = f"could not queue IFC ingestion: {e}"[:2000]
+            return {"ifc": True, "status": rev.processing_status}
         existing = {
             s.page_no: s
             for s in (await db.execute(select(Sheet).where(Sheet.revision_id == rev.id))).scalars()

@@ -38,7 +38,17 @@ def test_build_glb_is_valid_container_with_unit_nodes():
         placement=massing.Placement(tx=100, ty=50, rotation_deg=90, scale=1, elevation=2),
         units=[
             massing.UnitSolid("u1", "A-00-01", "apartment", "A", 0, SQUARE, 0.0, 3.0),
-            massing.UnitSolid("u2", "A-01-01", "commercial", "A", 1, L_SHAPE, 3.0, 3.2),
+            massing.UnitSolid(
+                "u2",
+                "A-01-01",
+                "commercial",
+                "A",
+                1,
+                L_SHAPE,
+                3.0,
+                3.2,
+                extras={"lifecycle_status": "draft"},
+            ),
         ],
     )
     data, stats = massing.build_glb([bld], {"project_id": "p"})
@@ -52,6 +62,9 @@ def test_build_glb_is_valid_container_with_unit_nodes():
     assert {"A", "A-00-01", "A-01-01"} <= names
     unit_nodes = [n for n in gltf["nodes"] if "mesh" in n]
     assert [n["extras"]["unit_id"] for n in unit_nodes] == ["u1", "u2"]
+    # the viewer draws drafts translucent from this flag (ADR-0011)
+    assert unit_nodes[1]["extras"]["lifecycle_status"] == "draft"
+    assert "lifecycle_status" not in unit_nodes[0]["extras"]
     assert {m["name"] for m in gltf["materials"]} == {"apartment", "commercial"}
     assert stats["units"] == 2 and stats["triangles"] > 0 and stats["bytes"] == len(data)
     # rotation by 90° around the site origin: local (10, 0) → site (100 - 0, 50 + 10)
@@ -129,3 +142,37 @@ def test_normalise_label():
     assert suggest.normalise_label("Apt. 3A") == "3A"
     assert suggest.normalise_label("  7 ") == "7"
     assert suggest.normalise_label(None) is None
+
+
+def test_queue_massing_swallows_duplicates_and_outages(monkeypatch):
+    """ADR-0011: one waiting build per project; a queue outage never fails the reviewer's edit."""
+    import asyncio
+    import uuid
+
+    from procrastinate.exceptions import AlreadyEnqueued
+
+    from unitforma.geometry import service
+    from unitforma.jobs import app as jobs_app
+
+    calls: list[dict] = []
+    outcome: dict = {"fail": None}
+
+    class Deferrer:
+        async def defer_async(self, **kw):
+            calls.append(kw)
+            if outcome["fail"]:
+                raise outcome["fail"]
+
+    def configure_task(name, **options):
+        assert name == "geometry.build_massing"
+        assert options["queueing_lock"].startswith("massing:")
+        return Deferrer()
+
+    monkeypatch.setattr(jobs_app.app, "configure_task", configure_task)
+    tid, pid = uuid.uuid4(), uuid.uuid4()
+    assert asyncio.run(service.queue_massing(tid, pid)) is True
+    outcome["fail"] = AlreadyEnqueued()
+    assert asyncio.run(service.queue_massing(tid, pid)) is True  # already waiting: fine
+    outcome["fail"] = RuntimeError("queue down")
+    assert asyncio.run(service.queue_massing(tid, pid)) is False
+    assert len(calls) == 3 and calls[0] == {"tenant_id": str(tid), "project_id": str(pid)}

@@ -1,0 +1,308 @@
+/* Admin shell layout (ADR-0009 Decision 1). Lives here, not in App's component styles, because of
+   the 4 kB per-component style budget. */
+.shell {
+  min-height: 100vh;
+  background: var(--uf-bg);
+}
+.shell__nav {
+  width: var(--uf-nav-width);
+  background: var(--uf-nav-bg);
+  color: var(--uf-nav-text);
+  border-right: 0;
+}
+.shell__guide {
+  background: var(--uf-surface);
+  border-left: 1px solid var(--uf-border);
+}
+.shell__content {
+  background: var(--uf-bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: var(--uf-topbar-height);
+  padding: 0 1rem 0 0.75rem;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--uf-border);
+}
+.topbar__crumbs {
+  min-width: 0;
+}
+.topbar__guide {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--uf-border-strong);
+  background: var(--uf-surface);
+  color: var(--uf-text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--uf-radius-pill);
+  cursor: pointer;
+}
+.topbar__guide:hover {
+  border-color: var(--uf-primary);
+  color: var(--uf-primary);
+}
+
+.uf-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem 3rem;
+}
+.uf-bare {
+  min-height: 100vh;
+  background: var(--uf-bg);
+  padding: 1rem;
+}
+@media (max-width: 760px) {
+  .uf-main {
+    padding: 1rem 1rem 2.5rem;
+  }
+}
+
+/* Side menu */
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 100vh;
+  padding: 0.75rem 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+.nav__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.5rem 0.9rem;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+}
+.nav__logo {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1, #2563eb);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1rem;
+}
+.nav__switch {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.25rem 0.25rem 0.75rem;
+}
+.nav__switch--project {
+  padding-top: 0;
+}
+.nav__switch-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--uf-nav-muted);
+  font-weight: 600;
+  padding-left: 0.25rem;
+}
+.nav__select {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--uf-radius-sm);
+  padding: 0 0.5rem;
+}
+.nav__select > ng-icon {
+  color: var(--uf-nav-muted);
+  flex: none;
+}
+.nav__select select {
+  appearance: none;
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.5rem 1.25rem 0.5rem 0;
+  cursor: pointer;
+}
+.nav__select select option {
+  color: var(--uf-text);
+}
+.nav__select select:focus-visible {
+  outline: none;
+}
+.nav__select:focus-within {
+  border-color: #818cf8;
+}
+.nav__caret {
+  position: absolute;
+  right: 0.45rem;
+  color: var(--uf-nav-muted);
+  pointer-events: none;
+}
+.nav__sub {
+  font-size: 0.75rem;
+  color: var(--uf-nav-muted);
+  padding-left: 0.25rem;
+}
+.nav__section {
+  display: grid;
+  gap: 0.1rem;
+  padding-top: 0.5rem;
+}
+.nav__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--uf-nav-muted);
+  font-weight: 700;
+}
+.nav__title .uf-chip {
+  font-size: 0.7rem;
+  padding: 0 0.45rem;
+}
+.nav__group {
+  padding: 0.5rem 0.5rem 0.15rem;
+  font-size: 0.7rem;
+  color: var(--uf-nav-muted);
+  letter-spacing: 0.04em;
+}
+.nav__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--uf-radius-sm);
+  color: var(--uf-nav-text);
+  text-decoration: none;
+  line-height: 1.3;
+}
+.nav__item ng-icon {
+  font-size: 1.1rem;
+  color: var(--uf-nav-muted);
+  flex: none;
+}
+.nav__item:hover {
+  background: var(--uf-nav-hover);
+  color: #fff;
+}
+.nav__item.is-active {
+  background: var(--uf-nav-active);
+  color: var(--uf-nav-active-text);
+  font-weight: 600;
+}
+.nav__item.is-active ng-icon {
+  color: #a5b4fc;
+}
+.nav__hint {
+  padding: 0.5rem;
+  color: var(--uf-nav-muted);
+  font-size: 0.85rem;
+}
+.nav__spacer {
+  flex: 1;
+}
+.nav__user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.5rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 0.5rem;
+  color: var(--uf-nav-text);
+}
+.nav__user > ng-icon {
+  font-size: 1.3rem;
+  color: var(--uf-nav-muted);
+}
+.nav__email {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+.nav__icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: var(--uf-radius-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+.nav__icon-btn:hover {
+  background: var(--uf-nav-hover);
+}
+.topbar .nav__icon-btn:hover {
+  background: var(--uf-surface-2);
+}
+
+/* Material surfaces follow the tokens */
+.mat-mdc-card.mdc-card--outlined,
+.mat-mdc-card {
+  --mdc-outlined-card-container-color: var(--uf-surface);
+  --mdc-outlined-card-outline-color: var(--uf-border);
+  border-radius: var(--uf-radius) !important;
+}
+.mat-mdc-card .mat-mdc-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.mat-mdc-table {
+  --mat-table-background-color: var(--uf-surface);
+  border-radius: var(--uf-radius);
+  overflow: hidden;
+  border: 1px solid var(--uf-border);
+}
+.mat-mdc-header-cell {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--uf-muted);
+  font-weight: 600;
+}
+.mat-mdc-row:hover .mat-mdc-cell {
+  background: var(--uf-surface-2);
+}
+.uf-toast--ok {
+  --mdc-snackbar-container-color: var(--uf-tone-good-fg);
+}
+.uf-toast--bad {
+  --mdc-snackbar-container-color: var(--uf-tone-bad-fg);
+}
+.uf-grid .ag-root-wrapper {
+  border-radius: var(--uf-radius);
+  border-color: var(--uf-border);
+}

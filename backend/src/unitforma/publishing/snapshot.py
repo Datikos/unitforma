@@ -394,7 +394,15 @@ async def build(
                 }
             )
         if fdocs:
-            building_docs.append({"code": b.code, "name": b.name, "kind": b.kind, "floors": fdocs})
+            building_docs.append(
+                {
+                    "code": b.code,
+                    "name": b.name,
+                    "kind": b.kind,
+                    "floors": fdocs,
+                    "model": await _building_model(db, b, assets, listed),
+                }
+            )
 
     site = await _site(db, project, assets, {d["code"] for d in building_docs}, plan_cache)
     massing_ref = await _massing(db, project, assets, listed)
@@ -561,6 +569,28 @@ async def _site(
     if ref is None and not out_buildings:
         return None
     return {"plan": ref, "buildings": out_buildings}
+
+
+async def _building_model(
+    db: AsyncSession, b: Building, assets: Assets, listed: set[uuid.UUID]
+) -> dict[str, Any] | None:
+    """The building's IFC-derived GLB (ADR-0006 Decision 5): only confirmed spaces of listed
+    units stay pickable; None when the building has no ready IFC model."""
+    from unitforma.geometry import ifc, ifc_service
+
+    model = await ifc_service.current_model(db, b.id)
+    if model is None or model.status != "ready" or not model.glb_key:
+        return None
+    data = await ifc_service.public_glb(db, model, listed)
+    name = assets.put(data, "glb", "model/gltf-binary")
+    return {
+        "asset": name,
+        "url": assets.url(name),
+        "bytes": len(data),
+        "kind": "ifc",
+        "disclaimer": ifc.DISCLAIMER,
+        "built_at": model.created_at.isoformat() if model.created_at else None,
+    }
 
 
 async def _massing(

@@ -1,19 +1,41 @@
-import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
+import { NgIcon, provideIcons } from '@ng-icons/core';
 import { BuildingOut, DocumentOut, SheetOut, UnitformaApi, problemMessage } from 'api-client';
+import {
+  EmptyStateComponent,
+  HeaderFact,
+  PageHeaderComponent,
+  SectionCardComponent,
+  StatusChipComponent,
+  UF_ICONS,
+  kb,
+  labelOf,
+} from 'ui';
 import { parsePages } from '../core/page-ranges';
+import { ToastService } from '../ui/toast.service';
 
-type Kind = 'site_plan' | 'floor_plan' | 'section' | 'elevation' | 'render' | 'schedule' | 'model_ifc' | 'model_glb' | 'texture' | 'permit' | 'other' | 'unclassified';
+type Kind =
+  | 'site_plan'
+  | 'floor_plan'
+  | 'section'
+  | 'elevation'
+  | 'render'
+  | 'schedule'
+  | 'model_ifc'
+  | 'model_glb'
+  | 'texture'
+  | 'permit'
+  | 'other'
+  | 'unclassified';
 
 /** Kinds a person can choose; model kinds are fixed by the file type. */
 const KINDS: { value: Kind; label: string }[] = [
@@ -26,7 +48,9 @@ const KINDS: { value: Kind; label: string }[] = [
   { value: 'permit', label: 'Permit document' },
   { value: 'other', label: 'Other' },
 ];
-const KIND_LABELS: Record<string, string> = Object.fromEntries(KINDS.map((k) => [k.value, k.label]));
+const KIND_LABELS: Record<string, string> = Object.fromEntries(
+  KINDS.map((k) => [k.value, k.label]),
+);
 KIND_LABELS['model_ifc'] = 'IFC model';
 KIND_LABELS['model_glb'] = 'GLB model';
 KIND_LABELS['texture'] = 'Texture';
@@ -45,139 +69,412 @@ const SOURCE_LABELS: Record<string, string> = {
  */
 @Component({
   selector: 'uf-documents-page',
-  imports: [FormsModule, DecimalPipe, MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatButtonToggleModule, MatProgressBarModule, RouterLink],
+  imports: [
+    FormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatButtonModule,
+    MatButtonToggleModule,
+    MatProgressBarModule,
+    RouterLink,
+    NgIcon,
+    PageHeaderComponent,
+    SectionCardComponent,
+    StatusChipComponent,
+    EmptyStateComponent,
+  ],
+  viewProviders: [provideIcons(UF_ICONS)],
   template: `
     <div class="uf-page">
-      <div class="uf-page-header"><h2>Documents</h2><a mat-stroked-button [routerLink]="['..']">Back to project</a></div>
-      @if (error()) { <p class="uf-error" role="alert">{{ error() }}</p> }
-      <mat-card appearance="outlined">
-        <mat-card-header>
-          <mat-card-title>{{ targetDoc ? 'New revision of ' + targetDoc.title : 'Upload files' }}</mat-card-title>
-          <mat-card-subtitle>Pick several files; each becomes a document named after the file. The kind is guessed from the name now and from the content after processing; confirm it on the card.</mat-card-subtitle>
-        </mat-card-header>
-        <mat-card-content class="uf-form-row">
-          <mat-form-field appearance="outline"><mat-label>Building (optional, for all files)</mat-label>
+      <uf-page-header title="Documents" icon="lucideFileText" [facts]="facts()">
+        <ng-container actions>
+          <a mat-stroked-button routerLink="../proposals"
+            ><ng-icon name="lucideGitCompare" /> Revision diffs</a
+          >
+        </ng-container>
+      </uf-page-header>
+      @if (error(); as e) {
+        <div class="uf-alert uf-alert--bad" role="alert">
+          <ng-icon name="lucideCircleX" />{{ e }}
+        </div>
+      }
+      <uf-section-card
+        [title]="targetDoc ? 'New revision of ' + targetDoc.title : 'Upload files'"
+        icon="lucideUpload"
+        summary="several files at once; the kind is guessed and confirmed on the card"
+        storageKey="documents-upload"
+        [open]="docs().length === 0 || !!targetDoc"
+      >
+        <p class="uf-hint">
+          Each file becomes a document named after it. The kind is guessed from the name now and
+          from the content after processing; confirm it on the card.
+        </p>
+        <div class="uf-form-row">
+          <mat-form-field appearance="outline"
+            ><mat-label>Building (optional, for all files)</mat-label>
             <mat-select [(ngModel)]="buildingId" name="buildingId">
               <mat-option [value]="null">Project level</mat-option>
-              @for (b of buildings(); track b.id) { <mat-option [value]="b.id">{{ b.code }} {{ b.name ?? '' }}</mat-option> }
+              @for (b of buildings(); track b.id) {
+                <mat-option [value]="b.id">{{ b.code }} {{ b.name ?? '' }}</mat-option>
+              }
             </mat-select>
           </mat-form-field>
-          <mat-form-field appearance="outline"><mat-label>Source note</mat-label><input matInput [(ngModel)]="note" name="note" placeholder="Rev C from architect" /></mat-form-field>
-          <input type="file" #file [multiple]="!targetDoc" accept="application/pdf,image/png,image/jpeg,.dxf,application/dxf,image/vnd.dxf" (change)="onFiles($event)" />
+          <mat-form-field appearance="outline"
+            ><mat-label>Source note</mat-label
+            ><input matInput [(ngModel)]="note" name="note" placeholder="Rev C from architect"
+          /></mat-form-field>
+          <label class="pick" [class.is-busy]="busy()">
+            <ng-icon name="lucideFileUp" />
+            {{
+              selected.length
+                ? selected.length + ' file' + (selected.length === 1 ? '' : 's') + ' chosen'
+                : 'Choose files…'
+            }}
+            <input
+              type="file"
+              #file
+              [multiple]="!targetDoc"
+              accept="application/pdf,image/png,image/jpeg,.dxf,application/dxf,image/vnd.dxf"
+              (change)="onFiles($event)"
+              hidden
+            />
+          </label>
           <button mat-flat-button [disabled]="busy() || !selected.length" (click)="upload()">
-            {{ targetDoc ? 'Upload revision' : selected.length > 1 ? 'Upload ' + selected.length + ' files' : 'Upload' }}
+            <ng-icon name="lucideUpload" />
+            {{
+              targetDoc
+                ? 'Upload revision'
+                : selected.length > 1
+                  ? 'Upload ' + selected.length + ' files'
+                  : 'Upload'
+            }}
           </button>
-          @if (targetDoc) { <button mat-button (click)="targetDoc = null; selected = []">Cancel</button> }
-        </mat-card-content>
-        <mat-card-content class="uf-muted formats">
-          Accepted: PDF and PNG/JPG (plans, renders, schedules) and DXF exported from AutoCAD or ArchiCAD (one sheet per layout, scale taken from the drawing units). DWG must be saved as DXF first; IFC and GLB are stored but not processed yet. Any 2D source gives the schematic 3D model; exact 3D needs an IFC export.
-        </mat-card-content>
+          @if (targetDoc) {
+            <button mat-button (click)="targetDoc = null; selected = []">Cancel</button>
+          }
+        </div>
+        <p class="uf-hint">
+          Accepted: PDF and PNG/JPG (plans, renders, schedules) and DXF exported from AutoCAD or
+          ArchiCAD (one sheet per layout, scale taken from the drawing units). DWG must be saved as
+          DXF first; IFC and GLB are stored but not processed yet. Any 2D source gives the schematic
+          3D model; exact 3D needs an IFC export.
+        </p>
         @if (progress(); as pr) {
-          <mat-card-content class="uf-muted formats">{{ pr.done }} of {{ pr.total }} files · {{ pr.current }}</mat-card-content>
-          <mat-progress-bar mode="determinate" [value]="((pr.done + pr.fraction) / pr.total) * 100" />
+          <p class="uf-small uf-muted">{{ pr.done }} of {{ pr.total }} files · {{ pr.current }}</p>
+          <mat-progress-bar
+            mode="determinate"
+            [value]="((pr.done + pr.fraction) / pr.total) * 100"
+          />
         }
-      </mat-card>
+      </uf-section-card>
 
       @if (docs().length) {
-        <div class="uf-form-row">
-          <mat-button-toggle-group [value]="filter()" (change)="filter.set($event.value)" aria-label="Filter">
+        <div class="uf-filterbar">
+          <mat-button-toggle-group
+            [value]="filter()"
+            (change)="filter.set($event.value)"
+            aria-label="Filter"
+            hideSingleSelectionIndicator
+          >
             <mat-button-toggle value="all">All · {{ docs().length }}</mat-button-toggle>
-            <mat-button-toggle value="needs">Needs a kind · {{ needsKind().length }}</mat-button-toggle>
-            <mat-button-toggle value="guessed">Guessed, unconfirmed · {{ guessed().length }}</mat-button-toggle>
+            <mat-button-toggle value="needs"
+              >Needs a kind · {{ needsKind().length }}</mat-button-toggle
+            >
+            <mat-button-toggle value="guessed"
+              >Guessed, unconfirmed · {{ guessed().length }}</mat-button-toggle
+            >
           </mat-button-toggle-group>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+            <ng-icon matPrefix name="lucideSearch" />
+            <input
+              matInput
+              [ngModel]="query()"
+              (ngModelChange)="query.set($event)"
+              placeholder="Search title or file…"
+              aria-label="Search documents"
+            />
+          </mat-form-field>
+          <span class="uf-count">{{ shown().length }} shown</span>
         </div>
       }
 
       @for (d of shown(); track d.id) {
-        <mat-card appearance="outlined" [class.card--needs]="d.kind === 'unclassified'" [class.card--guessed]="isGuessed(d)">
-          <mat-card-header>
-            <mat-card-title>{{ d.title }}</mat-card-title>
-            <mat-card-subtitle>
-              <span class="chip" [class.chip--needs]="d.kind === 'unclassified'" [class.chip--guessed]="isGuessed(d)" [class.chip--manual]="d.kind_source === 'manual'">
-                {{ kindLabel(d.kind) }} · {{ sourceLabel(d.kind_source) }}
-              </span>
-              @if (d.current_revision; as r) { · rev {{ r.revision_no }} · {{ r.file_name }} · {{ (r.byte_size ?? 0) / 1048576 | number: '1.0-1' }} MB · {{ r.processing_status }} @if (r.page_count) { · {{ r.page_count }} pages } }
-            </mat-card-subtitle>
-          </mat-card-header>
-          <mat-card-content>
-            @if (d.current_revision?.processing_error) { <p class="uf-error">{{ d.current_revision?.processing_error }}</p> }
-            <div class="uf-actions">
-              <mat-form-field appearance="outline" class="kind">
-                <mat-label>Kind</mat-label>
-                <mat-select [value]="d.kind === 'unclassified' ? null : d.kind" (selectionChange)="setKind(d, $event.value)" [disabled]="busy()">
-                  @for (k of kinds; track k.value) { <mat-option [value]="k.value">{{ k.label }}</mat-option> }
-                </mat-select>
-              </mat-form-field>
-              @if (isGuessed(d)) { <button mat-stroked-button [disabled]="busy()" (click)="setKind(d, d.kind)">Confirm {{ kindLabel(d.kind) }}</button> }
-              <button mat-button (click)="loadSheets(d)">Show sheets</button>
-              <button mat-button (click)="newRevision(d)">Upload new revision</button>
-              <button mat-button (click)="download(d)">Download</button>
+        <uf-section-card
+          [title]="d.title"
+          [icon]="kindIcon(d.kind)"
+          [summary]="revSummary(d)"
+          [storageKey]="'doc-' + d.id"
+          [collapsible]="false"
+        >
+          <div actions class="uf-actions">
+            <uf-status-chip
+              domain="document.kind"
+              [value]="d.kind"
+              [tooltip]="labelOf('document.kind_source', d.kind_source)"
+            />
+            <uf-status-chip domain="document.kind_source" [value]="d.kind_source" />
+            @if (d.current_revision; as r) {
+              <uf-status-chip domain="document.processing" [value]="r.processing_status" />
+            }
+          </div>
+          @if (d.current_revision?.processing_error) {
+            <div class="uf-alert uf-alert--bad">
+              <ng-icon name="lucideCircleX" />{{ d.current_revision?.processing_error }}
             </div>
-            @if (d.kind === 'unclassified') {
-              <p class="uf-muted small">The name and the content did not say what this file is. Pick a kind. A project-level file set to Floor plans gets its floor suggestions with the next revision; a file filed under a building already has them.</p>
-            }
-            @if (sheets()[d.id]; as list) {
-              <div class="uf-form-row uf-sets">
-                <span class="uf-muted">Map only the plans: exclude reprints, details and schedules.</span>
-                @if (reprints(list).length; as n) {
-                  <button mat-stroked-button [disabled]="busy()" (click)="exclude(d, reprints(list), true, 'reprint of an earlier page')">Exclude {{ n }} reprint(s)</button>
+          }
+          <div class="uf-actions">
+            <mat-form-field appearance="outline" class="kind">
+              <mat-label>Kind</mat-label>
+              <mat-select
+                [value]="d.kind === 'unclassified' ? null : d.kind"
+                (selectionChange)="setKind(d, $event.value)"
+                [disabled]="busy()"
+              >
+                @for (k of kinds; track k.value) {
+                  <mat-option [value]="k.value">{{ k.label }}</mat-option>
                 }
-                <mat-form-field appearance="outline" class="uf-pages"><mat-label>Pages</mat-label>
-                  <input matInput [(ngModel)]="pageInput[d.id]" [name]="'pages-' + d.id" placeholder="12-51, 7" />
-                </mat-form-field>
-                <mat-form-field appearance="outline"><mat-label>Reason</mat-label>
-                  <input matInput [(ngModel)]="reasonInput[d.id]" [name]="'reason-' + d.id" placeholder="fire-safety set" />
-                </mat-form-field>
-                <button mat-button [disabled]="busy() || !pageInput[d.id]" (click)="exclude(d, parsePages(pageInput[d.id]), true, reasonInput[d.id])">Exclude</button>
-                <button mat-button [disabled]="busy() || !pageInput[d.id]" (click)="exclude(d, parsePages(pageInput[d.id]), false, null)">Include</button>
-              </div>
-              <div class="uf-sheets">
-                @for (s of list; track s.id) {
-                  <a class="uf-sheet" [class.uf-sheet--excluded]="s.excluded" [routerLink]="['../sheets', s.id]" [attr.title]="s.exclusion_reason ?? null">
-                    @if (s.thumbnail_url) { <img [src]="s.thumbnail_url" alt="page {{ s.page_no }}" /> } @else { <div class="uf-sheet__ph">p{{ s.page_no }}</div> }
-                    <span>Page {{ s.page_no }} · @if (s.excluded) { excluded } @else { {{ s.assignment_status }} · {{ kindOf(s) }} }</span>
-                    @if (dupOf(s); as dup) { @if (!s.excluded) { <span class="uf-badge">reprint of p{{ dup }}</span> } }
-                  </a>
-                }
-              </div>
+              </mat-select>
+            </mat-form-field>
+            @if (isGuessed(d)) {
+              <button mat-stroked-button [disabled]="busy()" (click)="setKind(d, d.kind)">
+                <ng-icon name="lucideCheck" /> Confirm {{ kindLabel(d.kind) }}
+              </button>
             }
-          </mat-card-content>
-        </mat-card>
+            @if (!sheets()[d.id]) {
+              <button mat-button (click)="loadSheets(d)">
+                <ng-icon name="lucideLayers" /> Show sheets
+              </button>
+            }
+            <button mat-button (click)="newRevision(d)">
+              <ng-icon name="lucideFileUp" /> Upload new revision
+            </button>
+            <button mat-button (click)="download(d)">
+              <ng-icon name="lucideDownload" /> Download
+            </button>
+          </div>
+          @if (d.kind === 'unclassified') {
+            <p class="uf-hint">
+              The name and the content did not say what this file is. Pick a kind. A project-level
+              file set to Floor plans gets its floor suggestions with the next revision; a file
+              filed under a building already has them.
+            </p>
+          }
+          @if (sheets()[d.id]; as list) {
+            <div class="uf-form-row uf-sets">
+              <span class="uf-muted"
+                >Map only the plans: exclude reprints, details and schedules.</span
+              >
+              @if (reprints(list).length; as n) {
+                <button
+                  mat-stroked-button
+                  [disabled]="busy()"
+                  (click)="exclude(d, reprints(list), true, 'reprint of an earlier page')"
+                >
+                  Exclude {{ n }} reprint(s)
+                </button>
+              }
+              <mat-form-field appearance="outline" class="uf-pages"
+                ><mat-label>Pages</mat-label>
+                <input
+                  matInput
+                  [(ngModel)]="pageInput[d.id]"
+                  [name]="'pages-' + d.id"
+                  placeholder="12-51, 7"
+                />
+              </mat-form-field>
+              <mat-form-field appearance="outline"
+                ><mat-label>Reason</mat-label>
+                <input
+                  matInput
+                  [(ngModel)]="reasonInput[d.id]"
+                  [name]="'reason-' + d.id"
+                  placeholder="fire-safety set"
+                />
+              </mat-form-field>
+              <button
+                mat-button
+                [disabled]="busy() || !pageInput[d.id]"
+                (click)="exclude(d, parsePages(pageInput[d.id]), true, reasonInput[d.id])"
+              >
+                Exclude
+              </button>
+              <button
+                mat-button
+                [disabled]="busy() || !pageInput[d.id]"
+                (click)="exclude(d, parsePages(pageInput[d.id]), false, null)"
+              >
+                Include
+              </button>
+            </div>
+            <div class="uf-sheets">
+              @for (s of list; track s.id) {
+                <a
+                  class="uf-sheet"
+                  [class.uf-sheet--excluded]="s.excluded"
+                  [routerLink]="['../sheets', s.id]"
+                  [attr.title]="s.exclusion_reason ?? null"
+                >
+                  @if (s.thumbnail_url) {
+                    <img [src]="s.thumbnail_url" alt="page {{ s.page_no }}" />
+                  } @else {
+                    <div class="uf-sheet__ph">p{{ s.page_no }}</div>
+                  }
+                  <span class="uf-sheet__cap">Page {{ s.page_no }}</span>
+                  <span class="uf-sheet__chips">
+                    @if (s.excluded) {
+                      <uf-status-chip domain="sheet.assignment" value="excluded" />
+                    } @else {
+                      <uf-status-chip domain="sheet.assignment" [value]="s.assignment_status" />
+                      @if (kindOf(s)) {
+                        <span class="uf-chip">{{ kindOf(s) }}</span>
+                      }
+                    }
+                    @if (dupOf(s); as dup) {
+                      @if (!s.excluded) {
+                        <span class="uf-chip uf-tone-warning">reprint of p{{ dup }}</span>
+                      }
+                    }
+                  </span>
+                </a>
+              }
+            </div>
+          }
+        </uf-section-card>
       } @empty {
-        <p class="uf-muted">{{ docs().length ? 'Nothing in this filter.' : 'No documents yet.' }}</p>
+        @if (docs().length) {
+          <uf-empty-state
+            icon="lucideListFilter"
+            title="Nothing in this filter"
+            text="Every document has a confirmed kind, or nothing matches the search."
+            [compact]="true"
+          />
+        } @else {
+          <uf-empty-state
+            icon="lucideFileText"
+            title="No documents yet"
+            text="Upload the site plan, the floor plans per building and the renders above. The worker reads the pages and proposes which floor each sheet shows."
+          />
+        }
       }
     </div>
   `,
   styles: `
-    .formats { font-size: 0.85rem; padding-top: 0; }
-    .small { font-size: 0.85rem; margin: 0.25rem 0; }
-    .uf-form-row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
-    .uf-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-    .kind { width: 12rem; }
-    .chip { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 999px; background: var(--mat-sys-surface-container-high); font-size: 0.8rem; }
-    .chip--guessed { background: #fef3c7; color: #92400e; }
-    .chip--needs { background: #fee2e2; color: #991b1b; }
-    .chip--manual { background: #d1fae5; color: #065f46; }
-    .card--needs { border-color: #fca5a5; }
-    .card--guessed { border-color: #fcd34d; }
-    .uf-sheets { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem; }
-    .uf-sheet { display: flex; flex-direction: column; gap: 0.25rem; width: 160px; font-size: 0.75rem; text-decoration: none; color: inherit; }
-    .uf-sheet--excluded { opacity: 0.45; }
-    .uf-badge { align-self: flex-start; padding: 0 0.35rem; border-radius: 4px; background: #fef3c7; }
-    .uf-pages { width: 9rem; }
-    .uf-sets { margin-top: 0.5rem; }
-    .uf-sheet img, .uf-sheet__ph { width: 160px; height: 110px; object-fit: contain; background: #fff; border: 1px solid #e5e7eb; display: grid; place-items: center; }
+    .search {
+      min-width: 240px;
+    }
+    .search ng-icon {
+      margin: 0 0.25rem 0 0.5rem;
+      color: var(--uf-muted);
+    }
+    .uf-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .kind {
+      width: 12rem;
+    }
+    .pick {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.6rem 0.9rem;
+      border: 1px dashed var(--uf-border-strong);
+      border-radius: var(--uf-radius-sm);
+      cursor: pointer;
+      color: var(--uf-primary);
+      font-weight: 600;
+    }
+    .pick.is-busy {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .uf-sheets {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+    .uf-sheet {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      width: 160px;
+      font-size: 0.75rem;
+      text-decoration: none;
+      color: inherit;
+    }
+    .uf-sheet:hover img,
+    .uf-sheet:hover .uf-sheet__ph {
+      border-color: var(--uf-primary);
+    }
+    .uf-sheet--excluded {
+      opacity: 0.45;
+    }
+    .uf-sheet__cap {
+      font-weight: 600;
+    }
+    .uf-sheet__chips {
+      display: flex;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+    }
+    .uf-pages {
+      width: 9rem;
+    }
+    .uf-sets {
+      margin-top: 0.5rem;
+    }
+    .uf-sheet img,
+    .uf-sheet__ph {
+      width: 160px;
+      height: 110px;
+      object-fit: contain;
+      background: #fff;
+      border: 1px solid var(--uf-border);
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+    }
+    a ng-icon,
+    button ng-icon {
+      vertical-align: -0.15em;
+      margin-right: 0.25rem;
+    }
   `,
 })
 export class DocumentsPage {
   private readonly api = inject(UnitformaApi);
+  private readonly toast = inject(ToastService);
   readonly tenantId = input.required<string>();
   readonly projectId = input.required<string>();
   readonly docs = signal<DocumentOut[]>([]);
+  readonly query = signal('');
+  readonly labelOf = labelOf;
+  readonly facts = computed<HeaderFact[]>(() => [
+    { label: 'Documents', value: this.docs().length },
+    {
+      domain: 'document.kind_source',
+      status: 'pending',
+      value: `${this.needsKind().length} need a kind`,
+    },
+    {
+      domain: 'document.processing',
+      status: 'done',
+      value: `${this.docs().filter((d) => d.current_revision?.processing_status === 'done').length} processed`,
+    },
+  ]);
   readonly buildings = signal<BuildingOut[]>([]);
   readonly sheets = signal<Record<string, SheetOut[]>>({});
   readonly busy = signal(false);
-  readonly progress = signal<{ done: number; total: number; current: string; fraction: number } | null>(null);
+  readonly progress = signal<{
+    done: number;
+    total: number;
+    current: string;
+    fraction: number;
+  } | null>(null);
   readonly error = signal<string | null>(null);
   readonly filter = signal<'all' | 'needs' | 'guessed'>('all');
   readonly kinds = KINDS;
@@ -185,8 +482,36 @@ export class DocumentsPage {
   readonly guessed = computed(() => this.docs().filter((d) => this.isGuessed(d)));
   readonly shown = computed(() => {
     const f = this.filter();
-    return f === 'needs' ? this.needsKind() : f === 'guessed' ? this.guessed() : this.docs();
+    const base = f === 'needs' ? this.needsKind() : f === 'guessed' ? this.guessed() : this.docs();
+    const q = this.query().trim().toLowerCase();
+    return q
+      ? base.filter((d) =>
+          `${d.title} ${d.current_revision?.file_name ?? ''}`.toLowerCase().includes(q),
+        )
+      : base;
   });
+
+  kindIcon(kind: string): string {
+    return (
+      (
+        {
+          site_plan: 'lucideMap',
+          floor_plan: 'lucideLayers',
+          render: 'lucideImage',
+          schedule: 'lucideTable',
+          permit: 'lucideScrollText',
+          model_ifc: 'lucideBox',
+          model_glb: 'lucideBox',
+        } as Record<string, string>
+      )[kind] ?? 'lucideFileText'
+    );
+  }
+
+  revSummary(d: DocumentOut): string {
+    const r = d.current_revision;
+    if (!r) return 'no file yet';
+    return `rev ${r.revision_no} · ${r.file_name} · ${kb(r.byte_size)}${r.page_count ? ` · ${r.page_count} pages` : ''}`;
+  }
   buildingId: string | null = null;
   note = '';
   selected: File[] = [];
@@ -198,7 +523,10 @@ export class DocumentsPage {
 
   async load(): Promise<void> {
     try {
-      const [d, b] = await Promise.all([this.api.listDocuments(this.tenantId(), this.projectId()), this.api.listBuildings(this.tenantId(), this.projectId())]);
+      const [d, b] = await Promise.all([
+        this.api.listDocuments(this.tenantId(), this.projectId()),
+        this.api.listBuildings(this.tenantId(), this.projectId()),
+      ]);
       this.docs.set(d);
       this.buildings.set(b.filter((x) => x.kind === 'building'));
     } catch (e) {
@@ -210,7 +538,9 @@ export class DocumentsPage {
   reasonInput: Record<string, string> = {};
 
   isGuessed(d: DocumentOut): boolean {
-    return d.kind !== 'unclassified' && (d.kind_source === 'filename' || d.kind_source === 'content');
+    return (
+      d.kind !== 'unclassified' && (d.kind_source === 'filename' || d.kind_source === 'content')
+    );
   }
 
   kindLabel(kind: string): string {
@@ -238,6 +568,7 @@ export class DocumentsPage {
     try {
       const updated = await this.api.updateDocument(this.tenantId(), d.id, { kind: kind as Kind });
       this.docs.update((list) => list.map((x) => (x.id === d.id ? updated : x)));
+      this.toast.ok(`${d.title}: ${this.kindLabel(kind)}`);
     } catch (e) {
       this.error.set(problemMessage(e));
     } finally {
@@ -245,12 +576,23 @@ export class DocumentsPage {
     }
   }
 
-  async exclude(d: DocumentOut, pages: number[], excluded: boolean, reason: string | null | undefined): Promise<void> {
+  async exclude(
+    d: DocumentOut,
+    pages: number[],
+    excluded: boolean,
+    reason: string | null | undefined,
+  ): Promise<void> {
     if (!d.current_revision_id || !pages.length) return;
     this.busy.set(true);
     this.error.set(null);
     try {
-      const list = await this.api.excludePages(this.tenantId(), d.current_revision_id, pages, excluded, reason || null);
+      const list = await this.api.excludePages(
+        this.tenantId(),
+        d.current_revision_id,
+        pages,
+        excluded,
+        reason || null,
+      );
       this.sheets.update((m) => ({ ...m, [d.id]: list }));
     } catch (e) {
       this.error.set(problemMessage(e));
@@ -294,16 +636,30 @@ export class DocumentsPage {
               visibility: 'internal',
               source: {},
             }));
-          const ct = file.type || (/\.dxf$/i.test(file.name) ? 'application/dxf' : 'application/octet-stream');
-          const intent = await this.api.createUpload(this.tenantId(), doc.id, { file_name: file.name, content_type: ct, byte_size: file.size, source_note: this.note || null });
-          await this.api.uploadToPresignedUrl(intent.upload_url, file, ct, (p) => this.progress.set({ done, total: files.length, current: file.name, fraction: p }));
+          const ct =
+            file.type ||
+            (/\.dxf$/i.test(file.name) ? 'application/dxf' : 'application/octet-stream');
+          const intent = await this.api.createUpload(this.tenantId(), doc.id, {
+            file_name: file.name,
+            content_type: ct,
+            byte_size: file.size,
+            source_note: this.note || null,
+          });
+          await this.api.uploadToPresignedUrl(intent.upload_url, file, ct, (p) =>
+            this.progress.set({ done, total: files.length, current: file.name, fraction: p }),
+          );
           await this.api.completeUpload(this.tenantId(), intent.revision.id);
         } catch (e) {
           failed.push(`${file.name}: ${problemMessage(e)}`);
         }
         done++;
       }
-      if (failed.length) this.error.set(`${failed.length} of ${files.length} files failed. ${failed.join(' · ')}`);
+      if (failed.length)
+        this.error.set(`${failed.length} of ${files.length} files failed. ${failed.join(' · ')}`);
+      else
+        this.toast.ok(
+          `${files.length} file${files.length === 1 ? '' : 's'} uploaded; processing starts in the background`,
+        );
       this.selected = [];
       this.targetDoc = null;
       this.note = '';

@@ -13,6 +13,7 @@ from unitforma.api.schemas import (
     BuildingOut,
     BuildingUpdate,
     FloorOut,
+    FloorProposalOut,
     FloorsBulkCreate,
     ProjectCreate,
     ProjectOut,
@@ -21,6 +22,7 @@ from unitforma.api.schemas import (
     SiteFeatureOut,
 )
 from unitforma.core.errors import ProblemError
+from unitforma.documents import floor_proposal as proposal
 from unitforma.identity.authz import Action, is_allowed
 from unitforma.identity.deps import TenantContext, tenant_context
 from unitforma.projects import service as projects
@@ -112,6 +114,15 @@ async def update_building(building_id: uuid.UUID, body: BuildingUpdate, ctx: Ctx
         changes["placement_status"] = "draft" if b.placement_status == "unplaced" else None
         changes = {k: v for k, v in changes.items() if v is not None}
     return await projects.update_building(ctx.session, b, changes, body.version, _actor(ctx))
+
+
+@router.get("/buildings/{building_id}/floor-proposal", response_model=FloorProposalOut)
+async def floor_proposal(building_id: uuid.UUID, ctx: Ctx):
+    """Floors read from the drawings' level markers; accept them with PUT /floors (ADR-0010)."""
+    ctx.require("project", Action.READ)
+    b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)
+    ctx.require_project(b.project_id)
+    return await proposal.floor_proposal(ctx.session, b)
 
 
 @router.put("/buildings/{building_id}/floors", response_model=list[FloorOut])

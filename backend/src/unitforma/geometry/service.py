@@ -150,10 +150,37 @@ async def collect(
         )
     stats = {
         "units_total": units_total,
+        "units_draft": sum(
+            1 for b in out for u in b.units if u.extras.get("lifecycle_status") == "draft"
+        ),
         "units_skipped_uncalibrated": skipped_uncalibrated,
         "buildings_unplaced": unplaced,
     }
     return out, stats
+
+
+async def queue_massing(tenant_id: uuid.UUID, project_id: uuid.UUID) -> bool:
+    """Queue ``geometry.build_massing`` for the project (ADR-0011 Decisions 1 and 2).
+
+    One waiting job per project: the queueing lock makes a second defer while one waits a no-op,
+    so a burst of outline edits costs one build. Never raises: a queue outage is logged and the
+    reviewer's change still lands. Returns whether a build is queued (now or already)."""
+    from procrastinate.exceptions import AlreadyEnqueued
+
+    from unitforma.jobs.app import app as jobs
+
+    try:
+        await jobs.configure_task(
+            name="geometry.build_massing",
+            queue="geometry",
+            queueing_lock=f"massing:{project_id}",
+        ).defer_async(tenant_id=str(tenant_id), project_id=str(project_id))
+        return True
+    except AlreadyEnqueued:
+        return True
+    except Exception as e:  # noqa: BLE001 - the queue may be down; mapping must not fail
+        log.warning("geometry.enqueue_failed", project_id=str(project_id), error=str(e)[:200])
+        return False
 
 
 async def current_massing(db: AsyncSession, project_id: uuid.UUID) -> GeometryModel | None:

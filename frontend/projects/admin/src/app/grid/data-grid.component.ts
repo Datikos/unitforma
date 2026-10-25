@@ -1,5 +1,21 @@
-import { Component, ElementRef, OnDestroy, afterNextRender, effect, input, output, viewChild } from '@angular/core';
-import { AllCommunityModule, GridApi, GridOptions, ModuleRegistry, createGrid, themeQuartz } from 'ag-grid-community';
+import {
+  Component,
+  ElementRef,
+  OnDestroy,
+  afterNextRender,
+  effect,
+  input,
+  output,
+  viewChild,
+} from '@angular/core';
+import {
+  AllCommunityModule,
+  GridApi,
+  GridOptions,
+  ModuleRegistry,
+  createGrid,
+  themeQuartz,
+} from 'ag-grid-community';
 
 // AG Grid Community (MIT); only Community modules are registered (plan §4.2, [VALIDATE V8])
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -14,8 +30,14 @@ ModuleRegistry.registerModules([AllCommunityModule]);
   selector: 'uf-data-grid',
   template: `<div #host class="uf-grid"></div>`,
   styles: `
-    :host { display: block; }
-    .uf-grid { width: 100%; height: 68vh; min-height: 420px; }
+    :host {
+      display: block;
+    }
+    .uf-grid {
+      width: 100%;
+      height: 68vh;
+      min-height: 420px;
+    }
   `,
 })
 export class DataGridComponent<T> implements OnDestroy {
@@ -29,7 +51,13 @@ export class DataGridComponent<T> implements OnDestroy {
   constructor() {
     afterNextRender(() => {
       this.api = createGrid<T>(this.host().nativeElement, {
-        theme: themeQuartz.withParams({ fontFamily: 'Roboto, sans-serif', headerFontWeight: 600 }),
+        theme: themeQuartz.withParams({
+          fontFamily: "'Inter Variable', 'Noto Sans Georgian', system-ui, sans-serif",
+          accentColor: '#1d4ed8',
+          borderColor: '#e2e8f0',
+          headerBackgroundColor: '#f8fafc',
+          headerFontWeight: 600,
+        }),
         ...this.options(),
         rowData: this.rows(),
       });

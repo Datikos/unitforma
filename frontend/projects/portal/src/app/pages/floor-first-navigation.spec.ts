@@ -11,8 +11,23 @@ const DOC: ProjectDoc = {
   publication: { id: 'p1', version_no: 1, status: 'published', built_at: '2026-10-25T00:00:00Z' },
   tenant: { name: 'Riverside Homes', slug: 'riverside' },
   branding: { display_name: 'Riverside' },
-  project: { slug: 'park', name: 'Park Residence', address: {}, currency: 'GEL', area_definitions: [], price_area_type: 'net' },
-  stats: { units: 3, available: 2, price_from: null, area_min: null, area_max: null, rooms: [], unit_types: ['apartment'] },
+  project: {
+    slug: 'park',
+    name: 'Park Residence',
+    address: {},
+    currency: 'GEL',
+    area_definitions: [],
+    price_area_type: 'net',
+  },
+  stats: {
+    units: 3,
+    available: 2,
+    price_from: null,
+    area_min: null,
+    area_max: null,
+    rooms: [],
+    unit_types: ['apartment'],
+  },
   site: null,
   buildings: [
     {
@@ -20,20 +35,44 @@ const DOC: ProjectDoc = {
       name: 'Block A',
       kind: 'building',
       floors: [
-        { level: 1, name: 'Floor 1', plan: null, units: [{ id: 'u11', code: 'A-11', unit_type: 'apartment', availability: 'available', ring: null }] },
+        {
+          level: 1,
+          name: 'Floor 1',
+          plan: null,
+          units: [
+            {
+              id: 'u11',
+              code: 'A-11',
+              unit_type: 'apartment',
+              availability: 'available',
+              ring: null,
+            },
+          ],
+        },
         {
           level: 2,
           name: 'Floor 2',
           plan: null,
           units: [
             { id: 'u21', code: 'A-21', unit_type: 'apartment', availability: 'sold', ring: null },
-            { id: 'u22', code: 'A-22', unit_type: 'apartment', availability: 'available', ring: null },
+            {
+              id: 'u22',
+              code: 'A-22',
+              unit_type: 'apartment',
+              availability: 'available',
+              ring: null,
+            },
           ],
         },
       ],
     },
   ],
-  massing: { url: '/api/v1/portal/projects/park/assets/massing.glb', units: 3, bytes: 1000, disclaimer: 'Schematic' },
+  massing: {
+    url: '/api/v1/portal/projects/park/assets/massing.glb',
+    units: 3,
+    bytes: 1000,
+    disclaimer: 'Schematic',
+  },
   payment_plans: [],
   promotions: [],
   preview: false,
@@ -68,7 +107,13 @@ describe('Floor-first navigation (ADR-0006 Decision 6)', () => {
     const fixture = TestBed.createComponent(ProjectPage);
     fixture.componentRef.setInput('slug', 'park');
     const router = TestBed.inject(Router);
-    fixture.componentInstance.openUnit({ unit_id: 'u21', code: 'A-21', unit_type: 'apartment', building_code: 'A', floor_level: 2 });
+    fixture.componentInstance.openUnit({
+      unit_id: 'u21',
+      code: 'A-21',
+      unit_type: 'apartment',
+      building_code: 'A',
+      floor_level: 2,
+    });
     await fixture.whenStable();
     expect(router.url).toBe('/projects/park/buildings/A?floor=2&unit=A-21');
   });
@@ -113,9 +158,21 @@ describe('Floor-first navigation (ADR-0006 Decision 6)', () => {
     await loadProject(fixture);
     const page = fixture.componentInstance;
     expect(page.level()).toBe(1);
-    page.pick3d({ unit_id: 'u11', code: 'A-11', unit_type: 'apartment', building_code: 'A', floor_level: 1 });
+    page.pick3d({
+      unit_id: 'u11',
+      code: 'A-11',
+      unit_type: 'apartment',
+      building_code: 'A',
+      floor_level: 1,
+    });
     expect(page.selected()).toBe('u11');
-    page.pick3d({ unit_id: 'u22', code: 'A-22', unit_type: 'apartment', building_code: 'A', floor_level: 2 });
+    page.pick3d({
+      unit_id: 'u22',
+      code: 'A-22',
+      unit_type: 'apartment',
+      building_code: 'A',
+      floor_level: 2,
+    });
     await fixture.whenStable();
     expect(TestBed.inject(Router).url).toBe('/projects/park/buildings/A?floor=2&unit=A-22');
   });

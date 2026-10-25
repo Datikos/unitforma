@@ -1,22 +1,34 @@
 import { Component, inject, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { KratosFlow, KratosFlowFormComponent, KratosService, SessionStore } from 'auth-staff';
 
 /** Staff sign-in: Kratos browser login flow with the one-time email code (plan §8.2). */
 @Component({
   selector: 'uf-login-page',
-  imports: [MatCardModule, MatProgressBarModule, KratosFlowFormComponent],
+  imports: [MatCardModule, MatProgressBarModule, KratosFlowFormComponent, RouterLink],
   template: `
     <div class="uf-login">
+      <a routerLink="/" class="brand"
+        ><span class="brand__logo" aria-hidden="true">U</span>Unitforma</a
+      >
       <mat-card appearance="outlined">
         <mat-card-header><mat-card-title>Sign in to Unitforma</mat-card-title></mat-card-header>
         <mat-card-content>
-          @if (busy()) { <mat-progress-bar mode="indeterminate" /> }
-          @if (error()) { <p class="uf-error">{{ error() }}</p> }
+          @if (busy()) {
+            <mat-progress-bar mode="indeterminate" />
+          }
+          @if (error()) {
+            <p class="uf-error">{{ error() }}</p>
+          }
           @if (flow(); as f) {
-            <uf-kratos-flow-form [flow]="f" [groups]="['code', 'totp']" [busy]="busy()" (submitted)="submit($event)" />
+            <uf-kratos-flow-form
+              [flow]="f"
+              [groups]="['code', 'totp']"
+              [busy]="busy()"
+              (submitted)="submit($event)"
+            />
           } @else if (!busy()) {
             <p class="uf-muted">Redirecting to the sign-in flow…</p>
           }
@@ -24,7 +36,34 @@ import { KratosFlow, KratosFlowFormComponent, KratosService, SessionStore } from
       </mat-card>
     </div>
   `,
-  styles: `.uf-login { max-width: 420px; margin: 4rem auto; }`,
+  styles: `
+    .uf-login {
+      max-width: 420px;
+      margin: 8vh auto;
+      display: grid;
+      gap: 1rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      justify-content: center;
+      color: var(--uf-text);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1.25rem;
+    }
+    .brand__logo {
+      display: grid;
+      place-items: center;
+      width: 2.2rem;
+      height: 2.2rem;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #6366f1, #2563eb);
+      color: #fff;
+      font-weight: 800;
+    }
+  `,
 })
 export class LoginPage {
   private readonly kratos = inject(KratosService);

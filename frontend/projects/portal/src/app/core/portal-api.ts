@@ -76,6 +76,8 @@ export interface BuildingDoc {
   name: string | null;
   kind: string;
   floors: FloorDoc[];
+  /** The architect's IFC model of this building when one was ingested and confirmed (ADR-0006 Phase C). */
+  model?: { url: string; bytes: number; kind: string; disclaimer: string; built_at: string | null } | null;
 }
 
 export interface AreaDefinition {

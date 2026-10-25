@@ -751,3 +751,35 @@ class RegulatoryImport(TimestampMixin, Base):
     record: Mapped[dict] = mapped_column(JSONB, default=dict)
     stats: Mapped[dict] = mapped_column(JSONB, default=dict)
     error: Mapped[str | None] = mapped_column(Text)
+
+
+class IfcSpaceLink(TimestampMixin, Base):
+    """An ``IfcSpace`` of an ingested IFC model and its reviewed link to a unit (ADR-0006 C1).
+    Unit ids never change through an IFC import; only this link does."""
+
+    __tablename__ = "ifc_space_links"
+    __table_args__ = (
+        UniqueConstraint("geometry_model_id", "ifc_global_id", name="uq_ifc_space_per_model"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    building_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("buildings.id", ondelete="CASCADE"), index=True
+    )
+    geometry_model_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("geometry_models.id", ondelete="CASCADE"), index=True
+    )
+    ifc_global_id: Mapped[str] = mapped_column(String(22))
+    name: Mapped[str | None] = mapped_column(String(200))
+    long_name: Mapped[str | None] = mapped_column(String(200))
+    storey_name: Mapped[str | None] = mapped_column(String(200))
+    storey_elevation_m: Mapped[Decimal | None] = mapped_column(Numeric(8, 3))
+    floor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("floors.id", ondelete="SET NULL"))
+    unit_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("units.id", ondelete="SET NULL"))
+    status: Mapped[str] = mapped_column(String(20), default="unmatched")
+    confidence: Mapped[Decimal | None] = mapped_column(Numeric(3, 2))
+    footprint_m: Mapped[dict | None] = mapped_column(JSONB)  # {"ring": [[x, y], ...]} IFC metres
+    areas: Mapped[dict] = mapped_column(JSONB, default=dict)  # net_floor_area, gross_floor_area

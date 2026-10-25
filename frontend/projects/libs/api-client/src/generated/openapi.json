@@ -1715,6 +1715,60 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/floor-proposal": {
+   "get": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Floor Proposal",
+    "description": "Floors read from the drawings' level markers; accept them with PUT /floors (ADR-0010).",
+    "operationId": "floor_proposal_api_v1_admin_tenants__tenant_id__buildings__building_id__floor_proposal_get",
+    "parameters": [
+     {
+      "name": "building_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Building Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FloorProposalOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/floors": {
    "put": {
     "tags": [
@@ -4217,6 +4271,245 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/MassingOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/model": {
+   "get": {
+    "tags": [
+     "geometry"
+    ],
+    "summary": "Get Building Model",
+    "description": "The building's current IFC-derived model, or null when none was ingested.",
+    "operationId": "get_building_model_api_v1_admin_tenants__tenant_id__buildings__building_id__model_get",
+    "parameters": [
+     {
+      "name": "building_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Building Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "anyOf": [
+          {
+           "$ref": "#/components/schemas/BuildingModelOut"
+          },
+          {
+           "type": "null"
+          }
+         ],
+         "title": "Response Get Building Model Api V1 Admin Tenants  Tenant Id  Buildings  Building Id  Model Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/ifc-links": {
+   "get": {
+    "tags": [
+     "geometry"
+    ],
+    "summary": "List Ifc Links",
+    "operationId": "list_ifc_links_api_v1_admin_tenants__tenant_id__buildings__building_id__ifc_links_get",
+    "parameters": [
+     {
+      "name": "building_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Building Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/IfcSpaceLinkOut"
+         },
+         "title": "Response List Ifc Links Api V1 Admin Tenants  Tenant Id  Buildings  Building Id  Ifc Links Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/ifc-links/{link_id}": {
+   "post": {
+    "tags": [
+     "geometry"
+    ],
+    "summary": "Decide Ifc Link",
+    "description": "Confirm a space as a unit (the suggested one or another), reject it, or reset it.",
+    "operationId": "decide_ifc_link_api_v1_admin_tenants__tenant_id__ifc_links__link_id__post",
+    "parameters": [
+     {
+      "name": "link_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Link Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/IfcSpaceLinkDecide"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/IfcSpaceLinkOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/model/rebuild": {
+   "post": {
+    "tags": [
+     "geometry"
+    ],
+    "summary": "Rebuild Building Model",
+    "description": "Queue the IFC ingestion again for the revision the current model came from.",
+    "operationId": "rebuild_building_model_api_v1_admin_tenants__tenant_id__buildings__building_id__model_rebuild_post",
+    "parameters": [
+     {
+      "name": "building_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Building Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Rebuild Building Model Api V1 Admin Tenants  Tenant Id  Buildings  Building Id  Model Rebuild Post"
         }
        }
       }
@@ -7019,6 +7312,86 @@
     ],
     "title": "BuildingCreate"
    },
+   "BuildingModelOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "building_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Building Id"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "stats": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Stats"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "glb_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Glb Url"
+     },
+     "links": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Links"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "building_id",
+     "kind",
+     "status",
+     "stats",
+     "error",
+     "created_at"
+    ],
+    "title": "BuildingModelOut",
+    "description": "The current IFC-derived model of a building (kind ``ifc``), if any."
+   },
    "BuildingOut": {
     "properties": {
      "id": {
@@ -7640,6 +8013,56 @@
     ],
     "title": "FloorOut"
    },
+   "FloorProposalOut": {
+    "properties": {
+     "building_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Building Id"
+     },
+     "sheets_with_markers": {
+      "type": "integer",
+      "title": "Sheets With Markers"
+     },
+     "floors": {
+      "items": {
+       "$ref": "#/components/schemas/ProposedFloorOut"
+      },
+      "type": "array",
+      "title": "Floors"
+     },
+     "unmatched_existing": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Unmatched Existing"
+     },
+     "roof": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Roof"
+     },
+     "counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "type": "object",
+      "title": "Counts"
+     }
+    },
+    "type": "object",
+    "required": [
+     "building_id",
+     "sheets_with_markers",
+     "floors",
+     "unmatched_existing",
+     "roof",
+     "counts"
+    ],
+    "title": "FloorProposalOut"
+   },
    "FloorRegion": {
     "properties": {
      "ring": {
@@ -7778,6 +8201,187 @@
     },
     "type": "object",
     "title": "HTTPValidationError"
+   },
+   "IfcSpaceLinkDecide": {
+    "properties": {
+     "decision": {
+      "type": "string",
+      "enum": [
+       "confirm",
+       "reject",
+       "reset"
+      ],
+      "title": "Decision"
+     },
+     "unit_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "decision"
+    ],
+    "title": "IfcSpaceLinkDecide",
+    "description": "Confirm a space as a unit (optionally another unit than suggested) or reject it."
+   },
+   "IfcSpaceLinkOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "building_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Building Id"
+     },
+     "geometry_model_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Geometry Model Id"
+     },
+     "ifc_global_id": {
+      "type": "string",
+      "title": "Ifc Global Id"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "long_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Long Name"
+     },
+     "storey_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Storey Name"
+     },
+     "storey_elevation_m": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Storey Elevation M"
+     },
+     "floor_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Floor Id"
+     },
+     "unit_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit Id"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "confidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confidence"
+     },
+     "areas": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Areas"
+     },
+     "unit_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit Code"
+     },
+     "floor_level": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Floor Level"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "building_id",
+     "geometry_model_id",
+     "ifc_global_id",
+     "name",
+     "long_name",
+     "storey_name",
+     "storey_elevation_m",
+     "floor_id",
+     "unit_id",
+     "status",
+     "confidence",
+     "areas"
+    ],
+    "title": "IfcSpaceLinkOut"
    },
    "ImportApply": {
     "properties": {
@@ -10762,6 +11366,78 @@
      "resolved_at"
     ],
     "title": "ProposalOut"
+   },
+   "ProposedFloorOut": {
+    "properties": {
+     "level": {
+      "type": "integer",
+      "title": "Level"
+     },
+     "display_name": {
+      "type": "string",
+      "title": "Display Name"
+     },
+     "elevation_m": {
+      "type": "number",
+      "title": "Elevation M"
+     },
+     "height_m": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Height M"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "new",
+       "update",
+       "existing"
+      ],
+      "title": "Status"
+     },
+     "floor_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Floor Id"
+     },
+     "sheets": {
+      "type": "integer",
+      "title": "Sheets"
+     },
+     "markers": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Markers"
+     }
+    },
+    "type": "object",
+    "required": [
+     "level",
+     "display_name",
+     "elevation_m",
+     "height_m",
+     "status",
+     "floor_id",
+     "sheets",
+     "markers"
+    ],
+    "title": "ProposedFloorOut",
+    "description": "A storey read from the drawings' level markers (ADR-0010)."
    },
    "PublicationOut": {
     "properties": {

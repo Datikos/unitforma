@@ -1,6 +1,6 @@
 # ADR-0006: Native CAD intake (DXF, DWG, IFC) beside PDF, and floor-first 3D navigation in the portal
 
-- **Status:** accepted (2026-10-25; Phase A implemented 2026-10-25; Phase B implemented 2026-10-25 except the real-file acceptance B8; Phases C and D open; DWG backend B1 `none` until the owner picks otherwise)
+- **Status:** accepted (2026-10-25; Phase A implemented 2026-10-25; Phase B implemented 2026-10-25 except the real-file acceptance B8; Phase C implemented 2026-10-25 except Draco compression C2a; Phase D open; DWG backend B1 `none` until the owner picks otherwise)
 - **Date:** 2026-10-25
 - **Deciders:** David Sakhelashvili (platform owner); the DWG conversion option needs his licence decision
 - **Plan reference:** §1.1, §2.1, §2.2, §4.2, §7.3, §13.2, Phase 8
@@ -256,29 +256,51 @@ Phase B: DXF intake (M)
       before this passes.
 
 Phase C: IFC ingestion (L, plan Phase 8 pulled forward)
-- [ ] C1 Migration `0009_ifc_space_links`: table of Decision 4 with RLS from `migrations/rls.py`;
+- [x] C1 Migration `0009_ifc_space_links`: table of Decision 4 with RLS from `migrations/rls.py`;
       `unit_areas.source` gains `ifc_quantity`.
-- [ ] C2 `pyproject.toml`: `ifcopenshell>=0.9.0` as an optional extra `ifc`; `backend/Dockerfile`
+- [x] C2 `pyproject.toml`: `ifcopenshell>=0.9.0` as an optional extra `ifc`; `backend/Dockerfile`
       target `worker-heavy` installs the extra; compose `worker-heavy` uses that target, memory 4 GB.
 - [ ] C2a `backend/Dockerfile` target `worker-heavy`: Node 22 LTS runtime and `@gltf-transform/cli`
       (MIT) pinned, used as a subprocess; alternative if the image grows past 600 MB: a Python Draco
       encoder (`DracoPy`, Apache-2.0) and skip the CLI.
-- [ ] C3 `geometry/ifc.py`: storeys, spaces with footprints and quantities, tessellation to GLB with
+- [x] C3 `geometry/ifc.py`: storeys, spaces with footprints and quantities, tessellation to GLB with
       per-space nodes; `gltf-transform` Draco step; stats (`spaces`, `storeys`, `glb_bytes`); fail the
       job when the GLB exceeds 15 MB.
-- [ ] C4 `jobs/tasks.py` `geometry.ingest_ifc` on queue `geometry-heavy`; enqueued by
+- [x] C4 `jobs/tasks.py` `geometry.ingest_ifc` on queue `geometry-heavy`; enqueued by
       `process_revision` for mime `application/x-step`; writes `geometry_models` kind `ifc`.
-- [ ] C5 `geometry/service.py`: space → unit suggestions (storey match, label match, footprint IoU ≥
+- [x] C5 `geometry/service.py`: space → unit suggestions (storey match, label match, footprint IoU ≥
       0.5 via `mapping/diff.py` overlap), endpoints `GET/PUT /projects/{id}/ifc-links`.
-- [ ] C6 Admin page `ifc-links.page.ts`: list of spaces with suggested unit, confirm/reject, 3D
+- [x] C6 Admin page `ifc-links.page.ts`: list of spaces with suggested unit, confirm/reject, 3D
       preview with the space highlighted.
-- [ ] C7 `publishing/snapshot.py`: pick the current `ifc` model per building when `ready`, else
+- [x] C7 `publishing/snapshot.py`: pick the current `ifc` model per building when `ready`, else
       massing; carry `model_kind` and disclaimer text; portal badge from `model_kind`.
-- [ ] C8 Tests `test_ifc_ingest.py` with a synthetic IFC4 file (two storeys, three spaces) built by
+- [x] C8 Tests `test_ifc_ingest.py` with a synthetic IFC4 file (two storeys, three spaces) built by
       IfcOpenShell in the test; asserts storeys, spaces, GLB node names, suggestion to an existing
       unit by label; unit ids unchanged after confirm.
-- [ ] C9 Docs: plan §2.2 and Phase 8 marked as pulled forward with this ADR's number; §7.3 R2 line;
+- [x] C9 Docs: plan §2.2 and Phase 8 marked as pulled forward with this ADR's number; §7.3 R2 line;
       README status; runbook note on `worker-heavy` memory.
+      *Found while implementing (2026-10-25):* the IFC extra (`ifcopenshell>=0.8.3`, LGPL) is an
+      optional dependency installed only in the `runtime-ifc` Dockerfile target that `worker-heavy`
+      runs; api and the light worker stay without it. C2a (Draco via gltf-transform) is open: the GLB
+      is written uncompressed and the 15 MB budget is enforced by dropping finishes first (coverings,
+      railings, members, plates, doors, windows, in that order) and failing with a message after
+      that; `stats.compression = none` records it. The matching uses storey elevation (0.3 m) and the
+      apartment label in the space name; footprint IoU was not used because the IFC frame and the
+      sheet frame share no origin before placement. Space nodes carry `unit_id = space:<GlobalId>`
+      until confirmed; `relink_glb` rewrites the extras without re-tessellating, and the published
+      copy makes everything but confirmed spaces of listed units unpickable. The admin review lives
+      on the "3D massing" page (building selector, model switch, space table), not on a page of its
+      own, because the admin routes were being restructured by another session at the same time.
+      The IFC tests need the extra and are skipped where it is not installed; CI installs it.
+      Known gaps left open: confirming a link reads and rewrites the GLB (up to 15 MB) inside the
+      request, so the database connection is held across storage I/O (admin-only, one click; same
+      note as ADR-0007); in the IFC view a chosen floor fades the other floors' spaces but the walls
+      stay opaque, so interior spaces show only through the glazing until the envelope above the
+      floor is cut (plan §7.3 interior view, R2); `read_ifc` tessellates product by product rather
+      than with the iterator, fine for the pilot and slow for large models; the IFC model is not
+      placed on the site, so the project page keeps the massing and the building page shows the IFC
+      model alone. Space nodes carry the matched floor's `level` (not the storey index) and, once
+      confirmed, the unit's code, so floor isolation and the portal's unit route work on them.
 
 Phase D: DWG conversion (M, after the owner picks B1, B2 or B3)
 - [ ] D1 `documents/service.py`: accept `application/acad`, `image/vnd.dwg`, `.dwg`; sniff `AC10`
