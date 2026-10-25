@@ -190,6 +190,12 @@ export interface PolygonMove {
     .pv__img {
       display: block;
       user-select: none;
+      max-width: none;
+      max-height: none;
+    }
+    .pv__svg {
+      max-width: none;
+      max-height: none;
     }
     .pv__blank {
       background: #fff;

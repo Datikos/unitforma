@@ -1,5 +1,5 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, effect, inject, input } from '@angular/core';
+import { Component, HostListener, computed, effect, inject, input, signal } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -300,7 +300,29 @@ import { SheetStore } from './sheet.store';
               }
             </div>
           }
-          <div class="viewer">
+          <div class="viewer" [class.viewer--max]="maximized()">
+            @if (maximized()) {
+              <div class="viewer__bar">
+                <span class="uf-chip uf-tone-info"
+                  ><ng-icon name="lucideMousePointer" />{{ store.mode() }} mode · wheel zooms, drag
+                  pans · Esc leaves</span
+                >
+                <button mat-flat-button type="button" (click)="maximized.set(false)">
+                  <ng-icon name="lucideX" /> Close
+                </button>
+              </div>
+            } @else {
+              <button
+                mat-icon-button
+                type="button"
+                class="viewer__max"
+                (click)="maximized.set(true)"
+                title="Maximize the drawing"
+                aria-label="Maximize the drawing"
+              >
+                <ng-icon name="lucideMaximize2" />
+              </button>
+            }
             <uf-plan-viewer
               [src]="s.raster_url ?? null"
               [width]="s.raster_width ?? 1000"
@@ -338,10 +360,45 @@ import { SheetStore } from './sheet.store';
       border-radius: var(--uf-radius);
       overflow: hidden;
     }
+    .viewer {
+      position: relative;
+    }
     .viewer uf-plan-viewer {
       --uf-plan-height: auto;
-      --uf-plan-max-height: 82vh;
+      --uf-plan-max-height: none;
       --uf-plan-min-height: 320px;
+    }
+    .viewer__max {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      z-index: 2;
+      background: var(--uf-surface);
+      border: 1px solid var(--uf-border);
+    }
+    .viewer--max {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      border-radius: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--uf-bg);
+    }
+    .viewer--max .viewer__bar {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--uf-border);
+      background: var(--uf-surface);
+    }
+    .viewer--max uf-plan-viewer {
+      flex: 1;
+      min-height: 0;
+      --uf-plan-height: 100%;
+      --uf-plan-min-height: 0;
     }
     a ng-icon,
     button ng-icon {
@@ -352,6 +409,8 @@ import { SheetStore } from './sheet.store';
 })
 export class SheetPage {
   protected readonly store = inject(SheetStore);
+  /** The drawing over the whole screen; Esc or Close returns. */
+  readonly maximized = signal(false);
   private readonly routeInfo = inject(RouteInfo);
   readonly tenantId = input.required<string>();
   readonly projectId = input.required<string>();
@@ -376,6 +435,11 @@ export class SheetPage {
       { label: 'Draft', value: this.store.draftCount() },
     ];
   });
+
+  @HostListener('document:keydown.escape')
+  leaveMaximized(): void {
+    this.maximized.set(false);
+  }
 
   constructor() {
     toObservable(this.sheetId).subscribe(() => {
