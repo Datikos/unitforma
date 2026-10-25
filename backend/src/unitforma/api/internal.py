@@ -54,3 +54,44 @@ async def domains_ask(
         allowed = await is_host_allowed(session, domain, settings)
     response.status_code = 200 if allowed else 403
     return {"allowed": allowed}
+
+
+# --- local storage backend: signed file transfer (dev/test only; S3 serves presigned URLs itself)
+from fastapi import Request  # noqa: E402
+
+
+@router.api_route("/files/{key:path}", methods=["GET", "PUT"], include_in_schema=False)
+async def local_file(
+    key: str,
+    request: Request,
+    method: str = Query(...),
+    exp: int = Query(...),
+    sig: str = Query(...),
+):
+    from unitforma.storage.service import LocalStorage, get_storage
+
+    st = get_storage()
+    if not isinstance(st, LocalStorage):
+        return Response(status_code=404)
+    if method != request.method or not st.verify(method, key, exp, sig):
+        return Response(status_code=403)
+    if request.method == "PUT":
+        st.put_bytes(
+            key,
+            await request.body(),
+            request.headers.get("content-type", "application/octet-stream"),
+        )
+        return Response(status_code=200)
+    if st.head(key) is None:
+        return Response(status_code=404)
+    data = st.get_bytes(key)
+    ctype = (
+        "application/pdf"
+        if key.endswith(".pdf")
+        else "image/png"
+        if key.endswith(".png")
+        else "application/json"
+        if key.endswith(".json")
+        else "application/octet-stream"
+    )
+    return Response(content=data, media_type=ctype)

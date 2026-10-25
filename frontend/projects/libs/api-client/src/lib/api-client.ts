@@ -23,6 +23,22 @@ export type FloorOut = Schemas['FloorOut'];
 export type SiteFeatureOut = Schemas['SiteFeatureOut'];
 export type SiteFeatureCreate = Schemas['SiteFeatureCreate'];
 export type AuditOut = Schemas['AuditOut'];
+export type DocumentOut = Schemas['DocumentOut'];
+export type DocumentCreate = Schemas['DocumentCreate'];
+export type RevisionOut = Schemas['RevisionOut'];
+export type UploadIntentCreate = Schemas['UploadIntentCreate'];
+export type UploadIntentOut = Schemas['UploadIntentOut'];
+export type SheetOut = Schemas['SheetOut'];
+export type Calibration = Schemas['Calibration'];
+export type BoundaryCreate = Schemas['BoundaryCreate'];
+export type BoundaryOut = Schemas['BoundaryOut'];
+export type UnitOut = Schemas['UnitOut'];
+export type UnitCreated = Schemas['UnitCreated'];
+export type UnitMerge = Schemas['UnitMerge'];
+export type UnitSplit = Schemas['UnitSplit'];
+export type AreaOut = Schemas['AreaOut'];
+export type AreaSet = Schemas['AreaSet'];
+export type LineageOut = Schemas['LineageOut'];
 export interface Page<T> {
   items: T[];
   total: number;
@@ -119,6 +135,97 @@ export class UnitformaApi {
   }
   createSiteFeature(tenantId: string, projectId: string, body: SiteFeatureCreate): Promise<SiteFeatureOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/site-features`, body);
+  }
+
+  // --- documents
+  listDocuments(tenantId: string, projectId: string): Promise<DocumentOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/documents`);
+  }
+  createDocument(tenantId: string, projectId: string, body: DocumentCreate): Promise<DocumentOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/documents`, body);
+  }
+  createUpload(tenantId: string, documentId: string, body: UploadIntentCreate): Promise<UploadIntentOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/documents/${documentId}/uploads`, body);
+  }
+  completeUpload(tenantId: string, revisionId: string): Promise<RevisionOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/complete`, undefined);
+  }
+  listRevisions(tenantId: string, documentId: string): Promise<RevisionOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/documents/${documentId}/revisions`);
+  }
+  listSheets(tenantId: string, revisionId: string): Promise<SheetOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/sheets`);
+  }
+  revisionDownloadUrl(tenantId: string, revisionId: string): Promise<{ url: string }> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/download`);
+  }
+  getSheet(tenantId: string, sheetId: string): Promise<SheetOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}`);
+  }
+  assignSheetFloor(tenantId: string, sheetId: string, floorId: string | null, version: number): Promise<SheetOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/floor`, { floor_id: floorId, version });
+  }
+  calibrateSheet(tenantId: string, sheetId: string, calibration: Calibration, version: number): Promise<SheetOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/calibration`, { calibration, version });
+  }
+
+  // --- mapping
+  listBoundaries(tenantId: string, sheetId: string): Promise<BoundaryOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/boundaries`);
+  }
+  createBoundary(tenantId: string, sheetId: string, body: BoundaryCreate): Promise<UnitCreated> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/boundaries`, body);
+  }
+  updateBoundary(tenantId: string, boundaryId: string, ring: number[][], version: number): Promise<BoundaryOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/boundaries/${boundaryId}`, { ring, version });
+  }
+  approveSheet(tenantId: string, sheetId: string): Promise<{ approved_units: number }> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/approve`, undefined);
+  }
+  listUnits(tenantId: string, projectId: string, includeRemoved = false): Promise<UnitOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/units`, { include_removed: String(includeRemoved) });
+  }
+  getUnit(tenantId: string, unitId: string): Promise<UnitOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}`);
+  }
+  relabelUnit(tenantId: string, unitId: string, code: string, version: number, reason?: string): Promise<UnitOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/relabel`, { code, version, reason: reason ?? null });
+  }
+  removeUnit(tenantId: string, unitId: string, version: number, note?: string): Promise<UnitOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/remove`, { version, note: note ?? null });
+  }
+  mergeUnits(tenantId: string, projectId: string, body: UnitMerge): Promise<UnitOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/units/merge`, body);
+  }
+  splitUnit(tenantId: string, unitId: string, body: UnitSplit): Promise<UnitOut[]> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/split`, body);
+  }
+  setArea(tenantId: string, unitId: string, body: AreaSet): Promise<AreaOut> {
+    return this.put(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/areas`, body);
+  }
+  verifyArea(tenantId: string, areaId: string): Promise<AreaOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/areas/${areaId}/verify`, undefined);
+  }
+  unitHistory(tenantId: string, unitId: string): Promise<{ codes: unknown[]; lineage: LineageOut[] }> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/history`);
+  }
+  projectLineage(tenantId: string, projectId: string): Promise<LineageOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/lineage`);
+  }
+
+  /** Upload a file to a presigned PUT URL (S3 or the local dev backend), reporting progress 0..1. */
+  uploadToPresignedUrl(url: string, file: File, contentType: string, onProgress?: (p: number) => void): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', url, true);
+      xhr.setRequestHeader('Content-Type', contentType);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+      };
+      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`upload failed (${xhr.status})`)));
+      xhr.onerror = () => reject(new Error('upload failed (network)'));
+      xhr.send(file);
+    });
   }
 
   // --- transport

@@ -8,7 +8,15 @@ import structlog
 from fastapi import FastAPI
 
 from unitforma import __version__
-from unitforma.api import admin, admin_projects, internal, platform, portal
+from unitforma.api import (
+    admin,
+    admin_documents,
+    admin_mapping,
+    admin_projects,
+    internal,
+    platform,
+    portal,
+)
 from unitforma.core.db import dispose_engine
 from unitforma.core.errors import install_error_handlers
 from unitforma.core.logging import configure_logging
@@ -44,6 +52,8 @@ def create_app() -> FastAPI:
     app.include_router(platform.router)
     app.include_router(admin.router)
     app.include_router(admin_projects.router)
+    app.include_router(admin_documents.router)
+    app.include_router(admin_mapping.router)
     return app
 
 

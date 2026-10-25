@@ -6,18 +6,20 @@ import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatTableModule } from '@angular/material/table';
+import { RouterLink } from '@angular/router';
 import { BuildingOut, FloorIn, FloorOut, ProjectOut, UnitformaApi, problemMessage } from 'api-client';
 
 /** Project structure: buildings and their floors (plan §3.5). */
 @Component({
   selector: 'uf-project-detail-page',
-  imports: [FormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule],
+  imports: [FormsModule, MatCardModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, RouterLink],
   template: `
     <div class="uf-page">
       @if (project(); as p) {
         <div class="uf-page-header">
           <h2>{{ p.name }}</h2>
           <span class="uf-muted">{{ p.slug }} · {{ p.status }} · {{ p.currency }} · code pattern {{ p.code_pattern }}</span>
+          <span class="uf-links"><a mat-stroked-button routerLink="documents">Documents</a> <a mat-stroked-button routerLink="units">Units</a></span>
         </div>
       }
       @if (error()) { <p class="uf-error">{{ error() }}</p> }

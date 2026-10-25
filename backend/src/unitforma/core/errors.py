@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -38,4 +39,4 @@ def install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def _ve(_: Request, exc: RequestValidationError):
-        return _problem(422, "Validation failed", errors=exc.errors())
+        return _problem(422, "Validation failed", errors=jsonable_encoder(exc.errors()))

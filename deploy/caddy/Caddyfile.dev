@@ -34,6 +34,13 @@
 		}
 		reverse_proxy api:8000
 	}
+	# dev only: the local storage backend transfers files through the API (signed URLs)
+	handle /internal/files/* {
+		request_body {
+			max_size 2GB
+		}
+		reverse_proxy api:8000
+	}
 }
 
 # Staff workspace. Kratos public API lives under /.ory/ on the SAME host so its cookies are first-party.

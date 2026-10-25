@@ -244,3 +244,216 @@ class AuditOut(ORM):
 class AuditPage(BaseModel):
     items: list[AuditOut]
     total: int
+
+
+# --- documents ---------------------------------------------------------------------------
+DocumentKind = Literal[
+    "site_plan",
+    "floor_plan",
+    "section",
+    "elevation",
+    "render",
+    "schedule",
+    "model_ifc",
+    "model_glb",
+    "texture",
+    "permit",
+    "other",
+]
+
+
+class DocumentCreate(BaseModel):
+    kind: DocumentKind
+    title: str = Field(min_length=1, max_length=200)
+    building_id: uuid.UUID | None = None
+    visibility: Literal["internal", "public"] = "internal"
+    source: dict[str, Any] = Field(default_factory=dict)
+
+
+class RevisionOut(ORM):
+    id: uuid.UUID
+    document_id: uuid.UUID
+    revision_no: int
+    file_name: str
+    mime: str | None
+    byte_size: int | None
+    sha256: str | None
+    page_count: int | None
+    source_note: str | None
+    processing_status: str
+    processing_error: str | None
+    created_at: datetime
+
+
+class DocumentOut(ORM):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    building_id: uuid.UUID | None
+    kind: str
+    title: str
+    visibility: str
+    current_revision_id: uuid.UUID | None
+    source: dict[str, Any]
+    created_at: datetime
+    current_revision: RevisionOut | None = None
+
+
+class UploadIntentCreate(BaseModel):
+    file_name: str = Field(min_length=1, max_length=255)
+    content_type: str = Field(min_length=3, max_length=120)
+    byte_size: int = Field(gt=0)
+    source_note: str | None = Field(default=None, max_length=500)
+
+
+class UploadIntentOut(BaseModel):
+    revision: RevisionOut
+    upload_url: str
+    method: Literal["PUT"] = "PUT"
+    headers: dict[str, str]
+
+
+class Calibration(BaseModel):
+    p1: list[float] = Field(min_length=2, max_length=2)
+    p2: list[float] = Field(min_length=2, max_length=2)
+    distance_m: float = Field(gt=0)
+
+
+class SheetOut(ORM):
+    id: uuid.UUID
+    revision_id: uuid.UUID
+    page_no: int
+    width_pt: Decimal | None
+    height_pt: Decimal | None
+    raster_width: int | None
+    raster_height: int | None
+    floor_id: uuid.UUID | None
+    suggested_floor_id: uuid.UUID | None
+    assignment_status: str
+    calibration: dict[str, Any] | None
+    calibration_status: str
+    hints: dict[str, Any]
+    version: int
+    raster_url: str | None = None
+    thumbnail_url: str | None = None
+    extract_url: str | None = None
+
+
+class SheetAssign(BaseModel):
+    floor_id: uuid.UUID | None
+    version: int
+
+
+class SheetCalibrate(BaseModel):
+    calibration: Calibration
+    version: int
+
+
+# --- units & mapping ----------------------------------------------------------------------
+Ring = list[list[float]]
+
+
+class BoundaryCreate(BaseModel):
+    ring: Ring = Field(min_length=3, max_length=500)
+    unit_type: Literal["apartment", "commercial", "parking", "storage"] = "apartment"
+    code: str | None = Field(default=None, max_length=40)
+    label: str | None = Field(default=None, max_length=80)
+
+
+class BoundaryUpdate(BaseModel):
+    ring: Ring = Field(min_length=3, max_length=500)
+    version: int
+
+
+class AreaOut(ORM):
+    id: uuid.UUID
+    area_type: str
+    value_m2: Decimal
+    source: str
+    verification_status: str
+    is_current: bool
+
+
+class BoundaryOut(ORM):
+    id: uuid.UUID
+    unit_id: uuid.UUID
+    sheet_id: uuid.UUID
+    polygon: dict[str, Any]
+    polygon_m: dict[str, Any] | None
+    source: str
+    status: str
+    is_current: bool
+    label: str | None
+    version: int
+
+
+class UnitOut(ORM):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    building_id: uuid.UUID
+    floor_id: uuid.UUID
+    code: str
+    unit_type: str
+    lifecycle_status: str
+    verification_status: str
+    publication_status: str
+    rooms: int | None
+    bedrooms: int | None
+    bathrooms: int | None
+    version: int
+    areas: list[AreaOut] = Field(default_factory=list)
+    boundaries: list[BoundaryOut] = Field(default_factory=list)
+
+
+class UnitCreated(BaseModel):
+    unit: UnitOut
+    boundary: BoundaryOut
+
+
+class UnitRelabel(BaseModel):
+    code: str = Field(min_length=1, max_length=40)
+    version: int
+    reason: str | None = None
+
+
+class UnitRemove(BaseModel):
+    version: int
+    note: str | None = None
+
+
+class UnitMerge(BaseModel):
+    survivor_id: uuid.UUID
+    absorbed_ids: list[uuid.UUID] = Field(min_length=1)
+    sheet_id: uuid.UUID | None = None
+    ring: Ring | None = None
+    note: str | None = None
+
+
+class UnitSplit(BaseModel):
+    sheet_id: uuid.UUID
+    rings: list[Ring] = Field(min_length=2, max_length=20)
+    codes: list[str | None] = Field(default_factory=list)
+    note: str | None = None
+
+
+class AreaSet(BaseModel):
+    area_type: str = Field(pattern=r"^[a-z][a-z0-9_]{1,40}$")
+    value_m2: Decimal = Field(ge=0)
+    verified: bool = False
+
+
+class LineageOut(ORM):
+    id: uuid.UUID
+    event_type: str
+    revision_id: uuid.UUID | None
+    from_unit_ids: list[uuid.UUID]
+    to_unit_ids: list[uuid.UUID]
+    decided_by: uuid.UUID | None
+    decided_at: datetime
+    note: str | None
+
+
+class CodeHistoryOut(ORM):
+    old_code: str | None
+    new_code: str
+    changed_at: datetime
+    reason: str | None

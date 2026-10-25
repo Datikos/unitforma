@@ -1322,6 +1322,1487 @@
      }
     }
    }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/documents": {
+   "get": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "List Documents",
+    "operationId": "list_documents_api_v1_admin_tenants__tenant_id__projects__project_id__documents_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/DocumentOut"
+         },
+         "title": "Response List Documents Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Documents Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Create Document",
+    "operationId": "create_document_api_v1_admin_tenants__tenant_id__projects__project_id__documents_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DocumentCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DocumentOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/documents/{document_id}/uploads": {
+   "post": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Create Upload",
+    "operationId": "create_upload_api_v1_admin_tenants__tenant_id__documents__document_id__uploads_post",
+    "parameters": [
+     {
+      "name": "document_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Document Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UploadIntentCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UploadIntentOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/revisions/{revision_id}/complete": {
+   "post": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Complete Upload",
+    "operationId": "complete_upload_api_v1_admin_tenants__tenant_id__revisions__revision_id__complete_post",
+    "parameters": [
+     {
+      "name": "revision_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Revision Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RevisionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/documents/{document_id}/revisions": {
+   "get": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "List Revisions",
+    "operationId": "list_revisions_api_v1_admin_tenants__tenant_id__documents__document_id__revisions_get",
+    "parameters": [
+     {
+      "name": "document_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Document Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/RevisionOut"
+         },
+         "title": "Response List Revisions Api V1 Admin Tenants  Tenant Id  Documents  Document Id  Revisions Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/revisions/{revision_id}/sheets": {
+   "get": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "List Sheets",
+    "operationId": "list_sheets_api_v1_admin_tenants__tenant_id__revisions__revision_id__sheets_get",
+    "parameters": [
+     {
+      "name": "revision_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Revision Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SheetOut"
+         },
+         "title": "Response List Sheets Api V1 Admin Tenants  Tenant Id  Revisions  Revision Id  Sheets Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/revisions/{revision_id}/download": {
+   "get": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Download Url",
+    "operationId": "download_url_api_v1_admin_tenants__tenant_id__revisions__revision_id__download_get",
+    "parameters": [
+     {
+      "name": "revision_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Revision Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Download Url Api V1 Admin Tenants  Tenant Id  Revisions  Revision Id  Download Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}": {
+   "get": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Get Sheet",
+    "operationId": "get_sheet_api_v1_admin_tenants__tenant_id__sheets__sheet_id__get",
+    "parameters": [
+     {
+      "name": "sheet_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Sheet Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SheetOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/floor": {
+   "patch": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Assign Sheet Floor",
+    "operationId": "assign_sheet_floor_api_v1_admin_tenants__tenant_id__sheets__sheet_id__floor_patch",
+    "parameters": [
+     {
+      "name": "sheet_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Sheet Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SheetAssign"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SheetOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/calibration": {
+   "patch": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Calibrate Sheet",
+    "operationId": "calibrate_sheet_api_v1_admin_tenants__tenant_id__sheets__sheet_id__calibration_patch",
+    "parameters": [
+     {
+      "name": "sheet_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Sheet Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SheetCalibrate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SheetOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/floors/{floor_id}/sheets": {
+   "get": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Sheets For Floor",
+    "operationId": "sheets_for_floor_api_v1_admin_tenants__tenant_id__floors__floor_id__sheets_get",
+    "parameters": [
+     {
+      "name": "floor_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Floor Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SheetOut"
+         },
+         "title": "Response Sheets For Floor Api V1 Admin Tenants  Tenant Id  Floors  Floor Id  Sheets Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/boundaries": {
+   "get": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "List Boundaries",
+    "operationId": "list_boundaries_api_v1_admin_tenants__tenant_id__sheets__sheet_id__boundaries_get",
+    "parameters": [
+     {
+      "name": "sheet_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Sheet Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/BoundaryOut"
+         },
+         "title": "Response List Boundaries Api V1 Admin Tenants  Tenant Id  Sheets  Sheet Id  Boundaries Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Create Boundary",
+    "description": "Draw a unit boundary: creates a draft unit with a permanent id and a generated code.",
+    "operationId": "create_boundary_api_v1_admin_tenants__tenant_id__sheets__sheet_id__boundaries_post",
+    "parameters": [
+     {
+      "name": "sheet_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Sheet Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BoundaryCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UnitCreated"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/boundaries/{boundary_id}": {
+   "patch": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Update Boundary",
+    "operationId": "update_boundary_api_v1_admin_tenants__tenant_id__boundaries__boundary_id__patch",
+    "parameters": [
+     {
+      "name": "boundary_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Boundary Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BoundaryUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BoundaryOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/approve": {
+   "post": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Approve Sheet",
+    "description": "Architectural reviewer approves the mapping on a sheet (plan \u00a713.1 step 5).",
+    "operationId": "approve_sheet_api_v1_admin_tenants__tenant_id__sheets__sheet_id__approve_post",
+    "parameters": [
+     {
+      "name": "sheet_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Sheet Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Approve Sheet Api V1 Admin Tenants  Tenant Id  Sheets  Sheet Id  Approve Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/units": {
+   "get": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "List Units",
+    "operationId": "list_units_api_v1_admin_tenants__tenant_id__projects__project_id__units_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     },
+     {
+      "name": "include_removed",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": false,
+       "title": "Include Removed"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/UnitOut"
+         },
+         "title": "Response List Units Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Units Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}": {
+   "get": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Get Unit",
+    "operationId": "get_unit_api_v1_admin_tenants__tenant_id__units__unit_id__get",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UnitOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/relabel": {
+   "post": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Relabel Unit",
+    "operationId": "relabel_unit_api_v1_admin_tenants__tenant_id__units__unit_id__relabel_post",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UnitRelabel"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UnitOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/remove": {
+   "post": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Remove Unit",
+    "operationId": "remove_unit_api_v1_admin_tenants__tenant_id__units__unit_id__remove_post",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UnitRemove"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UnitOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/units/merge": {
+   "post": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Merge Units",
+    "operationId": "merge_units_api_v1_admin_tenants__tenant_id__projects__project_id__units_merge_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UnitMerge"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/UnitOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/split": {
+   "post": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Split Unit",
+    "operationId": "split_unit_api_v1_admin_tenants__tenant_id__units__unit_id__split_post",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UnitSplit"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/UnitOut"
+         },
+         "title": "Response Split Unit Api V1 Admin Tenants  Tenant Id  Units  Unit Id  Split Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/areas": {
+   "put": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Set Area",
+    "operationId": "set_area_api_v1_admin_tenants__tenant_id__units__unit_id__areas_put",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AreaSet"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AreaOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/areas/{area_id}/verify": {
+   "post": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Verify Area",
+    "operationId": "verify_area_api_v1_admin_tenants__tenant_id__areas__area_id__verify_post",
+    "parameters": [
+     {
+      "name": "area_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Area Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AreaOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/history": {
+   "get": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Unit History",
+    "operationId": "unit_history_api_v1_admin_tenants__tenant_id__units__unit_id__history_get",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Unit History Api V1 Admin Tenants  Tenant Id  Units  Unit Id  History Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/lineage": {
+   "get": {
+    "tags": [
+     "mapping"
+    ],
+    "summary": "Project Lineage",
+    "operationId": "project_lineage_api_v1_admin_tenants__tenant_id__projects__project_id__lineage_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/LineageOut"
+         },
+         "title": "Response Project Lineage Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Lineage Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
   }
  },
  "components": {
@@ -1355,6 +2836,77 @@
      "label"
     ],
     "title": "AreaDefinition"
+   },
+   "AreaOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "area_type": {
+      "type": "string",
+      "title": "Area Type"
+     },
+     "value_m2": {
+      "type": "string",
+      "title": "Value M2"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "verification_status": {
+      "type": "string",
+      "title": "Verification Status"
+     },
+     "is_current": {
+      "type": "boolean",
+      "title": "Is Current"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "area_type",
+     "value_m2",
+     "source",
+     "verification_status",
+     "is_current"
+    ],
+    "title": "AreaOut"
+   },
+   "AreaSet": {
+    "properties": {
+     "area_type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,40}$",
+      "title": "Area Type"
+     },
+     "value_m2": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": 0.0
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Value M2"
+     },
+     "verified": {
+      "type": "boolean",
+      "title": "Verified",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "area_type",
+     "value_m2"
+    ],
+    "title": "AreaSet"
    },
    "AuditOut": {
     "properties": {
@@ -1470,6 +3022,165 @@
      "total"
     ],
     "title": "AuditPage"
+   },
+   "BoundaryCreate": {
+    "properties": {
+     "ring": {
+      "items": {
+       "items": {
+        "type": "number"
+       },
+       "type": "array"
+      },
+      "type": "array",
+      "maxItems": 500,
+      "minItems": 3,
+      "title": "Ring"
+     },
+     "unit_type": {
+      "type": "string",
+      "enum": [
+       "apartment",
+       "commercial",
+       "parking",
+       "storage"
+      ],
+      "title": "Unit Type",
+      "default": "apartment"
+     },
+     "code": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Code"
+     },
+     "label": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 80
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ring"
+    ],
+    "title": "BoundaryCreate"
+   },
+   "BoundaryOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "unit_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Unit Id"
+     },
+     "sheet_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Sheet Id"
+     },
+     "polygon": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Polygon"
+     },
+     "polygon_m": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Polygon M"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "is_current": {
+      "type": "boolean",
+      "title": "Is Current"
+     },
+     "label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "unit_id",
+     "sheet_id",
+     "polygon",
+     "polygon_m",
+     "source",
+     "status",
+     "is_current",
+     "label",
+     "version"
+    ],
+    "title": "BoundaryOut"
+   },
+   "BoundaryUpdate": {
+    "properties": {
+     "ring": {
+      "items": {
+       "items": {
+        "type": "number"
+       },
+       "type": "array"
+      },
+      "type": "array",
+      "maxItems": 500,
+      "minItems": 3,
+      "title": "Ring"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ring",
+     "version"
+    ],
+    "title": "BoundaryUpdate"
    },
    "BuildingCreate": {
     "properties": {
@@ -1644,6 +3355,182 @@
      "version"
     ],
     "title": "BuildingUpdate"
+   },
+   "Calibration": {
+    "properties": {
+     "p1": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array",
+      "maxItems": 2,
+      "minItems": 2,
+      "title": "P1"
+     },
+     "p2": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array",
+      "maxItems": 2,
+      "minItems": 2,
+      "title": "P2"
+     },
+     "distance_m": {
+      "type": "number",
+      "exclusiveMinimum": 0.0,
+      "title": "Distance M"
+     }
+    },
+    "type": "object",
+    "required": [
+     "p1",
+     "p2",
+     "distance_m"
+    ],
+    "title": "Calibration"
+   },
+   "DocumentCreate": {
+    "properties": {
+     "kind": {
+      "type": "string",
+      "enum": [
+       "site_plan",
+       "floor_plan",
+       "section",
+       "elevation",
+       "render",
+       "schedule",
+       "model_ifc",
+       "model_glb",
+       "texture",
+       "permit",
+       "other"
+      ],
+      "title": "Kind"
+     },
+     "title": {
+      "type": "string",
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Title"
+     },
+     "building_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Building Id"
+     },
+     "visibility": {
+      "type": "string",
+      "enum": [
+       "internal",
+       "public"
+      ],
+      "title": "Visibility",
+      "default": "internal"
+     },
+     "source": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Source"
+     }
+    },
+    "type": "object",
+    "required": [
+     "kind",
+     "title"
+    ],
+    "title": "DocumentCreate"
+   },
+   "DocumentOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Project Id"
+     },
+     "building_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Building Id"
+     },
+     "kind": {
+      "type": "string",
+      "title": "Kind"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "visibility": {
+      "type": "string",
+      "title": "Visibility"
+     },
+     "current_revision_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Current Revision Id"
+     },
+     "source": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Source"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "current_revision": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/RevisionOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "project_id",
+     "building_id",
+     "kind",
+     "title",
+     "visibility",
+     "current_revision_id",
+     "source",
+     "created_at"
+    ],
+    "title": "DocumentOut"
    },
    "FloorIn": {
     "properties": {
@@ -1902,6 +3789,87 @@
      "accepted"
     ],
     "title": "InvitationOut"
+   },
+   "LineageOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "event_type": {
+      "type": "string",
+      "title": "Event Type"
+     },
+     "revision_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revision Id"
+     },
+     "from_unit_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "title": "From Unit Ids"
+     },
+     "to_unit_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "title": "To Unit Ids"
+     },
+     "decided_by": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decided By"
+     },
+     "decided_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Decided At"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "event_type",
+     "revision_id",
+     "from_unit_ids",
+     "to_unit_ids",
+     "decided_by",
+     "decided_at",
+     "note"
+    ],
+    "title": "LineageOut"
    },
    "MeOut": {
     "properties": {
@@ -2417,6 +4385,328 @@
     ],
     "title": "ProjectUpdate"
    },
+   "RevisionOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "document_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Document Id"
+     },
+     "revision_no": {
+      "type": "integer",
+      "title": "Revision No"
+     },
+     "file_name": {
+      "type": "string",
+      "title": "File Name"
+     },
+     "mime": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mime"
+     },
+     "byte_size": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Byte Size"
+     },
+     "sha256": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sha256"
+     },
+     "page_count": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page Count"
+     },
+     "source_note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Note"
+     },
+     "processing_status": {
+      "type": "string",
+      "title": "Processing Status"
+     },
+     "processing_error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Processing Error"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "document_id",
+     "revision_no",
+     "file_name",
+     "mime",
+     "byte_size",
+     "sha256",
+     "page_count",
+     "source_note",
+     "processing_status",
+     "processing_error",
+     "created_at"
+    ],
+    "title": "RevisionOut"
+   },
+   "SheetAssign": {
+    "properties": {
+     "floor_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Floor Id"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "floor_id",
+     "version"
+    ],
+    "title": "SheetAssign"
+   },
+   "SheetCalibrate": {
+    "properties": {
+     "calibration": {
+      "$ref": "#/components/schemas/Calibration"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "calibration",
+     "version"
+    ],
+    "title": "SheetCalibrate"
+   },
+   "SheetOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "revision_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Revision Id"
+     },
+     "page_no": {
+      "type": "integer",
+      "title": "Page No"
+     },
+     "width_pt": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Width Pt"
+     },
+     "height_pt": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Height Pt"
+     },
+     "raster_width": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Raster Width"
+     },
+     "raster_height": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Raster Height"
+     },
+     "floor_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Floor Id"
+     },
+     "suggested_floor_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Suggested Floor Id"
+     },
+     "assignment_status": {
+      "type": "string",
+      "title": "Assignment Status"
+     },
+     "calibration": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Calibration"
+     },
+     "calibration_status": {
+      "type": "string",
+      "title": "Calibration Status"
+     },
+     "hints": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Hints"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     },
+     "raster_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Raster Url"
+     },
+     "thumbnail_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Thumbnail Url"
+     },
+     "extract_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Extract Url"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "revision_id",
+     "page_no",
+     "width_pt",
+     "height_pt",
+     "raster_width",
+     "raster_height",
+     "floor_id",
+     "suggested_floor_id",
+     "assignment_status",
+     "calibration",
+     "calibration_status",
+     "hints",
+     "version"
+    ],
+    "title": "SheetOut"
+   },
    "SiteFeatureCreate": {
     "properties": {
      "kind": {
@@ -2685,6 +4975,379 @@
     },
     "type": "object",
     "title": "TenantUpdate"
+   },
+   "UnitCreated": {
+    "properties": {
+     "unit": {
+      "$ref": "#/components/schemas/UnitOut"
+     },
+     "boundary": {
+      "$ref": "#/components/schemas/BoundaryOut"
+     }
+    },
+    "type": "object",
+    "required": [
+     "unit",
+     "boundary"
+    ],
+    "title": "UnitCreated"
+   },
+   "UnitMerge": {
+    "properties": {
+     "survivor_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Survivor Id"
+     },
+     "absorbed_ids": {
+      "items": {
+       "type": "string",
+       "format": "uuid"
+      },
+      "type": "array",
+      "minItems": 1,
+      "title": "Absorbed Ids"
+     },
+     "sheet_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sheet Id"
+     },
+     "ring": {
+      "anyOf": [
+       {
+        "items": {
+         "items": {
+          "type": "number"
+         },
+         "type": "array"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ring"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "survivor_id",
+     "absorbed_ids"
+    ],
+    "title": "UnitMerge"
+   },
+   "UnitOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Project Id"
+     },
+     "building_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Building Id"
+     },
+     "floor_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Floor Id"
+     },
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "unit_type": {
+      "type": "string",
+      "title": "Unit Type"
+     },
+     "lifecycle_status": {
+      "type": "string",
+      "title": "Lifecycle Status"
+     },
+     "verification_status": {
+      "type": "string",
+      "title": "Verification Status"
+     },
+     "publication_status": {
+      "type": "string",
+      "title": "Publication Status"
+     },
+     "rooms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rooms"
+     },
+     "bedrooms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bedrooms"
+     },
+     "bathrooms": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Bathrooms"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     },
+     "areas": {
+      "items": {
+       "$ref": "#/components/schemas/AreaOut"
+      },
+      "type": "array",
+      "title": "Areas"
+     },
+     "boundaries": {
+      "items": {
+       "$ref": "#/components/schemas/BoundaryOut"
+      },
+      "type": "array",
+      "title": "Boundaries"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "project_id",
+     "building_id",
+     "floor_id",
+     "code",
+     "unit_type",
+     "lifecycle_status",
+     "verification_status",
+     "publication_status",
+     "rooms",
+     "bedrooms",
+     "bathrooms",
+     "version"
+    ],
+    "title": "UnitOut"
+   },
+   "UnitRelabel": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Code"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "version"
+    ],
+    "title": "UnitRelabel"
+   },
+   "UnitRemove": {
+    "properties": {
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "version"
+    ],
+    "title": "UnitRemove"
+   },
+   "UnitSplit": {
+    "properties": {
+     "sheet_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Sheet Id"
+     },
+     "rings": {
+      "items": {
+       "items": {
+        "items": {
+         "type": "number"
+        },
+        "type": "array"
+       },
+       "type": "array"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "minItems": 2,
+      "title": "Rings"
+     },
+     "codes": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "type": "array",
+      "title": "Codes"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "sheet_id",
+     "rings"
+    ],
+    "title": "UnitSplit"
+   },
+   "UploadIntentCreate": {
+    "properties": {
+     "file_name": {
+      "type": "string",
+      "maxLength": 255,
+      "minLength": 1,
+      "title": "File Name"
+     },
+     "content_type": {
+      "type": "string",
+      "maxLength": 120,
+      "minLength": 3,
+      "title": "Content Type"
+     },
+     "byte_size": {
+      "type": "integer",
+      "exclusiveMinimum": 0.0,
+      "title": "Byte Size"
+     },
+     "source_note": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Note"
+     }
+    },
+    "type": "object",
+    "required": [
+     "file_name",
+     "content_type",
+     "byte_size"
+    ],
+    "title": "UploadIntentCreate"
+   },
+   "UploadIntentOut": {
+    "properties": {
+     "revision": {
+      "$ref": "#/components/schemas/RevisionOut"
+     },
+     "upload_url": {
+      "type": "string",
+      "title": "Upload Url"
+     },
+     "method": {
+      "type": "string",
+      "const": "PUT",
+      "title": "Method",
+      "default": "PUT"
+     },
+     "headers": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "type": "object",
+      "title": "Headers"
+     }
+    },
+    "type": "object",
+    "required": [
+     "revision",
+     "upload_url",
+     "headers"
+    ],
+    "title": "UploadIntentOut"
    },
    "ValidationError": {
     "properties": {

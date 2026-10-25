@@ -5,7 +5,7 @@ drawings and renders, prepare a human-verified unit inventory, attach prices and
 branded buyer portal on `{tenant}.unitforma.com` or the developer's own domain, and receive
 buyer inquiries authenticated with an email one-time code.
 
-**Status:** Phase 1 (core platform) in progress: tenants, memberships, invitations, staff login, authorization with row-level security, projects/buildings/floors, audit log, admin workspace shell. See the plan in
+**Status:** Phase 2 (documents and mapping) in progress on top of Phase 1: presigned uploads, document revisions, worker processing (rasterise, text/vector extraction, floor hints), sheet assignment and calibration, unit boundaries → draft units with permanent ids and readable codes, measured areas, review/approve, relabel/split/merge/remove with lineage; admin mapping editor. See the plan in
 [`docs/architecture/plan-v0.1.md`](docs/architecture/plan-v0.1.md) and the decisions in
 [`docs/adr/`](docs/adr/).
 

@@ -1,6 +1,6 @@
 # Unitforma — Architecture and Delivery Plan
 
-**Status:** planning deliverable, v0.1 (2026-10-25). Implementation status: Phase 0 scaffold and Phase 1 core platform (backend + admin shell) are on `main`; see README.
+**Status:** planning deliverable, v0.1 (2026-10-25). Implementation status: Phase 0 scaffold, Phase 1 core platform and the Phase 2 documents/mapping core are on `main`; see README. Still open in Phase 2: revision diff proposals, vector-based boundary suggestions, massing GLB generation, building placement editor.
 **Prepared for:** Unitforma (https://unitforma.com), repository `Datikos/unitforma`, branch `claude/epic-lovelace-sr9pyy`.
 
 ## How to read this document

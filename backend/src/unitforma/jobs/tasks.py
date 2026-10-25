@@ -20,3 +20,13 @@ async def ping(message: str = "pong") -> str:
 async def retention(context, timestamp: int) -> None:
     """Daily retention sweep (drafts, auth attempts, invitations). Implemented in Phase 5."""
     log.info("job.retention", at=timestamp)
+
+
+@app.task(name="documents.ingest_revision", queue="docs", retry=2)
+async def ingest_revision(tenant_id: str, revision_id: str) -> dict:
+    """Inspect, rasterise and extract an uploaded document revision (plan §13)."""
+    import uuid
+
+    from unitforma.documents.jobs import process_revision
+
+    return await process_revision(uuid.UUID(tenant_id), uuid.UUID(revision_id))

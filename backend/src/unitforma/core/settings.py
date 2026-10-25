@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     s3_bucket: str = "unitforma"
     s3_access_key: str = ""
     s3_secret_key: str = ""
+    s3_public_url: str | None = Field(
+        default=None, description="Browser-facing S3 endpoint for presigned URLs"
+    )
+    storage_backend: str = Field(default="s3", description="s3 | local")
+    storage_local_root: str = "/tmp/unitforma-storage"  # noqa: S108 - dev/test only
+    storage_public_base: str = ""
 
     # Internal endpoint protection (Caddy on-demand TLS ask endpoint)
     internal_ask_token: str = ""

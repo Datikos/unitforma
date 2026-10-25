@@ -10,9 +10,13 @@ services:
   api:
     build: { context: ../../backend, target: runtime }
     command: ["api", "--reload"]
+    environment:
+      UF_STORAGE_BACKEND: local
+      UF_STORAGE_LOCAL_ROOT: /data/storage
     volumes:
       - ../../backend/src:/app/src:ro
       - ../../backend/migrations:/app/migrations:ro
+      - local_storage:/data/storage
     develop:
       watch:
         - action: sync
@@ -21,9 +25,11 @@ services:
     ports: ["127.0.0.1:8000:8000"]
 
   worker-light:
-    volumes: ["../../backend/src:/app/src:ro"]
+    environment: { UF_STORAGE_BACKEND: local, UF_STORAGE_LOCAL_ROOT: /data/storage }
+    volumes: ["../../backend/src:/app/src:ro", "local_storage:/data/storage"]
   worker-heavy:
-    volumes: ["../../backend/src:/app/src:ro"]
+    environment: { UF_STORAGE_BACKEND: local, UF_STORAGE_LOCAL_ROOT: /data/storage }
+    volumes: ["../../backend/src:/app/src:ro", "local_storage:/data/storage"]
   scheduler:
     volumes: ["../../backend/src:/app/src:ro"]
 
@@ -56,3 +62,4 @@ services:
 
 volumes:
   mailpit_data:
+  local_storage:

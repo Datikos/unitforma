@@ -19,6 +19,8 @@ x-backend-env: &backend-env
   UF_KRATOS_ADMIN_URL: http://kratos:4434
   UF_S3_ENDPOINT_URL: http://storage:3900
   UF_S3_BUCKET: ${S3_BUCKET:-unitforma}
+  UF_S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+  UF_STORAGE_BACKEND: ${STORAGE_BACKEND:-s3}
   UF_S3_ACCESS_KEY_FILE: /run/secrets/s3_access_key
   UF_S3_SECRET_KEY_FILE: /run/secrets/s3_secret_key
   UF_INTERNAL_ASK_TOKEN_FILE: /run/secrets/internal_ask_token

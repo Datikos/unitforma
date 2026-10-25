@@ -76,6 +76,14 @@ app.{$PLATFORM_DOMAIN} {
 	}
 }
 
+# S3 API of the object store for browser uploads/downloads via presigned URLs (bucket policy + CORS set by init-garage.sh).
+s3.{$PLATFORM_DOMAIN} {
+	request_body {
+		max_size 2GB
+	}
+	reverse_proxy storage:3900
+}
+
 # CNAME target for custom domains: explains configuration, serves nothing else.
 portals.{$PLATFORM_DOMAIN} {
 	import security_headers
