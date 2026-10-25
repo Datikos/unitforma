@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Validate the Caddyfiles. The production file uses plugin directives (rate_limit, dns provider)
 # that only exist in the custom image built from deploy/caddy/Dockerfile; with a stock `caddy`
 # binary those blocks are stripped before validation so the rest of the syntax is still checked.
 # Usage: validate.sh [caddy-binary]   (default: caddy on PATH)
-set -euo pipefail
+set -eu
 cd "$(dirname "$0")"
 CADDY=${1:-caddy}
 echo "== Caddyfile.dev"
