@@ -12,4 +12,4 @@ Kratos upgrades: bump `KRATOS_VERSION` in `.env`, run `docker compose up -d krat
 
 ## Heavy worker image
 
-`worker-heavy` runs the `runtime-ifc` target of `backend/Dockerfile` (image `unitforma-backend-ifc`), which adds IfcOpenShell for IFC ingestion; `api`, `worker-light` and `scheduler` run the plain `runtime` target. Both targets come from one `uv.lock`; build and tag them together per release. The heavy worker keeps its 4 GB memory limit in `compose.prod.yaml` for IFC tessellation (ADR-0006 Phase C).
+`worker-heavy` runs the `runtime-ifc` target of `backend/Dockerfile` (image `unitforma-backend-ifc`), which adds IfcOpenShell for IFC ingestion and Node 22 with the glTF-Transform CLI for Draco compression of the resulting models (ADR-0006 C2a); `api`, `worker-light` and `scheduler` run the plain `runtime` target. Both targets come from one `uv.lock`; build and tag them together per release. The heavy worker keeps its 4 GB memory limit in `compose.prod.yaml` for IFC tessellation (ADR-0006 Phase C).

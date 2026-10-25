@@ -5,6 +5,7 @@ to existing units, and a reviewer confirms a link, which writes the IFC areas on
 from __future__ import annotations
 
 import os
+import shutil
 import uuid
 
 import pytest
@@ -118,6 +119,31 @@ def test_read_ifc_storeys_spaces_footprints_and_glb():
     # Y is up in the GLB: the first storey's space spans 0..3.2 in Y
     acc = gltf["accessors"][gltf["meshes"][0]["primitives"][0]["attributes"]["POSITION"]]
     assert round(acc["min"][1], 2) >= -0.31 and round(acc["max"][1], 1) in (3.2, 3.5)
+
+
+def test_compress_glb_without_the_cli_returns_the_input(monkeypatch):
+    monkeypatch.setattr(ifc.shutil, "which", lambda _name: None)
+    glb = ifc.read_ifc(make_ifc()).glb
+    assert ifc.compress_glb(glb) == (glb, "none")
+
+
+@pytest.mark.skipif(
+    shutil.which("gltf-transform") is None, reason="gltf-transform CLI not installed"
+)
+def test_compress_glb_draco_keeps_extras_and_relinks():
+    model = ifc.read_ifc(make_ifc())
+    small, how = ifc.compress_glb(model.glb)
+    assert how == "draco" and len(small) < len(model.glb)
+    gltf, _ = parse_glb(small)
+    assert "KHR_draco_mesh_compression" in gltf["extensionsRequired"]
+    gids = {s.global_id for s in model.spaces}
+    nodes = [n for n in gltf["nodes"] if (n.get("extras") or {}).get("ifc_global_id") in gids]
+    assert len(nodes) == len(gids)
+    gid = next(iter(gids))
+    relinked, _ = parse_glb(ifc.relink_glb(small, {gid: "unit-1"}))
+    assert "KHR_draco_mesh_compression" in relinked["extensionsRequired"]
+    node = next(n for n in relinked["nodes"] if n["extras"].get("ifc_global_id") == gid)
+    assert node["extras"]["unit_id"] == "unit-1"
 
 
 def test_read_ifc_refuses_other_files_and_respects_the_budget():

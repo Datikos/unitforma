@@ -450,6 +450,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/floor-proposal/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Blocks
+         * @description Split-level blocks become buildings with their floors (ADR-0013); the source building is
+         *     removed when asked and empty; the sheets' floor suggestions are refreshed afterwards.
+         */
+        post: operations["accept_blocks_api_v1_admin_tenants__tenant_id__buildings__building_id__floor_proposal_blocks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/floors": {
         parameters: {
             query?: never;
@@ -1859,6 +1880,50 @@ export interface components {
             /** Import Batch Id */
             import_batch_id: string | null;
         };
+        /** BlockAccept */
+        BlockAccept: {
+            /** Code */
+            code: string;
+            /** Name */
+            name?: string | null;
+            /** Floors */
+            floors: components["schemas"]["FloorIn"][];
+        };
+        /**
+         * BlockProposalOut
+         * @description A split-level block drawn beside the others on the sheets (ADR-0013).
+         */
+        BlockProposalOut: {
+            /** Code */
+            code: string;
+            /** Column X */
+            column_x: number;
+            /** Sheets */
+            sheets: number;
+            /** Floors */
+            floors: components["schemas"]["ProposedFloorOut"][];
+            /** Roof */
+            roof: {
+                [key: string]: unknown;
+            };
+        };
+        /** BlocksAcceptIn */
+        BlocksAcceptIn: {
+            /** Blocks */
+            blocks: components["schemas"]["BlockAccept"][];
+            /**
+             * Delete Source
+             * @default false
+             */
+            delete_source?: boolean;
+        };
+        /** BlocksAcceptOut */
+        BlocksAcceptOut: {
+            /** Buildings */
+            buildings: components["schemas"]["BuildingOut"][];
+            /** Source Removed */
+            source_removed: boolean;
+        };
         /** BoundaryCreate */
         BoundaryCreate: {
             /** Ring */
@@ -2247,6 +2312,13 @@ export interface components {
             counts: {
                 [key: string]: number;
             };
+            /**
+             * Split Level
+             * @default false
+             */
+            split_level?: boolean;
+            /** Blocks */
+            blocks?: components["schemas"]["BlockProposalOut"][];
         };
         /** FloorRegion */
         FloorRegion: {
@@ -5159,6 +5231,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FloorProposalOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_blocks_api_v1_admin_tenants__tenant_id__buildings__building_id__floor_proposal_blocks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                building_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BlocksAcceptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlocksAcceptOut"];
                 };
             };
             /** @description Validation Error */

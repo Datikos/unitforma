@@ -1,6 +1,6 @@
 # ADR-0006: Native CAD intake (DXF, DWG, IFC) beside PDF, and floor-first 3D navigation in the portal
 
-- **Status:** accepted (2026-10-25; Phase A implemented 2026-10-25; Phase B implemented 2026-10-25 except the real-file acceptance B8; Phase C implemented 2026-10-25 except Draco compression C2a; Phase D open; DWG backend B1 `none` until the owner picks otherwise)
+- **Status:** accepted (2026-10-25; Phase A implemented 2026-10-25; Phase B implemented 2026-10-25 except the real-file acceptance B8; Phase C implemented 2026-10-25, Draco compression C2a 2026-10-26; Phase D open; DWG backend B1 `none` until the owner picks otherwise)
 - **Date:** 2026-10-25
 - **Deciders:** David Sakhelashvili (platform owner); the DWG conversion option needs his licence decision
 - **Plan reference:** §1.1, §2.1, §2.2, §4.2, §7.3, §13.2, Phase 8
@@ -260,9 +260,21 @@ Phase C: IFC ingestion (L, plan Phase 8 pulled forward)
       `unit_areas.source` gains `ifc_quantity`.
 - [x] C2 `pyproject.toml`: `ifcopenshell>=0.9.0` as an optional extra `ifc`; `backend/Dockerfile`
       target `worker-heavy` installs the extra; compose `worker-heavy` uses that target, memory 4 GB.
-- [ ] C2a `backend/Dockerfile` target `worker-heavy`: Node 22 LTS runtime and `@gltf-transform/cli`
+- [x] C2a `backend/Dockerfile` target `worker-heavy`: Node 22 LTS runtime and `@gltf-transform/cli`
       (MIT) pinned, used as a subprocess; alternative if the image grows past 600 MB: a Python Draco
       encoder (`DracoPy`, Apache-2.0) and skip the CLI.
+      *Found while implementing (2026-10-26):* `runtime-ifc` copies the Node 22.23.4 binary and npm
+      from `node:22.23.4-trixie-slim` and installs `@gltf-transform/cli@4.5.1`; `geometry/ifc.py`
+      `compress_glb` runs `gltf-transform draco` and falls back to the raw GLB (`stats.compression =
+      none`) wherever the CLI is missing, so api and the light worker need nothing. The 15 MB budget
+      stays on the raw GLB, which also bounds what the browser decodes; `stats.bytes_raw` keeps it
+      next to the stored `bytes`. The viewer needs the Draco decoder: `angular.json` copies three's
+      `examples/jsm/libs/draco/gltf` into `assets/draco/` of the admin and portal apps and
+      `MassingViewerComponent` sets `DRACOLoader` on its `GLTFLoader`. Measured on 2026-10-26 on the
+      owner's Mac: `runtime-ifc` 1.05 GB before, 1.33 GB with Node and the CLI (the 600 MB clause was
+      written against the 785 MB `runtime` base and is moot; DracoPy stays the fallback if the image
+      size ever matters). Verified inside the built image: `tests/test_ifc_ingest.py` 4 passed, the
+      Draco test included; on a machine without the CLI that test skips.
 - [x] C3 `geometry/ifc.py`: storeys, spaces with footprints and quantities, tessellation to GLB with
       per-space nodes; `gltf-transform` Draco step; stats (`spaces`, `storeys`, `glb_bytes`); fail the
       job when the GLB exceeds 15 MB.

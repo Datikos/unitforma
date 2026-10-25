@@ -27,6 +27,11 @@
               {
                 "glob": "**/*",
                 "input": "projects/admin/public"
+              },
+              {
+                "glob": "*",
+                "input": "node_modules/three/examples/jsm/libs/draco/gltf",
+                "output": "assets/draco"
               }
             ],
             "styles": [
@@ -36,9 +41,7 @@
               "projects/admin/src/styles.scss"
             ],
             "stylePreprocessorOptions": {
-              "includePaths": [
-                "projects/libs/ui/src/styles"
-              ]
+              "includePaths": ["projects/libs/ui/src/styles"]
             }
           },
           "configurations": {
@@ -103,6 +106,11 @@
               {
                 "glob": "**/*",
                 "input": "projects/portal/public"
+              },
+              {
+                "glob": "*",
+                "input": "node_modules/three/examples/jsm/libs/draco/gltf",
+                "output": "assets/draco"
               }
             ],
             "styles": [
@@ -112,9 +120,7 @@
               "projects/portal/src/styles.scss"
             ],
             "stylePreprocessorOptions": {
-              "includePaths": [
-                "projects/libs/ui/src/styles"
-              ]
+              "includePaths": ["projects/libs/ui/src/styles"]
             }
           },
           "configurations": {

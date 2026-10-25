@@ -306,8 +306,10 @@ function invert(t: SiteTransform, p: Pt): Pt {
       overflow: hidden;
     }
     uf-plan-viewer {
-      height: 55vh;
       display: block;
+      --uf-plan-height: auto;
+      --uf-plan-max-height: 75vh;
+      --uf-plan-min-height: 320px;
     }
     .fp {
       display: grid;

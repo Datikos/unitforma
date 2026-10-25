@@ -213,6 +213,16 @@ class ProposedFloorOut(BaseModel):
     markers: list[str]
 
 
+class BlockProposalOut(BaseModel):
+    """A split-level block drawn beside the others on the sheets (ADR-0013)."""
+
+    code: str
+    column_x: float
+    sheets: int
+    floors: list[ProposedFloorOut]
+    roof: dict[str, Any]
+
+
 class FloorProposalOut(BaseModel):
     building_id: uuid.UUID
     sheets_with_markers: int
@@ -220,6 +230,24 @@ class FloorProposalOut(BaseModel):
     unmatched_existing: list[dict[str, Any]]
     roof: dict[str, Any]
     counts: dict[str, int]
+    split_level: bool = False
+    blocks: list[BlockProposalOut] = Field(default_factory=list)
+
+
+class BlockAccept(BaseModel):
+    code: str = Field(min_length=1, max_length=20, pattern=r"^[A-Za-z0-9][A-Za-z0-9.-]{0,19}$")
+    name: str | None = Field(default=None, max_length=200)
+    floors: list[FloorIn] = Field(min_length=1, max_length=200)
+
+
+class BlocksAcceptIn(BaseModel):
+    blocks: list[BlockAccept] = Field(min_length=1, max_length=8)
+    delete_source: bool = False
+
+
+class BlocksAcceptOut(BaseModel):
+    buildings: list[BuildingOut]
+    source_removed: bool
 
 
 class FloorOut(ORM):

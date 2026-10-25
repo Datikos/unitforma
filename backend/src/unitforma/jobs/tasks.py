@@ -85,3 +85,13 @@ async def ingest_ifc(tenant_id: str, revision_id: str) -> dict:
     from unitforma.geometry.ifc_service import ingest_ifc as run
 
     return await run(uuid.UUID(tenant_id), uuid.UUID(revision_id))
+
+
+@app.task(name="documents.resuggest_floors", queue="docs", retry=1)
+async def resuggest_floors(tenant_id: str, project_id: str) -> dict:
+    """Page → floor suggestions again after floors changed (ADR-0010)."""
+    import uuid
+
+    from unitforma.documents.jobs import resuggest_floors as run
+
+    return await run(uuid.UUID(tenant_id), uuid.UUID(project_id))

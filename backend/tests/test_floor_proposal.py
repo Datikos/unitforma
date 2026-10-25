@@ -92,6 +92,43 @@ def test_no_markers_or_only_sections_gives_nothing():
     assert floors == [] and roof == {}
 
 
+def _col(text_: str, x: float, y: float = 0.6) -> Marker:
+    return Marker(text=text_, value=float(text_.replace("+", "")), x=x, y=y)
+
+
+def test_blocks_from_marker_columns_on_a_split_level_set():
+    """Three blocks side by side at +0.00/+1.00/+2.00, +3.20/+4.20/+5.20, ... (ADR-0013)."""
+    markers = {}
+    for i, base in enumerate((0.0, 3.2, 6.4, 9.6)):
+        markers[f"p{i}"] = [
+            _col(f"+{base + d:.2f}", x) for d, x in ((0.0, 0.2), (1.0, 0.5), (2.0, 0.8))
+        ]
+    # the section stacks every block's levels up to C's roof: it must not become A's roof
+    markers["s"] = _section(
+        "+0.00", "+1.00", "+2.00", "+3.20", "+9.60", "+12.70", "+14.70", "+16.70"
+    )
+    blocks = storeys.detect_blocks(markers, taken_codes=frozenset({"A-9-10"}), source_code="A-9-10")
+    assert [b.code for b in blocks] == ["A", "B", "C"]
+    assert [b.column_x for b in blocks] == [0.2, 0.5, 0.8] and all(b.sheets == 4 for b in blocks)
+    a, b, c = blocks
+    assert [(f.level, f.elevation_m, f.height_m) for f in a.floors] == [
+        (0, 0.0, 3.2),
+        (1, 3.2, 3.2),
+        (2, 6.4, 3.2),
+        (3, 9.6, 3.2),
+    ]  # top: median, no roof guess
+    assert [f.elevation_m for f in b.floors] == [1.0, 4.2, 7.4, 10.6] and a.roof == {}
+    assert b.floors[0].level == 0  # +1.00 is within the ground window
+    assert [f.elevation_m for f in c.floors] == [2.0, 5.2, 8.4, 11.6]
+    assert c.floors[0].level == 0  # nothing near 0.00: the lowest storey is the ground
+    # a code already used in the project gets the source code as prefix
+    blocks2 = storeys.detect_blocks(markers, taken_codes=frozenset({"A"}), source_code="MAIN")
+    assert [b.code for b in blocks2] == ["MAIN-A", "B", "C"]
+    # one marker per sheet: no blocks, the single proposal stands
+    single = {f"p{i}": [_col(f"+{3.2 * i:.2f}", 0.2)] for i in range(4)}
+    assert storeys.detect_blocks(single) == []
+
+
 # --------------------------------------------------------------------------- through the API
 pytestmark_db = pytest.mark.skipif(
     not (os.environ.get("UF_TEST_DATABASE_ADMIN_URL") and os.environ.get("UF_TEST_DATABASE_URL")),
@@ -206,3 +243,123 @@ def test_proposal_from_an_uploaded_plan_set_and_acceptance(kratos: FakeKratos, c
     prop2 = client.get(f"{base}/buildings/{b['id']}/floor-proposal", headers=root).json()
     assert prop2["counts"] == {"new": 0, "update": 0, "existing": 2}
     assert prop2["floors"][0]["floor_id"] == r.json()[0]["id"]
+
+    # the sheets were processed before the floors existed: the job queued by PUT /floors gives
+    # them their page → floor suggestions from the stored markers (page 1 → 0.00, page 2 → +3.20)
+    from unitforma.documents.jobs import resuggest_floors
+
+    out = client.portal.call(resuggest_floors, uuid.UUID(t["id"]), uuid.UUID(p["id"]))
+    assert out == {"revisions": 1}
+    sheets = client.get(f"{base}/revisions/{rev['id']}/sheets", headers=root).json()
+    by_page = {sh["page_no"]: sh for sh in sheets}
+    floor_by_level = {f["level"]: f["id"] for f in r.json()}
+    assert [a["floor_id"] for a in by_page[1]["floors"]] == [floor_by_level[0]]
+    assert [a["floor_id"] for a in by_page[2]["floors"]] == [floor_by_level[1]]
+    assert all(a["status"] == "suggested" for sh in sheets for a in sh["floors"])
+
+
+@pytestmark_db
+def test_split_level_blocks_become_buildings(kratos: FakeKratos, client: TestClient):
+    from tests.pdf_fixture import make_split_level_pdf
+    from unitforma.documents.jobs import process_revision, resuggest_floors
+
+    s = uuid.uuid4().hex[:6]
+    kratos.add("rootb", f"rootb-{s}@unitforma.example.com", aal="aal2")
+    assert client.get("/api/v1/admin/me", headers=cookie("rootb")).status_code == 200
+    eng = create_engine(os.environ["UF_TEST_DATABASE_ADMIN_URL"])
+    with eng.begin() as conn:
+        conn.execute(
+            text("UPDATE users SET is_platform_admin = true WHERE email = :e"),
+            {"e": f"rootb-{s}@unitforma.example.com"},
+        )
+    eng.dispose()
+    from unitforma.identity.deps import clear_whoami_cache
+
+    clear_whoami_cache()
+    root = cookie("rootb")
+    t = client.post(
+        "/api/v1/platform/tenants", headers=root, json={"slug": f"blk{s}", "name": "B"}
+    ).json()
+    base = f"/api/v1/admin/tenants/{t['id']}"
+    p = client.post(f"{base}/projects", headers=root, json={"slug": "blk", "name": "Blocks"}).json()
+    src = client.post(
+        f"{base}/projects/{p['id']}/buildings", headers=root, json={"code": "MAIN"}
+    ).json()
+    doc = client.post(
+        f"{base}/projects/{p['id']}/documents",
+        headers=root,
+        json={"kind": "floor_plan", "title": "Plans", "building_id": src["id"]},
+    ).json()
+    data = make_split_level_pdf()
+    intent = client.post(
+        f"{base}/documents/{doc['id']}/uploads",
+        headers=root,
+        json={
+            "file_name": "plans.pdf",
+            "content_type": "application/pdf",
+            "byte_size": len(data),
+            "source_note": None,
+        },
+    ).json()
+    client.put(intent["upload_url"], content=data, headers={"Content-Type": "application/pdf"})
+    rev = client.post(f"{base}/revisions/{intent['revision']['id']}/complete", headers=root).json()
+    client.portal.call(process_revision, uuid.UUID(t["id"]), uuid.UUID(rev["id"]))
+
+    prop = client.get(f"{base}/buildings/{src['id']}/floor-proposal", headers=root).json()
+    assert prop["split_level"] is True
+    assert [b["code"] for b in prop["blocks"]] == ["A", "B", "C"]
+    assert [[f["elevation_m"] for f in b["floors"]] for b in prop["blocks"]] == [
+        [0.0, 3.2],
+        [1.0, 4.2],
+        [2.0, 5.2],
+    ]
+    # the single-building view is still there for the owner to choose
+    assert len(prop["floors"]) == 6
+
+    r = client.post(
+        f"{base}/buildings/{src['id']}/floor-proposal/blocks",
+        headers=root,
+        json={
+            "delete_source": True,
+            "blocks": [
+                {
+                    "code": b["code"],
+                    "name": f"Block {b['code']}",
+                    "floors": [
+                        {
+                            "level": f["level"],
+                            "display_name": f["display_name"],
+                            "elevation_m": str(f["elevation_m"]),
+                            "height_m": str(f["height_m"]),
+                        }
+                        for f in b["floors"]
+                    ],
+                }
+                for b in prop["blocks"]
+            ],
+        },
+    )
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert out["source_removed"] is True
+    assert [b["code"] for b in out["buildings"]] == ["A", "B", "C"]
+    assert all(len(b["floors"]) == 2 for b in out["buildings"])
+    buildings = client.get(f"{base}/projects/{p['id']}/buildings", headers=root).json()
+    assert {b["code"] for b in buildings if b["kind"] == "building"} == {"A", "B", "C"}
+    # the document is project-level now and the sheets get one suggestion per block floor
+    docs = client.get(f"{base}/projects/{p['id']}/documents", headers=root).json()
+    assert docs[0]["building_id"] is None
+    assert client.portal.call(resuggest_floors, uuid.UUID(t["id"]), uuid.UUID(p["id"])) == {
+        "revisions": 1
+    }
+    sheets = client.get(f"{base}/revisions/{rev['id']}/sheets", headers=root).json()
+    page1 = next(sh for sh in sheets if sh["page_no"] == 1)
+    levels_by_floor = {
+        f["id"]: (b["code"], f["level"]) for b in out["buildings"] for f in b["floors"]
+    }
+    assert sorted(levels_by_floor[a["floor_id"]] for a in page1["floors"]) == [
+        ("A", 0),
+        ("B", 0),
+        ("C", 0),
+    ]
+    assert all(a["region"] for a in page1["floors"])

@@ -166,3 +166,87 @@ def propose(
         seen.add(p.level)
     unmatched = [f for f in existing if f.id not in matched]
     return out, unmatched, roof
+
+
+# --------------------------------------------------------------------------- blocks (ADR-0013)
+COLUMN_TOLERANCE = 0.12  # normalised sheet width: markers this close sit over the same block
+MIN_BLOCK_SHEETS = 2
+BLOCK_LETTERS = "ABCDEFGH"
+
+
+@dataclass
+class Block:
+    code: str
+    column_x: float
+    sheets: int
+    floors: list[ProposedFloor]
+    roof: dict[str, Any] = field(default_factory=dict)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "code": self.code,
+            "column_x": self.column_x,
+            "sheets": self.sheets,
+            "floors": [f.as_dict() for f in self.floors],
+            "roof": self.roof,
+        }
+
+
+def detect_blocks(
+    markers_by_sheet: dict[Any, list[levels.Marker]],
+    *,
+    taken_codes: frozenset[str] = frozenset(),
+    source_code: str | None = None,
+) -> list[Block]:
+    """Split-level blocks drawn side by side: columns of markers across the plan sheets.
+
+    Plan sheets with two or more markers at distinct horizontal positions vote; the markers of
+    all such sheets are clustered by ``x``; a column seen on at least two sheets is a block. Each
+    block's storeys come from its own column only: a section stacks every block's levels, so the
+    other blocks' storeys would pass for this block's roof. Fewer than two blocks → an empty list,
+    and the single-building proposal stands.
+    """
+    plan: dict[Any, list[levels.Marker]] = {}
+    for sheet_id, ms in markers_by_sheet.items():
+        if ms and not levels.is_stacked(ms):
+            plan[sheet_id] = ms
+    multi = {
+        sid: ms
+        for sid, ms in plan.items()
+        if len(ms) >= 2 and max(m.x for m in ms) - min(m.x for m in ms) > COLUMN_TOLERANCE
+    }
+    if len(multi) < MIN_BLOCK_SHEETS:
+        return []
+    points = sorted(((m.x, sid, m) for sid, ms in multi.items() for m in ms), key=lambda t: t[0])
+    columns: list[dict[str, Any]] = []
+    for x, sid, m in points:
+        if columns and abs(x - columns[-1]["x"]) <= COLUMN_TOLERANCE:
+            col = columns[-1]
+        else:
+            col = {"x": x, "xs": [], "markers": {}}
+            columns.append(col)
+        col["xs"].append(x)
+        col["x"] = statistics.median(col["xs"])
+        col["markers"].setdefault(sid, []).append(m)
+    columns = [c for c in columns if len(c["markers"]) >= MIN_BLOCK_SHEETS]
+    if len(columns) < 2:
+        return []
+    out: list[Block] = []
+    for i, col in enumerate(columns):
+        floors, _unmatched, roof = propose(dict(col["markers"]), [])
+        if not floors:
+            continue
+        letter = BLOCK_LETTERS[i] if i < len(BLOCK_LETTERS) else str(i + 1)
+        code = letter
+        if code in taken_codes:
+            code = f"{(source_code or 'B')[:16]}-{letter}"
+        out.append(
+            Block(
+                code=code,
+                column_x=round(float(col["x"]), 3),
+                sheets=len(col["markers"]),
+                floors=floors,
+                roof=roof,
+            )
+        )
+    return out if len(out) >= 2 else []

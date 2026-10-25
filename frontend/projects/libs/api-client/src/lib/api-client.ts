@@ -22,6 +22,9 @@ export type FloorIn = Schemas['FloorIn'];
 export type FloorOut = Schemas['FloorOut'];
 export type FloorProposalOut = Schemas['FloorProposalOut'];
 export type ProposedFloorOut = Schemas['ProposedFloorOut'];
+export type BlockProposalOut = Schemas['BlockProposalOut'];
+export type BlocksAcceptIn = Schemas['BlocksAcceptIn'];
+export type BlocksAcceptOut = Schemas['BlocksAcceptOut'];
 export type SiteFeatureOut = Schemas['SiteFeatureOut'];
 export type SiteFeatureCreate = Schemas['SiteFeatureCreate'];
 export type AuditOut = Schemas['AuditOut'];
@@ -209,7 +212,10 @@ export class UnitformaApi {
   }
   floorProposal(tenantId: string, buildingId: string): Promise<FloorProposalOut> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/floor-proposal`);
+  }  acceptBlocks(tenantId: string, buildingId: string, body: BlocksAcceptIn): Promise<BlocksAcceptOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/floor-proposal/blocks`, body);
   }
+
 
   listSiteFeatures(tenantId: string, projectId: string): Promise<SiteFeatureOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/site-features`);

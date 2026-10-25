@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 export interface MassingUnitInfo {
@@ -150,6 +151,10 @@ export class MassingViewerComponent implements OnDestroy {
   private frame = 0;
   private resizeObs: ResizeObserver | null = null;
   private readonly baseColours = new Map<THREE.Mesh, THREE.Color>();
+  /** IFC models arrive Draco-compressed (ADR-0006 C2a); the decoder files are copied by
+   *  angular.json from three's examples into `assets/draco/` of both apps. */
+  private readonly draco = new DRACOLoader().setDecoderPath('assets/draco/');
+  private readonly loader = new GLTFLoader().setDRACOLoader(this.draco);
 
   constructor() {
     effect(() => {
@@ -234,7 +239,7 @@ export class MassingViewerComponent implements OnDestroy {
       this.baseColours.clear();
     }
     try {
-      const gltf = await new GLTFLoader().loadAsync(url);
+      const gltf = await this.loader.loadAsync(url);
       this.model = gltf.scene;
       const infos: MassingUnitInfo[] = [];
       this.model.traverse((o) => {
@@ -372,5 +377,6 @@ export class MassingViewerComponent implements OnDestroy {
     this.resizeObs?.disconnect();
     this.controls?.dispose();
     this.renderer?.dispose();
+    this.draco.dispose();
   }
 }

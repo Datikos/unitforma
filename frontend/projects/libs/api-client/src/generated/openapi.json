@@ -1868,6 +1868,70 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/floor-proposal/blocks": {
+   "post": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Accept Blocks",
+    "description": "Split-level blocks become buildings with their floors (ADR-0013); the source building is\nremoved when asked and empty; the sheets' floor suggestions are refreshed afterwards.",
+    "operationId": "accept_blocks_api_v1_admin_tenants__tenant_id__buildings__building_id__floor_proposal_blocks_post",
+    "parameters": [
+     {
+      "name": "building_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Building Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/BlocksAcceptIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BlocksAcceptOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/floors": {
    "put": {
     "tags": [
@@ -7124,6 +7188,126 @@
     ],
     "title": "AvailabilityHistoryOut"
    },
+   "BlockAccept": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 20,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]{0,19}$",
+      "title": "Code"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 200
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "floors": {
+      "items": {
+       "$ref": "#/components/schemas/FloorIn"
+      },
+      "type": "array",
+      "maxItems": 200,
+      "minItems": 1,
+      "title": "Floors"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "floors"
+    ],
+    "title": "BlockAccept"
+   },
+   "BlockProposalOut": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "column_x": {
+      "type": "number",
+      "title": "Column X"
+     },
+     "sheets": {
+      "type": "integer",
+      "title": "Sheets"
+     },
+     "floors": {
+      "items": {
+       "$ref": "#/components/schemas/ProposedFloorOut"
+      },
+      "type": "array",
+      "title": "Floors"
+     },
+     "roof": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Roof"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code",
+     "column_x",
+     "sheets",
+     "floors",
+     "roof"
+    ],
+    "title": "BlockProposalOut",
+    "description": "A split-level block drawn beside the others on the sheets (ADR-0013)."
+   },
+   "BlocksAcceptIn": {
+    "properties": {
+     "blocks": {
+      "items": {
+       "$ref": "#/components/schemas/BlockAccept"
+      },
+      "type": "array",
+      "maxItems": 8,
+      "minItems": 1,
+      "title": "Blocks"
+     },
+     "delete_source": {
+      "type": "boolean",
+      "title": "Delete Source",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "blocks"
+    ],
+    "title": "BlocksAcceptIn"
+   },
+   "BlocksAcceptOut": {
+    "properties": {
+     "buildings": {
+      "items": {
+       "$ref": "#/components/schemas/BuildingOut"
+      },
+      "type": "array",
+      "title": "Buildings"
+     },
+     "source_removed": {
+      "type": "boolean",
+      "title": "Source Removed"
+     }
+    },
+    "type": "object",
+    "required": [
+     "buildings",
+     "source_removed"
+    ],
+    "title": "BlocksAcceptOut"
+   },
    "BoundaryCreate": {
     "properties": {
      "ring": {
@@ -8204,6 +8388,18 @@
       },
       "type": "object",
       "title": "Counts"
+     },
+     "split_level": {
+      "type": "boolean",
+      "title": "Split Level",
+      "default": false
+     },
+     "blocks": {
+      "items": {
+       "$ref": "#/components/schemas/BlockProposalOut"
+      },
+      "type": "array",
+      "title": "Blocks"
      }
     },
     "type": "object",

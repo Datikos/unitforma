@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from unitforma.documents import levels, storeys
-from unitforma.tenants.models import Building, Document, DocumentRevision, Floor, Sheet
+from unitforma.tenants.models import Building, Document, DocumentRevision, Floor, Project, Sheet
 
 
 async def markers_for_building(db: AsyncSession, building: Building) -> dict[uuid.UUID, list]:
@@ -63,9 +63,19 @@ async def floor_proposal(db: AsyncSession, building: Building) -> dict[str, Any]
         for f in floors
     ]
     proposed, unmatched, roof = storeys.propose(markers, existing)
+    taken = frozenset(
+        (
+            await db.execute(
+                select(Building.code).where(Building.project_id == building.project_id)
+            )
+        ).scalars()
+    )
+    blocks = storeys.detect_blocks(markers, taken_codes=taken, source_code=building.code)
     return {
         "building_id": str(building.id),
         "sheets_with_markers": len(markers),
+        "split_level": len(blocks) >= 2,
+        "blocks": [b.as_dict() for b in blocks],
         "floors": [p.as_dict() for p in proposed],
         "unmatched_existing": [
             {"floor_id": str(f.id), "level": f.level, "display_name": f.display_name}
@@ -78,3 +88,43 @@ async def floor_proposal(db: AsyncSession, building: Building) -> dict[str, Any]
             "existing": sum(1 for p in proposed if p.status == "existing"),
         },
     }
+
+
+async def accept_blocks(
+    db: AsyncSession,
+    source: Building,
+    blocks: list[dict[str, Any]],
+    *,
+    delete_source: bool,
+    actor: tuple[uuid.UUID, str],
+) -> tuple[list[Building], bool]:
+    """One building per block with its floors (ADR-0013 Decision 4); the source building is
+    removed when asked and empty. Returns the new buildings and whether the source went."""
+    from unitforma.core.errors import ProblemError
+    from unitforma.projects import service as projects
+
+    if not blocks:
+        raise ProblemError(422, "No blocks to create")
+    project = (
+        await db.execute(select(Project).where(Project.id == source.project_id))
+    ).scalar_one()
+    codes = [str(b.get("code") or "").upper() for b in blocks]
+    if len(set(codes)) != len(codes) or any(not c for c in codes):
+        raise ProblemError(422, "Block codes must be unique and not empty")
+    created: list[Building] = []
+    for code in codes:
+        if code == source.code.upper() and not delete_source:
+            raise ProblemError(409, f"Code {code} is the source building; remove it or rename")
+    removed = False
+    if delete_source:
+        await projects.delete_building(db, source, actor)
+        removed = True
+    for blk, code in zip(blocks, codes, strict=True):
+        b = await projects.create_building(
+            db, project, {"code": code, "name": blk.get("name")}, actor
+        )
+        floors = blk.get("floors") or []
+        if floors:
+            await projects.set_floors(db, b, floors, actor)
+        created.append(b)
+    return created, removed

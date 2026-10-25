@@ -1,4 +1,16 @@
-import { Component, ElementRef, computed, effect, input, output, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 
 /** Normalised sheet coordinates: x, y in [0, 1] relative to the raster width/height. */
 export type Point = [number, number];
@@ -48,6 +60,7 @@ export interface PolygonMove {
     <div
       class="pv"
       #host
+      [style.--uf-plan-aspect]="width() + ' / ' + height()"
       [class.pv--draw]="mode() === 'draw' || mode() === 'calibrate' || mode() === 'pick'"
       [class.pv--move]="mode() === 'move'"
       (wheel)="onWheel($event)"
@@ -61,11 +74,24 @@ export interface PolygonMove {
     >
       <div class="pv__stage" [style.transform]="transform()">
         @if (src(); as url) {
-          <img class="pv__img" [src]="url" [width]="width()" [height]="height()" draggable="false" alt="plan sheet" (load)="loaded.set(true)" />
+          <img
+            class="pv__img"
+            [src]="url"
+            [width]="width()"
+            [height]="height()"
+            draggable="false"
+            alt="plan sheet"
+            (load)="loaded.set(true)"
+          />
         } @else {
           <div class="pv__blank" [style.width.px]="width()" [style.height.px]="height()"></div>
         }
-        <svg class="pv__svg" [attr.viewBox]="'0 0 ' + width() + ' ' + height()" [attr.width]="width()" [attr.height]="height()">
+        <svg
+          class="pv__svg"
+          [attr.viewBox]="'0 0 ' + width() + ' ' + height()"
+          [attr.width]="width()"
+          [attr.height]="height()"
+        >
           @for (p of polygons(); track p.id) {
             <polygon
               [attr.points]="toPoints(p.ring, p.id)"
@@ -80,50 +106,175 @@ export interface PolygonMove {
               [style.stroke]="p.stroke ?? null"
               (click)="select(p, $event)"
               (pointerdown)="grab(p, $event)"
-            >@if (p.title) { <title>{{ p.title }}</title> }</polygon>
-            <text [attr.x]="centroid(p.ring, p.id)[0]" [attr.y]="centroid(p.ring, p.id)[1]" class="pv__label" [attr.font-size]="labelSize()">{{ p.label ?? '' }}</text>
+            >
+              @if (p.title) {
+                <title>{{ p.title }}</title>
+              }
+            </polygon>
+            <text
+              [attr.x]="centroid(p.ring, p.id)[0]"
+              [attr.y]="centroid(p.ring, p.id)[1]"
+              class="pv__label"
+              [attr.font-size]="labelSize()"
+            >
+              {{ p.label ?? '' }}
+            </text>
           }
           @if (draft().length) {
             <polyline [attr.points]="toPoints(draft())" class="pv__draft" />
             @for (pt of draft(); track $index) {
-              <circle [attr.cx]="pt[0] * width()" [attr.cy]="pt[1] * height()" [attr.r]="handle()" class="pv__vertex" />
+              <circle
+                [attr.cx]="pt[0] * width()"
+                [attr.cy]="pt[1] * height()"
+                [attr.r]="handle()"
+                class="pv__vertex"
+              />
             }
           }
           @for (pt of calib(); track $index) {
-            <circle [attr.cx]="pt[0] * width()" [attr.cy]="pt[1] * height()" [attr.r]="handle() * 1.5" class="pv__calib" />
+            <circle
+              [attr.cx]="pt[0] * width()"
+              [attr.cy]="pt[1] * height()"
+              [attr.r]="handle() * 1.5"
+              class="pv__calib"
+            />
           }
           @if (calib().length === 2) {
-            <line [attr.x1]="calib()[0][0] * width()" [attr.y1]="calib()[0][1] * height()" [attr.x2]="calib()[1][0] * width()" [attr.y2]="calib()[1][1] * height()" class="pv__calib-line" />
+            <line
+              [attr.x1]="calib()[0][0] * width()"
+              [attr.y1]="calib()[0][1] * height()"
+              [attr.x2]="calib()[1][0] * width()"
+              [attr.y2]="calib()[1][1] * height()"
+              class="pv__calib-line"
+            />
           }
           @for (pt of marks(); track $index) {
-            <circle [attr.cx]="pt[0] * width()" [attr.cy]="pt[1] * height()" [attr.r]="handle() * 1.5" class="pv__mark" />
+            <circle
+              [attr.cx]="pt[0] * width()"
+              [attr.cy]="pt[1] * height()"
+              [attr.r]="handle() * 1.5"
+              class="pv__mark"
+            />
           }
         </svg>
       </div>
     </div>
   `,
   styles: `
-    :host { display: block; }
-    .pv { position: relative; overflow: hidden; width: 100%; height: var(--uf-plan-height, 70vh); min-height: var(--uf-plan-min-height, 420px); background: #e5e7eb; cursor: grab; outline: none; touch-action: none; }
-    .pv--draw { cursor: crosshair; }
-    .pv--move .pv__poly { cursor: move; }
-    .pv__stage { position: absolute; transform-origin: 0 0; }
-    .pv__img { display: block; user-select: none; }
-    .pv__blank { background: #fff; }
-    .pv__svg { position: absolute; left: 0; top: 0; }
-    .pv__poly { fill: rgba(59, 130, 246, 0.18); stroke: #2563eb; stroke-width: 3; vector-effect: non-scaling-stroke; cursor: pointer; }
-    .pv__poly--approved { fill: rgba(16, 185, 129, 0.18); stroke: #059669; }
-    .pv__poly--candidate { fill: rgba(168, 85, 247, 0.12); stroke: #7c3aed; stroke-dasharray: 10 6; }
-    .pv__poly--ghost { fill: none; stroke: #9ca3af; stroke-dasharray: 4 4; pointer-events: none; }
-    .pv__poly--footprint { fill: rgba(220, 38, 38, 0.15); stroke: #b91c1c; stroke-width: 4; }
-    .pv__poly--region { fill: rgba(13, 148, 136, 0.04); stroke: #0d9488; stroke-width: 4; stroke-dasharray: 16 8; pointer-events: none; }
-    .pv__poly--selected { fill: rgba(245, 158, 11, 0.3); stroke: #d97706; }
-    .pv__label { fill: #111827; font-family: system-ui, sans-serif; font-weight: 600; text-anchor: middle; dominant-baseline: middle; pointer-events: none; paint-order: stroke; stroke: #fff; stroke-width: 4; }
-    .pv__draft { fill: rgba(217, 119, 6, 0.15); stroke: #d97706; stroke-width: 3; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; }
-    .pv__vertex { fill: #fff; stroke: #d97706; stroke-width: 2; vector-effect: non-scaling-stroke; }
-    .pv__calib { fill: #dc2626; }
-    .pv__calib-line { stroke: #dc2626; stroke-width: 3; vector-effect: non-scaling-stroke; }
-    .pv__mark { fill: #0ea5e9; stroke: #fff; stroke-width: 2; vector-effect: non-scaling-stroke; }
+    :host {
+      display: block;
+    }
+    .pv {
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      height: var(--uf-plan-height, 70vh);
+      aspect-ratio: var(--uf-plan-aspect, auto);
+      max-height: var(--uf-plan-max-height, none);
+      min-height: var(--uf-plan-min-height, 420px);
+      background: #e5e7eb;
+      cursor: grab;
+      outline: none;
+      touch-action: none;
+    }
+    .pv--draw {
+      cursor: crosshair;
+    }
+    .pv--move .pv__poly {
+      cursor: move;
+    }
+    .pv__stage {
+      position: absolute;
+      transform-origin: 0 0;
+    }
+    .pv__img {
+      display: block;
+      user-select: none;
+    }
+    .pv__blank {
+      background: #fff;
+    }
+    .pv__svg {
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+    .pv__poly {
+      fill: rgba(59, 130, 246, 0.18);
+      stroke: #2563eb;
+      stroke-width: 3;
+      vector-effect: non-scaling-stroke;
+      cursor: pointer;
+    }
+    .pv__poly--approved {
+      fill: rgba(16, 185, 129, 0.18);
+      stroke: #059669;
+    }
+    .pv__poly--candidate {
+      fill: rgba(168, 85, 247, 0.12);
+      stroke: #7c3aed;
+      stroke-dasharray: 10 6;
+    }
+    .pv__poly--ghost {
+      fill: none;
+      stroke: #9ca3af;
+      stroke-dasharray: 4 4;
+      pointer-events: none;
+    }
+    .pv__poly--footprint {
+      fill: rgba(220, 38, 38, 0.15);
+      stroke: #b91c1c;
+      stroke-width: 4;
+    }
+    .pv__poly--region {
+      fill: rgba(13, 148, 136, 0.04);
+      stroke: #0d9488;
+      stroke-width: 4;
+      stroke-dasharray: 16 8;
+      pointer-events: none;
+    }
+    .pv__poly--selected {
+      fill: rgba(245, 158, 11, 0.3);
+      stroke: #d97706;
+    }
+    .pv__label {
+      fill: #111827;
+      font-family: system-ui, sans-serif;
+      font-weight: 600;
+      text-anchor: middle;
+      dominant-baseline: middle;
+      pointer-events: none;
+      paint-order: stroke;
+      stroke: #fff;
+      stroke-width: 4;
+    }
+    .pv__draft {
+      fill: rgba(217, 119, 6, 0.15);
+      stroke: #d97706;
+      stroke-width: 3;
+      stroke-dasharray: 8 6;
+      vector-effect: non-scaling-stroke;
+    }
+    .pv__vertex {
+      fill: #fff;
+      stroke: #d97706;
+      stroke-width: 2;
+      vector-effect: non-scaling-stroke;
+    }
+    .pv__calib {
+      fill: #dc2626;
+    }
+    .pv__calib-line {
+      stroke: #dc2626;
+      stroke-width: 3;
+      vector-effect: non-scaling-stroke;
+    }
+    .pv__mark {
+      fill: #0ea5e9;
+      stroke: #fff;
+      stroke-width: 2;
+      vector-effect: non-scaling-stroke;
+    }
   `,
 })
 export class PlanViewerComponent {
@@ -149,25 +300,32 @@ export class PlanViewerComponent {
   /** live drag of a polygon in move mode: id → normalised delta */
   readonly dragDelta = signal<{ id: string; dx: number; dy: number } | null>(null);
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
+  private readonly destroyRef = inject(DestroyRef);
   private dragging = false;
   private moved = false;
   private last: Point = [0, 0];
   private grabbed: string | null = null;
   private grabStart: Point = [0, 0];
 
-  readonly transform = computed(() => `translate(${this.offset()[0]}px, ${this.offset()[1]}px) scale(${this.scale()})`);
+  readonly transform = computed(
+    () => `translate(${this.offset()[0]}px, ${this.offset()[1]}px) scale(${this.scale()})`,
+  );
   readonly handle = computed(() => Math.max(3, 6 / this.scale()));
   readonly labelSize = computed(() => Math.max(12, Math.round(this.width() / 60)));
 
   constructor() {
     // fit the sheet into the viewport once its size is known
     effect(() => {
-      const w = this.width();
-      const h = this.height();
-      const el = this.host().nativeElement;
-      const s = Math.min(el.clientWidth / w, el.clientHeight / h) * 0.95 || 1;
-      this.scale.set(s);
-      this.offset.set([(el.clientWidth - w * s) / 2, (el.clientHeight - h * s) / 2]);
+      this.width();
+      this.height();
+      this.fit();
+    });
+    // the box follows the sheet's aspect ratio (--uf-plan-aspect), so refit when the layout settles or the window resizes
+    afterNextRender(() => {
+      if (typeof ResizeObserver === 'undefined') return;
+      const ro = new ResizeObserver(() => this.fit());
+      ro.observe(this.host().nativeElement);
+      this.destroyRef.onDestroy(() => ro.disconnect());
     });
     effect(() => {
       if (this.mode() === 'view') {
@@ -175,6 +333,17 @@ export class PlanViewerComponent {
         this.calib.set([]);
       }
     });
+  }
+
+  /** Scale the sheet to the box and centre it. */
+  private fit(): void {
+    const w = this.width();
+    const h = this.height();
+    const el = this.host().nativeElement;
+    if (!el.clientWidth || !el.clientHeight) return;
+    const s = Math.min(el.clientWidth / w, el.clientHeight / h) * 0.95 || 1;
+    this.scale.set(s);
+    this.offset.set([(el.clientWidth - w * s) / 2, (el.clientHeight - h * s) / 2]);
   }
 
   private shifted(ring: Ring, id?: string): Ring {
@@ -246,7 +415,11 @@ export class PlanViewerComponent {
   onPointerMove(ev: PointerEvent): void {
     if (this.grabbed) {
       const now = this.toSheet(ev, false);
-      this.dragDelta.set({ id: this.grabbed, dx: now[0] - this.grabStart[0], dy: now[1] - this.grabStart[1] });
+      this.dragDelta.set({
+        id: this.grabbed,
+        dx: now[0] - this.grabStart[0],
+        dy: now[1] - this.grabStart[1],
+      });
       return;
     }
     if (!this.dragging) return;
@@ -299,7 +472,9 @@ export class PlanViewerComponent {
   finishPolygon(): void {
     const ring = this.draft();
     // a double-click adds the last vertex twice; drop the duplicate
-    const cleaned = ring.filter((p, i) => i === 0 || p[0] !== ring[i - 1][0] || p[1] !== ring[i - 1][1]);
+    const cleaned = ring.filter(
+      (p, i) => i === 0 || p[0] !== ring[i - 1][0] || p[1] !== ring[i - 1][1],
+    );
     if (cleaned.length >= 3) this.polygonDrawn.emit(cleaned);
     this.draft.set([]);
   }

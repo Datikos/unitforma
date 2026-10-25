@@ -9,6 +9,8 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy import select
 
 from unitforma.api.schemas import (
+    BlocksAcceptIn,
+    BlocksAcceptOut,
     BuildingCreate,
     BuildingOut,
     BuildingUpdate,
@@ -159,14 +161,55 @@ async def floor_proposal(building_id: uuid.UUID, ctx: Ctx):
     return await proposal.floor_proposal(ctx.session, b)
 
 
+@router.post("/buildings/{building_id}/floor-proposal/blocks", response_model=BlocksAcceptOut)
+async def accept_blocks(building_id: uuid.UUID, body: BlocksAcceptIn, ctx: Ctx):
+    """Split-level blocks become buildings with their floors (ADR-0013); the source building is
+    removed when asked and empty; the sheets' floor suggestions are refreshed afterwards."""
+    ctx.require("project", Action.WRITE)
+    b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)
+    ctx.require_project(b.project_id)
+    project_id = b.project_id
+    created, removed = await proposal.accept_blocks(
+        ctx.session,
+        b,
+        [blk.model_dump() for blk in body.blocks],
+        delete_source=body.delete_source,
+        actor=_actor(ctx),
+    )
+    try:
+        from unitforma.jobs.app import app as jobs
+
+        await jobs.configure_task(name="documents.resuggest_floors", queue="docs").defer_async(
+            tenant_id=str(ctx.tenant_id), project_id=str(project_id)
+        )
+    except Exception as e:  # noqa: BLE001
+        import structlog
+
+        structlog.get_logger().warning("documents.resuggest_enqueue_failed", error=str(e)[:200])
+    out = [await projects.get_building(ctx.session, ctx.tenant_id, c.id) for c in created]
+    return BlocksAcceptOut(buildings=out, source_removed=removed)
+
+
 @router.put("/buildings/{building_id}/floors", response_model=list[FloorOut])
 async def set_floors(building_id: uuid.UUID, body: FloorsBulkCreate, ctx: Ctx):
     ctx.require("project", Action.WRITE)
     b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)
     ctx.require_project(b.project_id)
-    return await projects.set_floors(
+    floors = await projects.set_floors(
         ctx.session, b, [f.model_dump() for f in body.floors], _actor(ctx)
     )
+    # sheets processed before these floors existed get their page → floor suggestions now
+    try:
+        from unitforma.jobs.app import app as jobs
+
+        await jobs.configure_task(name="documents.resuggest_floors", queue="docs").defer_async(
+            tenant_id=str(ctx.tenant_id), project_id=str(b.project_id)
+        )
+    except Exception as e:  # noqa: BLE001 - the queue may be absent in minimal setups
+        import structlog
+
+        structlog.get_logger().warning("documents.resuggest_enqueue_failed", error=str(e)[:200])
+    return floors
 
 
 @router.get("/projects/{project_id}/site-features", response_model=list[SiteFeatureOut])

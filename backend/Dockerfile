@@ -41,3 +41,14 @@ CMD ["api"]
 # target explicitly (runtime for api/worker-light/scheduler/db-migrate, runtime-ifc for worker-heavy).
 FROM runtime AS runtime-ifc
 COPY --from=builder-ifc /opt/venv /opt/venv
+# Node 22 LTS + glTF-Transform CLI (MIT) for Draco compression of IFC models (ADR-0006 C2a).
+# The runtime is copied from the official image (same Debian release as python:3.14-slim: trixie).
+USER root
+COPY --from=node:22.23.4-trixie-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22.23.4-trixie-slim /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+ && npm install -g --no-audit --no-fund @gltf-transform/cli@4.5.1 \
+ && npm cache clean --force \
+ && rm -f /usr/local/bin/npm /usr/local/bin/npx \
+ && gltf-transform --version
+USER app

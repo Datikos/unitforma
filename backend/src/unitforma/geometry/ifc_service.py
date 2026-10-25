@@ -7,6 +7,7 @@ model and a list of spaces; the reviewer links spaces to the units that exist.
 from __future__ import annotations
 
 import uuid
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -63,6 +64,14 @@ async def ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str, 
     data = storage.get_bytes(object_key_)
     try:
         model_in = ifc.read_ifc(data)
+        # Draco in the heavy image (ADR-0006 C2a); the 15 MB budget above applies to the raw GLB,
+        # which also bounds what the browser decodes
+        glb_small, compression = ifc.compress_glb(model_in.glb)
+        model_in = replace(
+            model_in,
+            glb=glb_small,
+            stats={**model_in.stats, "compression": compression, "bytes_raw": len(model_in.glb)},
+        )
     except ifc.IfcError as e:
         async with tenant_session(tenant_id, scope="tenant") as db:
             rev = (

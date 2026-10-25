@@ -2,6 +2,7 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { Router, RouterLink } from '@angular/router';
@@ -10,7 +11,10 @@ import {
   BuildingOut,
   FloorIn,
   FloorOut,
+  BlockProposalOut,
+  FloorProposalOut,
   ProjectOut,
+  ProposedFloorOut,
   RegulatoryImportOut,
   UnitformaApi,
   problemMessage,
@@ -39,6 +43,7 @@ import { ToastService } from '../ui/toast.service';
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
+    MatCheckboxModule,
     RouterLink,
     NgIcon,
     PageHeaderComponent,
@@ -214,6 +219,146 @@ import { ToastService } from '../ui/toast.service';
               <ng-icon name="lucideTrash2" /> Delete
             </button>
           </div>
+          @if (proposalFor(b); as pr) {
+            @if (pr.split_level && !asOneBuilding()[b.id]) {
+              <div class="proposal">
+                <p class="uf-small">
+                  <strong>Split-level blocks: {{ blocksOf(pr).length }}</strong> drawn side by side on
+                  {{ pr.sheets_with_markers }} sheets.
+                  <span class="uf-muted"
+                    >Each column of level markers on the plan sheets is a block with its own storeys.
+                    Blocks become separate buildings, as the sheets' regions and the 3D model expect;
+                    edit the codes first. The sheets then get one floor suggestion per block.</span
+                  >
+                  <a class="uf-link" (click)="setOneBuilding(b, true)"
+                    >Treat as one building instead</a
+                  >
+                </p>
+                <div class="blocks">
+                  @for (blk of blocksOf(pr); track blk.code) {
+                    <div class="block">
+                      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="code">
+                        <mat-label>Building code</mat-label>
+                        <input
+                          matInput
+                          [ngModel]="blockCode(b, blk)"
+                          (ngModelChange)="setBlockCode(b, blk, $event)"
+                          [name]="'blk-' + b.id + blk.code"
+                        />
+                      </mat-form-field>
+                      <span class="uf-hint">column at {{ (blk.column_x * 100).toFixed(0) }} % of the sheet width · {{ blk.sheets }} sheets</span>
+                      <table class="uf-plain floors">
+                        <thead>
+                          <tr>
+                            <th>Level</th>
+                            <th>Name</th>
+                            <th class="uf-num">Elevation (m)</th>
+                            <th class="uf-num">Height (m)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (f of blk.floors; track f.level) {
+                            <tr>
+                              <td class="uf-num">{{ f.level }}</td>
+                              <td>{{ f.display_name }}</td>
+                              <td class="uf-num">{{ f.elevation_m >= 0 ? '+' : '' }}{{ f.elevation_m }}</td>
+                              <td class="uf-num">{{ f.height_m ?? '—' }}</td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  }
+                </div>
+                <div class="uf-actions">
+                  <mat-checkbox [checked]="removeSource()[b.id] ?? true" (change)="setRemoveSource(b, $event.checked)" [disabled]="busy()">
+                    Remove building {{ b.code }} afterwards (only possible while it has no units)
+                  </mat-checkbox>
+                  <button mat-flat-button [disabled]="busy()" (click)="acceptBlocks(b, pr)">
+                    <ng-icon name="lucideBuilding2" /> Create {{ blocksOf(pr).length }} buildings with their floors
+                  </button>
+                </div>
+              </div>
+            } @else {
+            <div class="proposal">
+              @if (pr.split_level) {
+                <p class="uf-small">
+                  <a class="uf-link" (click)="setOneBuilding(b, false)"
+                    >Back to {{ blocksOf(pr).length }} blocks</a
+                  >
+                </p>
+              }
+              <p class="uf-small">
+                <strong>Floors proposed from the drawings</strong> · {{ pr.floors.length }} storeys on
+                {{ pr.sheets_with_markers }} sheets.
+                <span class="uf-muted"
+                  >Level markers such as +3.20 on the plan sheets, one storey per marker height;
+                  heights are the distance to the next storey@if (pr.roof['elevation_m']) {, the
+                  top one to the roof at +{{ pr.roof['elevation_m'] }}}. Existing floors are kept;
+                  "fills elevation" completes a floor you generated. Three markers 1 m apart on one
+                  sheet are split-level blocks drawn side by side: accept only one block's storeys
+                  here, or model the blocks as separate buildings.</span
+                >
+              </p>
+              <table class="uf-plain floors">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Level</th>
+                    <th>Name</th>
+                    <th class="uf-num">Elevation (m)</th>
+                    <th class="uf-num">Height (m)</th>
+                    <th>Status</th>
+                    <th class="uf-num">Sheets</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (f of pr.floors; track f.level) {
+                    <tr [class.uf-muted]="f.status === 'existing'">
+                      <td>
+                        <mat-checkbox
+                          [checked]="isPicked(b, f)"
+                          [disabled]="f.status === 'existing' || busy()"
+                          (change)="togglePick(b, f, $event.checked)"
+                        />
+                      </td>
+                      <td class="uf-num">{{ f.level }}</td>
+                      <td>{{ f.display_name }}</td>
+                      <td class="uf-num">{{ f.elevation_m >= 0 ? '+' : '' }}{{ f.elevation_m }}</td>
+                      <td class="uf-num">{{ f.height_m ?? '—' }}</td>
+                      <td>
+                        <span
+                          class="uf-chip"
+                          [class.uf-tone-good]="f.status === 'new'"
+                          [class.uf-tone-warning]="f.status === 'update'"
+                          >{{ statusLabel(f.status) }}</span
+                        >
+                      </td>
+                      <td class="uf-num" [title]="f.markers.join(', ')">{{ f.sheets }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+              @if (pr.unmatched_existing.length) {
+                <p class="uf-hint">
+                  Floors without a marker in the drawings, left as they are:
+                  @for (u of pr.unmatched_existing; track u['floor_id']) {
+                    {{ u['display_name'] }}
+                  }
+                </p>
+              }
+              <div class="uf-actions">
+                <button
+                  mat-flat-button
+                  [disabled]="busy() || !pickedCount(b)"
+                  (click)="acceptProposal(b, pr)"
+                >
+                  <ng-icon name="lucideLayers" /> Accept {{ pickedCount(b) }} floor(s)
+                </button>
+              </div>
+            </div>
+            }
+          }
           <div class="uf-form-row">
             <mat-form-field appearance="outline" subscriptSizing="dynamic" class="num"
               ><mat-label>Lowest level</mat-label
@@ -273,6 +418,10 @@ import { ToastService } from '../ui/toast.service';
                 }
               </tbody>
             </table>
+            <p class="uf-hint">
+              Accepting floors re-runs the page → floor suggestions on the sheets that were
+              processed before; open Documents, then a sheet, to confirm them.
+            </p>
           } @else {
             <p class="uf-muted uf-small">
               No floors yet. Generate them above; negative levels become basements (B1), 0 is
@@ -318,8 +467,30 @@ import { ToastService } from '../ui/toast.service';
     </div>
   `,
   styles: `
+    .proposal {
+      margin: 0 0 0.75rem;
+      padding: 0.75rem;
+      border: 1px solid #fcd34d;
+      border-radius: var(--uf-radius, 8px);
+      background: #fffbeb;
+      display: grid;
+      gap: 0.5rem;
+    }
     .code {
       width: 8rem;
+    }
+    .blocks {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+      gap: 0.75rem;
+    }
+    .block {
+      display: grid;
+      gap: 0.35rem;
+      padding: 0.5rem;
+      border: 1px solid var(--uf-border, #e5e7eb);
+      border-radius: var(--uf-radius, 8px);
+      background: #fff;
     }
     .num {
       width: 10rem;
@@ -357,6 +528,13 @@ export class ProjectDetailPage {
     return r && r['source'] === 'tasge' ? r : null;
   });
   readonly imports = signal<RegulatoryImportOut[]>([]);
+  /** Floor proposals per building (ADR-0010); hidden when every storey already exists. */
+  readonly proposals = signal<Record<string, FloorProposalOut>>({});
+  private readonly picks = signal<Record<string, Set<number>>>({});
+  /** Split-level blocks (ADR-0013): edited codes, the "one building" switch, the remove-source choice. */
+  readonly blockCodes = signal<Record<string, string>>({});
+  readonly asOneBuilding = signal<Record<string, boolean>>({});
+  readonly removeSource = signal<Record<string, boolean>>({});
   readonly latestImport = computed(() => this.imports()[0] ?? null);
   readonly heights = computed(() => {
     const p = this.latestImport()?.permit as Record<string, unknown> | undefined;
@@ -408,6 +586,21 @@ export class ProjectDetailPage {
       this.project.set(p);
       this.ctx.set(p);
       this.buildings.set(b);
+      const props = await Promise.all(
+        b
+          .filter((x) => x.kind === 'building')
+          .map(async (x) => [x.id, await this.api.floorProposal(this.tenantId(), x.id)] as const),
+      );
+      const map: Record<string, FloorProposalOut> = {};
+      const picks: Record<string, Set<number>> = {};
+      for (const [id, pr] of props) {
+        if (pr.floors.some((f) => f.status !== 'existing')) {
+          map[id] = pr;
+          picks[id] = new Set(pr.floors.filter((f) => f.status !== 'existing').map((f) => f.level));
+        }
+      }
+      this.proposals.set(map);
+      this.picks.set(picks);
       const reg = p.regulatory as Record<string, unknown>;
       this.imports.set(
         reg?.['source'] === 'tasge'
@@ -444,6 +637,90 @@ export class ProjectDetailPage {
   failed(j: RegulatoryImportOut): Record<string, unknown>[] {
     const f = j.stats?.['failed'];
     return Array.isArray(f) ? (f as Record<string, unknown>[]) : [];
+  }
+
+  proposalFor(b: BuildingOut): FloorProposalOut | null {
+    return this.proposals()[b.id] ?? null;
+  }
+
+  isPicked(b: BuildingOut, f: ProposedFloorOut): boolean {
+    return f.status === 'existing' || (this.picks()[b.id]?.has(f.level) ?? false);
+  }
+
+  togglePick(b: BuildingOut, f: ProposedFloorOut, on: boolean): void {
+    this.picks.update((m) => {
+      const set = new Set(m[b.id] ?? []);
+      if (on) set.add(f.level);
+      else set.delete(f.level);
+      return { ...m, [b.id]: set };
+    });
+  }
+
+  pickedCount(b: BuildingOut): number {
+    return this.picks()[b.id]?.size ?? 0;
+  }
+
+  statusLabel(status: string): string {
+    return { new: 'new', update: 'fills elevation', existing: 'already there' }[status] ?? status;
+  }
+
+  blocksOf(pr: FloorProposalOut): BlockProposalOut[] {
+    return pr.blocks ?? [];
+  }
+
+  setOneBuilding(b: BuildingOut, on: boolean): void {
+    this.asOneBuilding.update((m) => ({ ...m, [b.id]: on }));
+  }
+
+  setRemoveSource(b: BuildingOut, on: boolean): void {
+    this.removeSource.update((m) => ({ ...m, [b.id]: on }));
+  }
+
+  blockCode(b: BuildingOut, blk: BlockProposalOut): string {
+    return this.blockCodes()[b.id + '/' + blk.code] ?? blk.code;
+  }
+
+  setBlockCode(b: BuildingOut, blk: BlockProposalOut, code: string): void {
+    this.blockCodes.update((m) => ({ ...m, [b.id + '/' + blk.code]: code }));
+  }
+
+  /** One building per block with its floors; the source building goes when asked and empty. */
+  async acceptBlocks(b: BuildingOut, pr: FloorProposalOut): Promise<void> {
+    const remove = this.removeSource()[b.id] ?? true;
+    await this.run(async () => {
+      const out = await this.api.acceptBlocks(this.tenantId(), b.id, {
+        delete_source: remove,
+        blocks: this.blocksOf(pr).map((blk) => ({
+          code: this.blockCode(b, blk).trim(),
+          name: `Block ${this.blockCode(b, blk).trim()}`,
+          floors: blk.floors.map((f) => ({
+            level: f.level,
+            display_name: f.display_name,
+            elevation_m: String(f.elevation_m),
+            height_m: f.height_m != null ? String(f.height_m) : null,
+          })),
+        })),
+      });
+      this.toast.ok(
+        `${out.buildings.length} buildings created${out.source_removed ? `, ${b.code} removed` : ''}; sheet suggestions are being refreshed`,
+      );
+    });
+  }
+
+  /** Accept through the floors endpoint that exists; existing levels are updated, nothing is deleted. */
+  async acceptProposal(b: BuildingOut, pr: FloorProposalOut): Promise<void> {
+    const picked = this.picks()[b.id] ?? new Set<number>();
+    const floors: FloorIn[] = pr.floors
+      .filter((f) => f.status !== 'existing' && picked.has(f.level))
+      .map((f) => ({
+        level: f.level,
+        display_name: f.display_name,
+        elevation_m: String(f.elevation_m),
+        height_m: f.height_m != null ? String(f.height_m) : null,
+      }));
+    if (!floors.length) return;
+    await this.run(() => this.api.setFloors(this.tenantId(), b.id, floors));
+    this.toast.ok(`${floors.length} floor(s) accepted; sheet suggestions are being refreshed`);
   }
 
   floorsOf(b: BuildingOut): FloorOut[] {

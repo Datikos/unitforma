@@ -13,11 +13,19 @@ origin; placement on the site is the reviewer's step and is out of scope here.
 from __future__ import annotations
 
 import json
+import shutil
 import struct
+import subprocess
+import tempfile
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
+import structlog
+
 from unitforma.geometry.massing import _GltfBuilder, parse_glb
+
+log = structlog.get_logger()
 
 MAX_GLB_BYTES = 15 * 1024 * 1024  # plan §7.3 budget for a detailed building model
 DISCLAIMER = "Model from the architect's IFC export"
@@ -432,3 +440,38 @@ def relink_glb(data: bytes, spaces: dict[str, dict[str, Any] | str | None]) -> b
             bin_chunk,
         ]
     )
+
+
+def compress_glb(data: bytes, timeout_s: int = 300) -> tuple[bytes, str]:
+    """Draco-compress a GLB with the ``gltf-transform`` CLI when it is on the PATH (ADR-0006 C2a).
+
+    Returns ``(glb, "draco")``, or the input unchanged with ``"none"`` when the CLI is absent
+    (api, light worker, tests outside the heavy image), fails, times out, or does not shrink the
+    file. Node and mesh ``extras`` survive: the CLI rewrites accessors and buffer views only, so
+    :func:`relink_glb` keeps working on the result.
+    """
+    exe = shutil.which("gltf-transform")
+    if exe is None:
+        return data, "none"
+    with tempfile.TemporaryDirectory(prefix="uf-draco-") as d:
+        src, dst = Path(d) / "in.glb", Path(d) / "out.glb"
+        src.write_bytes(data)
+        try:
+            subprocess.run(  # noqa: S603 - fixed executable, temp-file arguments
+                [exe, "draco", str(src), str(dst), "--method", "edgebreaker"],
+                check=True,
+                capture_output=True,
+                timeout=timeout_s,
+            )
+            out = dst.read_bytes()
+        except (subprocess.SubprocessError, OSError) as e:
+            detail = getattr(e, "stderr", b"") or b""
+            log.warning(
+                "ifc.draco_failed",
+                error=str(e)[:200],
+                stderr=detail[-300:].decode(errors="replace"),
+            )
+            return data, "none"
+    if len(out) >= len(data):
+        return data, "none"
+    return out, "draco"

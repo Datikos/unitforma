@@ -338,6 +338,11 @@ import { SheetStore } from './sheet.store';
       border-radius: var(--uf-radius);
       overflow: hidden;
     }
+    .viewer uf-plan-viewer {
+      --uf-plan-height: auto;
+      --uf-plan-max-height: 82vh;
+      --uf-plan-min-height: 320px;
+    }
     a ng-icon,
     button ng-icon {
       vertical-align: -0.15em;

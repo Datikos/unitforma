@@ -75,9 +75,9 @@ within 0.25 m of another is the same storey (split levels closer than that are n
 
 **Operations.** None.
 
-**Revisit.** After the pilot building: the 0.25 m tolerance against split-level blocks (+3.20,
-+4.20, +5.20 are distinct, fine), unsigned basement markers ("0.55" printed without "-"), and
-whether to show the proposal on the sheet editor too.
+**Revisit.** After the pilot building: unsigned basement markers ("0.55" printed without "-") and
+whether to show the proposal on the sheet editor too. Split-level blocks side by side are handled by
+ADR-0013 (2026-10-26).
 
 **Out of scope here:** creating buildings from drawings, floors for project-level sets with
 several blocks (markers cannot be attributed to a block without regions), heights from sections.
@@ -95,3 +95,12 @@ several blocks (markers cannot be attributed to a block without regions), height
       renumbered to 0010 when ADR-0009 (admin shell and design system) landed in the same working
       tree from another session; every reference was updated. Two markers of one storey printed
       0.02 m apart give the median elevation (+3.20 and +3.22 → 3.21), which the test records.
+      *Found on the pilot set (2026-10-26):* the sheets were processed before the floors existed,
+      so accepting the proposal left every sheet unassigned; `PUT /buildings/{id}/floors` now queues
+      `documents.resuggest_floors`, which re-runs the page → floor suggestions from the markers
+      stored in `sheets.hints` (confirmed assignments untouched). The pilot's three split-level
+      blocks (+0.00 / +1.00 / +2.00 side by side on each sheet) came out as 17 storeys of 1.0 m in
+      one building: the clustering has no notion of blocks yet (listed under Revisit); the card says
+      so and the user accepts one block's storeys or models the blocks as separate buildings. The
+      proposal table itself was lost when another session rewrote the project page on 2026-10-25
+      and was put back on 2026-10-26.

@@ -309,3 +309,50 @@ def duplicate_pages(
             out[p] = q
             break
     return out
+
+
+async def resuggest_floors(tenant_id: uuid.UUID, project_id: uuid.UUID) -> dict:
+    """Re-run the page → floor suggestions for every current revision of a project from the
+    markers stored in ``sheets.hints`` (ADR-0010): floors accepted from the proposal, or entered
+    by hand, arrive after processing, and the sheets would otherwise stay unassigned until a new
+    revision. Confirmed assignments are never touched (``replace_suggestions``)."""
+    async with tenant_session(tenant_id, scope="tenant") as db:
+        rows = await db.execute(
+            select(Document, DocumentRevision)
+            .join(DocumentRevision, DocumentRevision.id == Document.current_revision_id)
+            .where(
+                Document.project_id == project_id,
+                DocumentRevision.processing_status.in_(("done", "partial")),
+            )
+        )
+        targets = [
+            (d.id, r.id, d.building_id, d.kind)
+            for d, r in rows
+            if d.building_id is not None or d.kind == "floor_plan"
+        ]
+        per_revision: dict[uuid.UUID, tuple] = {}
+        for _doc_id, rev_id, building_id, _kind in targets:
+            sheets = (await db.execute(select(Sheet).where(Sheet.revision_id == rev_id))).scalars()
+            markers: dict[int, list[levels.Marker]] = {}
+            page_hints: dict[int, dict] = {}
+            page_lines: dict[int, int] = {}
+            for sh in sheets:
+                hints = dict(sh.hints or {})
+                page_hints[sh.page_no] = hints
+                page_lines[sh.page_no] = int((hints.get("vectors") or {}).get("lines") or 0)
+                markers[sh.page_no] = [
+                    levels.Marker.from_dict(m) for m in hints.get("level_markers") or []
+                ]
+            per_revision[rev_id] = (building_id, markers, page_hints, page_lines)
+    done = 0
+    for rev_id, (building_id, markers, page_hints, page_lines) in per_revision.items():
+        if not any(markers.values()) and not any(
+            h.get("floor_numbers") for h in page_hints.values()
+        ):
+            continue
+        await _suggest_floors(
+            tenant_id, rev_id, project_id, building_id, markers, page_hints, page_lines
+        )
+        done += 1
+    log.info("documents.floors_resuggested", project_id=str(project_id), revisions=done)
+    return {"revisions": done}
