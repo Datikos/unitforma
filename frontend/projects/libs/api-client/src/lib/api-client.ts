@@ -40,6 +40,8 @@ export type AreaOut = Schemas['AreaOut'];
 export type AreaSet = Schemas['AreaSet'];
 export type LineageOut = Schemas['LineageOut'];
 export type SuggestionOut = Schemas['SuggestionOut'];
+export type SheetFloorOut = Schemas['SheetFloorOut'];
+export type SheetFloorIn = Schemas['SheetFloorIn'];
 export type ProposalOut = Schemas['ProposalOut'];
 export type ProposalItemOut = Schemas['ProposalItemOut'];
 export type ProposalDecide = Schemas['ProposalDecide'];
@@ -214,6 +216,10 @@ export class UnitformaApi {
   }
   assignSheetFloor(tenantId: string, sheetId: string, floorId: string | null, version: number): Promise<SheetOut> {
     return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/floor`, { floor_id: floorId, version });
+  }
+  /** Every floor the sheet shows, each optionally limited to a region (split-level / multi-block sheets). */
+  setSheetFloors(tenantId: string, sheetId: string, floors: SheetFloorIn[], version: number): Promise<SheetOut> {
+    return this.put(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/floors`, { floors, version });
   }
   calibrateSheet(tenantId: string, sheetId: string, calibration: Calibration, version: number): Promise<SheetOut> {
     return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/calibration`, { calibration, version });

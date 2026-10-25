@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from unitforma.audit.service import write_audit
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
+from unitforma.documents import assignments
 from unitforma.inventory import geometry
 from unitforma.inventory.codes import normalise_code, render_code
 from unitforma.tenants.models import (
@@ -70,12 +71,16 @@ async def create_unit_from_boundary(
     revision_id: uuid.UUID,
     actor: Actor,
     source: str = "manual",
+    floor_id: uuid.UUID | None = None,
 ) -> tuple[Unit, UnitBoundary]:
-    """Drawing a boundary on an assigned sheet creates a draft unit with a permanent id."""
-    if sheet.floor_id is None:
-        raise ProblemError(409, "Assign the sheet to a floor before drawing units")
+    """Drawing a boundary on an assigned sheet creates a draft unit with a permanent id.
+
+    On a sheet showing several floors the unit's floor is ``floor_id`` or the floor whose
+    region holds the outline (``documents.assignments.resolve_floor``).
+    """
     poly = geometry.validate_ring(ring)
-    floor = (await db.execute(select(Floor).where(Floor.id == sheet.floor_id))).scalar_one()
+    fid = await assignments.resolve_floor(db, sheet, ring, floor_id)
+    floor = (await db.execute(select(Floor).where(Floor.id == fid))).scalar_one()
     building = (
         await db.execute(select(Building).where(Building.id == floor.building_id))
     ).scalar_one()
@@ -274,8 +279,7 @@ async def rehome_boundary(
     the previous boundary is superseded, the new one starts as ``draft`` until the sheet is
     approved, and the measured area follows the new geometry.
     """
-    if sheet.floor_id != unit.floor_id:
-        raise ProblemError(422, "Sheet is not assigned to the unit's floor")
+    await assignments.require_floor_on_sheet(db, sheet, unit.floor_id)
     geometry.validate_ring(ring)
     project = (await db.execute(select(Project).where(Project.id == unit.project_id))).scalar_one()
     for b in (
@@ -540,8 +544,7 @@ async def split_unit(
     """Split: the first ring stays on the existing unit (keeps its id); others become new units."""
     if len(rings) < 2:
         raise ProblemError(422, "A split needs at least two boundaries")
-    if sheet.floor_id != unit.floor_id:
-        raise ProblemError(422, "Sheet is not assigned to the unit's floor")
+    await assignments.require_floor_on_sheet(db, sheet, unit.floor_id)
     for r in rings:
         geometry.validate_ring(r)
     for b in (

@@ -9,7 +9,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
-import { BoundaryOut, BuildingOut, SheetOut, SuggestionOut, UnitOut, UnitformaApi, problemMessage } from 'api-client';
+import { BoundaryOut, BuildingOut, SheetFloorOut, SheetOut, SuggestionOut, UnitOut, UnitformaApi, problemMessage } from 'api-client';
 import { PlanMode, PlanPolygon, PlanViewerComponent, Point, Ring } from 'plan-viewer';
 
 /** Sheet mapping editor: floor assignment, calibration, unit boundaries, vector suggestions, review (plan §13.1 steps 3–5). */
@@ -24,21 +24,46 @@ import { PlanMode, PlanPolygon, PlanViewerComponent, Point, Ring } from 'plan-vi
       </div>
       @if (error()) { <p class="uf-error">{{ error() }}</p> }
       @if (sheet(); as s) {
+        <mat-card appearance="outlined" class="uf-floors">
+          <mat-card-content>
+            <div class="uf-form-row">
+              <strong>Floors on this sheet</strong>
+              <span class="uf-muted">A sheet of a stepped or multi-block building can show several floors; give each its region.</span>
+            </div>
+            @for (a of draft(); track a.floor_id) {
+              <div class="uf-floor-row" [attr.data-floor]="a.floor_id">
+                <span class="uf-chip" [class.uf-chip--suggested]="a.status === 'suggested'">{{ floorLabel(a.floor_id) }}</span>
+                <span class="uf-muted">
+                  {{ a.status === 'suggested' ? 'suggested' : 'confirmed' }}@if (a.marker) { · marker {{ a.marker }} }@if (a.source === 'inherited') { · from previous revision }
+                  · {{ a.region ? 'region set' : 'whole sheet' }}
+                </span>
+                <button mat-button [disabled]="busy()" (click)="drawRegion(a.floor_id)">{{ a.region ? 'Redraw region' : 'Draw region' }}</button>
+                @if (a.region) { <button mat-button [disabled]="busy()" (click)="clearRegion(a.floor_id)">Whole sheet</button> }
+                <button mat-button [disabled]="busy()" (click)="removeFloor(a.floor_id)">Remove</button>
+              </div>
+            } @empty { <p class="uf-muted">No floor assigned yet.</p> }
+            <div class="uf-form-row">
+              <mat-form-field appearance="outline" class="uf-floor">
+                <mat-label>Add floor</mat-label>
+                <mat-select [value]="null" (valueChange)="addFloor($event)">
+                  @for (f of unassignedFloors(); track f.id) { <mat-option [value]="f.id">{{ f.label }}</mat-option> }
+                </mat-select>
+              </mat-form-field>
+              <button mat-flat-button [disabled]="busy() || !floorsDirty()" (click)="saveFloors()">
+                {{ hasSuggested() && !floorsEdited() ? 'Confirm suggested floors' : 'Save floors' }}
+              </button>
+              @if (floorsEdited()) { <button mat-button [disabled]="busy()" (click)="resetFloors()">Undo changes</button> }
+              @if (regionTarget(); as rt) { <span class="uf-chip uf-chip--drawing">Drawing region of {{ floorLabel(rt) }}: click corners, double-click to close</span> }
+            </div>
+          </mat-card-content>
+        </mat-card>
         <div class="uf-toolbar">
-          <mat-form-field appearance="outline" class="uf-floor">
-            <mat-label>Floor</mat-label>
-            <mat-select [value]="s.floor_id" (valueChange)="assign($event)">
-              <mat-option [value]="null">— not assigned —</mat-option>
-              @for (f of floors(); track f.id) { <mat-option [value]="f.id">{{ f.label }}</mat-option> }
-            </mat-select>
-          </mat-form-field>
-          @if (s.suggested_floor_id && !s.floor_id) { <span class="uf-muted">Suggested: {{ floorLabel(s.suggested_floor_id) }}</span> }
-          <mat-button-toggle-group [value]="mode()" (valueChange)="mode.set($event)">
+          <mat-button-toggle-group [value]="mode()" (valueChange)="setMode($event)">
             <mat-button-toggle value="view">View</mat-button-toggle>
             <mat-button-toggle value="calibrate">Calibrate</mat-button-toggle>
-            <mat-button-toggle value="draw" [disabled]="!s.floor_id">Draw unit</mat-button-toggle>
+            <mat-button-toggle value="draw" [disabled]="!confirmedFloors().length">Draw unit</mat-button-toggle>
           </mat-button-toggle-group>
-          <button mat-stroked-button [disabled]="busy() || !s.floor_id" (click)="suggest()">Suggest boundaries</button>
+          <button mat-stroked-button [disabled]="busy() || !confirmedFloors().length" (click)="suggest()">Suggest boundaries</button>
           <span class="uf-muted">
             @if (pxPerMetre(); as ppm) { {{ ppm | number: '1.0-0' }} px/m @if (s.calibration_status === 'inherited') { (inherited) } } @else { not calibrated }
             · {{ hintsText() }}
@@ -53,9 +78,17 @@ import { PlanMode, PlanPolygon, PlanViewerComponent, Point, Ring } from 'plan-vi
             <button mat-stroked-button [disabled]="!calibPts() || !distance" (click)="calibrate()">Apply</button>
           </mat-card-content></mat-card>
         }
-        @if (mode() === 'draw') {
+        @if (mode() === 'draw' && !regionTarget()) {
           <mat-card appearance="outlined"><mat-card-content class="uf-form-row">
             <span>Click the corners of the unit; double-click or Enter to close.</span>
+            @if (confirmedFloors().length > 1) {
+              <mat-form-field appearance="outline" class="uf-floor"><mat-label>Floor</mat-label>
+                <mat-select [(ngModel)]="drawFloor" name="drawFloor">
+                  <mat-option [value]="null">By region</mat-option>
+                  @for (a of confirmedFloors(); track a.floor_id) { <mat-option [value]="a.floor_id">{{ floorLabel(a.floor_id) }}</mat-option> }
+                </mat-select>
+              </mat-form-field>
+            }
             <mat-form-field appearance="outline"><mat-label>Type</mat-label>
               <mat-select [(ngModel)]="unitType" name="unitType"><mat-option value="apartment">Apartment</mat-option><mat-option value="commercial">Commercial</mat-option><mat-option value="parking">Parking</mat-option><mat-option value="storage">Storage</mat-option></mat-select>
             </mat-form-field>
@@ -65,9 +98,13 @@ import { PlanMode, PlanPolygon, PlanViewerComponent, Point, Ring } from 'plan-vi
         }
         @if (candidates().length) {
           <mat-card appearance="outlined"><mat-card-content class="uf-form-row">
-            <span>{{ candidates().length }} suggested polygon(s) from the drawing's line work (dashed). Click one to select it.</span>
+            <span>{{ candidates().length }} suggested polygon(s) from the drawing (dashed). Click one to select it.</span>
             @if (selectedCandidate(); as c) {
-              <span class="uf-chip">{{ c.label ?? 'unlabelled' }} · {{ c.confidence * 100 | number: '1.0-0' }} %</span>
+              <span class="uf-chip">{{ c.label ?? 'unlabelled' }} · {{ c.confidence * 100 | number: '1.0-0' }} % · {{ methodLabel(c.method) }}</span>
+              @if (c.printed_area_m2 !== null && c.printed_area_m2 !== undefined) {
+                <span class="uf-muted">printed {{ c.printed_area_m2 }} m²@if (c.measured_area_m2 !== null && c.measured_area_m2 !== undefined) { · measured {{ c.measured_area_m2 }} m² }</span>
+              }
+              <span class="uf-muted">{{ c.floor_id ? floorLabel(c.floor_id) : confirmedFloors().length > 1 ? 'outside every region: choose a floor' : '' }}</span>
               <mat-form-field appearance="outline"><mat-label>Type</mat-label>
                 <mat-select [(ngModel)]="unitType" name="candType"><mat-option value="apartment">Apartment</mat-option><mat-option value="commercial">Commercial</mat-option><mat-option value="parking">Parking</mat-option><mat-option value="storage">Storage</mat-option></mat-select>
               </mat-form-field>
@@ -75,7 +112,7 @@ import { PlanMode, PlanPolygon, PlanViewerComponent, Point, Ring } from 'plan-vi
               <button mat-flat-button [disabled]="busy()" (click)="acceptCandidate(c)">Accept as unit</button>
               <button mat-button [disabled]="busy()" (click)="dismissCandidate(c)">Dismiss</button>
             }
-            <button mat-stroked-button [disabled]="busy() || labelledCount() === 0" (click)="acceptLabelled()">Accept all {{ labelledCount() }} labelled</button>
+            <button mat-stroked-button [disabled]="busy() || labelledCount() === 0" (click)="acceptLabelled()">Accept all {{ labelledCount() }} confident</button>
             <button mat-button (click)="candidates.set([])">Clear suggestions</button>
           </mat-card-content></mat-card>
         }
@@ -121,6 +158,10 @@ import { PlanMode, PlanPolygon, PlanViewerComponent, Point, Ring } from 'plan-vi
     .uf-units tr { cursor: pointer; }
     .uf-selected { background: rgba(245, 158, 11, 0.12); }
     .uf-chip { padding: 0.2rem 0.5rem; border-radius: 4px; background: #ede9fe; }
+    .uf-chip--suggested { background: #ccfbf1; border: 1px dashed #0d9488; }
+    .uf-chip--drawing { background: #fef3c7; }
+    .uf-floors { margin-bottom: 0.75rem; }
+    .uf-floor-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; padding: 0.15rem 0; }
   `,
 })
 export class SheetPage {
@@ -144,6 +185,20 @@ export class SheetPage {
   code = '';
   label = '';
 
+  /** Local edit of the sheet's floors; saved in one call (PUT /sheets/{id}/floors). */
+  readonly draft = signal<SheetFloorOut[]>([]);
+  readonly floorsEdited = signal(false);
+  readonly regionTarget = signal<string | null>(null);
+  drawFloor: string | null = null;
+
+  readonly confirmedFloors = computed(() => (this.sheet()?.floors ?? []).filter((a) => a.status === 'confirmed'));
+  readonly hasSuggested = computed(() => this.draft().some((a) => a.status === 'suggested'));
+  readonly floorsDirty = computed(() => this.floorsEdited() || this.hasSuggested());
+  readonly unassignedFloors = computed(() => {
+    const taken = new Set(this.draft().map((a) => a.floor_id));
+    return this.floors().filter((f) => !taken.has(f.id));
+  });
+
   readonly floors = computed(() =>
     this.buildings()
       .filter((b) => b.kind === 'building')
@@ -153,15 +208,19 @@ export class SheetPage {
     const byUnit = new Map(this.units().map((u) => [u.id, u]));
     const own: PlanPolygon[] = this.boundaries().map((b) => ({ id: b.unit_id, ring: (b.polygon['ring'] as Ring) ?? [], label: byUnit.get(b.unit_id)?.code ?? b.label ?? '', status: b.status, selected: b.unit_id === this.selectedUnitId() }));
     const cands: PlanPolygon[] = this.candidates().map((c, i) => ({ id: `cand:${i}`, ring: c.ring as Ring, label: c.label ?? '', kind: 'candidate' as const, selected: i === this.selectedCandidateIdx() }));
-    return [...own, ...cands];
+    const regions: PlanPolygon[] = this.draft()
+      .filter((a) => a.region?.['ring'])
+      .map((a) => ({ id: `region:${a.floor_id}`, ring: a.region!['ring'] as Ring, label: this.floorLabel(a.floor_id), kind: 'region' as const }));
+    return [...regions, ...own, ...cands];
   });
   readonly selectedCandidate = computed(() => (this.selectedCandidateIdx() === null ? null : this.candidates()[this.selectedCandidateIdx()!] ?? null));
-  readonly labelledCount = computed(() => this.candidates().filter((c) => c.label).length);
+  readonly labelledCount = computed(() => this.candidates().filter(confident).length);
   readonly draftCount = computed(() => this.boundaries().filter((b) => b.status === 'draft').length);
   readonly hintsText = computed(() => {
-    const h = (this.sheet()?.hints ?? {}) as { levels?: string[]; scales?: number[]; apartment_labels?: string[] };
+    const h = (this.sheet()?.hints ?? {}) as { levels?: string[]; level_markers?: { text: string }[]; scales?: number[]; apartment_labels?: string[] };
     const parts: string[] = [];
-    if (h.levels?.length) parts.push(`levels ${h.levels.join(', ')}`);
+    if (h.level_markers?.length) parts.push(`level markers ${h.level_markers.map((m) => m.text).join(', ')}`);
+    else if (h.levels?.length) parts.push(`levels ${h.levels.join(', ')}`);
     if (h.scales?.length) parts.push(`scale 1:${h.scales.join('/')}`);
     if (h.apartment_labels?.length) parts.push(`${h.apartment_labels.length} apartment labels`);
     return parts.join(' · ') || 'no hints';
@@ -196,6 +255,8 @@ export class SheetPage {
         this.api.listUnits(this.tenantId(), this.projectId()),
       ]);
       this.sheet.set(s);
+      this.draft.set((s.floors ?? []).map((a) => ({ ...a })));
+      this.floorsEdited.set(false);
       this.buildings.set(b);
       this.boundaries.set(bounds);
       const onSheet = new Set(bounds.map((x) => x.unit_id));
@@ -215,8 +276,46 @@ export class SheetPage {
     }
   }
 
-  assign(floorId: string | null): Promise<void> {
-    return this.run(() => this.api.assignSheetFloor(this.tenantId(), this.sheetId(), floorId, this.sheet()!.version));
+  setMode(m: PlanMode): void {
+    this.regionTarget.set(null);
+    this.mode.set(m);
+  }
+
+  methodLabel(m: string | undefined): string {
+    return m === 'fill' ? 'drawing zone' : m === 'grown' ? 'rooms merged to printed area' : 'closed loop';
+  }
+
+  addFloor(floorId: string | null): void {
+    if (!floorId) return;
+    this.draft.update((d) => [...d, { floor_id: floorId, status: 'confirmed', source: 'manual', region: null, marker: null }]);
+    this.floorsEdited.set(true);
+  }
+
+  removeFloor(floorId: string): void {
+    this.draft.update((d) => d.filter((a) => a.floor_id !== floorId));
+    this.floorsEdited.set(true);
+  }
+
+  clearRegion(floorId: string): void {
+    this.draft.update((d) => d.map((a) => (a.floor_id === floorId ? { ...a, region: null } : a)));
+    this.floorsEdited.set(true);
+  }
+
+  drawRegion(floorId: string): void {
+    this.regionTarget.set(floorId);
+    this.mode.set('draw');
+  }
+
+  resetFloors(): void {
+    this.draft.set((this.sheet()?.floors ?? []).map((a) => ({ ...a })));
+    this.floorsEdited.set(false);
+    this.regionTarget.set(null);
+  }
+
+  /** Every listed floor becomes confirmed, suggestions included. */
+  saveFloors(): Promise<void> {
+    const floors = this.draft().map((a) => ({ floor_id: a.floor_id, region: a.region ? { ring: a.region['ring'] as number[][] } : null }));
+    return this.run(() => this.api.setSheetFloors(this.tenantId(), this.sheetId(), floors, this.sheet()!.version));
   }
 
   calibrate(): Promise<void> {
@@ -230,8 +329,16 @@ export class SheetPage {
   }
 
   onDrawn(ring: Ring): Promise<void> {
+    const target = this.regionTarget();
+    if (target) {
+      this.draft.update((d) => d.map((a) => (a.floor_id === target ? { ...a, region: { ring } } : a)));
+      this.floorsEdited.set(true);
+      this.regionTarget.set(null);
+      this.mode.set('view');
+      return Promise.resolve();
+    }
     return this.run(async () => {
-      await this.api.createBoundary(this.tenantId(), this.sheetId(), { ring, unit_type: this.unitType, code: this.code || null, label: this.label || null, source: 'manual' });
+      await this.api.createBoundary(this.tenantId(), this.sheetId(), { ring, unit_type: this.unitType, code: this.code || null, label: this.label || null, source: 'manual', floor_id: this.drawFloor });
       this.code = this.label = '';
     });
   }
@@ -256,7 +363,7 @@ export class SheetPage {
 
   acceptCandidate(c: SuggestionOut): Promise<void> {
     return this.run(async () => {
-      await this.api.createBoundary(this.tenantId(), this.sheetId(), { ring: c.ring, unit_type: this.unitType, code: this.code || null, label: c.label ?? null, source: 'vector_suggest' });
+      await this.api.createBoundary(this.tenantId(), this.sheetId(), { ring: c.ring, unit_type: this.unitType, code: this.code || null, label: c.label ?? null, source: 'vector_suggest', floor_id: c.floor_id ?? null });
       this.code = '';
       this.dismissCandidate(c);
     });
@@ -264,10 +371,10 @@ export class SheetPage {
 
   acceptLabelled(): Promise<void> {
     return this.run(async () => {
-      for (const c of this.candidates().filter((x) => x.label)) {
-        await this.api.createBoundary(this.tenantId(), this.sheetId(), { ring: c.ring, unit_type: 'apartment', code: null, label: c.label ?? null, source: 'vector_suggest' });
+      for (const c of this.candidates().filter(confident)) {
+        await this.api.createBoundary(this.tenantId(), this.sheetId(), { ring: c.ring, unit_type: 'apartment', code: null, label: c.label ?? null, source: 'vector_suggest', floor_id: c.floor_id ?? null });
       }
-      this.candidates.update((list) => list.filter((x) => !x.label));
+      this.candidates.update((list) => list.filter((x) => !confident(x)));
       this.selectedCandidateIdx.set(null);
     });
   }
@@ -304,6 +411,11 @@ export class SheetPage {
       this.busy.set(false);
     }
   }
+}
+
+/** Labelled outlines the engine is sure of: drawing zones and whole labelled loops (≥ 85 %). */
+function confident(c: SuggestionOut): boolean {
+  return !!c.label && c.confidence >= 0.85;
 }
 
 function centroidOf(ring: Ring): Point {

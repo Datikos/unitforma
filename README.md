@@ -5,7 +5,7 @@ drawings and renders, prepare a human-verified unit inventory, attach prices and
 branded buyer portal on `{tenant}.unitforma.com` or the developer's own domain, and receive
 buyer inquiries authenticated with an email one-time code.
 
-**Status:** Phase 4 (publishing and buyer portal) complete on top of Phases 1–3: readiness checklist, unit publication flags, immutable publication snapshots with a filterable read model, signed preview links, atomic publish and unpublish, host-based tenant and single-project portals, and the buyer portal (site plan and 3D massing, buildings and floor plans coloured by availability, unit list with filters, unit pages with labelled media, favourites). Next: Phase 5 (buyer accounts and inquiries). See the plan in
+**Status:** Phase 4 (publishing and buyer portal) complete on top of Phases 1–3: readiness checklist, unit publication flags, immutable publication snapshots with a filterable read model, signed preview links, atomic publish and unpublish, host-based tenant and single-project portals, and the buyer portal (site plan and 3D massing, buildings and floor plans coloured by availability, unit list with filters, unit pages with labelled media, favourites). Mapping handles split-level and multi-block sheets (one sheet showing several floors, each with its region), takes unit outlines from the drawing's filled zones (ArchiCAD zones, hatches) or grows labelled rooms to the printed area, and suggests floors from level markers matched to floor elevations. Next: Phase 5 (buyer accounts and inquiries). See the plan in
 [`docs/architecture/plan-v0.1.md`](docs/architecture/plan-v0.1.md) and the decisions in
 [`docs/adr/`](docs/adr/).
 

@@ -120,32 +120,73 @@ class Assets:
         return f"/api/v1/portal/projects/{self.slug}/assets/{name}"
 
 
-def plan_image(raster_png: bytes) -> tuple[bytes, int, int]:
-    """Portal-sized floor/site plan: WebP, long edge ≤ 2400 px (plan §7.3 budgets)."""
+Crop = tuple[float, float, float, float]
+
+
+def plan_image(raster_png: bytes, crop: Crop | None = None) -> tuple[bytes, int, int]:
+    """Portal-sized floor/site plan: WebP, long edge ≤ 2400 px (plan §7.3 budgets).
+
+    ``crop`` (normalised x0, y0, x1, y1) keeps one floor's part of a sheet that shows several.
+    """
     from PIL import Image
 
     with Image.open(io.BytesIO(raster_png)) as im:
         im = im.convert("RGB")
+        if crop is not None:
+            x0, y0, x1, y1 = crop
+            im = im.crop(
+                (
+                    round(x0 * im.width),
+                    round(y0 * im.height),
+                    round(x1 * im.width),
+                    round(y1 * im.height),
+                )
+            )
         im.thumbnail((PLAN_MAX_EDGE, PLAN_MAX_EDGE))
         buf = io.BytesIO()
         im.save(buf, format="WEBP", quality=82, method=4)
         return buf.getvalue(), im.width, im.height
 
 
-def _plan_asset(assets: Assets, sheet: Sheet, cache: dict[uuid.UUID, dict]) -> dict | None:
-    if sheet.id in cache:
-        return cache[sheet.id]
+def _plan_asset(
+    assets: Assets, sheet: Sheet, cache: dict[Any, dict], crop: Crop | None = None
+) -> dict | None:
+    key = (sheet.id, crop)
+    if key in cache:
+        return cache[key]
     if not sheet.raster_key:
         return None
     try:
-        data, w, h = plan_image(get_storage().get_bytes(sheet.raster_key))
+        data, w, h = plan_image(get_storage().get_bytes(sheet.raster_key), crop)
     except Exception as e:  # noqa: BLE001 - a missing raster only hides that plan
         log.warning("publishing.plan_unavailable", sheet_id=str(sheet.id), error=str(e))
         return None
     ref = {"asset": assets.put(data, "webp", "image/webp"), "width": w, "height": h}
     ref["url"] = assets.url(ref["asset"])
-    cache[sheet.id] = ref
+    cache[key] = ref
     return ref
+
+
+def crop_for(rings: list[list[list[float]]], pad: float = 0.03) -> Crop | None:
+    """The part of a sheet holding one floor's units, padded; None when it is most of the sheet."""
+    pts = [p for r in rings for p in (r or [])]
+    if not pts:
+        return None
+    x0 = max(0.0, min(p[0] for p in pts) - pad)
+    y0 = max(0.0, min(p[1] for p in pts) - pad)
+    x1 = min(1.0, max(p[0] for p in pts) + pad)
+    y1 = min(1.0, max(p[1] for p in pts) + pad)
+    if (x1 - x0) * (y1 - y0) > 0.8 or x1 - x0 < 0.01 or y1 - y0 < 0.01:
+        return None
+    return (round(x0, 4), round(y0, 4), round(x1, 4), round(y1, 4))
+
+
+def recrop(ring: list[list[float]] | None, crop: Crop | None) -> list[list[float]] | None:
+    """A sheet-normalised ring in the coordinates of the cropped plan image."""
+    if ring is None or crop is None:
+        return ring
+    x0, y0, x1, y1 = crop
+    return [[round((x - x0) / (x1 - x0), 5), round((y - y0) / (y1 - y0), 5)] for x, y in ring]
 
 
 # --- builder -----------------------------------------------------------------------------------
@@ -202,7 +243,7 @@ async def build(
     ).scalar_one()
     pub_id = uuid.uuid4()
     assets = Assets(project.tenant_id, project.id, project.slug)
-    plan_cache: dict[uuid.UUID, dict] = {}
+    plan_cache: dict[Any, dict] = {}
 
     # floors: for each floor the sheet holding most current boundaries of public units
     boundaries = (
@@ -216,16 +257,34 @@ async def build(
         if unit_ids
         else []
     )
+    # keyed by the unit's floor: one sheet may show several floors (plan §13.2)
+    floor_of_unit = {u.id: u.floor_id for u in units}
     sheets_per_floor: dict[uuid.UUID, dict[uuid.UUID, int]] = {}
     sheet_by_id: dict[uuid.UUID, Sheet] = {}
-    for _b, s in boundaries:
-        if s.floor_id is None:
+    for b, s in boundaries:
+        fid = floor_of_unit.get(b.unit_id)
+        if fid is None:
             continue
         sheet_by_id[s.id] = s
-        sheets_per_floor.setdefault(s.floor_id, {}).setdefault(s.id, 0)
-        sheets_per_floor[s.floor_id][s.id] += 1
+        sheets_per_floor.setdefault(fid, {}).setdefault(s.id, 0)
+        sheets_per_floor[fid][s.id] += 1
     floor_sheet = {f: max(c, key=c.get) for f, c in sheets_per_floor.items()}
     ring_on_sheet = {(b.unit_id, b.sheet_id): b.polygon.get("ring") for b, _s in boundaries}
+    # a sheet shared by several floors is cropped to each floor's units
+    shared = {sid for sid in sheet_by_id if sum(sid in c for c in sheets_per_floor.values()) > 1}
+    floor_crop: dict[uuid.UUID, Crop | None] = {}
+    for fid, sid in floor_sheet.items():
+        floor_crop[fid] = (
+            crop_for(
+                [
+                    ring_on_sheet.get((u.id, sid))
+                    for u in units
+                    if u.floor_id == fid and (u.id, sid) in ring_on_sheet
+                ]
+            )
+            if sid in shared
+            else None
+        )
 
     # unit public views + read model rows
     unit_docs: dict[uuid.UUID, dict[str, Any]] = {}
@@ -248,8 +307,9 @@ async def build(
             item["mime"] = m.mime
         sheet_id = floor_sheet.get(u.floor_id)
         if sheet_id is not None:
-            ref = _plan_asset(assets, sheet_by_id[sheet_id], plan_cache)
-            ring = ring_on_sheet.get((u.id, sheet_id))
+            crop = floor_crop.get(u.floor_id)
+            ref = _plan_asset(assets, sheet_by_id[sheet_id], plan_cache, crop)
+            ring = recrop(ring_on_sheet.get((u.id, sheet_id)), crop)
             if ref is not None:
                 view["plan"] = {**ref, "ring": ring}
         view["floor_name"] = row["floor_name"]
@@ -311,7 +371,8 @@ async def build(
             if not fu:
                 continue
             sheet_id = floor_sheet.get(f.id)
-            ref = _plan_asset(assets, sheet_by_id[sheet_id], plan_cache) if sheet_id else None
+            crop = floor_crop.get(f.id)
+            ref = _plan_asset(assets, sheet_by_id[sheet_id], plan_cache, crop) if sheet_id else None
             fdocs.append(
                 {
                     "level": f.level,
@@ -323,7 +384,9 @@ async def build(
                             "code": u.code,
                             "unit_type": u.unit_type,
                             "availability": unit_docs[u.id]["availability"],
-                            "ring": ring_on_sheet.get((u.id, sheet_id)) if sheet_id else None,
+                            "ring": recrop(ring_on_sheet.get((u.id, sheet_id)), crop)
+                            if sheet_id
+                            else None,
                         }
                         for u in fu
                         if u.id in listed
@@ -447,7 +510,7 @@ async def _site(
     project: Project,
     assets: Assets,
     public_codes: set[str],
-    cache: dict[uuid.UUID, dict],
+    cache: dict[Any, dict],
 ) -> dict[str, Any] | None:
     """Site plan image with building footprints placed by their site transforms (plan §3.5)."""
     sheet_id = (project.site_frame or {}).get("sheet_id")

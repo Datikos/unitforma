@@ -4,7 +4,7 @@ import { Component, ElementRef, computed, effect, input, output, signal, viewChi
 export type Point = [number, number];
 export type Ring = Point[];
 
-export type PlanPolygonKind = 'unit' | 'candidate' | 'ghost' | 'footprint';
+export type PlanPolygonKind = 'unit' | 'candidate' | 'ghost' | 'footprint' | 'region';
 
 export interface PlanPolygon {
   id: string;
@@ -12,7 +12,10 @@ export interface PlanPolygon {
   label?: string;
   status?: string; // draft | approved | superseded
   selected?: boolean;
-  /** unit (default), candidate (dashed suggestion), ghost (previous revision), footprint (building outline) */
+  /**
+   * unit (default), candidate (dashed suggestion), ghost (previous revision), footprint (building
+   * outline), region (the part of a multi-floor sheet that shows one floor; not clickable)
+   */
   kind?: PlanPolygonKind;
   /** Explicit colours (e.g. availability in the buyer portal); override the kind styles. */
   fill?: string;
@@ -71,6 +74,7 @@ export interface PolygonMove {
               [class.pv__poly--candidate]="p.kind === 'candidate'"
               [class.pv__poly--ghost]="p.kind === 'ghost'"
               [class.pv__poly--footprint]="p.kind === 'footprint'"
+              [class.pv__poly--region]="p.kind === 'region'"
               [class.pv__poly--selected]="p.selected"
               [style.fill]="p.fill ?? null"
               [style.stroke]="p.stroke ?? null"
@@ -112,6 +116,7 @@ export interface PolygonMove {
     .pv__poly--candidate { fill: rgba(168, 85, 247, 0.12); stroke: #7c3aed; stroke-dasharray: 10 6; }
     .pv__poly--ghost { fill: none; stroke: #9ca3af; stroke-dasharray: 4 4; pointer-events: none; }
     .pv__poly--footprint { fill: rgba(220, 38, 38, 0.15); stroke: #b91c1c; stroke-width: 4; }
+    .pv__poly--region { fill: rgba(13, 148, 136, 0.04); stroke: #0d9488; stroke-width: 4; stroke-dasharray: 16 8; pointer-events: none; }
     .pv__poly--selected { fill: rgba(245, 158, 11, 0.3); stroke: #d97706; }
     .pv__label { fill: #111827; font-family: system-ui, sans-serif; font-weight: 600; text-anchor: middle; dominant-baseline: middle; pointer-events: none; paint-order: stroke; stroke: #fff; stroke-width: 4; }
     .pv__draft { fill: rgba(217, 119, 6, 0.15); stroke: #d97706; stroke-width: 3; stroke-dasharray: 8 6; vector-effect: non-scaling-stroke; }
@@ -194,13 +199,13 @@ export class PlanViewerComponent {
 
   select(p: PlanPolygon, ev: MouseEvent): void {
     if (this.mode() !== 'view' && this.mode() !== 'move') return;
-    if (p.kind === 'ghost') return;
+    if (p.kind === 'ghost' || p.kind === 'region') return;
     ev.stopPropagation();
     this.polygonSelected.emit(p.id);
   }
 
   grab(p: PlanPolygon, ev: PointerEvent): void {
-    if (this.mode() !== 'move' || p.kind === 'ghost') return;
+    if (this.mode() !== 'move' || p.kind === 'ghost' || p.kind === 'region') return;
     ev.stopPropagation();
     this.host().nativeElement.focus({ preventScroll: true }); // scrolling here would move the target between pointerdown and click
     this.grabbed = p.id;

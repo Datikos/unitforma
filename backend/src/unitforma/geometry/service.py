@@ -27,7 +27,6 @@ from unitforma.tenants.models import (
     Floor,
     GeometryModel,
     Project,
-    Sheet,
     Unit,
     UnitBoundary,
 )
@@ -254,9 +253,8 @@ async def footprints(db: AsyncSession, project: Project) -> list[dict[str, Any]]
                 for (bd,) in await db.execute(
                     select(UnitBoundary)
                     .join(Unit, Unit.id == UnitBoundary.unit_id)
-                    .join(Sheet, Sheet.id == UnitBoundary.sheet_id)
                     .where(
-                        Sheet.floor_id == f.id,
+                        Unit.floor_id == f.id,
                         Unit.lifecycle_status != "removed",
                         UnitBoundary.is_current.is_(True),
                         UnitBoundary.polygon_m.is_not(None),

@@ -594,6 +594,30 @@ export interface paths {
         patch: operations["assign_sheet_floor_api_v1_admin_tenants__tenant_id__sheets__sheet_id__floor_patch"];
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/floors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Sheet Floors
+         * @description Every floor the sheet shows, each optionally limited to a region of the sheet.
+         *
+         *     A split-level or multi-block sheet shows several floors side by side; units drawn on it
+         *     belong to the floor whose region holds them (plan §13.2). Suggested assignments (from
+         *     level markers or the previous revision) become confirmed when they are sent here.
+         */
+        put: operations["set_sheet_floors_api_v1_admin_tenants__tenant_id__sheets__sheet_id__floors_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/calibration": {
         parameters: {
             query?: never;
@@ -1578,6 +1602,8 @@ export interface components {
         BoundaryCreate: {
             /** Ring */
             ring: number[][];
+            /** Floor Id */
+            floor_id?: string | null;
             /**
              * Unit Type
              * @default apartment
@@ -1876,6 +1902,11 @@ export interface components {
             sort_order: number;
             /** Version */
             version: number;
+        };
+        /** FloorRegion */
+        FloorRegion: {
+            /** Ring */
+            ring: number[][];
         };
         /** FloorsBulkCreate */
         FloorsBulkCreate: {
@@ -3086,6 +3117,46 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** SheetFloorIn */
+        SheetFloorIn: {
+            /**
+             * Floor Id
+             * Format: uuid
+             */
+            floor_id: string;
+            region?: components["schemas"]["FloorRegion"] | null;
+        };
+        /** SheetFloorOut */
+        SheetFloorOut: {
+            /**
+             * Floor Id
+             * Format: uuid
+             */
+            floor_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "suggested" | "confirmed";
+            /** Source */
+            source: string;
+            /** Region */
+            region: {
+                [key: string]: unknown;
+            } | null;
+            /** Marker */
+            marker: string | null;
+        };
+        /**
+         * SheetFloorsSet
+         * @description All floors the sheet shows; replaces the current set (empty = the sheet shows none).
+         */
+        SheetFloorsSet: {
+            /** Floors */
+            floors: components["schemas"]["SheetFloorIn"][];
+            /** Version */
+            version: number;
+        };
         /** SheetOut */
         SheetOut: {
             /**
@@ -3132,6 +3203,8 @@ export interface components {
             thumbnail_url?: string | null;
             /** Extract Url */
             extract_url?: string | null;
+            /** Floors */
+            floors?: components["schemas"]["SheetFloorOut"][];
         };
         /** SiteFeatureCreate */
         SiteFeatureCreate: {
@@ -3230,6 +3303,18 @@ export interface components {
              * @default vector_suggest
              */
             source?: string;
+            /**
+             * Method
+             * @default loop
+             * @enum {string}
+             */
+            method?: "fill" | "grown" | "loop";
+            /** Printed Area M2 */
+            printed_area_m2?: number | null;
+            /** Measured Area M2 */
+            measured_area_m2?: number | null;
+            /** Floor Id */
+            floor_id?: string | null;
         };
         /** TenantCreate */
         TenantCreate: {
@@ -4776,6 +4861,42 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SheetAssign"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SheetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_sheet_floors_api_v1_admin_tenants__tenant_id__sheets__sheet_id__floors_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sheet_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SheetFloorsSet"];
             };
         };
         responses: {

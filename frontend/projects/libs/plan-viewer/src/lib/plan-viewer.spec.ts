@@ -30,4 +30,14 @@ describe('PlanViewerComponent', () => {
     c.finishPolygon();
     expect(drawn.length).toBe(1);
   });
+
+  it('draws floor regions but never selects them', async () => {
+    const c = await create();
+    const picked: string[] = [];
+    c.polygonSelected.subscribe((id) => picked.push(id));
+    const ev = new MouseEvent('click');
+    c.select({ id: 'region:f1', ring: [[0, 0], [0.5, 0], [0.5, 1]], kind: 'region' }, ev);
+    c.select({ id: 'u1', ring: [[0, 0], [0.2, 0], [0.2, 0.2]] }, ev);
+    expect(picked).toEqual(['u1']);
+  });
 });

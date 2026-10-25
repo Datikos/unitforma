@@ -14,11 +14,14 @@ from unitforma.api.schemas import (
     RevisionOut,
     SheetAssign,
     SheetCalibrate,
+    SheetFloorOut,
+    SheetFloorsSet,
     SheetOut,
     UploadIntentCreate,
     UploadIntentOut,
 )
 from unitforma.core.errors import ProblemError
+from unitforma.documents import assignments
 from unitforma.documents import service as documents
 from unitforma.identity.authz import Action
 from unitforma.identity.deps import TenantContext, tenant_context
@@ -42,10 +45,19 @@ def _doc_out(d: Document, r) -> DocumentOut:
     return out
 
 
-def _sheet_out(s) -> SheetOut:
-    out = SheetOut.model_validate(s)
-    for k, v in documents.signed_urls(s).items():
-        setattr(out, k, v)
+async def _sheet_out(ctx: TenantContext, s) -> SheetOut:
+    return (await _sheets_out(ctx, [s]))[0]
+
+
+async def _sheets_out(ctx: TenantContext, sheets: list) -> list[SheetOut]:
+    floors = await assignments.list_for_sheets(ctx.session, [s.id for s in sheets])
+    out = []
+    for s in sheets:
+        o = SheetOut.model_validate(s)
+        for k, v in documents.signed_urls(s).items():
+            setattr(o, k, v)
+        o.floors = [SheetFloorOut.model_validate(a) for a in floors.get(s.id, [])]
+        out.append(o)
     return out
 
 
@@ -126,7 +138,7 @@ async def list_sheets(revision_id: uuid.UUID, ctx: Ctx):
     ctx.require("documents", Action.READ)
     rev = await documents.get_revision(ctx.session, ctx.tenant_id, revision_id)
     await _project_of_document(ctx, rev.document_id)
-    return [_sheet_out(s) for s in await documents.list_sheets(ctx.session, revision_id)]
+    return await _sheets_out(ctx, await documents.list_sheets(ctx.session, revision_id))
 
 
 @router.get("/revisions/{revision_id}/download")
@@ -144,7 +156,7 @@ async def get_sheet(sheet_id: uuid.UUID, ctx: Ctx):
     ctx.require("documents", Action.READ)
     sheet = await documents.get_sheet(ctx.session, ctx.tenant_id, sheet_id)
     ctx.require_project(await documents.sheet_project_id(ctx.session, sheet))
-    return _sheet_out(sheet)
+    return await _sheet_out(ctx, sheet)
 
 
 @router.patch("/sheets/{sheet_id}/floor", response_model=SheetOut)
@@ -152,9 +164,32 @@ async def assign_sheet_floor(sheet_id: uuid.UUID, body: SheetAssign, ctx: Ctx):
     ctx.require("mapping", Action.WRITE)
     sheet = await documents.get_sheet(ctx.session, ctx.tenant_id, sheet_id)
     ctx.require_project(await documents.sheet_project_id(ctx.session, sheet))
-    return _sheet_out(
-        await documents.assign_floor(ctx.session, sheet, body.floor_id, body.version, _actor(ctx))
+    await documents.assign_floor(ctx.session, sheet, body.floor_id, body.version, _actor(ctx))
+    return await _sheet_out(ctx, sheet)
+
+
+@router.put("/sheets/{sheet_id}/floors", response_model=SheetOut)
+async def set_sheet_floors(sheet_id: uuid.UUID, body: SheetFloorsSet, ctx: Ctx):
+    """Every floor the sheet shows, each optionally limited to a region of the sheet.
+
+    A split-level or multi-block sheet shows several floors side by side; units drawn on it
+    belong to the floor whose region holds them (plan §13.2). Suggested assignments (from
+    level markers or the previous revision) become confirmed when they are sent here.
+    """
+    ctx.require("mapping", Action.WRITE)
+    sheet = await documents.get_sheet(ctx.session, ctx.tenant_id, sheet_id)
+    ctx.require_project(await documents.sheet_project_id(ctx.session, sheet))
+    await assignments.set_floors(
+        ctx.session,
+        sheet,
+        [
+            {"floor_id": f.floor_id, "region": f.region.model_dump() if f.region else None}
+            for f in body.floors
+        ],
+        body.version,
+        _actor(ctx),
     )
+    return await _sheet_out(ctx, sheet)
 
 
 @router.patch("/sheets/{sheet_id}/calibration", response_model=SheetOut)
@@ -190,18 +225,21 @@ async def calibrate_sheet(sheet_id: uuid.UUID, body: SheetCalibrate, ctx: Ctx):
         action="calibrate",
         after={"m_per_px": cal["m_per_px"], "boundaries_recomputed": n},
     )
-    return _sheet_out(sheet)
+    return await _sheet_out(ctx, sheet)
 
 
 @router.get("/floors/{floor_id}/sheets", response_model=list[SheetOut])
 async def sheets_for_floor(floor_id: uuid.UUID, ctx: Ctx):
     ctx.require("documents", Action.READ)
-    from unitforma.tenants.models import Sheet
+    from unitforma.tenants.models import Sheet, SheetFloor
 
     rows = await ctx.session.execute(
-        select(Sheet).where(Sheet.floor_id == floor_id).order_by(Sheet.created_at)
+        select(Sheet)
+        .join(SheetFloor, SheetFloor.sheet_id == Sheet.id)
+        .where(SheetFloor.floor_id == floor_id, SheetFloor.status == "confirmed")
+        .order_by(Sheet.created_at)
     )
     sheets = list(rows.scalars())
     for s in sheets:
         ctx.require_project(await documents.sheet_project_id(ctx.session, s))
-    return [_sheet_out(s) for s in sheets]
+    return await _sheets_out(ctx, sheets)

@@ -135,3 +135,66 @@ def make_site_plan_pdf() -> bytes:
         + _rect(80, 120, 760, 540)
     )
     return build_pdf([p])
+
+
+# --- split-level sheets (one sheet, three blocks at three levels) -----------------------------
+PT_M_AT_100 = 0.0254 / 72 * 100  # metres per PDF point at 1:100
+
+SPLIT_BLOCKS = [("A", 60.0), ("B", 300.0), ("C", 540.0)]  # block code, left edge (pt)
+SPLIT_APT = (110.0, 140.0)  # apartment width × height (pt)
+SPLIT_LEVELS = [  # per page: (level marker, absolute) for blocks A, B, C
+    [("+0.00", "649.0"), ("+1.00", "650.0"), ("+2.00", "651.0")],
+    [("+3.20", "652.2"), ("+4.20", "653.2"), ("+5.20", "654.2")],
+]
+
+
+def split_apartment_area() -> float:
+    w, h = SPLIT_APT
+    return round(w * PT_M_AT_100 * h * PT_M_AT_100, 1)
+
+
+def split_apartment_rects(page_index: int) -> list[tuple[str, str, float, float, float, float]]:
+    """(block, label number, x0, y0, x1, y1) in PDF points for each apartment on a page."""
+    out = []
+    n = page_index * 6
+    w, h = SPLIT_APT
+    for code, left in SPLIT_BLOCKS:
+        for dx in (0.0, w + 10):
+            n += 1
+            out.append((code, str(n), left + dx, 160.0, left + dx + w, 160.0 + h))
+    return out
+
+
+def make_split_level_pdf() -> bytes:
+    """Three blocks per sheet at stepped levels, ArchiCAD-style zone fills and stamps.
+
+    Page 1: +0.00 / +1.00 / +2.00; page 2: +3.20 / +4.20 / +5.20; page 3: a section with
+    stacked markers. Every page repeats the title block's level range ("-2.55 ... +9.60") at
+    the same place and a caption listing its levels; neither is a level marker of the plan.
+    """
+    area = split_apartment_area()
+    pages = []
+    for pi, page_levels in enumerate(SPLIT_LEVELS):
+        s = _text(40, 560, "TYPICAL PLAN scale 1:100", 12)
+        s += _text(60, 30, "plan at " + ", ".join(m for m, _ in page_levels), 9)
+        s += _text(600, 30, "levels -2.55 to +9.60", 9)
+        for (code, left), (marker, absolute) in zip(SPLIT_BLOCKS, page_levels, strict=True):
+            s += _rect(left, 150, left + 240, 310)  # block outline
+            s += _text(left + 80, 330, f"{marker} ({absolute})")
+            s += _text(left + 100, 360, f"block {code}", 8)
+        for _code, num, x0, y0, x1, y1 in split_apartment_rects(pi):
+            s += f"0.5 0.75 1 rg {x0} {y0} {x1 - x0} {y1 - y0} re f\n"  # zone fill
+            s += _rect(x0, y0, x1, y1)
+            mid = (x0 + x1) / 2
+            s += f"{mid} {y0} m {mid} {y0 + 60} l S\n"  # a partition: the loop is a room
+            s += _text(x0 + 15, y0 + 90, f"bina #{num}")
+            s += _text(x0 + 15, y0 + 75, f"{area} m2")
+        pages.append(s)
+    section = _text(40, 560, "SECTION 1-1 scale 1:100", 12)
+    section += _text(60, 30, "section", 9)
+    section += _text(600, 30, "levels -2.55 to +9.60", 9)
+    for y, m in ((150, "+0.00"), (250, "+3.20"), (350, "+6.40")):
+        section += _text(100, y, m)
+        section += f"60 {y} m 760 {y} l S\n"
+    pages.append(section)
+    return build_pdf(pages)

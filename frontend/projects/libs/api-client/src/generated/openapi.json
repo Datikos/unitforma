@@ -2419,6 +2419,70 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/floors": {
+   "put": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Set Sheet Floors",
+    "description": "Every floor the sheet shows, each optionally limited to a region of the sheet.\n\nA split-level or multi-block sheet shows several floors side by side; units drawn on it\nbelong to the floor whose region holds them (plan \u00a713.2). Suggested assignments (from\nlevel markers or the previous revision) become confirmed when they are sent here.",
+    "operationId": "set_sheet_floors_api_v1_admin_tenants__tenant_id__sheets__sheet_id__floors_put",
+    "parameters": [
+     {
+      "name": "sheet_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Sheet Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SheetFloorsSet"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SheetOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/sheets/{sheet_id}/calibration": {
    "patch": {
     "tags": [
@@ -6161,6 +6225,18 @@
       "minItems": 3,
       "title": "Ring"
      },
+     "floor_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Floor Id"
+     },
      "unit_type": {
       "type": "string",
       "enum": [
@@ -7012,6 +7088,27 @@
      "version"
     ],
     "title": "FloorOut"
+   },
+   "FloorRegion": {
+    "properties": {
+     "ring": {
+      "items": {
+       "items": {
+        "type": "number"
+       },
+       "type": "array"
+      },
+      "type": "array",
+      "maxItems": 200,
+      "minItems": 3,
+      "title": "Ring"
+     }
+    },
+    "type": "object",
+    "required": [
+     "ring"
+    ],
+    "title": "FloorRegion"
    },
    "FloorsBulkCreate": {
     "properties": {
@@ -10758,6 +10855,106 @@
     ],
     "title": "SheetCalibrate"
    },
+   "SheetFloorIn": {
+    "properties": {
+     "floor_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Floor Id"
+     },
+     "region": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/FloorRegion"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "floor_id"
+    ],
+    "title": "SheetFloorIn"
+   },
+   "SheetFloorOut": {
+    "properties": {
+     "floor_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Floor Id"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "suggested",
+       "confirmed"
+      ],
+      "title": "Status"
+     },
+     "source": {
+      "type": "string",
+      "title": "Source"
+     },
+     "region": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Region"
+     },
+     "marker": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Marker"
+     }
+    },
+    "type": "object",
+    "required": [
+     "floor_id",
+     "status",
+     "source",
+     "region",
+     "marker"
+    ],
+    "title": "SheetFloorOut"
+   },
+   "SheetFloorsSet": {
+    "properties": {
+     "floors": {
+      "items": {
+       "$ref": "#/components/schemas/SheetFloorIn"
+      },
+      "type": "array",
+      "maxItems": 20,
+      "title": "Floors"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "floors",
+     "version"
+    ],
+    "title": "SheetFloorsSet",
+    "description": "All floors the sheet shows; replaces the current set (empty = the sheet shows none)."
+   },
    "SheetOut": {
     "properties": {
      "id": {
@@ -10903,6 +11100,13 @@
        }
       ],
       "title": "Extract Url"
+     },
+     "floors": {
+      "items": {
+       "$ref": "#/components/schemas/SheetFloorOut"
+      },
+      "type": "array",
+      "title": "Floors"
      }
     },
     "type": "object",
@@ -11103,6 +11307,50 @@
       "type": "string",
       "title": "Source",
       "default": "vector_suggest"
+     },
+     "method": {
+      "type": "string",
+      "enum": [
+       "fill",
+       "grown",
+       "loop"
+      ],
+      "title": "Method",
+      "default": "loop"
+     },
+     "printed_area_m2": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Printed Area M2"
+     },
+     "measured_area_m2": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Measured Area M2"
+     },
+     "floor_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Floor Id"
      }
     },
     "type": "object",

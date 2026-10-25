@@ -117,6 +117,7 @@ async def create_boundary(sheet_id: uuid.UUID, body: BoundaryCreate, ctx: Ctx):
             revision_id=sheet.revision_id,
             actor=_actor(ctx),
             source=body.source,
+            floor_id=body.floor_id,
         )
     except ValueError as e:
         raise ProblemError(422, "Invalid boundary", str(e)) from e
@@ -135,7 +136,10 @@ async def suggest_boundaries(sheet_id: uuid.UUID, ctx: Ctx):
     ctx.require("mapping", Action.READ)
     sheet = await documents.get_sheet(ctx.session, ctx.tenant_id, sheet_id)
     ctx.require_project(await documents.sheet_project_id(ctx.session, sheet))
-    return [SuggestionOut(**c.as_dict()) for c in mapping.suggest_for_sheet(sheet)]
+    return [
+        SuggestionOut(**c.as_dict(), floor_id=fid)
+        for c, fid in await mapping.suggest_for_sheet(ctx.session, sheet)
+    ]
 
 
 @router.patch("/boundaries/{boundary_id}", response_model=BoundaryOut)

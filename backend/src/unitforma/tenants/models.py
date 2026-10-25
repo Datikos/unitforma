@@ -296,6 +296,28 @@ class Sheet(TimestampMixin, Base):
     version: Mapped[int] = mapped_column(default=1)
 
 
+class SheetFloor(TimestampMixin, Base):
+    """One floor shown on a sheet, optionally limited to a region of it (plan §13.2)."""
+
+    __tablename__ = "sheet_floors"
+    __table_args__ = (UniqueConstraint("sheet_id", "floor_id", name="uq_sheet_floor"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    sheet_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("sheets.id", ondelete="CASCADE"), index=True
+    )
+    floor_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("floors.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), default="confirmed")
+    source: Mapped[str] = mapped_column(String(20), default="manual")
+    region: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
+    marker: Mapped[str | None] = mapped_column(String(20))
+    sort_order: Mapped[int] = mapped_column(default=0)
+
+
 class Unit(TimestampMixin, Base):
     __tablename__ = "units"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)

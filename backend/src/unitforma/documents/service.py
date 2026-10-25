@@ -12,7 +12,7 @@ from unitforma.audit.service import write_audit
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
 from unitforma.storage.service import get_storage, object_key, safe_filename
-from unitforma.tenants.models import Building, Document, DocumentRevision, Floor, Sheet
+from unitforma.tenants.models import Building, Document, DocumentRevision, Sheet
 
 ALLOWED_MIME = {
     "application/pdf": ".pdf",
@@ -232,34 +232,11 @@ async def assign_floor(
     version: int,
     actor: tuple[uuid.UUID, str],
 ) -> Sheet:
-    if sheet.version != version:
-        raise ProblemError(409, "Conflict", f"Sheet changed concurrently (version {sheet.version})")
-    if floor_id is not None:
-        project_id = await sheet_project_id(db, sheet)
-        ok = (
-            await db.execute(
-                select(Floor.id)
-                .join(Building, Building.id == Floor.building_id)
-                .where(Floor.id == floor_id, Building.project_id == project_id)
-            )
-        ).first()
-        if not ok:
-            raise ProblemError(422, "Floor does not belong to this project")
-    before = {"floor_id": str(sheet.floor_id) if sheet.floor_id else None}
-    sheet.floor_id = floor_id
-    sheet.assignment_status = "confirmed" if floor_id else "rejected"
-    sheet.version += 1
-    await write_audit(
-        db,
-        tenant_id=sheet.tenant_id,
-        actor_user_id=actor[0],
-        actor_role=actor[1],
-        entity_type="sheet",
-        entity_id=sheet.id,
-        action="assign_floor",
-        before=before,
-        after={"floor_id": str(floor_id) if floor_id else None},
-    )
+    """Single-floor assignment (the common case): replaces the sheet's floors with one, or none."""
+    from unitforma.documents import assignments
+
+    items = [{"floor_id": floor_id, "region": None}] if floor_id is not None else []
+    await assignments.set_floors(db, sheet, items, version, actor)
     return sheet
 
 

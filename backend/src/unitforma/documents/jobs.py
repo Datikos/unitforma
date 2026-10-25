@@ -10,10 +10,10 @@ from sqlalchemy import select
 
 from unitforma.core.db import tenant_session
 from unitforma.core.ids import new_id
-from unitforma.documents import processing
+from unitforma.documents import assignments, levels, processing
 from unitforma.mapping.jobs import propose_revision_diff
 from unitforma.storage.service import get_storage
-from unitforma.tenants.models import Document, DocumentRevision, Floor, Sheet
+from unitforma.tenants.models import Building, Document, DocumentRevision, Floor, Sheet
 
 log = structlog.get_logger()
 
@@ -66,14 +66,18 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
             await db.execute(select(Document).where(Document.id == rev.document_id))
         ).scalar_one()
         base_key = rev.object_key.rsplit("/", 1)[0]
-        mime, page_count, building_id, project_id = (
+        mime, page_count, building_id, project_id, doc_kind = (
             info.mime,
             info.page_count,
             doc.building_id,
             doc.project_id,
+            doc.kind,
         )
 
     processed = 0
+    markers: dict[int, list[levels.Marker]] = {}
+    page_hints: dict[int, dict] = {}
+    page_lines: dict[int, int] = {}
     for page_no in range(1, page_count + 1):
         try:
             png, thumb, w, h = processing.rasterize_page(data, mime, page_no)
@@ -102,20 +106,17 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
             )
             sheet.raster_width, sheet.raster_height = w, h
             sheet.hints = extract["hints"]
-            level = processing.suggest_floor_level(extract["hints"])
-            if level is not None and building_id:
-                fl = (
-                    await db.execute(
-                        select(Floor.id).where(
-                            Floor.building_id == building_id, Floor.level == level
-                        )
-                    )
-                ).first()
-                if fl:
-                    sheet.suggested_floor_id = fl[0]
-                    if sheet.assignment_status == "unassigned":
-                        sheet.assignment_status = "suggested"
+        markers[page_no] = levels.markers_from_words(extract.get("words") or [])
+        page_hints[page_no] = extract["hints"]
+        page_lines[page_no] = int((extract.get("vectors") or {}).get("lines") or 0)
         processed += 1
+
+    # a building's documents, or floor plans filed at project level (a multi-block set);
+    # site plans, renders and schedules show no floor
+    if processed and (building_id or doc_kind == "floor_plan"):
+        await _suggest_floors(
+            tenant_id, revision_id, project_id, building_id, markers, page_hints, page_lines
+        )
 
     async with tenant_session(tenant_id, scope="tenant") as db:
         rev = (
@@ -143,3 +144,80 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
             log.warning("mapping.diff_failed", revision_id=str(revision_id), error=str(e))
             result["diff"] = {"error": str(e)[:500]}
     return result
+
+
+async def _suggest_floors(
+    tenant_id: uuid.UUID,
+    revision_id: uuid.UUID,
+    project_id: uuid.UUID,
+    building_id: uuid.UUID | None,
+    markers: dict[int, list[levels.Marker]],
+    page_hints: dict[int, dict],
+    page_lines: dict[int, int],
+) -> None:
+    """Page → floor suggestions for the whole revision (plan §13.2 "Page → floor").
+
+    Level markers that repeat in the title block are dropped across pages first; each page's
+    remaining markers suggest the floors with matching elevations, each with the part of the
+    sheet nearest its marker. Floor words ("Level 3") and a lone ±0.00 keep working on
+    projects without elevations. Confirmed assignments are never replaced.
+    """
+    kept = levels.drop_repeated(markers)
+    async with tenant_session(tenant_id, scope="tenant") as db:
+        floors = [
+            levels.FloorRef(
+                id=f.id,
+                building_id=f.building_id,
+                level=f.level,
+                elevation_m=float(f.elevation_m) if f.elevation_m is not None else None,
+            )
+            for f in (
+                await db.execute(
+                    select(Floor)
+                    .join(Building, Building.id == Floor.building_id)
+                    .where(Building.project_id == project_id)
+                )
+            ).scalars()
+        ]
+        sheets = {
+            s.page_no: s
+            for s in (
+                await db.execute(select(Sheet).where(Sheet.revision_id == revision_id))
+            ).scalars()
+        }
+        for page_no, page_markers in kept.items():
+            sheet = sheets.get(page_no)
+            if sheet is None:
+                continue
+            hints = dict(page_hints.get(page_no) or {})
+            hints["level_markers"] = [m.as_dict() for m in page_markers]
+            sheet.hints = hints
+            suggestions: list[dict] = []
+            stacked = levels.is_stacked(page_markers)
+            if page_markers and not stacked:
+                matched = levels.match_floors(page_markers, floors, building_id)
+                aspect = (
+                    float(sheet.height_pt) / float(sheet.width_pt)
+                    if sheet.width_pt and sheet.height_pt
+                    else 1.0
+                )
+                suggestions = levels.floor_regions(matched, aspect=aspect)
+            # projects without elevations: floor words, or a lone ±0.00 (entrance level);
+            # never on text-only sheets (code-compliance tables mention floors too)
+            if (
+                not suggestions
+                and building_id
+                and page_lines.get(page_no, 0) > 0
+                and not stacked
+                and (
+                    hints.get("floor_numbers") or not any(f.elevation_m is not None for f in floors)
+                )
+            ):
+                level = processing.suggest_floor_level(
+                    {**hints, "levels": [m.text for m in page_markers]}
+                )
+                own = [f for f in floors if f.building_id == building_id and f.level == level]
+                if level is not None and own:
+                    suggestions = [{"floor_id": own[0].id, "marker": None, "region": None}]
+            if suggestions:
+                await assignments.replace_suggestions(db, sheet, suggestions, "level_marker")

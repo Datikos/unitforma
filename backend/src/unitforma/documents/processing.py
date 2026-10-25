@@ -114,12 +114,14 @@ def extract_page(data: bytes, mime: str, page_no: int) -> dict[str, Any]:
             "vectors": {"lines": 0, "rects": 0, "curves": 0},
             "segments": [],
             "rects": [],
+            "fills": [],
             "hints": {},
         }
     import pdfplumber
 
     with pdfplumber.open(io.BytesIO(data)) as pdf:
         page = pdf.pages[page_no - 1]
+        page_w, page_h = page.width, page.height
         text = page.extract_text() or ""
         words = [
             {
@@ -142,6 +144,7 @@ def extract_page(data: bytes, mime: str, page_no: int) -> dict[str, Any]:
             ]
             for ln in page.lines[:20000]
         ]
+        fills = _fills(page)
         # rectangles are closed loops already; the suggestion engine turns them into faces
         rects = [
             [
@@ -158,8 +161,64 @@ def extract_page(data: bytes, mime: str, page_no: int) -> dict[str, Any]:
         "vectors": vectors,
         "segments": segments,
         "rects": rects,
+        "fills": fills,
+        "page_pt": [round(float(page_w), 3), round(float(page_h), 3)],
         "hints": hints_from_text(text, vectors),
     }
+
+
+def _fills(page: Any, *, max_fills: int = 3000, min_area: float = 0.00002) -> list[dict[str, Any]]:
+    """Filled, non-dark closed shapes: zones and hatches CAD tools draw under rooms and units.
+
+    ArchiCAD zones, Revit area fills and AutoCAD hatches export as filled polygons that trace a
+    unit exactly; near-black fills are walls and columns and are left out. Normalised rings,
+    largest first, with the fill colour (0–1 RGB) so the engine can tell zone families apart.
+    """
+    w, h = float(page.width), float(page.height)
+    out: list[dict[str, Any]] = []
+    for obj in list(page.curves) + list(page.rects):
+        if not obj.get("fill"):
+            continue
+        rgb = _rgb(obj.get("non_stroking_color"))
+        if rgb is not None and sum(rgb) / 3 < 0.2:
+            continue
+        pts = obj.get("pts")
+        if not pts:
+            x0, x1, t, b = obj["x0"], obj["x1"], obj["top"], obj["bottom"]
+            pts = [(x0, t), (x1, t), (x1, b), (x0, b)]
+        ring = [[round(float(x) / w, 5), round(float(y) / h, 5)] for x, y in pts]
+        if len(ring) < 3 or abs(_shoelace(ring)) < min_area:
+            continue
+        out.append({"ring": ring, "rgb": rgb})
+    out.sort(key=lambda f: -abs(_shoelace(f["ring"])))
+    return out[:max_fills]
+
+
+def _rgb(color: Any) -> list[float] | None:
+    """pdfplumber colours: gray (1 value), RGB (3) or CMYK (4) tuples → RGB in 0–1."""
+    if color is None:
+        return None
+    if isinstance(color, (int, float)):
+        color = (color,)
+    try:
+        c = [float(v) for v in color]
+    except (TypeError, ValueError):
+        return None
+    if len(c) == 1:
+        return [round(c[0], 3)] * 3
+    if len(c) == 3:
+        return [round(v, 3) for v in c]
+    if len(c) == 4:
+        k = c[3]
+        return [round((1 - v) * (1 - k), 3) for v in c[:3]]
+    return None
+
+
+def _shoelace(ring: list[list[float]]) -> float:
+    return 0.5 * sum(
+        ring[i][0] * ring[(i + 1) % len(ring)][1] - ring[(i + 1) % len(ring)][0] * ring[i][1]
+        for i in range(len(ring))
+    )
 
 
 def hints_from_text(text: str, vectors: dict[str, int] | None = None) -> dict[str, Any]:

@@ -331,6 +331,17 @@ class Calibration(BaseModel):
     distance_m: float = Field(gt=0)
 
 
+Ring = list[list[float]]
+
+
+class SheetFloorOut(ORM):
+    floor_id: uuid.UUID
+    status: Literal["suggested", "confirmed"]
+    source: str
+    region: dict[str, Any] | None
+    marker: str | None
+
+
 class SheetOut(ORM):
     id: uuid.UUID
     revision_id: uuid.UUID
@@ -349,10 +360,27 @@ class SheetOut(ORM):
     raster_url: str | None = None
     thumbnail_url: str | None = None
     extract_url: str | None = None
+    floors: list[SheetFloorOut] = Field(default_factory=list)
 
 
 class SheetAssign(BaseModel):
     floor_id: uuid.UUID | None
+    version: int
+
+
+class FloorRegion(BaseModel):
+    ring: Ring = Field(min_length=3, max_length=200)
+
+
+class SheetFloorIn(BaseModel):
+    floor_id: uuid.UUID
+    region: FloorRegion | None = None
+
+
+class SheetFloorsSet(BaseModel):
+    """All floors the sheet shows; replaces the current set (empty = the sheet shows none)."""
+
+    floors: list[SheetFloorIn] = Field(max_length=20)
     version: int
 
 
@@ -362,11 +390,12 @@ class SheetCalibrate(BaseModel):
 
 
 # --- units & mapping ----------------------------------------------------------------------
-Ring = list[list[float]]
 
 
 class BoundaryCreate(BaseModel):
     ring: Ring = Field(min_length=3, max_length=500)
+    # on a sheet showing several floors; default: the floor whose region holds the outline
+    floor_id: uuid.UUID | None = None
     unit_type: Literal["apartment", "commercial", "parking", "storage"] = "apartment"
     code: str | None = Field(default=None, max_length=40)
     label: str | None = Field(default=None, max_length=80)
@@ -481,6 +510,10 @@ class SuggestionOut(BaseModel):
     confidence: float
     area_norm: float
     source: str = "vector_suggest"
+    method: Literal["fill", "grown", "loop"] = "loop"
+    printed_area_m2: float | None = None
+    measured_area_m2: float | None = None
+    floor_id: uuid.UUID | None = None
 
 
 class ProposalItemOut(ORM):

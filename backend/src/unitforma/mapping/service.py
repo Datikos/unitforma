@@ -12,12 +12,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
+from shapely.geometry import Polygon
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from unitforma.audit.service import write_audit
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
+from unitforma.documents import assignments, levels
 from unitforma.inventory import geometry
 from unitforma.inventory import service as inventory
 from unitforma.mapping import diff, suggest
@@ -48,8 +50,45 @@ def load_extract(sheet: Sheet) -> dict[str, Any]:
         return {}
 
 
-def suggest_for_sheet(sheet: Sheet) -> list[suggest.Candidate]:
-    return suggest.closed_loops(load_extract(sheet))
+def sheet_metres(sheet: Sheet, extract: dict[str, Any]) -> tuple[float, float] | None:
+    """Sheet size in metres: the calibration if there is one, else the single printed scale."""
+    cal = sheet.calibration or {}
+    if (
+        sheet.calibration_status in ("calibrated", "inherited")
+        and cal.get("m_per_px")
+        and sheet.raster_width
+        and sheet.raster_height
+    ):
+        m = float(cal["m_per_px"])
+        return (m * sheet.raster_width, m * sheet.raster_height)
+    scales = (sheet.hints or {}).get("scales") or []
+    if len(scales) != 1:
+        return None
+    if not extract.get("page_pt") and sheet.width_pt and sheet.height_pt:
+        extract = {**extract, "page_pt": [float(sheet.width_pt), float(sheet.height_pt)]}
+    return suggest.page_metres(extract, int(scales[0]))
+
+
+def candidates_for_sheet(sheet: Sheet) -> list[suggest.Candidate]:
+    extract = load_extract(sheet)
+    return suggest.closed_loops(extract, page_m=sheet_metres(sheet, extract))
+
+
+async def suggest_for_sheet(
+    db: AsyncSession, sheet: Sheet
+) -> list[tuple[suggest.Candidate, uuid.UUID | None]]:
+    """Candidates with the floor each would be created on (by region), if the sheet decides it."""
+    cands = candidates_for_sheet(sheet)
+    conf = await assignments.confirmed(db, sheet)
+    pairs = [(a.floor_id, a.region) for a in conf]
+    out = []
+    for c in cands:
+        fid = None
+        if pairs:
+            centre = Polygon(c.ring).representative_point()
+            fid = levels.region_floor((centre.x, centre.y), pairs)
+        out.append((c, fid))
+    return out
 
 
 async def current_boundaries(
@@ -68,12 +107,12 @@ async def current_boundaries(
     return [(b, u) for b, u in rows]
 
 
-def inherit_sheet_setup(old: Sheet, new: Sheet) -> None:
-    """Carry floor assignment and calibration over to the new revision's page as suggestions."""
-    if new.floor_id is None and old.floor_id is not None and new.suggested_floor_id is None:
-        new.suggested_floor_id = old.floor_id
-        if new.assignment_status == "unassigned":
-            new.assignment_status = "suggested"
+async def inherit_sheet_setup(db: AsyncSession, old: Sheet, new: Sheet) -> None:
+    """Carry floor assignments (with regions) and calibration over to the new revision's page.
+
+    Floors arrive as suggestions; accepting a diff item confirms the unit's floor.
+    """
+    await assignments.inherit(db, old, new)
     if (
         old.calibration
         and old.calibration_status == "calibrated"
@@ -127,12 +166,12 @@ async def build_proposal(
         os_ = old_sheets.get(ns.page_no)
         if os_ is None:
             continue
-        inherit_sheet_setup(os_, ns)
+        await inherit_sheet_setup(db, os_, ns)
         olds = await current_boundaries(db, os_.id)
         if not olds:
             continue
         pages_compared += 1
-        cands = suggest.closed_loops(load_extract(ns))
+        cands = candidates_for_sheet(ns)
         old_in = [
             diff.OldBoundary(
                 boundary_id=str(b.id),
@@ -239,24 +278,36 @@ async def _refresh_status(db: AsyncSession, proposal: MappingProposal) -> None:
 
 
 async def _ensure_floor(db: AsyncSession, sheet: Sheet, wanted_floor_id: uuid.UUID | None) -> None:
-    """Accepting a diff item implies the page is the same floor as before: confirm it."""
-    if sheet.floor_id is not None:
-        if wanted_floor_id is not None and sheet.floor_id != wanted_floor_id:
-            raise ProblemError(
-                409,
-                "Sheet is assigned to another floor",
-                "The new page is assigned to a different floor than the unit it should replace",
-            )
+    """Accepting a diff item implies the page shows the unit's floor: confirm that floor.
+
+    The floor must already be on the page (inherited or suggested from level markers, or
+    confirmed); a floor the page was never linked to needs the reviewer's assignment first.
+    For a new unit (no wanted floor) the page's suggestions are confirmed when it has no
+    confirmed floor yet.
+    """
+    assigns = await assignments.list_for_sheet(db, sheet.id)
+    if wanted_floor_id is not None:
+        match = next((a for a in assigns if a.floor_id == wanted_floor_id), None)
+        if match is None:
+            if any(a.status == "confirmed" for a in assigns):
+                raise ProblemError(
+                    409,
+                    "Sheet is assigned to another floor",
+                    "The new page is not assigned to the floor of the unit it should replace",
+                )
+            fl = (
+                await db.execute(select(Floor).where(Floor.id == wanted_floor_id))
+            ).scalar_one_or_none()
+            if fl is None:
+                raise ProblemError(409, "The unit's floor no longer exists")
+        await assignments.confirm(db, sheet, wanted_floor_id, "diff_accept")
         return
-    floor_id = wanted_floor_id or sheet.suggested_floor_id
-    if floor_id is None:
+    if any(a.status == "confirmed" for a in assigns):
+        return
+    if not assigns:
         raise ProblemError(409, "Assign the new sheet to a floor before accepting this item")
-    fl = (await db.execute(select(Floor).where(Floor.id == floor_id))).scalar_one_or_none()
-    if fl is None:
-        raise ProblemError(409, "Suggested floor no longer exists")
-    sheet.floor_id = floor_id
-    sheet.assignment_status = "confirmed"
-    sheet.version += 1
+    for a in assigns:
+        await assignments.confirm(db, sheet, a.floor_id, "diff_accept")
 
 
 async def _unit(db: AsyncSession, unit_id: uuid.UUID) -> Unit:
