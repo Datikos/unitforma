@@ -49,6 +49,7 @@ export const PROJECT_MENU: { title: string | null; items: Omit<MenuItem, 'link'>
     title: 'Sales',
     items: [
       { key: 'inventory', label: 'Inventory & prices', icon: 'lucideTable' },
+      { key: 'layouts', label: 'Layouts & renders', icon: 'lucideLayoutGrid' },
       { key: 'imports', label: 'Import prices', icon: 'lucideFileSpreadsheet' },
       { key: 'sales-setup', label: 'Plans & promotions', icon: 'lucideHandCoins' },
     ],
@@ -66,6 +67,7 @@ export const PROJECT_SEGMENT: Record<string, string> = {
   massing: 'massing',
   units: 'units',
   inventory: 'inventory',
+  layouts: 'layouts',
   imports: 'imports',
   'sales-setup': 'sales-setup',
   publish: 'publish',

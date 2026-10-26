@@ -814,8 +814,10 @@ class InventoryRow(BaseModel):
     orientation: str | None
     entrance: str | None = Field(default=None, description="Staircase; public like the floor")
     layout: str | None = Field(
-        default=None, description="Layout code shared by units with the same plan (ADR-0016)"
+        default=None, description="Code of the unit's layout in the project registry (ADR-0022)"
     )
+    layout_id: uuid.UUID | None = None
+    layout_name: str | None = None
     wall_colour: str | None = Field(
         default=None, description="Wall finish: a RAL code or a hex colour, shown to buyers"
     )
@@ -824,7 +826,7 @@ class InventoryRow(BaseModel):
     public_fields: dict[str, bool]
     public_field_overrides: dict[str, bool]
     areas: dict[str, Decimal]
-    media_count: int
+    media_count: int = Field(description="The unit's own ready media; layout media not counted")
     version: int = Field(description="Sales row version; 0 = no sales data entered yet")
     updated_at: datetime | None
 
@@ -847,7 +849,9 @@ class SalesChanges(BaseModel):
     bathrooms: int | None = Field(default=None, ge=0, le=100)
     orientation: str | None = Field(default=None, max_length=20)
     entrance: str | None = Field(default=None, max_length=20)
-    layout: str | None = Field(default=None, max_length=40)
+    layout: str | None = Field(
+        default=None, max_length=40, description="A code from the layout registry; null unlinks"
+    )
     wall_colour: str | None = Field(default=None, max_length=40)
     public_fields: dict[PublicFieldKey, bool] | None = None
 
@@ -1010,7 +1014,8 @@ class MediaUpdate(BaseModel):
 
 class MediaOut(ORM):
     id: uuid.UUID
-    unit_id: uuid.UUID
+    unit_id: uuid.UUID | None = Field(default=None, description="Owner, or null for layout media")
+    layout_id: uuid.UUID | None = Field(default=None, description="Owner when a layout's media")
     kind: str
     file_name: str
     mime: str
@@ -1035,6 +1040,48 @@ class MediaIntentOut(BaseModel):
 
 class MediaOrder(BaseModel):
     ids: list[uuid.UUID] = Field(min_length=1, max_length=500)
+
+
+# --- layout registry (ADR-0022) ------------------------------------------------------------------
+class LayoutIn(BaseModel):
+    code: str = Field(min_length=1, max_length=40, description="Unique per project, without case")
+    name: str | None = Field(default=None, max_length=120)
+
+
+class LayoutUpdate(BaseModel):
+    code: str | None = Field(default=None, min_length=1, max_length=40)
+    name: str | None = Field(default=None, max_length=120)
+    version: int
+
+
+class LayoutUnitOut(BaseModel):
+    unit_id: uuid.UUID
+    code: str
+    availability: str
+    building_code: str
+    floor_level: int
+
+
+class LayoutOut(ORM):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    code: str
+    name: str | None
+    version: int
+    created_at: datetime
+    updated_at: datetime
+    units: list[LayoutUnitOut] = Field(description="Linked units by code")
+    media_count: int
+    public_media_count: int
+    cover_url: str | None = Field(description="Signed URL of the first public image, or null")
+
+
+class LayoutRenderRequest(BaseModel):
+    note: str | None = Field(default=None, max_length=500)
+    unit_id: uuid.UUID | None = Field(
+        default=None,
+        description="The member whose outline is cropped; default: the first by code with one",
+    )
 
 
 class PriceHistoryOut(ORM):
@@ -1308,6 +1355,8 @@ class RenderOut(ORM):
     media_id: uuid.UUID | None
     partner_unit_id: uuid.UUID | None = None
     partner_code: str | None = None
+    layout_id: uuid.UUID | None = Field(default=None, description="Set when the layout owns it")
+    source_code: str | None = Field(default=None, description="Unit whose outline was cropped")
     requested_by: uuid.UUID | None
     reviewed_by: uuid.UUID | None
     created_at: datetime

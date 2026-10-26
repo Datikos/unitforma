@@ -343,8 +343,18 @@ import { UnitSalesStore } from './unit-sales.store';
                     (ngModelChange)="store.set('layout', $event)"
                     name="layout"
                     maxlength="40"
-                    placeholder="Type A"
-                /></mat-form-field>
+                    list="uf-layout-codes"
+                    placeholder="L1"
+                  />
+                  <datalist id="uf-layout-codes">
+                    @for (l of store.layouts(); track l.id) {
+                      <option [value]="l.code">{{ l.name ?? '' }}</option>
+                    }
+                  </datalist>
+                  <mat-hint
+                    >From the <a routerLink="../../layouts">Layouts</a> registry</mat-hint
+                  ></mat-form-field
+                >
                 <mat-form-field
                   appearance="outline"
                   class="num"
@@ -514,14 +524,18 @@ import { UnitSalesStore } from './unit-sales.store';
               } @else {
                 <p class="uf-hint">The only unit on this floor.</p>
               }
-              @if (store.layoutMates().length) {
+              @if (r.layout) {
                 <p class="uf-field-note">
-                  Same layout {{ r.layout }}:
+                  Layout <a routerLink="../../layouts">{{ r.layout }}</a
+                  >{{ r.layout_name ? ' (' + r.layout_name + ')' : '' }}:
                   @for (n of store.layoutMates(); track n.unit_id; let last = $last) {
                     <a [routerLink]="['..', n.unit_id]">{{ n.code }}</a
                     >{{ last ? '' : ', ' }}
                   }
-                  · they show this unit's public media until they get their own.
+                  @if (!store.layoutMates().length) {
+                    no other unit yet
+                  }
+                  · every linked unit shows the layout's media after its own.
                 </p>
               }
             </uf-section-card>

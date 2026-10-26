@@ -69,6 +69,10 @@ class Lookups:
     promotion_ids: set[uuid.UUID]
     promotion_by_name: dict[str, uuid.UUID]
     promotion_names: dict[uuid.UUID, str]
+    # the layout registry (ADR-0022): lower-cased code → (id, code as registered, name)
+    layouts: dict[str, tuple[uuid.UUID, str, str | None]] = field(default_factory=dict)
+    layout_codes: dict[uuid.UUID, str] = field(default_factory=dict)
+    layout_names: dict[uuid.UUID, str | None] = field(default_factory=dict)
 
 
 @dataclass
@@ -254,6 +258,16 @@ def _same(field_name: str, a: Any, b: Any) -> bool:
     return a == b
 
 
+def normalise(changes: dict[str, Any], lookups: Lookups) -> dict[str, Any]:
+    """Values typed by a person, as the registry spells them: a layout code without case."""
+    out = dict(changes)
+    v = out.get("layout")
+    if isinstance(v, str):
+        hit = lookups.layouts.get(v.strip().lower())
+        out["layout"] = hit[1] if hit else v.strip()
+    return out
+
+
 def diff(current: Current, changes: dict[str, Any]) -> list[FieldDiff]:
     out = []
     for k, v in changes.items():
@@ -321,6 +335,11 @@ def validate(
         elif f == "layout":
             if v is not None and (not isinstance(v, str) or not v.strip() or len(v) > 40):
                 errors.append("layout is a code of 1 to 40 characters")
+            elif v is not None and v.strip().lower() not in lookups.layouts:
+                errors.append(
+                    f"layout {v.strip()} is not in the project's layout registry; "
+                    "create it on the Layouts page first"
+                )
         elif f == "wall_colour":
             if v is not None and (not isinstance(v, str) or not v.strip() or len(v) > 40):
                 errors.append("wall_colour is a RAL code or a hex colour of 1 to 40 characters")

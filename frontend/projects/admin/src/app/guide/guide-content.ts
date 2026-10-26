@@ -31,6 +31,7 @@ export const GUIDE_ORDER = [
   'units',
   'inventory',
   'unit-sales',
+  'layouts',
   'imports',
   'sales-setup',
   'publish',
@@ -334,7 +335,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
     tips: [
       'An empty price means "on request" on the portal; never type 0.',
       'Entrance (staircase) is public like the floor: buyers filter by it once they pick a building.',
-      'Layout is one short code per plan type (for example L1). Units that share it share their renders in the portal, so set it only when the plans are the same.',
+      'Layout picks a code from the Layouts registry (for example L1). Units linked to one layout show its media in the portal after their own, so link only units with the same plan.',
     ],
   },
   'unit-sales': {
@@ -352,8 +353,8 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
         does: 'The floor plan around the unit with every outline coloured by availability (green available, amber reserved, red sold, grey not for sale); a click on a neighbour opens it, "Open the sheet" goes to the drawing.',
       },
       {
-        name: 'Same floor / same layout',
-        does: "Links to the other units of the floor as availability chips, and to the units sharing the layout code, which show this unit's public media until they get their own.",
+        name: 'Same floor / layout',
+        does: 'Links to the other units of the floor as availability chips, and to the layout this unit belongs to with the other units linked to it.',
       },
       {
         name: 'Price per m²',
@@ -369,7 +370,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
       {
         name: 'Layout',
-        does: 'The plan-type code shared with identical units (1 to 40 characters). A unit without media of its own shows the public media of the first unit with the same code.',
+        does: "The plan type from the Layouts registry, picked from the list (a code not in the registry is refused). The portal shows the layout's public media after the unit's own; clearing the field unlinks the unit.",
       },
       {
         name: 'Walls (RAL or hex)',
@@ -381,12 +382,49 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
       {
         name: 'Generate 3D plan render',
-        does: 'Sends the plan crop of this unit to an image model and lists the result for review. Approve publishes it as a labelled, generated image (shared with the units of the same layout code); Reject deletes it. Off until the installation has an image provider (ADR-0017).',
+        does: 'Sends the plan crop of this unit to an image model and lists the result for review. Approve publishes it as a labelled, generated image of this unit only; a render for every unit of a plan type is made once on the Layouts page. Reject deletes it. Off until the installation has an image provider (ADR-0017).',
       },
     ],
     roles: SALES,
     result: 'Published units show the new values on the next publication.',
     tips: ['Entrance (staircase) is shown to buyers next to the floor; it has no privacy switch.'],
+  },
+  layouts: {
+    title: 'Layouts & renders',
+    icon: 'lucideLayoutGrid',
+    purpose:
+      'The registry of plan types of the project (ADR-0022): one card per layout with its code, name, the units linked to it and the media every one of them shows. Upload a render or photo once per plan type, or generate a 3D plan render once and review it here.',
+    controls: [
+      {
+        name: 'New layout',
+        does: 'A code (1 to 40 characters, unique in the project without case) and an optional name such as "Two rooms, corner".',
+      },
+      {
+        name: 'Units',
+        does: 'The linked units as availability chips; each opens its sales page. Link or unlink a unit on its sales page or in the inventory grid (Layout column).',
+      },
+      {
+        name: 'Media',
+        does: "Renders, photos and documents owned by the layout: public ones reach every linked unit on the portal after the unit's own media, with the layout code shown to buyers.",
+      },
+      {
+        name: 'Generate 3D plan render',
+        does: "Crops the plan of one linked unit (the first with an outline, or the one you pick) and asks the image model once for the layout; approve publishes it to every linked unit. Counts against the tenant's daily render cap.",
+      },
+      {
+        name: 'Rename',
+        does: 'Changes the code or the name; every linked unit follows the new code.',
+      },
+      {
+        name: 'Delete',
+        does: "Refused while units are linked; the dialog offers to unlink them. The layout's media files are removed at once.",
+      },
+    ],
+    roles: SALES,
+    result: 'Published units show the layout media on the next publication.',
+    tips: [
+      'A render made on a unit page belongs to that unit only (for example two apartments joined); make the shared one here.',
+    ],
   },
   imports: {
     title: 'Import prices',

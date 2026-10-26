@@ -14,6 +14,11 @@ export type MemberUpdate = Schemas['MemberUpdate'];
 export type RenderOut = Schemas['RenderOut'];
 export type RendersOut = Schemas['RendersOut'];
 export type RenderRequest = Schemas['RenderRequest'];
+export type LayoutOut = Schemas['LayoutOut'];
+export type LayoutIn = Schemas['LayoutIn'];
+export type LayoutUpdate = Schemas['LayoutUpdate'];
+export type LayoutUnitOut = Schemas['LayoutUnitOut'];
+export type LayoutRenderRequest = Schemas['LayoutRenderRequest'];
 export type SetupOut = Schemas['SetupOut'];
 export type SetupStepOut = Schemas['SetupStepOut'];
 export type InvitationCreate = Schemas['InvitationCreate'];
@@ -600,6 +605,48 @@ export class UnitformaApi {
   /** The setup checklist: ordered steps with status, detail and the screen that completes each. */
   projectSetup(tenantId: string, projectId: string): Promise<SetupOut> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup`);
+  }
+  /** The layout registry of a project (ADR-0022): plan types that own media shared by their units. */
+  listLayouts(tenantId: string, projectId: string): Promise<LayoutOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/layouts`);
+  }
+  createLayout(tenantId: string, projectId: string, body: LayoutIn): Promise<LayoutOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/layouts`, body);
+  }
+  getLayout(tenantId: string, layoutId: string): Promise<LayoutOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}`);
+  }
+  updateLayout(tenantId: string, layoutId: string, body: LayoutUpdate): Promise<LayoutOut> {
+    return this.patch(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}`, body);
+  }
+  /** Refused with 409 `layout-in-use` while units link to it unless `unlinkUnits`. */
+  deleteLayout(tenantId: string, layoutId: string, unlinkUnits = false): Promise<void> {
+    return this.delete(
+      `${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}${unlinkUnits ? '?unlink_units=true' : ''}`,
+    );
+  }
+  listLayoutMedia(tenantId: string, layoutId: string): Promise<MediaOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}/media`);
+  }
+  createLayoutMedia(
+    tenantId: string,
+    layoutId: string,
+    body: MediaCreate,
+  ): Promise<MediaIntentOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}/media`, body);
+  }
+  reorderLayoutMedia(tenantId: string, layoutId: string, ids: string[]): Promise<MediaOut[]> {
+    return this.put(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}/media/order`, { ids });
+  }
+  listLayoutRenders(tenantId: string, layoutId: string): Promise<RendersOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}/renders`);
+  }
+  requestLayoutRender(
+    tenantId: string,
+    layoutId: string,
+    body: LayoutRenderRequest,
+  ): Promise<RenderOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}/renders`, body);
   }
   listMedia(tenantId: string, unitId: string): Promise<MediaOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/media`);

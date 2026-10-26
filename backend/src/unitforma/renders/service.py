@@ -3,8 +3,9 @@
 A request writes one ``unit_renders`` row and defers ``renders.generate``; the worker crops the
 unit's outline from its sheet, asks the provider for the image and stores it as a private
 ``unit_media`` row (``kind = plan_render``, ``is_ai_generated``); a reviewer approves (the media
-becomes public and, through the layout code, serves every unit with the same plan) or rejects
-(the media is deleted). Nothing reaches buyers before the review.
+becomes public) or rejects (the media is deleted). Nothing reaches buyers before the review.
+A request made for a layout (ADR-0022 Decision 4) crops one member unit and stores the image as
+media of the layout, so every unit linked to it shows the one reviewed view.
 """
 
 from __future__ import annotations
@@ -24,8 +25,8 @@ from unitforma.core.settings import get_settings
 from unitforma.jobs.app import app as jobs
 from unitforma.renders.provider import GeneratedImage
 from unitforma.sales import media as media_service
-from unitforma.storage.service import get_storage, object_key
-from unitforma.tenants.models import Sheet, Unit, UnitBoundary, UnitMedia, UnitRender
+from unitforma.storage.service import get_storage
+from unitforma.tenants.models import Sheet, Unit, UnitBoundary, UnitLayout, UnitMedia, UnitRender
 
 Actor = tuple[uuid.UUID, str]
 
@@ -73,12 +74,18 @@ async def used_today(db: AsyncSession, tenant_id: uuid.UUID) -> int:
 
 
 async def list_renders(
-    db: AsyncSession, unit_id: uuid.UUID
+    db: AsyncSession, unit_id: uuid.UUID | None = None, *, layout_id: uuid.UUID | None = None
 ) -> list[tuple[UnitRender, UnitMedia | None]]:
+    """Renders owned by a unit (its own, not those made for its layout) or by a layout."""
+    owner = (
+        UnitRender.layout_id == layout_id
+        if layout_id is not None
+        else (UnitRender.unit_id == unit_id) & UnitRender.layout_id.is_(None)
+    )
     rows = await db.execute(
         select(UnitRender, UnitMedia)
         .outerjoin(UnitMedia, UnitMedia.id == UnitRender.media_id)
-        .where(UnitRender.unit_id == unit_id)
+        .where(owner)
         .order_by(UnitRender.created_at.desc())
     )
     return [(r, m) for r, m in rows.all()]
@@ -99,16 +106,22 @@ async def get_render(
     return row[0], row[1]
 
 
-async def overview(db: AsyncSession, unit: Unit) -> dict[str, Any]:
+async def overview(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    *,
+    unit_id: uuid.UUID | None = None,
+    layout_id: uuid.UUID | None = None,
+) -> dict[str, Any]:
     s = get_settings()
     return {
         "enabled": enabled(),
         "provider": s.ai_image_provider,
         "model": s.ai_image_model,
         "daily_limit": s.ai_image_daily_limit,
-        "used_today": await used_today(db, unit.tenant_id),
+        "used_today": await used_today(db, tenant_id),
         "cost_per_image_usd": s.ai_image_cost_per_image_usd,
-        "items": await list_renders(db, unit.id),
+        "items": await list_renders(db, unit_id, layout_id=layout_id),
     }
 
 
@@ -133,11 +146,15 @@ async def request_render(
     note: str | None,
     actor: Actor,
     partner: Unit | None = None,
+    layout: UnitLayout | None = None,
 ) -> UnitRender:
     """Validate, write the row, defer the job. The crop and the provider call run in the worker.
     With ``partner`` (a unit of the same floor) the render shows both joined into one apartment
-    (ADR-0017 E4); the image belongs to ``unit``."""
+    (ADR-0017 E4); the image belongs to ``unit``. With ``layout`` the crop is still ``unit``'s
+    outline but the image belongs to the layout (ADR-0022 Decision 4)."""
     s = get_settings()
+    if layout is not None and (partner is not None or unit.layout_id != layout.id):
+        raise ProblemError(422, "A layout render crops one of its own units, without a partner")
     if not enabled():
         raise ProblemError(
             409,
@@ -163,15 +180,16 @@ async def request_render(
             raise ProblemError(
                 409, "The joined unit has no outline on the same sheet", "Outline it first"
             )
+    owner = UnitRender.layout_id == layout.id if layout else UnitRender.unit_id == unit.id
     active = (
         await db.execute(
-            select(func.count())
-            .select_from(UnitRender)
-            .where(UnitRender.unit_id == unit.id, UnitRender.status.in_(ACTIVE))
+            select(func.count()).select_from(UnitRender).where(owner, UnitRender.status.in_(ACTIVE))
         )
     ).scalar_one()
     if active:
-        raise ProblemError(409, "A render is already running for this unit")
+        raise ProblemError(
+            409, "A render is already running for this " + ("layout" if layout else "unit")
+        )
     used = await used_today(db, unit.tenant_id)
     if used >= s.ai_image_daily_limit:
         raise ProblemError(
@@ -196,6 +214,7 @@ async def request_render(
         prompt=prompt,
         note=clean,
         partner_unit_id=partner.id if partner is not None else None,
+        layout_id=layout.id if layout is not None else None,
         requested_by=actor[0],
     )
     db.add(r)
@@ -206,7 +225,12 @@ async def request_render(
         r,
         actor,
         "request",
-        {"note": clean, "model": r.model, "partner_unit_id": str(partner.id) if partner else None},
+        {
+            "note": clean,
+            "model": r.model,
+            "partner_unit_id": str(partner.id) if partner else None,
+            "layout_id": str(layout.id) if layout else None,
+        },
     )
     await jobs.configure_task(name="renders.generate", queue="docs").defer_async(
         tenant_id=str(unit.tenant_id), render_id=str(r.id)
@@ -351,39 +375,41 @@ async def store_result(
     unit: Unit,
     image: GeneratedImage,
     partner_code: str | None = None,
+    layout: UnitLayout | None = None,
 ) -> UnitMedia:
-    """The generated image becomes a private, labelled media item of the unit."""
+    """The generated image becomes a private, labelled media item of the unit, or of the layout
+    when the request was made for one."""
     ext = MIME_EXT.get(image.mime, "png")
     mid = new_id()
-    key = object_key(
-        unit.tenant_id, unit.project_id, "media", str(unit.id), f"{mid.hex[:12]}-3d-plan.{ext}"
-    )
+    owner: media_service.Owner = layout if layout is not None else unit
+    key = media_service.media_key(owner, f"{mid.hex[:12]}-3d-plan.{ext}")
     get_storage().put_bytes(key, image.data, image.mime)
-    next_order = (
-        await db.execute(
-            select(func.coalesce(func.max(UnitMedia.sort_order), -1) + 1).where(
-                UnitMedia.unit_id == unit.id
-            )
+    next_order = await media_service.next_sort_order(db, owner)
+    if layout is not None:
+        alt = f"Generated 3D view of layout {layout.code}" + (
+            f" ({layout.name})" if layout.name else ""
         )
-    ).scalar_one()
+        file_name = f"3d-plan-layout-{layout.code}.{ext}"
+    elif partner_code:
+        alt = f"Generated 3D view of {unit.code} joined with {partner_code}"
+        file_name = f"3d-plan-{unit.code}.{ext}"
+    else:
+        alt = f"Generated 3D view of {unit.code}"
+        file_name = f"3d-plan-{unit.code}.{ext}"
     m = UnitMedia(
         id=mid,
         tenant_id=unit.tenant_id,
         project_id=unit.project_id,
-        unit_id=unit.id,
+        **media_service.owner_of(owner),
         kind="plan_render",
         object_key=key,
-        file_name=f"3d-plan-{unit.code}.{ext}",
+        file_name=file_name,
         mime=image.mime,
         byte_size=len(image.data),
         status="ready",
         sort_order=next_order,
         is_public=False,
-        alt_text=(
-            f"Generated 3D view of {unit.code} joined with {partner_code}"
-            if partner_code
-            else f"Generated 3D view of {unit.code}"
-        ),
+        alt_text=alt,
         is_ai_generated=True,
         ai_disclosure_text=DISCLOSURE,
         uploaded_by=r.requested_by,
@@ -411,5 +437,10 @@ async def _audit(
         entity_type="unit_render",
         entity_id=r.id,
         action=action,
-        after={"unit_id": str(r.unit_id), "status": r.status, **(after or {})},
+        after={
+            "unit_id": str(r.unit_id),
+            "layout_id": str(r.layout_id) if r.layout_id else None,
+            "status": r.status,
+            **(after or {}),
+        },
     )

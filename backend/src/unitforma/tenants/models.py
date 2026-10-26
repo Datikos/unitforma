@@ -357,6 +357,23 @@ class SheetFloor(TimestampMixin, Base):
     sort_order: Mapped[int] = mapped_column(default=0)
 
 
+class UnitLayout(TimestampMixin, Base):
+    """A plan type of a project (ADR-0022): the home of the media shared by the units that link
+    to it. ``code`` is unique per project without case (``uq_unit_layouts_project_code``)."""
+
+    __tablename__ = "unit_layouts"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    code: Mapped[str] = mapped_column(String(40))
+    name: Mapped[str | None] = mapped_column(String(120))
+    version: Mapped[int] = mapped_column(default=1)
+
+
 class Unit(TimestampMixin, Base):
     __tablename__ = "units"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
@@ -384,6 +401,10 @@ class Unit(TimestampMixin, Base):
     bathrooms: Mapped[int | None] = mapped_column()
     orientation: Mapped[str | None] = mapped_column(String(20))
     entrance: Mapped[str | None] = mapped_column(String(20))  # staircase, public (ADR-0014)
+    # the plan type (ADR-0022); ``attributes.layout`` mirrors its code until ADR-0022 E1
+    layout_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("unit_layouts.id", ondelete="SET NULL"), index=True
+    )
     attributes: Mapped[dict] = mapped_column(JSONB, default=dict)
     version: Mapped[int] = mapped_column(default=1)
 
@@ -662,6 +683,9 @@ class Promotion(TimestampMixin, Base):
 
 
 class UnitMedia(TimestampMixin, Base):
+    """A render, photo, video or document owned by one unit **or** one layout (ADR-0022
+    Decision 3; check constraint ``ck_unit_media_one_owner``)."""
+
     __tablename__ = "unit_media"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
     tenant_id: Mapped[uuid.UUID] = mapped_column(
@@ -670,8 +694,11 @@ class UnitMedia(TimestampMixin, Base):
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )
-    unit_id: Mapped[uuid.UUID] = mapped_column(
+    unit_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("units.id", ondelete="CASCADE"), index=True
+    )
+    layout_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("unit_layouts.id", ondelete="CASCADE"), index=True
     )
     kind: Mapped[str] = mapped_column(String(30), default="photo")
     object_key: Mapped[str] = mapped_column(String(512))
@@ -715,6 +742,10 @@ class UnitRender(Base):
     # a second unit joined into one apartment on the render (ADR-0017 E4)
     partner_unit_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("units.id", ondelete="SET NULL")
+    )
+    # set when the result is owned by the layout rather than the unit (ADR-0022 Decision 4)
+    layout_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("unit_layouts.id", ondelete="SET NULL")
     )
     error: Mapped[str | None] = mapped_column(Text)
     cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(8, 4))

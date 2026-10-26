@@ -232,6 +232,8 @@ async def build(
         ).scalars()
     }
     media_by_unit: dict[uuid.UUID, list[UnitMedia]] = {}
+    media_by_layout: dict[uuid.UUID, list[UnitMedia]] = {}
+    layout_ids = sorted({u.layout_id for u in units if u.layout_id is not None})
     if unit_ids:
         for m in (
             await db.execute(
@@ -241,6 +243,15 @@ async def build(
             )
         ).scalars():
             media_by_unit.setdefault(m.unit_id, []).append(m)
+    if layout_ids:
+        for m in (
+            await db.execute(
+                select(UnitMedia)
+                .where(UnitMedia.layout_id.in_(layout_ids), UnitMedia.status == "ready")
+                .order_by(UnitMedia.sort_order, UnitMedia.created_at)
+            )
+        ).scalars():
+            media_by_layout.setdefault(m.layout_id, []).append(m)
 
     version_no = (
         await db.execute(
@@ -294,13 +305,6 @@ async def build(
             else None
         )
 
-    # renders shared by layout (ADR-0016 Decision 4): a unit without media of its own shows the
-    # media of the first unit (by code) that has the same layout code and media
-    layout_donor: dict[str, uuid.UUID] = {}
-    for u in sorted(units, key=lambda x: x.code):
-        code = (rows_by_id.get(u.id) or {}).get("layout")
-        if code and media_by_unit.get(u.id) and code not in layout_donor:
-            layout_donor[code] = u.id
     # unit public views + read model rows
     unit_docs: dict[uuid.UUID, dict[str, Any]] = {}
     read_rows: list[PublishedUnit] = []
@@ -310,12 +314,10 @@ async def build(
             continue
         plan = plans.get(row["payment_plan_id"]) if row["payment_plan_id"] else None
         unit_promos = [promos[p] for p in row["promotion_ids"] if p in promos]
-        media = media_by_unit.get(u.id, [])
-        shared_from: str | None = None
-        if not media and row.get("layout") and layout_donor.get(row["layout"]) not in (None, u.id):
-            donor = layout_donor[row["layout"]]
-            media = media_by_unit.get(donor, [])
-            shared_from = rows_by_id[donor]["code"]
+        # the unit's own media first, then its layout's (ADR-0022 Decision 5)
+        own = media_by_unit.get(u.id, [])
+        shared = media_by_layout.get(u.layout_id, []) if u.layout_id else []
+        media = own + shared
         view = sales.public_view(row, plan, unit_promos, media)
         media_items = {m.id: m for m in media}
         for item in view.get("media", []):
@@ -325,8 +327,8 @@ async def build(
             item.pop("id", None)  # internal ids are not needed by the portal
             item["url"] = assets.url(name)
             item["mime"] = m.mime
-            if shared_from:
-                item["shared_from"] = shared_from
+            if m.layout_id is not None:
+                item["from_layout"] = row["layout"]
         sheet_id = floor_sheet.get(u.floor_id)
         if sheet_id is not None:
             crop = floor_crop.get(u.floor_id)

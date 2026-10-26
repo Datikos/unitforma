@@ -85,9 +85,8 @@ import { layoutKey, loadLayout, swatch } from './playground.model';
                 @if (h.is_ai_generated && h.ai_disclosure_text) {
                   {{ h.ai_disclosure_text }}.
                 }
-                @if (h.shared_from; as from) {
-                  Shared with {{ from }} (layout {{ u.layout }}): the same plan, the finish may
-                  differ.
+                @if (h.from_layout || h.shared_from) {
+                  {{ layoutNote() }}
                 }
               </figcaption>
             </figure>
@@ -149,11 +148,8 @@ import { layoutKey, loadLayout, swatch } from './playground.model';
             </section>
           }
           @if (otherMedia().length) {
-            @if (otherMedia()[0].shared_from; as from) {
-              <p class="uf-indicative">
-                <ng-icon name="lucideInfo" /> Renders of layout {{ u.layout }}, shared with
-                {{ from }}: the same plan, the finish may differ.
-              </p>
+            @if (sharesLayoutMedia()) {
+              <p class="uf-indicative"><ng-icon name="lucideInfo" /> {{ layoutNote() }}</p>
             }
             <div class="gallery">
               @for (m of otherMedia(); track m.url) {
@@ -598,6 +594,15 @@ export class UnitPage {
   readonly otherMedia = computed(() => {
     const h = this.hero();
     return (this.unit()?.media ?? []).filter((m) => m !== h);
+  });
+  /** Some gallery items belong to the unit's layout (or, in older publications, to a twin). */
+  readonly sharesLayoutMedia = computed(() =>
+    this.otherMedia().some((m) => m.from_layout || m.shared_from),
+  );
+  readonly layoutNote = computed(() => {
+    const u = this.unit();
+    const name = u?.layout_name ? ` (${u.layout_name})` : '';
+    return `Shared by layout ${u?.layout ?? ''}${name}: the same plan, the finish may differ.`;
   });
   readonly siteFeatures3d = computed<SiteFeature3D[]>(() =>
     (this.doc()?.site?.features ?? [])

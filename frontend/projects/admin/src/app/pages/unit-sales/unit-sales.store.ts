@@ -2,6 +2,7 @@ import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import {
   BoundaryOut,
   InventoryRow,
+  LayoutOut,
   MediaOut,
   MediaUpdate,
   PaymentPlanOut,
@@ -48,6 +49,8 @@ export class UnitSalesStore implements OnDestroy {
   readonly renders = signal<RendersOut | null>(null);
   /** Every unit of the project, for the floor plan colours and the same-floor and same-layout links. */
   readonly allRows = signal<InventoryRow[]>([]);
+  /** The project's layout registry (ADR-0022): the Layout field picks from it. */
+  readonly layouts = signal<LayoutOut[]>([]);
   /** Units of the same floor: the plan card's links and the partner choice of a joined render (ADR-0017 E4). */
   readonly neighbours = computed(() => {
     const r = this.row();
@@ -55,7 +58,7 @@ export class UnitSalesStore implements OnDestroy {
       ? this.allRows().filter((x) => x.floor_id === r.floor_id && x.unit_id !== r.unit_id)
       : [];
   });
-  /** Units sharing the layout code (they show this unit's public media until they get their own). */
+  /** Units linked to the same layout (they share the layout's media, ADR-0022). */
   readonly layoutMates = computed(() => {
     const r = this.row();
     return r?.layout
@@ -143,6 +146,10 @@ export class UnitSalesStore implements OnDestroy {
         .inventory(this.tenantId, this.projectId)
         .then((rows) => this.allRows.set(rows))
         .catch(() => this.allRows.set([]));
+      void this.api
+        .listLayouts(this.tenantId, this.projectId)
+        .then((l) => this.layouts.set(l))
+        .catch(() => this.layouts.set([]));
       if (this.planBase()?.unitId !== this.unitId) void this.loadPlan();
       this.history.set(history);
       this.preview.set(preview);
@@ -324,7 +331,7 @@ export class UnitSalesStore implements OnDestroy {
     this.busy.set(true);
     try {
       await this.api.approveRender(this.tenantId, id);
-      this.toast.ok('Approved: public with the next publication, shared by layout code');
+      this.toast.ok('Approved: public with the next publication');
       await Promise.all([this.loadRenders(), this.load()]);
     } catch (e) {
       this.error.set(problemMessage(e));
