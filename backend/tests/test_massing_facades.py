@@ -62,8 +62,10 @@ def test_glb_carries_the_facade_as_textured_wall_primitives():
     assert gltf["textures"][1]["source"] == 1 and gltf["samplers"][0]["wrapS"] == 33071
     [mesh] = gltf["meshes"]
     prims = mesh["primitives"]
-    # caps + inner walls, plus one textured primitive per facade side the unit touches
-    assert len(prims) == 3
+    # plain walls, the roof caps, plus one textured primitive per facade side the unit touches
+    assert len(prims) == 4
+    roles = sorted(gltf["materials"][p["material"]]["extras"]["role"] for p in prims)
+    assert roles == ["facade", "facade", "roof", "wall"]
     textured = [p for p in prims if "TEXCOORD_0" in p["attributes"]]
     assert len(textured) == 2
     for p in textured:
@@ -78,14 +80,25 @@ def test_glb_carries_the_facade_as_textured_wall_primitives():
     assert mesh["extras"]["unit_id"] == "u1"
 
 
-def test_building_without_facades_keeps_one_primitive_per_unit():
+def test_building_without_facades_has_walls_and_a_neutral_roof_per_unit():
+    """Roofs are their own primitive with the neutral material so the viewer can leave them
+    untinted (ADR-0017 Decision 2)."""
     ring = [(0.0, 0.0), (10.0, 0.0), (10.0, 8.0), (0.0, 8.0)]
     unit = massing.UnitSolid("u1", "A-1", "apartment", "A", 0, ring, 0.0, 3.2)
     data, _ = massing.build_glb(
         [massing.BuildingSolids("b1", "A", None, massing.Placement(), [unit])]
     )
     gltf, _ = massing.parse_glb(data)
-    assert "images" not in gltf and len(gltf["meshes"][0]["primitives"]) == 1
+    prims = gltf["meshes"][0]["primitives"]
+    assert "images" not in gltf and len(prims) == 2
+    roles = [gltf["materials"][p["material"]]["extras"]["role"] for p in prims]
+    assert roles == ["wall", "roof"]
+    assert gltf["materials"][prims[1]["material"]]["pbrMetallicRoughness"]["baseColorFactor"] == [
+        0.84,
+        0.85,
+        0.87,
+        1.0,
+    ]
     assert json.dumps(gltf["extras"])  # serialisable root extras
 
 

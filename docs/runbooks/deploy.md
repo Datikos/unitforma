@@ -17,3 +17,16 @@ Kratos upgrades: bump `KRATOS_VERSION` in `.env`, run `docker compose up -d krat
 ## Heavy worker image
 
 `worker-heavy` runs the `runtime-ifc` target of `backend/Dockerfile` (image `unitforma-backend-ifc`), which adds IfcOpenShell for IFC ingestion and Node 22 with the glTF-Transform CLI for Draco compression of the resulting models (ADR-0006 C2a); `api`, `worker-light` and `scheduler` run the plain `runtime` target. Both targets come from one `uv.lock`; build and tag them together per release. The heavy worker keeps its 4 GB memory limit in `compose.prod.yaml` for IFC tessellation (ADR-0006 Phase C).
+
+## Upgrade notes
+
+**Upgrading past ADR-0017 (migration 0014, 2026-10-26):** `compose.yaml` now mounts the secret file
+`secrets/ai_image_api_key` on `api` and both workers. Run `scripts/init-secrets.sh` (it creates the file
+empty) or create it by hand before `docker compose up`, or Compose refuses to start. An empty file keeps
+generated 3D plan renders off; a Gemini API key in it plus `UF_AI_IMAGE_PROVIDER=gemini` turns them on.
+
+**`db-migrate` fails with "Can't locate revision identified by 'NNNN'":** the database is ahead of the
+migrations inside the backend image (a migration was added on the host and applied by hand, or the image
+was built before it). The dev stack mounts `backend/migrations` into `api` only; `db-migrate` runs the
+image's copy. Rebuild the image with `deploy/scripts/dev-up.sh api` (the migrate container shares it), then
+`up` again. Seen on 2026-10-26 after migrations 0014 and 0015.

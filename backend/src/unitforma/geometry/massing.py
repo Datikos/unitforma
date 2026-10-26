@@ -24,6 +24,7 @@ Ring = list[Point]
 DISCLAIMER = "Schematic model generated from floor plans — not an architectural model"
 GENERATOR = "unitforma-massing"
 
+ROOF_COLOUR = [0.84, 0.85, 0.87, 1.0]
 TYPE_COLOURS = {
     "apartment": [0.86, 0.88, 0.92, 1.0],
     "commercial": [0.96, 0.80, 0.55, 1.0],
@@ -355,18 +356,18 @@ class _GltfBuilder:
     def material_textured(self, unit_type: str, texture: int) -> int:
         key = f"{unit_type}#tex{texture}"
         if key not in self._material_index:
-            colour = TYPE_COLOURS.get(unit_type, TYPE_COLOURS["apartment"])
             self._material_index[key] = len(self.materials)
             self.materials.append(
                 {
                     "name": key,
                     "doubleSided": True,
                     "pbrMetallicRoughness": {
-                        "baseColorFactor": [min(1.0, c * 1.1) for c in colour[:3]] + [1.0],
+                        "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
                         "baseColorTexture": {"index": texture, "texCoord": 0},
                         "metallicFactor": 0.0,
                         "roughnessFactor": 0.9,
                     },
+                    "extras": {"role": "facade"},
                 }
             )
         return self._material_index[key]
@@ -384,9 +385,29 @@ class _GltfBuilder:
                         "metallicFactor": 0.0,
                         "roughnessFactor": 0.9,
                     },
+                    "extras": {"role": "wall"},
                 }
             )
         return self._material_index[unit_type]
+
+    def material_roof(self) -> int:
+        """Caps of every unit: a neutral light grey the viewer never tints by availability
+        (ADR-0017 Decision 2), so a building with facade drawings reads as a building."""
+        if "#roof" not in self._material_index:
+            self._material_index["#roof"] = len(self.materials)
+            self.materials.append(
+                {
+                    "name": "roof",
+                    "doubleSided": True,
+                    "pbrMetallicRoughness": {
+                        "baseColorFactor": ROOF_COLOUR,
+                        "metallicFactor": 0.0,
+                        "roughnessFactor": 0.95,
+                    },
+                    "extras": {"role": "roof"},
+                }
+            )
+        return self._material_index["#roof"]
 
     def _view(self, data: bytes, target: int) -> int:
         while len(self.bin) % 4:
@@ -426,10 +447,12 @@ class _GltfBuilder:
         material: int,
         extras: dict,
         textured: list[tuple[list[int], int, list[float]]] | None = None,
+        caps: tuple[list[int], int] | None = None,
     ) -> int:
         """One mesh per unit. ``textured`` adds primitives for the outer walls that carry a
-        facade drawing: (indices, material, uv per vertex); each becomes its own primitive
-        sharing the position accessor (three.js makes one child Mesh per primitive)."""
+        facade drawing: (indices, material, uv per vertex); ``caps`` adds the top and bottom faces
+        with their own (roof) material; each becomes its own primitive sharing the position
+        accessor (three.js makes one child Mesh per primitive)."""
         count = len(positions) // 3
         pos_bytes = struct.pack(f"<{len(positions)}f", *positions)
         xs, ys, zs = positions[0::3], positions[1::3], positions[2::3]
@@ -450,6 +473,11 @@ class _GltfBuilder:
             ia = self._indices(indices, count)
             primitives.append(
                 {"attributes": {"POSITION": pa}, "indices": ia, "material": material, "mode": 4}
+            )
+        if caps and caps[0]:
+            ca = self._indices(caps[0], count)
+            primitives.append(
+                {"attributes": {"POSITION": pa}, "indices": ca, "material": caps[1], "mode": 4}
             )
         for t_indices, t_material, uvs in textured or []:
             if not t_indices:
@@ -542,12 +570,22 @@ def build_glb(
                 "floor_level": u.floor_level,
                 **u.extras,
             }
+            n = len(ring_site)
+            walls, caps = indices[: 6 * n], indices[6 * n :]
             textured: list[tuple[list[int], int, list[float]]] = []
             if facade_tex:
-                indices, textured = _split_facade_walls(
-                    b, u.unit_type, positions, indices, len(ring_site), facade_tex
+                walls, textured = _split_facade_walls(
+                    b, u.unit_type, positions, indices, n, facade_tex
                 )
-            m = b.mesh(u.code, positions, indices, b.material(u.unit_type), extras, textured)
+            m = b.mesh(
+                u.code,
+                positions,
+                walls,
+                b.material(u.unit_type),
+                extras,
+                textured,
+                caps=(caps, b.material_roof()),
+            )
             children.append(b.node(u.code, m, [], extras))
             units += 1
             for k in range(3):
@@ -646,7 +684,6 @@ def _split_facade_walls(
     as a viewer outside sees it, v runs from the roof (0) to the ground (1) of the whole
     building, so one drawing spans the facade, balconies and recesses included."""
     wall_tris = indices[: 6 * n]  # extrude() emits the walls first, two triangles per edge
-    rest = indices[6 * n :]
     plain: list[int] = []
     per_side: dict[int, list[int]] = {}
     uvs_by_side: dict[int, list[float]] = {}
@@ -680,4 +717,4 @@ def _split_facade_walls(
         (tris, b.material_textured(unit_type, tex.by_side[k][0]), uvs_by_side[k])
         for k, tris in per_side.items()
     ]
-    return plain + rest, textured
+    return plain, textured

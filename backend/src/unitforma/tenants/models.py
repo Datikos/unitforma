@@ -210,6 +210,9 @@ class Building(TimestampMixin, Base):
     construction_status: Mapped[str | None] = mapped_column(String(20))
     completion: Mapped[str | None] = mapped_column(String(80))
     terms: Mapped[str | None] = mapped_column(Text)
+    # {"v": 1, "items": [{side, sheet_id, region, flip}]}: the facade drawings per side
+    # (ADR-0016 E3); null means "read the legacy projects.site_frame.facades[building_id]"
+    facades: Mapped[dict | None] = mapped_column(JSONB)
     elevation_sheet_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey(
             "sheets.id", ondelete="SET NULL", use_alter=True, name="fk_building_elevation_sheet"
@@ -683,6 +686,40 @@ class UnitMedia(TimestampMixin, Base):
     ai_disclosure_text: Mapped[str | None] = mapped_column(String(300))
     uploaded_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     version: Mapped[int] = mapped_column(default=1)
+
+
+class UnitRender(Base):
+    """An AI-generated 3D plan render requested by staff (ADR-0017 Decision 3). The image is a
+    ``unit_media`` row that stays private until a reviewer approves it; this row keeps the request,
+    the prompt, the plan crop that was sent, the outcome and the review."""
+
+    __tablename__ = "unit_renders"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    unit_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("units.id", ondelete="CASCADE"), index=True
+    )
+    # queued | running | review | approved | rejected | failed
+    status: Mapped[str] = mapped_column(String(12), default="queued")
+    provider: Mapped[str] = mapped_column(String(20))
+    model: Mapped[str] = mapped_column(String(80))
+    prompt: Mapped[str] = mapped_column(Text)
+    note: Mapped[str | None] = mapped_column(String(500))
+    input_key: Mapped[str | None] = mapped_column(String(512))
+    media_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("unit_media.id", ondelete="SET NULL")
+    )
+    error: Mapped[str | None] = mapped_column(Text)
+    cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(8, 4))
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ImportBatch(TimestampMixin, Base):

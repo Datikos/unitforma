@@ -46,6 +46,8 @@ const MAX_TREES = 240;
 
 /** Opacity of a unit whose mapping is not approved yet. */
 const DRAFT_OPACITY = 0.55;
+const WHITE = new THREE.Color(0xffffff);
+const NEUTRAL_WALL = new THREE.Color(0xd3d6dc);
 
 /** Opacity of units outside the focused floor or building (ADR-0006 Decision 6). */
 const FADE_OTHER_FLOOR = 0.18;
@@ -149,6 +151,9 @@ export class MassingViewerComponent implements OnDestroy {
   readonly selectedUnitId = input<string | null>(null);
   /** Per-unit base colours (e.g. by availability), keyed by unit id; others keep the GLB colour. */
   readonly unitColors = input<Record<string, string> | null>(null);
+  /** `availability`: walls take `unitColors`, facade drawings are tinted at 45 %; `neutral`: light
+   * grey walls and untinted drawings. Roofs are never tinted (ADR-0017 Decision 2). */
+  readonly tintMode = input<'availability' | 'neutral'>('availability');
   /** Public site features (gardens, roads, parking, …) drawn on the ground around the model. */
   readonly siteFeatures = input<SiteFeature3D[] | null>(null);
 
@@ -176,6 +181,8 @@ export class MassingViewerComponent implements OnDestroy {
   private frame = 0;
   private resizeObs: ResizeObserver | null = null;
   private readonly baseColours = new Map<THREE.Mesh, THREE.Color>();
+  /** The colour each mesh had in the GLB, before any tint. */
+  private readonly glbColours = new Map<THREE.Mesh, THREE.Color>();
   /** IFC models arrive Draco-compressed (ADR-0006 C2a); the decoder files are copied by
    *  angular.json from three's examples into `assets/draco/` of both apps. */
   private readonly draco = new DRACOLoader().setDecoderPath('assets/draco/');
@@ -203,14 +210,10 @@ export class MassingViewerComponent implements OnDestroy {
       this.buildEnvironment();
     });
     effect(() => {
-      const colours = this.unitColors();
+      this.unitColors();
+      this.tintMode();
       this.loadedTick();
-      if (!colours) return;
-      for (const m of this.meshes) {
-        const c = colours[m.userData['unit_id'] as string];
-        if (c) this.baseColours.set(m, new THREE.Color(c));
-        this.paint(m, m.userData['unit_id'] === this.selectedUnitId() ? 'selected' : null);
-      }
+      this.recolour();
     });
   }
 
@@ -274,6 +277,7 @@ export class MassingViewerComponent implements OnDestroy {
       this.model = null;
       this.meshes = [];
       this.baseColours.clear();
+      this.glbColours.clear();
     }
     try {
       const gltf = await this.loader.loadAsync(url);
@@ -288,6 +292,9 @@ export class MassingViewerComponent implements OnDestroy {
           o.material = mat;
           o.castShadow = true;
           o.receiveShadow = true;
+          // glTF material extras arrive in userData: roof | wall | facade (ADR-0017 Decision 2)
+          o.userData['role'] = (mat.userData?.['role'] as string | undefined) ?? 'wall';
+          this.glbColours.set(o, mat.color.clone());
           this.baseColours.set(o, mat.color.clone());
           const x = (o.userData ?? {}) as Partial<MassingUnitInfo>;
           if (x.unit_id) {
@@ -497,6 +504,27 @@ export class MassingViewerComponent implements OnDestroy {
       false,
     )[0];
     return (hit?.object as THREE.Mesh) ?? null;
+  }
+
+  /** Base colour per mesh from the GLB colour, the tint mode and `unitColors`; then repaint. */
+  private recolour(): void {
+    const colours = this.unitColors();
+    const neutral = this.tintMode() === 'neutral';
+    const sel = this.selectedUnitId();
+    for (const m of this.meshes) {
+      const glb = this.glbColours.get(m);
+      if (!glb) continue;
+      const role = m.userData['role'] as string;
+      const c = colours?.[m.userData['unit_id'] as string];
+      let base = glb;
+      if (role === 'roof') base = glb;
+      else if (neutral) base = role === 'facade' ? WHITE : NEUTRAL_WALL;
+      else if (c)
+        base =
+          role === 'facade' ? WHITE.clone().lerp(new THREE.Color(c), 0.45) : new THREE.Color(c);
+      this.baseColours.set(m, base.clone());
+      this.paint(m, m.userData['unit_id'] === sel ? 'selected' : null);
+    }
   }
 
   private paint(m: THREE.Mesh, state: 'hover' | 'selected' | null): void {

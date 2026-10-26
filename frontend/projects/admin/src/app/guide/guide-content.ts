@@ -21,6 +21,7 @@ export const GUIDE_ORDER = [
   'platform-tenants',
   'projects',
   'project-overview',
+  'setup',
   'documents',
   'sheet',
   'proposals',
@@ -146,6 +147,28 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       'To delete a building that has units, delete the project instead: units are never removed one by one.',
     ],
   },
+  setup: {
+    title: 'Setup checklist',
+    icon: 'lucideClipboardCheck',
+    purpose:
+      'The order of work for a project on one page: each step says whether it is done, what is still missing and which screen completes it. Optional steps are marked; the count at the top is what the portal still lacks.',
+    controls: [
+      {
+        name: 'Steps',
+        does: 'Floor plans → floors → mapping → site plan → placement → facades → features → gallery → map position → prices → architect\'s 3D model → publish. "Done" is computed from the data, never ticked by hand.',
+      },
+      {
+        name: 'Open',
+        does: 'Jumps to the screen that completes the step; come back here to see the next one.',
+      },
+      {
+        name: "Architect's 3D model",
+        does: 'Optional. Ask the architect for an IFC export (ArchiCAD: File → Save as → IFC, zones as IfcSpace) and upload it under the building as a document; after linking its spaces to the units the portal shows the real building instead of the schematic massing.',
+      },
+    ],
+    roles: STRUCTURE,
+    result: 'A project with every required step done publishes without warnings.',
+  },
   documents: {
     title: 'Documents',
     icon: 'lucideFileText',
@@ -206,7 +229,8 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
     ],
     roles: MAPPING,
-    waits: 'Approval is the review step: nothing becomes a unit before it.',
+    waits:
+      'Approval is the review step: nothing becomes a unit before it. The unit picked in the list is drawn on top of the sheet with a halo; the others fade until you pick another.',
     result:
       'Units & lineage lists the created units; Inventory can price them; the 3D massing regenerates.',
   },
@@ -334,6 +358,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       {
         name: 'Layout',
         does: 'The plan-type code shared with identical units (1 to 40 characters). A unit without media of its own shows the public media of the first unit with the same code.',
+      },
+      {
+        name: 'Generate 3D plan render',
+        does: 'Sends the plan crop of this unit to an image model and lists the result for review. Approve publishes it as a labelled, generated image (shared with the units of the same layout code); Reject deletes it. Off until the installation has an image provider (ADR-0017).',
       },
     ],
     roles: SALES,

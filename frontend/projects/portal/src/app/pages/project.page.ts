@@ -157,6 +157,17 @@ const FEATURE_STROKE: Record<string, string> = {
                 3D
               </button>
             </div>
+            @if (show3d()) {
+              <button
+                type="button"
+                class="uf-chip-btn"
+                [attr.aria-pressed]="tint() === 'availability'"
+                (click)="tint.set(tint() === 'availability' ? 'neutral' : 'availability')"
+                title="Colour the 3D model by availability instead of the neutral finish"
+              >
+                <ng-icon name="lucideLayers" /> Availability colours
+              </button>
+            }
           }
         </div>
         @if (show3d() && d.massing) {
@@ -165,6 +176,7 @@ const FEATURE_STROKE: Record<string, string> = {
               <uf-massing-viewer
                 [src]="api.asset(d.massing.url)"
                 [unitColors]="unitColors()"
+                [tintMode]="tint()"
                 [siteFeatures]="siteFeatures3d()"
                 (unitPicked)="openUnit($event)"
               />
@@ -717,6 +729,8 @@ export class ProjectPage {
   readonly notFound = signal(false);
   private readonly caps = detectCapabilities();
   readonly show3d = signal(false);
+  /** Neutral finish by default; buyers flip to availability colours (ADR-0017 Decision 2). */
+  readonly tint = signal<'availability' | 'neutral'>('neutral');
   protected readonly money = money;
   protected readonly area = area;
   protected readonly areaRange = areaRange;

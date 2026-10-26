@@ -7,7 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 RoleName = Literal["tenant_admin", "project_manager", "sales", "architectural_reviewer"]
 
@@ -212,6 +212,17 @@ class SiteTransform(BaseModel):
 ConstructionStatus = Literal["planned", "under_construction", "completed"]
 
 
+class FacadeAssignIn(BaseModel):
+    """One elevation drawing on one side of the building's rectangle (ADR-0016 Decision 2)."""
+
+    side: int = Field(ge=0, le=3, description="Side index: clockwise on the sheet from the top")
+    sheet_id: uuid.UUID
+    region: dict[str, Any] | None = Field(
+        default=None, description='{"ring": [[x, y], ...]} normalised to the sheet'
+    )
+    flip: bool = False
+
+
 class BuildingUpdate(BaseModel):
     """Fields left out are kept; ``name``, ``construction_status``, ``completion``, ``terms`` and
     ``elevation_sheet_id`` sent as null are cleared (ADR-0014 Decision 3)."""
@@ -224,6 +235,9 @@ class BuildingUpdate(BaseModel):
     completion: str | None = Field(default=None, max_length=80)
     terms: str | None = Field(default=None, max_length=4000)
     elevation_sheet_id: uuid.UUID | None = None
+    facades: list[FacadeAssignIn] | None = Field(
+        default=None, max_length=4, description="All sides at once; [] clears them (ADR-0016 E3)"
+    )
     version: int
 
 
@@ -313,7 +327,16 @@ class BuildingOut(ORM):
     elevation_sheet_id: uuid.UUID | None = None
     sort_order: int
     version: int
+    facades: list[dict[str, Any]] = Field(default_factory=list)
     floors: list[FloorOut] = Field(default_factory=list)
+
+    @field_validator("facades", mode="before")
+    @classmethod
+    def _facade_items(cls, v: Any) -> list[dict[str, Any]]:
+        """The column holds {"v": 1, "items": [...]}; the API shows the items."""
+        if isinstance(v, dict):
+            return list(v.get("items") or [])
+        return list(v or [])
 
 
 class ElevationCandidateOut(BaseModel):
@@ -1254,3 +1277,56 @@ class BuildingModelOut(ORM):
     created_at: datetime
     glb_url: str | None = None
     links: dict[str, int] = Field(default_factory=dict)
+
+
+# --- AI-generated 3D plan renders (ADR-0017 Decision 3) -------------------------------------------
+class RenderRequest(BaseModel):
+    note: str | None = Field(
+        default=None,
+        max_length=500,
+        description="Extra instructions appended to the fixed prompt (style, finishes)",
+    )
+
+
+class RenderOut(ORM):
+    id: uuid.UUID
+    unit_id: uuid.UUID
+    status: str
+    provider: str
+    model: str
+    note: str | None
+    error: str | None
+    cost_usd: Decimal | None
+    media_id: uuid.UUID | None
+    requested_by: uuid.UUID | None
+    reviewed_by: uuid.UUID | None
+    created_at: datetime
+    finished_at: datetime | None
+    reviewed_at: datetime | None
+    url: str | None = None  # presigned preview of the generated image while it exists
+
+
+class RendersOut(BaseModel):
+    enabled: bool
+    provider: str
+    model: str
+    daily_limit: int
+    used_today: int
+    cost_per_image_usd: float | None
+    items: list[RenderOut]
+
+
+# --- setup checklist (ADR-0017 Decision 5) -------------------------------------------------------
+class SetupStepOut(BaseModel):
+    key: str
+    title: str
+    status: Literal["done", "todo", "optional", "attention"]
+    detail: str
+    count: int | None = None
+    link: str = Field(description="Admin screen that completes the step")
+
+
+class SetupOut(BaseModel):
+    done: int
+    total: int
+    steps: list[SetupStepOut]

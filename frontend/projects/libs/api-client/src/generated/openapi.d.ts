@@ -589,6 +589,26 @@ export interface paths {
         patch: operations["update_site_feature_api_v1_admin_tenants__tenant_id__site_features__feature_id__patch"];
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Setup
+         * @description The setup checklist: the order of work and what each step still needs (ADR-0017).
+         */
+        get: operations["project_setup_api_v1_admin_tenants__tenant_id__projects__project_id__setup_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/documents": {
         parameters: {
             query?: never;
@@ -1712,6 +1732,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/renders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Renders */
+        get: operations["list_renders_api_v1_admin_tenants__tenant_id__units__unit_id__renders_get"];
+        put?: never;
+        /**
+         * Request Render
+         * @description Queue one render of the unit's current outline; 409 when not configured or no outline,
+         *     429 past the tenant's daily cap.
+         */
+        post: operations["request_render_api_v1_admin_tenants__tenant_id__units__unit_id__renders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/renders/{render_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve Render
+         * @description The generated image becomes public media of the unit (and of its layout, ADR-0016).
+         */
+        post: operations["approve_render_api_v1_admin_tenants__tenant_id__renders__render_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/renders/{render_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject Render
+         * @description Deletes the generated image; the request stays as a record.
+         */
+        post: operations["reject_render_api_v1_admin_tenants__tenant_id__renders__render_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/publish/readiness": {
         parameters: {
             query?: never;
@@ -2289,6 +2371,10 @@ export interface components {
             sort_order: number;
             /** Version */
             version: number;
+            /** Facades */
+            facades?: {
+                [key: string]: unknown;
+            }[];
             /** Floors */
             floors?: components["schemas"]["FloorOut"][];
         };
@@ -2313,6 +2399,11 @@ export interface components {
             terms?: string | null;
             /** Elevation Sheet Id */
             elevation_sheet_id?: string | null;
+            /**
+             * Facades
+             * @description All sides at once; [] clears them (ADR-0016 E3)
+             */
+            facades?: components["schemas"]["FacadeAssignIn"][] | null;
             /** Version */
             version: number;
         };
@@ -2489,6 +2580,34 @@ export interface components {
             raster_url?: string | null;
             /** Thumbnail Url */
             thumbnail_url?: string | null;
+        };
+        /**
+         * FacadeAssignIn
+         * @description One elevation drawing on one side of the building's rectangle (ADR-0016 Decision 2).
+         */
+        FacadeAssignIn: {
+            /**
+             * Side
+             * @description Side index: clockwise on the sheet from the top
+             */
+            side: number;
+            /**
+             * Sheet Id
+             * Format: uuid
+             */
+            sheet_id: string;
+            /**
+             * Region
+             * @description {"ring": [[x, y], ...]} normalised to the sheet
+             */
+            region?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Flip
+             * @default false
+             */
+            flip?: boolean;
         };
         /** FloorIn */
         FloorIn: {
@@ -3858,6 +3977,73 @@ export interface components {
                 [key: string]: number;
             };
         };
+        /** RenderOut */
+        RenderOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /** Status */
+            status: string;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Note */
+            note: string | null;
+            /** Error */
+            error: string | null;
+            /** Cost Usd */
+            cost_usd: string | null;
+            /** Media Id */
+            media_id: string | null;
+            /** Requested By */
+            requested_by: string | null;
+            /** Reviewed By */
+            reviewed_by: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Reviewed At */
+            reviewed_at: string | null;
+            /** Url */
+            url?: string | null;
+        };
+        /** RenderRequest */
+        RenderRequest: {
+            /**
+             * Note
+             * @description Extra instructions appended to the fixed prompt (style, finishes)
+             */
+            note?: string | null;
+        };
+        /** RendersOut */
+        RendersOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Daily Limit */
+            daily_limit: number;
+            /** Used Today */
+            used_today: number;
+            /** Cost Per Image Usd */
+            cost_per_image_usd: number | null;
+            /** Items */
+            items: components["schemas"]["RenderOut"][];
+        };
         /** RevisionOut */
         RevisionOut: {
             /**
@@ -4030,6 +4216,36 @@ export interface components {
              * @default false
              */
             confirm_zero_price?: boolean;
+        };
+        /** SetupOut */
+        SetupOut: {
+            /** Done */
+            done: number;
+            /** Total */
+            total: number;
+            /** Steps */
+            steps: components["schemas"]["SetupStepOut"][];
+        };
+        /** SetupStepOut */
+        SetupStepOut: {
+            /** Key */
+            key: string;
+            /** Title */
+            title: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "done" | "todo" | "optional" | "attention";
+            /** Detail */
+            detail: string;
+            /** Count */
+            count?: number | null;
+            /**
+             * Link
+             * @description Admin screen that completes the step
+             */
+            link: string;
         };
         /** SheetAssign */
         SheetAssign: {
@@ -5861,6 +6077,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SiteFeatureOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_setup_api_v1_admin_tenants__tenant_id__projects__project_id__setup_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupOut"];
                 };
             };
             /** @description Validation Error */
@@ -8294,6 +8542,138 @@ export interface operations {
                 content: {
                     "text/csv": unknown;
                     "application/octet-stream": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_renders_api_v1_admin_tenants__tenant_id__units__unit_id__renders_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                unit_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RendersOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_render_api_v1_admin_tenants__tenant_id__units__unit_id__renders_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                unit_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_render_api_v1_admin_tenants__tenant_id__renders__render_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                render_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_render_api_v1_admin_tenants__tenant_id__renders__render_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                render_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderOut"];
                 };
             };
             /** @description Validation Error */

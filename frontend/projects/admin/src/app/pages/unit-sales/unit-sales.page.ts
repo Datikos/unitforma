@@ -15,6 +15,7 @@ import { RouteInfo } from '../../core/route-info';
 import { AVAILABILITY, PUBLIC_FIELDS, formatPrice } from '../../sales/sales-format';
 import { UnitHistoryComponent } from './unit-history.component';
 import { UnitMediaComponent } from './unit-media.component';
+import { UnitRendersComponent } from './unit-renders.component';
 import { showValue } from '../inventory/inventory.model';
 import { UnitSalesStore } from './unit-sales.store';
 
@@ -35,6 +36,7 @@ import { UnitSalesStore } from './unit-sales.store';
     PageHeaderComponent,
     SectionCardComponent,
     UnitMediaComponent,
+    UnitRendersComponent,
     UnitHistoryComponent,
   ],
   providers: [UnitSalesStore],
@@ -371,6 +373,7 @@ import { UnitSalesStore } from './unit-sales.store';
             </uf-section-card>
 
             <uf-unit-media />
+            <uf-unit-renders />
             <uf-unit-history [entries]="store.timeline()" />
           </div>
 

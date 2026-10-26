@@ -18,6 +18,7 @@ import {
   ProjectOut,
   ProposedFloorOut,
   RegulatoryImportOut,
+  SetupOut,
   UnitformaApi,
   problemMessage,
 } from 'api-client';
@@ -91,6 +92,23 @@ import { ToastService } from '../ui/toast.service';
         <div class="uf-alert uf-alert--bad" role="alert">
           <ng-icon name="lucideCircleX" />{{ e }}
         </div>
+      }
+      @if (setup(); as s) {
+        @if (s.done < s.total) {
+          <a
+            class="uf-alert uf-alert--info"
+            routerLink="setup"
+            style="text-decoration: none; color: inherit; display: flex; gap: 0.5rem; align-items: center"
+          >
+            <ng-icon name="lucideClipboardCheck" />
+            <span
+              >Setup: {{ s.done }} of {{ s.total }} steps done · next:
+              {{ nextStep(s)?.title ?? '' }}</span
+            >
+            <span class="uf-spacer"></span>
+            <span>Open the checklist →</span>
+          </a>
+        }
       }
 
       <div class="uf-stats">
@@ -666,6 +684,8 @@ export class ProjectDetailPage {
   readonly tenantId = input.required<string>();
   readonly projectId = input.required<string>();
   readonly project = signal<ProjectOut | null>(null);
+  /** The setup checklist summary (ADR-0017 Decision 5); null until loaded. */
+  readonly setup = signal<SetupOut | null>(null);
   readonly buildings = signal<BuildingOut[]>([]);
   readonly realBuildings = computed(() => this.buildings().filter((b) => b.kind === 'building'));
   readonly floorCount = computed(() =>
@@ -743,6 +763,10 @@ export class ProjectDetailPage {
     toObservable(this.projectId).subscribe(() => void this.load());
   }
 
+  nextStep(s: SetupOut): SetupOut['steps'][number] | null {
+    return s.steps.find((x) => x.status === 'attention' || x.status === 'todo') ?? null;
+  }
+
   async load(): Promise<void> {
     try {
       const [p, b] = await Promise.all([
@@ -752,6 +776,10 @@ export class ProjectDetailPage {
       this.project.set(p);
       this.ctx.set(p);
       this.buildings.set(b);
+      void this.api
+        .projectSetup(this.tenantId(), this.projectId())
+        .then((st) => this.setup.set(st))
+        .catch(() => this.setup.set(null));
       const props = await Promise.all(
         b
           .filter((x) => x.kind === 'building')

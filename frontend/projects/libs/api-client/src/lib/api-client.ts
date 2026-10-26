@@ -11,6 +11,11 @@ export type TenantCreate = Schemas['TenantCreate'];
 export type TenantUpdate = Schemas['TenantUpdate'];
 export type MemberOut = Schemas['MemberOut'];
 export type MemberUpdate = Schemas['MemberUpdate'];
+export type RenderOut = Schemas['RenderOut'];
+export type RendersOut = Schemas['RendersOut'];
+export type RenderRequest = Schemas['RenderRequest'];
+export type SetupOut = Schemas['SetupOut'];
+export type SetupStepOut = Schemas['SetupStepOut'];
 export type InvitationCreate = Schemas['InvitationCreate'];
 export type InvitationOut = Schemas['InvitationOut'];
 export type ApiTokenCreate = Schemas['ApiTokenCreate'];
@@ -578,6 +583,23 @@ export class UnitformaApi {
     body: PromotionUpdate,
   ): Promise<PromotionOut> {
     return this.patch(`${BASE}/admin/tenants/${tenantId}/promotions/${promotionId}`, body);
+  }
+  /** Generated 3D plan renders of a unit (ADR-0017): list with the daily cap, request, review. */
+  listRenders(tenantId: string, unitId: string): Promise<RendersOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/renders`);
+  }
+  requestRender(tenantId: string, unitId: string, body: RenderRequest): Promise<RenderOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/renders`, body);
+  }
+  approveRender(tenantId: string, renderId: string): Promise<RenderOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/renders/${renderId}/approve`, undefined);
+  }
+  rejectRender(tenantId: string, renderId: string): Promise<RenderOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/renders/${renderId}/reject`, undefined);
+  }
+  /** The setup checklist: ordered steps with status, detail and the screen that completes each. */
+  projectSetup(tenantId: string, projectId: string): Promise<SetupOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup`);
   }
   listMedia(tenantId: string, unitId: string): Promise<MediaOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/media`);

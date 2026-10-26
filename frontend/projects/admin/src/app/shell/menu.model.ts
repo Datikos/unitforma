@@ -21,6 +21,7 @@ export const PROJECT_MENU: { title: string | null; items: Omit<MenuItem, 'link'>
   {
     title: null,
     items: [
+      { key: 'setup', label: 'Setup checklist', icon: 'lucideClipboardCheck' },
       {
         key: 'project-overview',
         label: 'Overview & structure',
@@ -58,6 +59,7 @@ export const PROJECT_MENU: { title: string | null; items: Omit<MenuItem, 'link'>
 /** Route segment under `projects/:projectId` for each project menu key. */
 export const PROJECT_SEGMENT: Record<string, string> = {
   'project-overview': '',
+  setup: 'setup',
   documents: 'documents',
   proposals: 'proposals',
   placement: 'placement',

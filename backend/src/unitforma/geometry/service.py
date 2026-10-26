@@ -254,10 +254,16 @@ def signed_url(model: GeometryModel) -> str | None:
 FACADE_MAX_WIDTH = 1024
 
 
-def facade_assignments(project: Project, building_id: uuid.UUID) -> list[dict[str, Any]]:
-    """The reviewer's facade choices (ADR-0016 Decision 2) live in ``projects.site_frame``
-    under ``facades[building_id]``: ``[{side, sheet_id, region: {ring}, flip}]``."""
-    raw = ((project.site_frame or {}).get("facades") or {}).get(str(building_id)) or []
+def facade_assignments(project: Project, building: Building) -> list[dict[str, Any]]:
+    """The reviewer's facade choices (ADR-0016 Decision 2): ``buildings.facades``
+    ``{"v": 1, "items": [{side, sheet_id, region, flip}]}`` wins; a building whose column is
+    still null reads the previous release's ``projects.site_frame.facades[building_id]`` (E3
+    expand release)."""
+    col = building.facades if isinstance(building.facades, dict) else None
+    if col is not None and col.get("v") == 1 and isinstance(col.get("items"), list):
+        raw = col["items"]
+    else:
+        raw = ((project.site_frame or {}).get("facades") or {}).get(str(building.id)) or []
     return [a for a in raw if isinstance(a, dict) and a.get("sheet_id") is not None]
 
 
@@ -266,7 +272,7 @@ async def facade_images(
 ) -> list[massing.FacadeImage]:
     """Crop each assigned elevation sheet to its marked region, JPEG no wider than 1024 px."""
     out: list[massing.FacadeImage] = []
-    for a in facade_assignments(project, b.id):
+    for a in facade_assignments(project, b):
         try:
             sheet = (
                 await db.execute(select(Sheet).where(Sheet.id == uuid.UUID(str(a["sheet_id"]))))
@@ -388,7 +394,7 @@ async def footprints(db: AsyncSession, project: Project) -> list[dict[str, Any]]
                     if ring and (rect := massing.building_rectangle([ring])) is not None
                     else None
                 ),
-                "facades": facade_assignments(project, b.id),
+                "facades": facade_assignments(project, b),
             }
         )
     return out

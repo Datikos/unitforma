@@ -71,6 +71,26 @@ import { SiteStore } from '../core/site.store';
 
       <div class="layout">
         <section class="main">
+          @if (hero(); as h) {
+            <figure class="hero3d">
+              <div class="media">
+                <img [src]="api.asset(h.url)" [alt]="h.alt_text || '3D view of ' + u.code" />
+                @if (h.is_ai_generated) {
+                  <span class="uf-ai-label">Illustrative — AI generated</span>
+                }
+              </div>
+              <figcaption class="uf-muted small">
+                3D view of {{ u.code }} from its floor plan.
+                @if (h.is_ai_generated && h.ai_disclosure_text) {
+                  {{ h.ai_disclosure_text }}.
+                }
+                @if (h.shared_from; as from) {
+                  Shared with {{ from }} (layout {{ u.layout }}): the same plan, the finish may
+                  differ.
+                }
+              </figcaption>
+            </figure>
+          }
           @if (u.plan; as plan) {
             <div class="planbox">
               <uf-plan-viewer
@@ -97,6 +117,7 @@ import { SiteStore } from '../core/site.store';
                   [buildingCode]="building()?.model ? null : u.building_code"
                   [floorLevel]="u.floor_level"
                   [selectedUnitId]="u.unit_id"
+                  tintMode="neutral"
                   [siteFeatures]="siteFeatures3d()"
                 />
               } @placeholder {
@@ -105,15 +126,15 @@ import { SiteStore } from '../core/site.store';
               <p class="uf-muted small">{{ u.code }} is highlighted; the other floors are faded.</p>
             </section>
           }
-          @if (u.media?.length) {
-            @if (u.media![0].shared_from; as from) {
+          @if (otherMedia().length) {
+            @if (otherMedia()[0].shared_from; as from) {
               <p class="uf-indicative">
                 <ng-icon name="lucideInfo" /> Renders of layout {{ u.layout }}, shared with
                 {{ from }}: the same plan, the finish may differ.
               </p>
             }
             <div class="gallery">
-              @for (m of u.media; track m.url) {
+              @for (m of otherMedia(); track m.url) {
                 <figure>
                   <div class="media">
                     @if (m.mime.startsWith('image/')) {
@@ -423,6 +444,14 @@ import { SiteStore } from '../core/site.store';
     .media {
       position: relative;
     }
+    /* the generated 3D plan view leads the page: shown whole, never cropped to 4:3 */
+    .hero3d img {
+      aspect-ratio: auto;
+      max-height: 72vh;
+      object-fit: contain;
+      background: #fff;
+      border: 1px solid var(--uf-border);
+    }
     figure img,
     figure video {
       width: 100%;
@@ -487,6 +516,17 @@ export class UnitPage {
   );
   readonly fav = computed(() => !!this.unit() && this.favs.has(this.slug(), this.unit()!.code));
   readonly cover = computed(() => this.doc()?.gallery?.[0] ?? null);
+  /** The 3D plan view (generated or uploaded `plan_render`) leads the page (ADR-0017). */
+  readonly hero = computed(
+    () =>
+      (this.unit()?.media ?? []).find(
+        (m) => m.kind === 'plan_render' && m.mime.startsWith('image/'),
+      ) ?? null,
+  );
+  readonly otherMedia = computed(() => {
+    const h = this.hero();
+    return (this.unit()?.media ?? []).filter((m) => m !== h);
+  });
   readonly siteFeatures3d = computed<SiteFeature3D[]>(() =>
     (this.doc()?.site?.features ?? [])
       .filter((f) => f.ring_m && f.ring_m.length >= 3)

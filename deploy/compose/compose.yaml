@@ -20,6 +20,11 @@ x-backend-env: &backend-env
   UF_S3_ENDPOINT_URL: http://storage:3900
   UF_S3_BUCKET: ${S3_BUCKET:-unitforma}
   UF_S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+  # AI-generated 3D plan renders (ADR-0017): none hides the feature; the key is a file secret
+  UF_AI_IMAGE_PROVIDER: ${UF_AI_IMAGE_PROVIDER:-none}
+  UF_AI_IMAGE_MODEL: ${UF_AI_IMAGE_MODEL:-gemini-nano-banana-2.1}
+  UF_AI_IMAGE_DAILY_LIMIT: ${UF_AI_IMAGE_DAILY_LIMIT:-40}
+  UF_AI_IMAGE_API_KEY_FILE: /run/secrets/ai_image_api_key
   UF_STORAGE_BACKEND: ${STORAGE_BACKEND:-s3}
   UF_S3_ACCESS_KEY_FILE: /run/secrets/s3_access_key
   UF_S3_SECRET_KEY_FILE: /run/secrets/s3_secret_key
@@ -34,6 +39,7 @@ x-backend-secrets: &backend-secrets
   - s3_secret_key
   - internal_ask_token
   - app_session_key
+  - ai_image_api_key
 x-logging: &default-logging
   driver: json-file
   options: { max-size: "20m", max-file: "5" }
@@ -306,5 +312,6 @@ secrets:
   s3_secret_key: { file: ./secrets/s3_secret_key }
   internal_ask_token: { file: ./secrets/internal_ask_token }
   app_session_key: { file: ./secrets/app_session_key }
+  ai_image_api_key: { file: ./secrets/ai_image_api_key }
   garage_rpc_secret: { file: ./secrets/garage_rpc_secret }
   garage_admin_token: { file: ./secrets/garage_admin_token }

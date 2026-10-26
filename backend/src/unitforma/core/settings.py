@@ -83,6 +83,19 @@ class Settings(BaseSettings):
     # MCP server for staff assistants at /mcp on the admin host (ADR-0015); false leaves /mcp 404
     mcp_enabled: bool = True
 
+    # AI-generated 3D plan renders (ADR-0017 Decision 4). ``none`` hides the feature; the key is a
+    # file secret (UF_AI_IMAGE_API_KEY_FILE=/run/secrets/ai_image_api_key).
+    ai_image_provider: str = Field(default="none", description="none | gemini")
+    ai_image_api_key: str = ""
+    ai_image_model: str = "gemini-nano-banana-2.1"
+    ai_image_endpoint: str = "https://generativelanguage.googleapis.com/v1beta/interactions"
+    ai_image_daily_limit: int = Field(
+        default=40, description="Render requests per tenant per UTC day"
+    )
+    # Shown next to the button, never used for billing: $0.0336 per 1K image on the Gemini pricing
+    # page dated 2026-10-22 (plan §21). Null hides the figure.
+    ai_image_cost_per_image_usd: float | None = 0.0336
+
     @model_validator(mode="after")
     def _inject_passwords(self) -> Settings:
         """Allow passwords to arrive separately (Docker secrets) and be merged into the URLs."""

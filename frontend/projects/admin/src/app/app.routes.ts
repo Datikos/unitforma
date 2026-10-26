@@ -67,6 +67,11 @@ export const routes: Routes = [
               import('./pages/project-detail.page').then((m) => m.ProjectDetailPage),
           },
           {
+            path: 'setup',
+            data: { guide: 'setup', breadcrumb: 'Setup checklist' },
+            loadComponent: () => import('./pages/setup.page').then((m) => m.SetupPage),
+          },
+          {
             path: 'documents',
             data: { guide: 'documents', breadcrumb: 'Documents' },
             loadComponent: () => import('./pages/documents.page').then((m) => m.DocumentsPage),

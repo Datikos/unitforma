@@ -184,7 +184,7 @@
      "portal"
     ],
     "summary": "Project",
-    "description": "The project snapshot: project text, site, buildings \u2192 floors \u2192 unit polygons, massing.",
+    "description": "The project snapshot: project text, site, buildings → floors → unit polygons, massing.",
     "operationId": "project_api_v1_portal_projects__slug__get",
     "parameters": [
      {
@@ -2467,6 +2467,60 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup": {
+   "get": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Project Setup",
+    "description": "The setup checklist: the order of work and what each step still needs (ADR-0017).",
+    "operationId": "project_setup_api_v1_admin_tenants__tenant_id__projects__project_id__setup_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SetupOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/documents": {
    "get": {
     "tags": [
@@ -3111,7 +3165,7 @@
      "documents"
     ],
     "summary": "Set Sheet Floors",
-    "description": "Every floor the sheet shows, each optionally limited to a region of the sheet.\n\nA split-level or multi-block sheet shows several floors side by side; units drawn on it\nbelong to the floor whose region holds them (plan \u00a713.2). Suggested assignments (from\nlevel markers or the previous revision) become confirmed when they are sent here.",
+    "description": "Every floor the sheet shows, each optionally limited to a region of the sheet.\n\nA split-level or multi-block sheet shows several floors side by side; units drawn on it\nbelong to the floor whose region holds them (plan §13.2). Suggested assignments (from\nlevel markers or the previous revision) become confirmed when they are sent here.",
     "operationId": "set_sheet_floors_api_v1_admin_tenants__tenant_id__sheets__sheet_id__floors_put",
     "parameters": [
      {
@@ -3546,7 +3600,7 @@
      "mapping"
     ],
     "summary": "Suggest Boundaries",
-    "description": "Closed loops found in the sheet's vector line work, labelled from inner text (plan \u00a713.2).\n\nNothing is written: the reviewer accepts candidates one by one (creating boundaries with\n``source=vector_suggest``). Scanned sheets have no vectors and return an empty list.",
+    "description": "Closed loops found in the sheet's vector line work, labelled from inner text (plan §13.2).\n\nNothing is written: the reviewer accepts candidates one by one (creating boundaries with\n``source=vector_suggest``). Scanned sheets have no vectors and return an empty list.",
     "operationId": "suggest_boundaries_api_v1_admin_tenants__tenant_id__sheets__sheet_id__suggestions_post",
     "parameters": [
      {
@@ -3721,7 +3775,7 @@
      "mapping"
     ],
     "summary": "Approve Sheet",
-    "description": "Architectural reviewer approves the mapping on a sheet (plan \u00a713.1 step 5).",
+    "description": "Architectural reviewer approves the mapping on a sheet (plan §13.1 step 5).",
     "operationId": "approve_sheet_api_v1_admin_tenants__tenant_id__sheets__sheet_id__approve_post",
     "parameters": [
      {
@@ -5219,7 +5273,7 @@
      "sales"
     ],
     "summary": "Update Unit Sales",
-    "description": "Inline edit. Send the row ``version`` in the body or as ``If-Match``; a stale version\nreturns 409 with the current row so the UI can show both and re-apply (plan \u00a76.4).",
+    "description": "Inline edit. Send the row ``version`` in the body or as ``If-Match``; a stale version\nreturns 409 with the current row so the UI can show both and re-apply (plan §6.4).",
     "operationId": "update_unit_sales_api_v1_admin_tenants__tenant_id__units__unit_id__sales_patch",
     "parameters": [
      {
@@ -6738,6 +6792,229 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/units/{unit_id}/renders": {
+   "get": {
+    "tags": [
+     "renders"
+    ],
+    "summary": "List Renders",
+    "operationId": "list_renders_api_v1_admin_tenants__tenant_id__units__unit_id__renders_get",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RendersOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "renders"
+    ],
+    "summary": "Request Render",
+    "description": "Queue one render of the unit's current outline; 409 when not configured or no outline,\n429 past the tenant's daily cap.",
+    "operationId": "request_render_api_v1_admin_tenants__tenant_id__units__unit_id__renders_post",
+    "parameters": [
+     {
+      "name": "unit_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Unit Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RenderRequest"
+       }
+      }
+     }
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RenderOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/renders/{render_id}/approve": {
+   "post": {
+    "tags": [
+     "renders"
+    ],
+    "summary": "Approve Render",
+    "description": "The generated image becomes public media of the unit (and of its layout, ADR-0016).",
+    "operationId": "approve_render_api_v1_admin_tenants__tenant_id__renders__render_id__approve_post",
+    "parameters": [
+     {
+      "name": "render_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Render Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RenderOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/renders/{render_id}/reject": {
+   "post": {
+    "tags": [
+     "renders"
+    ],
+    "summary": "Reject Render",
+    "description": "Deletes the generated image; the request stays as a record.",
+    "operationId": "reject_render_api_v1_admin_tenants__tenant_id__renders__render_id__reject_post",
+    "parameters": [
+     {
+      "name": "render_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Render Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RenderOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/publish/readiness": {
    "get": {
     "tags": [
@@ -6797,7 +7074,7 @@
      "publishing"
     ],
     "summary": "Set Unit Publication",
-    "description": "Mark units published / hidden (linkable, not listed) / unpublished (plan \u00a76.1).",
+    "description": "Mark units published / hidden (linkable, not listed) / unpublished (plan §6.1).",
     "operationId": "set_unit_publication_api_v1_admin_tenants__tenant_id__projects__project_id__units_publication_put",
     "parameters": [
      {
@@ -8387,6 +8664,14 @@
       "type": "integer",
       "title": "Version"
      },
+     "facades": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Facades"
+     },
      "floors": {
       "items": {
        "$ref": "#/components/schemas/FloorOut"
@@ -8511,6 +8796,22 @@
        }
       ],
       "title": "Elevation Sheet Id"
+     },
+     "facades": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/FacadeAssignIn"
+        },
+        "type": "array",
+        "maxItems": 4
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Facades",
+      "description": "All sides at once; [] clears them (ADR-0016 E3)"
      },
      "version": {
       "type": "integer",
@@ -8983,6 +9284,47 @@
     ],
     "title": "ElevationCandidateOut",
     "description": "A current sheet with stacked level markers (a section or an elevation) that can become the\nbuilding's elevation floor picker (ADR-0014 Decision 1)."
+   },
+   "FacadeAssignIn": {
+    "properties": {
+     "side": {
+      "type": "integer",
+      "maximum": 3.0,
+      "minimum": 0.0,
+      "title": "Side",
+      "description": "Side index: clockwise on the sheet from the top"
+     },
+     "sheet_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Sheet Id"
+     },
+     "region": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Region",
+      "description": "{\"ring\": [[x, y], ...]} normalised to the sheet"
+     },
+     "flip": {
+      "type": "boolean",
+      "title": "Flip",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "side",
+     "sheet_id"
+    ],
+    "title": "FacadeAssignIn",
+    "description": "One elevation drawing on one side of the building's rectangle (ADR-0016 Decision 2)."
    },
    "FloorIn": {
     "properties": {
@@ -9624,7 +9966,7 @@
       },
       "type": "object",
       "title": "Mapping",
-      "description": "import field \u2192 column header"
+      "description": "import field → column header"
      },
      "options": {
       "$ref": "#/components/schemas/ImportOptions"
@@ -9774,7 +10116,7 @@
      "price_area_type": {
       "type": "string",
       "title": "Price Area Type",
-      "description": "Effective area type the price per m\u00b2 uses"
+      "description": "Effective area type the price per m² uses"
      },
      "price_area_type_override": {
       "anyOf": [
@@ -10924,7 +11266,7 @@
      "excluded"
     ],
     "title": "PagesExclude",
-    "description": "Exclude or include pages of a revision at once (e.g. a fire-safety set, pages 12\u201351)."
+    "description": "Exclude or include pages of a revision at once (e.g. a fire-safety set, pages 12–51)."
    },
    "PaymentPlanIn": {
     "properties": {
@@ -12937,6 +13279,231 @@
     ],
     "title": "RegulatoryImportOut"
    },
+   "RenderOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "unit_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Unit Id"
+     },
+     "status": {
+      "type": "string",
+      "title": "Status"
+     },
+     "provider": {
+      "type": "string",
+      "title": "Provider"
+     },
+     "model": {
+      "type": "string",
+      "title": "Model"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "cost_usd": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Usd"
+     },
+     "media_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Media Id"
+     },
+     "requested_by": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Requested By"
+     },
+     "reviewed_by": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reviewed By"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "reviewed_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reviewed At"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Url"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "unit_id",
+     "status",
+     "provider",
+     "model",
+     "note",
+     "error",
+     "cost_usd",
+     "media_id",
+     "requested_by",
+     "reviewed_by",
+     "created_at",
+     "finished_at",
+     "reviewed_at"
+    ],
+    "title": "RenderOut"
+   },
+   "RenderRequest": {
+    "properties": {
+     "note": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note",
+      "description": "Extra instructions appended to the fixed prompt (style, finishes)"
+     }
+    },
+    "type": "object",
+    "title": "RenderRequest"
+   },
+   "RendersOut": {
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled"
+     },
+     "provider": {
+      "type": "string",
+      "title": "Provider"
+     },
+     "model": {
+      "type": "string",
+      "title": "Model"
+     },
+     "daily_limit": {
+      "type": "integer",
+      "title": "Daily Limit"
+     },
+     "used_today": {
+      "type": "integer",
+      "title": "Used Today"
+     },
+     "cost_per_image_usd": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cost Per Image Usd"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/RenderOut"
+      },
+      "type": "array",
+      "title": "Items"
+     }
+    },
+    "type": "object",
+    "required": [
+     "enabled",
+     "provider",
+     "model",
+     "daily_limit",
+     "used_today",
+     "cost_per_image_usd",
+     "items"
+    ],
+    "title": "RendersOut"
+   },
    "RevisionOut": {
     "properties": {
      "id": {
@@ -13682,6 +14249,83 @@
     "type": "object",
     "title": "SalesUpdate"
    },
+   "SetupOut": {
+    "properties": {
+     "done": {
+      "type": "integer",
+      "title": "Done"
+     },
+     "total": {
+      "type": "integer",
+      "title": "Total"
+     },
+     "steps": {
+      "items": {
+       "$ref": "#/components/schemas/SetupStepOut"
+      },
+      "type": "array",
+      "title": "Steps"
+     }
+    },
+    "type": "object",
+    "required": [
+     "done",
+     "total",
+     "steps"
+    ],
+    "title": "SetupOut"
+   },
+   "SetupStepOut": {
+    "properties": {
+     "key": {
+      "type": "string",
+      "title": "Key"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "done",
+       "todo",
+       "optional",
+       "attention"
+      ],
+      "title": "Status"
+     },
+     "detail": {
+      "type": "string",
+      "title": "Detail"
+     },
+     "count": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Count"
+     },
+     "link": {
+      "type": "string",
+      "title": "Link",
+      "description": "Admin screen that completes the step"
+     }
+    },
+    "type": "object",
+    "required": [
+     "key",
+     "title",
+     "status",
+     "detail",
+     "link"
+    ],
+    "title": "SetupStepOut"
+   },
    "SheetAssign": {
     "properties": {
      "floor_id": {
@@ -14260,7 +14904,7 @@
     },
     "type": "object",
     "title": "SiteTransform",
-    "description": "Building local frame \u2192 site frame (metres, plan \u00a73.5)."
+    "description": "Building local frame → site frame (metres, plan §3.5)."
    },
    "SuggestionOut": {
     "properties": {

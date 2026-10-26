@@ -37,7 +37,7 @@ import { ToastService } from '../ui/toast.service';
 
 type Pt = [number, number];
 
-/** A facade drawing assigned to one side of a building (stored in `site_frame.facades`). */
+/** A facade drawing assigned to one side of a building (stored on the building, ADR-0016 E3). */
 interface FacadeAssign {
   side: number;
   sheet_id: string;
@@ -976,22 +976,25 @@ export class PlacementPage {
     this.toast.ok(`${this.sideLabel(t.side)} marked; save to rebuild the 3D model`);
   }
 
-  /** Facade choices live in the project's site frame (ADR-0016 Decision 2); saving queues a massing rebuild. */
+  /** Facade choices are stored on each building (ADR-0016 E3); saving queues a massing rebuild. */
   saveFacades(): Promise<void> {
-    const p = this.project();
-    if (!p) return Promise.resolve();
-    const facades: Record<string, FacadeAssign[]> = {};
-    for (const [b, list] of Object.entries(this.facades())) {
-      const kept = list.filter((a) => a.sheet_id);
-      if (kept.length) facades[b] = kept;
-    }
+    const fps = this.footprints();
     return this.run(async () => {
-      await this.api.updateProject(this.tenantId(), this.projectId(), {
-        site_frame: { ...(p.site_frame ?? {}), facades },
-        version: p.version,
-      });
+      for (const f of fps) {
+        const kept = (this.facades()[f.building_id] ?? []).filter((a) => a.sheet_id);
+        await this.api.updateBuilding(this.tenantId(), f.building_id, {
+          facades: kept.map((a) => ({
+            side: a.side,
+            sheet_id: a.sheet_id,
+            region: a.region,
+            flip: !!a.flip,
+          })),
+          version: f.version,
+        });
+      }
       await this.api.regenerateMassing(this.tenantId(), this.projectId());
       this.toast.ok('Facades saved; the 3D model is being rebuilt');
+      await this.load();
     });
   }
 

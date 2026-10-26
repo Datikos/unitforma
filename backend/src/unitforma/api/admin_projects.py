@@ -21,6 +21,7 @@ from unitforma.api.schemas import (
     ProjectCreate,
     ProjectOut,
     ProjectUpdate,
+    SetupOut,
     SiteFeatureCreate,
     SiteFeatureOut,
     SiteFeatureUpdate,
@@ -31,6 +32,7 @@ from unitforma.identity.authz import Action, is_allowed
 from unitforma.identity.deps import TenantContext, tenant_context
 from unitforma.projects import service as projects
 from unitforma.publishing import service as publishing
+from unitforma.publishing import setup as setup_service
 from unitforma.tenants.models import Project, SiteFeature, Tenant
 
 router = APIRouter(prefix="/api/v1/admin/tenants/{tenant_id}", tags=["projects"])
@@ -256,3 +258,12 @@ async def delete_site_feature(feature_id: uuid.UUID, ctx: Ctx):
     ctx.require("project", Action.WRITE)
     sf = await _site_feature(ctx, feature_id)
     await projects.delete_site_feature(ctx.session, sf, _actor(ctx))
+
+
+@router.get("/projects/{project_id}/setup", response_model=SetupOut)
+async def project_setup(project_id: uuid.UUID, ctx: Ctx):
+    """The setup checklist: the order of work and what each step still needs (ADR-0017)."""
+    ctx.require("project", Action.READ)
+    ctx.require_project(project_id)
+    p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
+    return await setup_service.setup_status(ctx.session, p)

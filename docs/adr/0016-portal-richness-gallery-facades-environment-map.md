@@ -1,6 +1,6 @@
 # ADR-0016: A buyer portal that shows the building: render gallery, facade drawings on the 3D massing, site environment, layout renders, map, and imports that cannot get stuck
 
-- **Status:** accepted (2026-10-26; implemented 2026-10-26; E2 to E4 open)
+- **Status:** accepted (2026-10-26; implemented 2026-10-26; E4 and the E5 contract step open, E2 decided in ADR-0017)
 - **Date:** 2026-10-26
 - **Deciders:** David Sakhelashvili (platform owner); AI-generated renders (Out of scope) are his call
 - **Plan reference:** §6.6 (public fields), §7.1 (navigation model), §7.3 (3D and fallbacks), §9.3 (portal
@@ -262,8 +262,18 @@ buyer accounts and inquiries (plan Phase 5); custom map providers.
       entrances), rectangles and an ellipse within about 1 % of the sheet: approximate, for the owner to
       refine on the placement page. No prices (owner's request). Open: apartments №3 and №15 without a
       closed outline, the three February documents of the first import still "queued".
-- [ ] E2 Owner's decision on AI-generated renders (Option D) and on tenant-uploaded ground textures.
-- [ ] E3 `site_frame.facades` → its own column or table once the migration chain is free (after
-      ADR-0015's branch merges); a backward-reading test for the JSON shape.
+- [x] E2 Decided 2026-10-26: AI-generated 3D plan renders are allowed behind staff review and a visible
+      "generated" label (ADR-0017); exterior AI renders and tenant-uploaded ground textures stay out.
+- [x] E3 Done 2026-10-26 (expand release): migration `0015_building_facades` adds `buildings.facades`
+      `{"v": 1, "items": [{side, sheet_id, region, flip}]}` and backfills it from the site frame;
+      `PATCH /buildings/{id}` takes `facades` (validated: one per side, current sheets of the project);
+      `geometry.facade_assignments` reads the column and falls back to the legacy key; every write is
+      mirrored into `site_frame.facades` so the previous release keeps reading. Test:
+      `tests/test_building_facades.py`. *Found while implementing:* the backfill matched no rows until
+      the migration took the platform scope (`FORCE ROW LEVEL SECURITY` binds the owner too); noted
+      in `migrations/rls.py`. The dev database was backfilled by hand after the first run.
+- [ ] E5 Contract release (the one after 0015): stop mirroring into `site_frame.facades`, migrate any
+      remaining legacy entries, drop the key from `site_frame`, remove the fallback in
+      `facade_assignments`.
 - [ ] E4 OSM embed volume against the tile usage policy before the first tenant goes live; fallback plan
       (self-hosted tiles) written into the runbooks.

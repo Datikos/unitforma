@@ -64,7 +64,9 @@ BUILDING_FIELDS = (
     "completion",
     "terms",
     "elevation_sheet_id",
+    "facades",
 )
+FACADES_FORMAT = 1
 # an explicit null clears these (ADR-0014 Decision 3); the others keep their value on null
 BUILDING_CLEARABLE = ("name", "construction_status", "completion", "terms", "elevation_sheet_id")
 ELEVATION_SHEET_UNKNOWN = "https://unitforma.com/problems/elevation-sheet-unknown"
@@ -246,6 +248,10 @@ async def update_building(
     before = _snapshot(b, BUILDING_FIELDS)
     if changes.get("elevation_sheet_id") is not None:
         await _check_elevation_sheet(db, b, changes["elevation_sheet_id"])
+    if changes.get("facades") is not None:
+        items = await _check_facades(db, b, changes["facades"])
+        changes["facades"] = {"v": FACADES_FORMAT, "items": items}
+        await _mirror_facades(db, b, items)
     for k, v in changes.items():
         if v is not None or k in BUILDING_CLEARABLE:
             setattr(b, k, v)
@@ -262,6 +268,38 @@ async def update_building(
         after=_snapshot(b, BUILDING_FIELDS),
     )
     return b
+
+
+async def _check_facades(db: AsyncSession, b: Building, raw: list[dict[str, Any]]) -> list[dict]:
+    """One drawing per side, every sheet a current sheet of this project (ADR-0016 E3)."""
+    sides = [int(a["side"]) for a in raw]
+    if len(set(sides)) != len(sides):
+        raise ProblemError(422, "One drawing per side", "Two facades name the same side")
+    items: list[dict[str, Any]] = []
+    for a in raw:
+        await _check_elevation_sheet(db, b, uuid.UUID(str(a["sheet_id"])))
+        items.append(
+            {
+                "side": int(a["side"]),
+                "sheet_id": str(a["sheet_id"]),
+                "region": a.get("region"),
+                "flip": bool(a.get("flip")),
+            }
+        )
+    return items
+
+
+async def _mirror_facades(db: AsyncSession, b: Building, items: list[dict[str, Any]]) -> None:
+    """Expand release of ADR-0016 E3: the previous release reads the choices from the project's
+    site frame, so every write lands there too until the contract release drops the key."""
+    project = await db.get(Project, b.project_id)
+    if project is None:
+        return
+    frame = dict(project.site_frame or {})
+    facades = dict(frame.get("facades") or {})
+    facades[str(b.id)] = items
+    frame["facades"] = facades
+    project.site_frame = frame
 
 
 async def _check_elevation_sheet(db: AsyncSession, b: Building, sheet_id: uuid.UUID) -> None:

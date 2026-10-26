@@ -6,6 +6,9 @@ Policies:
 * ``platform_scope`` — platform administrators (``app.scope = 'platform'``) see all rows.
 
 ``FORCE ROW LEVEL SECURITY`` makes the owner role subject to the policies too.
+A migration that reads or updates tenant rows (a backfill) must first run
+``SELECT set_config('app.scope', 'platform', true)`` in its transaction, or it matches nothing
+(found on 2026-10-26 with ``0015_building_facades``).
 """
 
 from __future__ import annotations

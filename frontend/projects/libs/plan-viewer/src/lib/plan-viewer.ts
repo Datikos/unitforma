@@ -63,6 +63,7 @@ export interface PolygonMove {
       [style.--uf-plan-aspect]="width() + ' / ' + height()"
       [class.pv--draw]="mode() === 'draw' || mode() === 'calibrate' || mode() === 'pick'"
       [class.pv--move]="mode() === 'move'"
+      [class.pv--has-selection]="!!selectedPolygon()"
       (wheel)="onWheel($event)"
       (pointerdown)="onPointerDown($event)"
       (pointermove)="onPointerMove($event)"
@@ -115,10 +116,17 @@ export interface PolygonMove {
               [attr.x]="centroid(p.ring, p.id)[0]"
               [attr.y]="centroid(p.ring, p.id)[1]"
               class="pv__label"
-              [attr.font-size]="labelSize()"
+              [class.pv__label--selected]="p.selected"
+              [attr.font-size]="p.selected ? labelSize() * 1.3 : labelSize()"
             >
               {{ p.label ?? '' }}
             </text>
+          }
+          @if (selectedPolygon(); as sp) {
+            <!-- drawn after every polygon so it wins over their inline availability colours
+                 (ADR-0017 Decision 1): a white halo under a dark outline -->
+            <polygon [attr.points]="toPoints(sp.ring, sp.id)" class="pv__poly pv__poly--halo" />
+            <polygon [attr.points]="toPoints(sp.ring, sp.id)" class="pv__poly pv__poly--outline" />
           }
           @if (draft().length) {
             <polyline [attr.points]="toPoints(draft())" class="pv__draft" />
@@ -244,6 +252,32 @@ export interface PolygonMove {
       fill: rgba(245, 158, 11, 0.3);
       stroke: #d97706;
     }
+    .pv__poly--halo {
+      fill: none;
+      stroke: #fff;
+      stroke-width: 9;
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
+    .pv__poly--outline {
+      fill: rgba(245, 158, 11, 0.2);
+      stroke: #b45309;
+      stroke-width: 4;
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
+    .pv--has-selection
+      .pv__poly:not(.pv__poly--selected):not(.pv__poly--halo):not(.pv__poly--outline):not(
+        .pv__poly--footprint
+      ):not(.pv__poly--region) {
+      opacity: 0.55;
+    }
+    .pv--has-selection .pv__label:not(.pv__label--selected) {
+      opacity: 0.6;
+    }
+    .pv__label--selected {
+      font-weight: 800;
+    }
     .pv__label {
       fill: #111827;
       font-family: system-ui, sans-serif;
@@ -291,6 +325,13 @@ export class PlanViewerComponent {
   readonly width = input(1000);
   readonly height = input(700);
   readonly polygons = input<PlanPolygon[]>([]);
+  /** The unit (never a footprint or region) drawn on top with the halo and outline. */
+  readonly selectedPolygon = computed(
+    () =>
+      this.polygons().find(
+        (p) => p.selected && p.kind !== 'footprint' && p.kind !== 'region' && p.kind !== 'ghost',
+      ) ?? null,
+  );
   readonly mode = input<PlanMode>('view');
   /** Extra markers (normalised), e.g. alignment points picked by the user. */
   readonly marks = input<Point[]>([]);

@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-26: 35 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, plan Phases 5 to 7 and
+State on 2026-10-26: 37 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Rows that share one code area or one
 outside input are one row with every reference. Sizes: S up to a day, M a few days, L a week or more.
@@ -52,6 +52,8 @@ outside input are one row with every reference. Sizes: S up to a day, M a few da
 | 30 | OAuth 2.1 for the MCP server: Ory Hydra as the authorization server next to Kratos, login and consent in the admin app, the SDK's `AuthSettings` and RFC 9728 metadata, client registration; tokens stay for scripts. Decided on 2026-10-26 to follow the tokens, not replace them. | ADR-0015 Option C (Revisit) | an OAuth-only client; owner's go | L |
 | 31 | MCP beyond projects and buildings: tools for documents, mapping and sales, a `delete_*` family with an explicit confirmation argument, the buyer-side read-only server. | ADR-0015 Revisit (Option A) | owner's pick | M |
 | 32 | Sample project `permit-1127975`: the owner checks the map position (OSM cluster of the street's `19/x` buildings, ±100 m), refines the 11 site features and the four facade regions drawn by eye from the general plan, and closes apartments №3 and №15 (no closed outline). | ADR-0016 #E1 (done, approximate) | owner's review | S |
-| 33 | Owner's decision on AI-generated renders for units (`media.is_ai_generated` exists) and on tenant-uploaded ground textures instead of the generic grass, paving and trees. | ADR-0016 #E2, Option D | owner's decision | — |
-| 34 | Move `site_frame.facades` into its own column or table with a backward-reading test, once the migration chain is free after the ADR-0015 branch merges. | ADR-0016 #E3 | ADR-0015 merge | S |
+| 33 | First real generated 3D plan render on the sample project once a Gemini API key is in `secrets/ai_image_api_key` and `UF_AI_IMAGE_PROVIDER=gemini`: verify the response parser against the live answer, judge the image against the reference, approve or reject. | ADR-0017 #E1 | owner's API key | S |
+| 34 | Contract step of ADR-0016 E3 in the release after migration 0015: stop mirroring facade choices into `projects.site_frame.facades`, migrate leftovers, drop the key and the fallback in `geometry.facade_assignments`. | ADR-0016 #E5 | the 0015 release deployed | S |
 | 35 | OpenStreetMap embed volume against the tile usage policy before the first tenant goes live; fallback (self-hosted tiles) in the runbooks. | ADR-0016 #E4 | first tenant's traffic estimate | S |
+| 36 | The architect's IFC export for `permit-1127975` (ArchiCAD: File → Save as → IFC, zones as IfcSpace) uploaded under building A, spaces linked; the portal then shows the real building. | ADR-0017 #E2 | the architect's file | S |
+| 37 | Second image provider (OpenAI GPT Image) for a quality and price comparison; batch pricing when volumes grow. | ADR-0017 #E3 | owner's wish | S |

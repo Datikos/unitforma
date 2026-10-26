@@ -168,6 +168,22 @@ export const STATUS_TABLES = {
     pending: v('pending', 'Uploading', 'lucideClock'),
     ready: v('good', 'Ready', 'lucideImage'),
   },
+  // generated 3D plan renders (ADR-0017 Decision 3)
+  render: {
+    queued: v('pending', 'Queued', 'lucideClock'),
+    running: v('pending', 'Generating', 'lucideLoaderCircle'),
+    review: v('warning', 'Needs review', 'lucideEye'),
+    approved: v('good', 'Approved', 'lucideCircleCheck'),
+    rejected: v('neutral', 'Rejected', 'lucideBan'),
+    failed: v('bad', 'Failed', 'lucideCircleAlert'),
+  },
+  // setup checklist steps (ADR-0017 Decision 5)
+  setup: {
+    done: v('good', 'Done', 'lucideCircleCheck'),
+    todo: v('pending', 'To do', 'lucideCircleDashed'),
+    optional: v('neutral', 'Optional', 'lucideCircleDashed'),
+    attention: v('warning', 'Needs attention', 'lucideTriangleAlert'),
+  },
   // personal API tokens for assistants and scripts (ADR-0015)
   token: {
     active: v('good', 'Active', 'lucideCircleCheck'),

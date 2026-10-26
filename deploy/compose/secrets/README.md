@@ -32,6 +32,7 @@ $EDITOR secrets/backup_age_recipient  # age public key used to encrypt dumps (pr
 | garage_admin_token | storage, init script | random |
 | internal_ask_token | api, proxy | shared secret for Caddy's `ask` endpoint: Caddy sends it as `?token=` (its `ask` is a plain GET), other internal callers as the `X-Unitforma-Internal` header |
 | app_session_key | api | ≥ 32 random bytes, base64 |
+| ai_image_api_key | api, workers | Gemini API key for generated 3D plan renders (ADR-0017); `init-secrets.sh` creates it empty, which leaves the feature off until `UF_AI_IMAGE_PROVIDER=gemini` |
 | dns_provider_token | proxy (prod) | provider specific |
 | backup_rclone_conf | backup (prod) | full rclone.conf |
 | backup_age_recipient | backup (prod) | age1... public key |

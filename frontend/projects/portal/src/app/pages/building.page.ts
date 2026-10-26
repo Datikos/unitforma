@@ -92,6 +92,17 @@ import { SiteStore } from '../core/site.store';
                   }
                 </div>
               }
+              @if (view() === '3d') {
+                <button
+                  type="button"
+                  class="uf-chip-btn"
+                  [attr.aria-pressed]="tint() === 'availability'"
+                  (click)="tint.set(tint() === 'availability' ? 'neutral' : 'availability')"
+                  title="Colour the 3D model by availability, or show the neutral finish"
+                >
+                  Availability colours
+                </button>
+              }
             </div>
             @if (view() === 'elevation' && b.elevation; as el) {
               <uf-plan-viewer
@@ -117,6 +128,7 @@ import { SiteStore } from '../core/site.store';
                   [floorLevel]="level()"
                   [selectedUnitId]="selected()"
                   [unitColors]="unitColors()"
+                  [tintMode]="tint()"
                   [siteFeatures]="siteFeatures3d()"
                   (unitPicked)="pick3d($event)"
                 />
@@ -388,6 +400,8 @@ export class BuildingPage {
     const unit = this.unitParam()?.toLowerCase();
     return (unit && this.floor()?.units.find((u) => u.code.toLowerCase() === unit)?.id) || null;
   });
+  /** Availability colours by default here: the colour is how a buyer picks the unit. */
+  readonly tint = signal<'availability' | 'neutral'>('availability');
   readonly selectedUnit = computed(
     () => this.floor()?.units.find((u) => u.id === this.selected()) ?? null,
   );

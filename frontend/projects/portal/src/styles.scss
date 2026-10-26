@@ -309,3 +309,23 @@ a.uf-card:hover {
     padding: 3rem 0.5rem 1rem;
   }
 }
+
+/* a small toggle chip next to a segmented control (3D tint, ADR-0017) */
+.uf-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--uf-border);
+  border-radius: 999px;
+  background: var(--uf-surface);
+  color: var(--uf-text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.uf-chip-btn[aria-pressed='true'] {
+  background: var(--uf-primary);
+  border-color: var(--uf-primary);
+  color: #fff;
+}

@@ -65,7 +65,8 @@ def test_build_glb_is_valid_container_with_unit_nodes():
     # the viewer draws drafts translucent from this flag (ADR-0011)
     assert unit_nodes[1]["extras"]["lifecycle_status"] == "draft"
     assert "lifecycle_status" not in unit_nodes[0]["extras"]
-    assert {m["name"] for m in gltf["materials"]} == {"apartment", "commercial"}
+    # roofs are their own material (ADR-0017 Decision 2)
+    assert {m["name"] for m in gltf["materials"]} == {"apartment", "commercial", "roof"}
     assert stats["units"] == 2 and stats["triangles"] > 0 and stats["bytes"] == len(data)
     # rotation by 90° around the site origin: local (10, 0) → site (100 - 0, 50 + 10)
     acc = gltf["accessors"][0]

@@ -1,10 +1,11 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import {
   InventoryRow,
   MediaOut,
   MediaUpdate,
   PaymentPlanOut,
   PromotionOut,
+  RendersOut,
   SalesChanges,
   SalesHistoryOut,
   UnitformaApi,
@@ -26,7 +27,7 @@ import {
 
 /** State and API calls of one unit's commercial page; provided by the page, shared with its cards. */
 @Injectable()
-export class UnitSalesStore {
+export class UnitSalesStore implements OnDestroy {
   private readonly api = inject(UnitformaApi);
   private readonly dialogs = inject(DialogsService);
   private readonly toast = inject(ToastService);
@@ -38,6 +39,9 @@ export class UnitSalesStore {
   readonly plans = signal<PaymentPlanOut[]>([]);
   readonly promotions = signal<PromotionOut[]>([]);
   readonly media = signal<MediaOut[]>([]);
+  /** Generated 3D plan renders and the tenant's daily cap (ADR-0017). */
+  readonly renders = signal<RendersOut | null>(null);
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
   readonly history = signal<SalesHistoryOut | null>(null);
   readonly preview = signal<Record<string, unknown> | null>(null);
   readonly areaDefs = signal<{ key: string; label?: string }[]>([]);
@@ -84,7 +88,7 @@ export class UnitSalesStore {
 
   async load(): Promise<void> {
     try {
-      const [row, plans, promos, media, history, preview, settings] = await Promise.all([
+      const [row, plans, promos, media, history, preview, settings, renders] = await Promise.all([
         this.api.getUnitSales(this.tenantId, this.unitId),
         this.api.listPaymentPlans(this.tenantId, this.projectId),
         this.api.listPromotions(this.tenantId, this.projectId),
@@ -92,10 +96,12 @@ export class UnitSalesStore {
         this.api.unitSalesHistory(this.tenantId, this.unitId),
         this.api.unitPublicPreview(this.tenantId, this.unitId),
         this.api.getSalesSettings(this.tenantId, this.projectId),
+        this.api.listRenders(this.tenantId, this.unitId),
       ]);
       this.plans.set(plans);
       this.promotions.set(promos);
       this.media.set(media);
+      this.setRenders(renders);
       this.history.set(history);
       this.preview.set(preview);
       this.areaDefs.set(settings.area_definitions as { key: string; label?: string }[]);
@@ -207,6 +213,76 @@ export class UnitSalesStore {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  // --- generated 3D plan renders (ADR-0017 Decision 3) ---------------------------------------
+  private setRenders(r: RendersOut): void {
+    this.renders.set(r);
+    if (this.pollTimer) clearTimeout(this.pollTimer);
+    this.pollTimer = null;
+    if (r.items.some((i) => i.status === 'queued' || i.status === 'running')) {
+      this.pollTimer = setTimeout(() => void this.loadRenders(), 4000);
+    }
+  }
+
+  async loadRenders(): Promise<void> {
+    try {
+      const r = await this.api.listRenders(this.tenantId, this.unitId);
+      const before = this.renders();
+      this.setRenders(r);
+      // a render that just finished also changed the media list
+      if (before && before.items.some((i) => i.status === 'queued' || i.status === 'running')) {
+        if (!r.items.some((i) => i.status === 'queued' || i.status === 'running')) {
+          this.media.set(await this.api.listMedia(this.tenantId, this.unitId));
+        }
+      }
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    }
+  }
+
+  async requestRender(note: string): Promise<void> {
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      await this.api.requestRender(this.tenantId, this.unitId, { note: note.trim() || null });
+      this.toast.ok('Render requested; it appears below when the model answers');
+      await this.loadRenders();
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async approveRender(id: string): Promise<void> {
+    this.busy.set(true);
+    try {
+      await this.api.approveRender(this.tenantId, id);
+      this.toast.ok('Approved: public with the next publication, shared by layout code');
+      await Promise.all([this.loadRenders(), this.load()]);
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async rejectRender(id: string): Promise<void> {
+    this.busy.set(true);
+    try {
+      await this.api.rejectRender(this.tenantId, id);
+      await Promise.all([this.loadRenders(), this.load()]);
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollTimer) clearTimeout(this.pollTimer);
+    this.pollTimer = null;
   }
 
   async patchMedia(m: MediaOut, body: Omit<MediaUpdate, 'version'>): Promise<void> {
