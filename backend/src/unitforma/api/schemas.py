@@ -690,7 +690,7 @@ class SuggestionOut(BaseModel):
     printed_area_m2: float | None = None
     measured_area_m2: float | None = None
     floor_id: uuid.UUID | None = None
-    unit_type: Literal["apartment", "commercial", "storage", "parking"] | None = None
+    unit_type: Literal["apartment", "commercial", "parking", "storage"] | None = None
 
 
 class PrintedAreasOut(BaseModel):

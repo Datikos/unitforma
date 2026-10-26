@@ -3999,7 +3999,7 @@ export interface components {
              */
             codes?: (string | null)[] | null;
             /** Unit Type */
-            unit_type?: ("apartment" | "commercial" | "storage" | "parking") | null;
+            unit_type?: ("apartment" | "commercial" | "parking" | "storage") | null;
             /**
              * Survivor Id
              * @description merged: unit that keeps id
@@ -4807,7 +4807,7 @@ export interface components {
             /** Floor Id */
             floor_id?: string | null;
             /** Unit Type */
-            unit_type?: ("apartment" | "commercial" | "storage" | "parking") | null;
+            unit_type?: ("apartment" | "commercial" | "parking" | "storage") | null;
         };
         /** TenantCreate */
         TenantCreate: {

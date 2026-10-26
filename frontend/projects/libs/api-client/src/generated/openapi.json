@@ -13674,8 +13674,8 @@
         "enum": [
          "apartment",
          "commercial",
-         "storage",
-         "parking"
+         "parking",
+         "storage"
         ]
        },
        {
@@ -16201,8 +16201,8 @@
         "enum": [
          "apartment",
          "commercial",
-         "storage",
-         "parking"
+         "parking",
+         "storage"
         ]
        },
        {
