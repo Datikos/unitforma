@@ -37,6 +37,7 @@ export const GUIDE_ORDER = [
   'publish',
   'members',
   'tokens',
+  'settings',
   'audit',
 ] as const;
 
@@ -532,6 +533,30 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
     tips: [
       'Tokens are bearer secrets, not OAuth sign-ins: anyone holding the secret acts as you until it expires or is revoked.',
       'Every change made through a token lands in the audit log with the token prefix as its request id.',
+    ],
+  },
+  settings: {
+    title: 'Settings',
+    icon: 'lucideSettings',
+    purpose:
+      'Workspace-wide settings. Today one: the base prompt every generated 3D plan render starts from (ADR-0023). It applies to every project of the workspace from the next request on; a render already queued keeps the text it was made with.',
+    controls: [
+      {
+        name: 'Base prompt',
+        does: 'The text sent to the image model before the plan crop. Pre-filled with the built-in default until you save your own; up to 4000 characters. The joined-apartment sentence, the wall colour of the unit and the note typed on the render panel are added after it automatically: do not repeat them.',
+      },
+      { name: 'Save', does: 'Stores the text for the workspace and writes an audit row.' },
+      {
+        name: 'Reset to default',
+        does: 'Removes the workspace text; renders use the built-in default again.',
+      },
+    ],
+    roles: ['tenant_admin'],
+    result:
+      'The next "Generate" on a unit or a layout composes its prompt from this text; the audit log shows who changed it.',
+    tips: [
+      'Keep the constraints of the default: "keep the exact wall layout, room proportions, door and window positions as drawn; do not add or remove rooms" and "no text, no labels, no dimension lines, no people". Dropping them is what makes renders unusable.',
+      'Change one thing at a time (floor material, camera angle, light) and judge it on one unit: each try costs one render.',
     ],
   },
   audit: {

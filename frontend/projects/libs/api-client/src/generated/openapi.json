@@ -7118,6 +7118,100 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/render-prompt": {
+   "get": {
+    "tags": [
+     "renders"
+    ],
+    "summary": "Get Render Prompt",
+    "operationId": "get_render_prompt_api_v1_admin_tenants__tenant_id__render_prompt_get",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RenderPromptOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "renders"
+    ],
+    "summary": "Set Render Prompt",
+    "operationId": "set_render_prompt_api_v1_admin_tenants__tenant_id__render_prompt_put",
+    "parameters": [
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RenderPromptUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RenderPromptOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/layouts": {
    "get": {
     "tags": [
@@ -14448,6 +14542,60 @@
      "reviewed_at"
     ],
     "title": "RenderOut"
+   },
+   "RenderPromptOut": {
+    "properties": {
+     "default": {
+      "type": "string",
+      "title": "Default"
+     },
+     "prompt": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Prompt",
+      "description": "The workspace text; null = default"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "workspace",
+       "default"
+      ],
+      "title": "Source"
+     }
+    },
+    "type": "object",
+    "required": [
+     "default",
+     "source"
+    ],
+    "title": "RenderPromptOut",
+    "description": "The base text of every generated plan render: the workspace's own or the code default."
+   },
+   "RenderPromptUpdate": {
+    "properties": {
+     "prompt": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 4000
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Prompt",
+      "description": "null or blank clears the workspace text"
+     }
+    },
+    "type": "object",
+    "title": "RenderPromptUpdate"
    },
    "RenderRequest": {
     "properties": {

@@ -1816,6 +1816,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/render-prompt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Render Prompt */
+        get: operations["get_render_prompt_api_v1_admin_tenants__tenant_id__render_prompt_get"];
+        /** Set Render Prompt */
+        put: operations["set_render_prompt_api_v1_admin_tenants__tenant_id__render_prompt_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/layouts": {
         parameters: {
             query?: never;
@@ -4271,6 +4289,32 @@ export interface components {
             reviewed_at: string | null;
             /** Url */
             url?: string | null;
+        };
+        /**
+         * RenderPromptOut
+         * @description The base text of every generated plan render: the workspace's own or the code default.
+         */
+        RenderPromptOut: {
+            /** Default */
+            default: string;
+            /**
+             * Prompt
+             * @description The workspace text; null = default
+             */
+            prompt?: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "workspace" | "default";
+        };
+        /** RenderPromptUpdate */
+        RenderPromptUpdate: {
+            /**
+             * Prompt
+             * @description null or blank clears the workspace text
+             */
+            prompt?: string | null;
         };
         /** RenderRequest */
         RenderRequest: {
@@ -8982,6 +9026,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RenderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_render_prompt_api_v1_admin_tenants__tenant_id__render_prompt_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderPromptOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_render_prompt_api_v1_admin_tenants__tenant_id__render_prompt_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenderPromptUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderPromptOut"];
                 };
             };
             /** @description Validation Error */
