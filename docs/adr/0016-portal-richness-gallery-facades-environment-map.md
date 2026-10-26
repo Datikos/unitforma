@@ -1,6 +1,6 @@
 # ADR-0016: A buyer portal that shows the building: render gallery, facade drawings on the 3D massing, site environment, layout renders, map, and imports that cannot get stuck
 
-- **Status:** accepted (2026-10-26; implemented 2026-10-26; E4 and the E5 contract step open, E2 decided in ADR-0017)
+- **Status:** accepted (2026-10-26; implemented 2026-10-26; only the E5 contract step open, E2 decided in ADR-0017)
 - **Date:** 2026-10-26
 - **Deciders:** David Sakhelashvili (platform owner); AI-generated renders (Out of scope) are his call
 - **Plan reference:** §6.6 (public fields), §7.1 (navigation model), §7.3 (3D and fallbacks), §9.3 (portal
@@ -275,5 +275,11 @@ buyer accounts and inquiries (plan Phase 5); custom map providers.
 - [ ] E5 Contract release (the one after 0015): stop mirroring into `site_frame.facades`, migrate any
       remaining legacy entries, drop the key from `site_frame`, remove the fallback in
       `facade_assignments`.
-- [ ] E4 OSM embed volume against the tile usage policy before the first tenant goes live; fallback plan
-      (self-hosted tiles) written into the runbooks.
+- [x] E4 Checked 2026-10-26 against the OSMF tile usage policy, the OSM Export page (edited 2026-09-09) and
+      the attribution guidelines (edited 2026-09-10): no numeric threshold exists; the policy says heavy use
+      may be blocked without notice and "commercial services ... should be especially aware that access may
+      be withdrawn at any point"; the embed iframe is documented without restrictions. Decision: keep the
+      iframe, add the switch `UF_PORTAL_MAP_EMBED` (default true; false = address and link only, no tiles),
+      link the attribution to openstreetmap.org/copyright as the guidelines ask, and write the fallback
+      (hosted tile provider from switch2osm.org/providers or self-hosting) into `docs/runbooks/deploy.md`.
+      Sources in plan §21.

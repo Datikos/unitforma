@@ -109,16 +109,12 @@ import { UnitSalesStore } from './unit-sales.store';
         <div class="layout">
           <div class="uf-stack main">
             <uf-section-card
-              title="Price & availability"
+              title="Price & terms"
               icon="lucideTag"
               [summary]="priceSummary()"
               storageKey="unit-price"
             >
               <div class="uf-form-row">
-                <p class="uf-hint">
-                  Layout: a code shared by every unit with the same plan. Renders attached to one
-                  unit of a layout show on all of them until they get their own.
-                </p>
                 <mat-form-field
                   appearance="outline"
                   [class.uf-changed]="store.isChanged('availability')"
@@ -170,20 +166,21 @@ import { UnitSalesStore } from './unit-sales.store';
                     name="currency"
                     maxlength="3"
                 /></mat-form-field>
-                <mat-checkbox
-                  [ngModel]="f.price_on_request"
-                  (ngModelChange)="store.set('price_on_request', $event)"
-                  name="por"
-                  [class.uf-changed]="store.isChanged('price_on_request')"
-                  >Price on request</mat-checkbox
-                >
-                <mat-checkbox [(ngModel)]="store.confirmZero" name="zero"
-                  >Price 0 is intended</mat-checkbox
-                >
+                <div class="checks">
+                  <mat-checkbox
+                    [ngModel]="f.price_on_request"
+                    (ngModelChange)="store.set('price_on_request', $event)"
+                    name="por"
+                    [class.uf-changed]="store.isChanged('price_on_request')"
+                    >Price on request</mat-checkbox
+                  >
+                  <mat-checkbox [(ngModel)]="store.confirmZero" name="zero"
+                    >Price 0 is intended</mat-checkbox
+                  >
+                </div>
               </div>
               <p class="uf-hint">
-                An empty price is shown as "price on request"; 0 is a real price and needs the
-                checkbox.
+                Empty price = "on request"; 0 is a real price and needs the checkbox.
                 @if (r.price_per_m2) {
                   Today: {{ fmt(r.price_per_m2, r.currency) }} per m² of
                   {{ r.price_area_type }} area ({{
@@ -191,17 +188,10 @@ import { UnitSalesStore } from './unit-sales.store';
                   }}).
                 }
               </p>
-            </uf-section-card>
-
-            <uf-section-card
-              title="Terms"
-              icon="lucideHandCoins"
-              [summary]="termsSummary()"
-              storageKey="unit-terms"
-            >
               <div class="uf-form-row">
                 <mat-form-field
                   appearance="outline"
+                  class="term term--wide"
                   [class.uf-changed]="store.isChanged('price_area_type')"
                   ><mat-label>Price per m² based on</mat-label>
                   <mat-select
@@ -217,6 +207,7 @@ import { UnitSalesStore } from './unit-sales.store';
                 </mat-form-field>
                 <mat-form-field
                   appearance="outline"
+                  class="term"
                   [class.uf-changed]="store.isChanged('payment_plan_id')"
                   ><mat-label>Payment plan</mat-label>
                   <mat-select
@@ -237,6 +228,7 @@ import { UnitSalesStore } from './unit-sales.store';
                 </mat-form-field>
                 <mat-form-field
                   appearance="outline"
+                  class="term"
                   [class.uf-changed]="store.isChanged('promotion_ids')"
                   ><mat-label>Promotions</mat-label>
                   <mat-select
@@ -252,8 +244,8 @@ import { UnitSalesStore } from './unit-sales.store';
                 </mat-form-field>
               </div>
               <p class="uf-hint">
-                Plans and promotions are defined once under
-                <a routerLink="../../sales-setup">Plans &amp; promotions</a> and picked here.
+                Defined under <a routerLink="../../sales-setup">Plans &amp; promotions</a>, picked
+                here.
               </p>
             </uf-section-card>
 
@@ -332,6 +324,19 @@ import { UnitSalesStore } from './unit-sales.store';
                 <mat-form-field
                   appearance="outline"
                   class="num"
+                  [class.uf-changed]="store.isChanged('wall_colour')"
+                  ><mat-label>Walls (RAL or hex)</mat-label
+                  ><input
+                    matInput
+                    [ngModel]="f.wall_colour"
+                    (ngModelChange)="store.set('wall_colour', $event)"
+                    name="wall_colour"
+                    maxlength="40"
+                    placeholder="RAL 9010"
+                /></mat-form-field>
+                <mat-form-field
+                  appearance="outline"
+                  class="num"
                   [class.uf-changed]="store.isChanged('entrance')"
                   ><mat-label>Entrance</mat-label
                   ><input
@@ -343,33 +348,35 @@ import { UnitSalesStore } from './unit-sales.store';
                     placeholder="1"
                 /></mat-form-field>
               </div>
-              <mat-form-field
-                appearance="outline"
-                class="wide"
-                [class.uf-changed]="store.isChanged('public_description')"
-                ><mat-label>Public description</mat-label
-                ><textarea
-                  matInput
-                  rows="3"
-                  [ngModel]="f.public_description"
-                  (ngModelChange)="store.set('public_description', $event)"
-                  name="pd"
-                ></textarea>
-              </mat-form-field>
-              <mat-form-field
-                appearance="outline"
-                class="wide"
-                [class.uf-changed]="store.isChanged('internal_notes')"
-                ><mat-label>Internal notes</mat-label
-                ><textarea
-                  matInput
-                  rows="2"
-                  [ngModel]="f.internal_notes"
-                  (ngModelChange)="store.set('internal_notes', $event)"
-                  name="notes"
-                ></textarea
-                ><mat-hint>Never published</mat-hint></mat-form-field
-              >
+              <div class="uf-form-row">
+                <mat-form-field
+                  appearance="outline"
+                  class="desc"
+                  [class.uf-changed]="store.isChanged('public_description')"
+                  ><mat-label>Public description</mat-label
+                  ><textarea
+                    matInput
+                    rows="2"
+                    [ngModel]="f.public_description"
+                    (ngModelChange)="store.set('public_description', $event)"
+                    name="pd"
+                  ></textarea>
+                </mat-form-field>
+                <mat-form-field
+                  appearance="outline"
+                  class="notes"
+                  [class.uf-changed]="store.isChanged('internal_notes')"
+                  ><mat-label>Internal notes</mat-label
+                  ><textarea
+                    matInput
+                    rows="2"
+                    [ngModel]="f.internal_notes"
+                    (ngModelChange)="store.set('internal_notes', $event)"
+                    name="notes"
+                  ></textarea
+                  ><mat-hint>Never published</mat-hint></mat-form-field
+                >
+              </div>
             </uf-section-card>
 
             <uf-unit-media />
@@ -385,20 +392,30 @@ import { UnitSalesStore } from './unit-sales.store';
               storageKey="unit-public"
             >
               <p class="uf-hint">
-                Per-unit overrides of the project defaults. A changed row is marked.
+                Per-unit overrides of the project defaults; a changed row is marked.
               </p>
-              @for (pf of publicFields; track pf.key) {
-                <div class="toggle" [class.uf-changed]="pf.key in r.public_field_overrides">
-                  <mat-slide-toggle
-                    [checked]="r.public_fields[pf.key]"
-                    (change)="store.togglePublic(pf.key, $event.checked)"
-                    >{{ pf.label }}</mat-slide-toggle
+              <div class="toggles">
+                @for (pf of publicFields; track pf.key) {
+                  <div
+                    class="toggle"
+                    [class.uf-changed]="pf.key in r.public_field_overrides"
+                    [title]="
+                      pf.key in r.public_field_overrides
+                        ? 'Overridden for this unit'
+                        : 'Project default'
+                    "
                   >
-                  <span class="uf-muted uf-small">{{
-                    pf.key in r.public_field_overrides ? 'overridden' : 'project default'
-                  }}</span>
-                </div>
-              }
+                    <mat-slide-toggle
+                      [checked]="r.public_fields[pf.key]"
+                      (change)="store.togglePublic(pf.key, $event.checked)"
+                      >{{ pf.label }}</mat-slide-toggle
+                    >
+                    @if (pf.key in r.public_field_overrides) {
+                      <span class="uf-chip uf-tone-warning">overridden</span>
+                    }
+                  </div>
+                }
+              </div>
               <button
                 mat-button
                 [disabled]="!store.hasOverrides()"
@@ -424,8 +441,8 @@ import { UnitSalesStore } from './unit-sales.store';
   styles: `
     .layout {
       display: grid;
-      grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
-      gap: 1rem;
+      grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+      gap: 0.75rem;
       align-items: start;
     }
     @media (max-width: 1100px) {
@@ -438,20 +455,45 @@ import { UnitSalesStore } from './unit-sales.store';
       min-width: 220px;
     }
     .num {
-      width: 130px;
+      flex: 1 1 7rem;
+      min-width: 0;
+    }
+    .term {
+      flex: 1 1 9rem;
+      min-width: 0;
     }
     .ccy {
-      width: 110px;
+      width: 96px;
     }
-    .wide {
-      width: 100%;
+    .checks {
+      display: flex;
+      flex-direction: column;
+      margin-top: 0 !important;
+    }
+    .desc {
+      flex: 2 1 18rem;
+    }
+    .notes {
+      flex: 1 1 12rem;
+    }
+    .toggles {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 0 0.25rem;
+    }
+    .toggle mat-slide-toggle {
+      white-space: nowrap;
+    }
+    .term--wide {
+      flex: 1.6 1 11rem;
     }
     .toggle {
       display: flex;
-      gap: 0.75rem;
+      gap: 0.5rem;
       align-items: center;
-      padding: 0.25rem 0.5rem;
+      padding: 0.05rem 0.35rem;
       border-radius: 6px;
+      font-size: 0.9rem;
     }
     .pre {
       background: var(--uf-surface-2);
@@ -519,22 +561,15 @@ export class UnitSalesPage {
     const price = f.price_on_request
       ? 'on request'
       : (formatPrice(f.list_price, f.currency) ?? 'no price');
-    return `${labelOf('availability', f.availability)} · ${price}`;
-  }
-
-  termsSummary(): string {
-    const f = this.store.form();
-    const parts = [
-      f.price_area_type ? `per m² of ${f.price_area_type}` : 'project area type',
-      this.store.planName() ?? 'no payment plan',
-    ];
     const promos = this.store.promotionNames();
-    parts.push(
+    return [
+      labelOf('availability', f.availability),
+      price,
+      this.store.planName() ?? 'no payment plan',
       promos.length
         ? `${promos.length} promotion${promos.length === 1 ? '' : 's'}`
         : 'no promotion',
-    );
-    return parts.join(' · ');
+    ].join(' · ');
   }
 
   roomsSummary(): string {

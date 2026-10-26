@@ -128,7 +128,7 @@ def test_render_request_review_approve_reject_and_limits(client, world, monkeypa
     settings = get_settings()
     stub = _Stub()
     monkeypatch.setattr(settings, "ai_image_provider", "gemini")
-    monkeypatch.setattr(settings, "ai_image_daily_limit", 2)
+    monkeypatch.setattr(settings, "ai_image_daily_limit", 3)
     monkeypatch.setattr(render_jobs, "get_provider", lambda: stub)
 
     r = client.post(url, headers=sales, json={"note": "oak floors"})
@@ -146,7 +146,7 @@ def test_render_request_review_approve_reject_and_limits(client, world, monkeypa
     assert max(im.size) <= 1536 and im.getpixel((1, 1)) == (255, 255, 255)
 
     data = client.get(url, headers=sales).json()
-    assert data["used_today"] == 1 and data["daily_limit"] == 2
+    assert data["used_today"] == 1 and data["daily_limit"] == 3
     [item] = data["items"]
     assert item["status"] == "review" and item["url"] and float(item["cost_usd"]) == 0.0336
     [gen] = [m for m in client.get(media_url, headers=sales).json() if m["kind"] == "plan_render"]
@@ -162,6 +162,26 @@ def test_render_request_review_approve_reject_and_limits(client, world, monkeypa
     assert client.post(f"{base}/renders/{rid}/approve", headers=sales).status_code == 409
     assert client.post(f"{base}/renders/{rid}/reject", headers=sales).status_code == 409
 
+    # two neighbours joined into one apartment (ADR-0017 E4): the crop covers both outlines, the
+    # prompt says so, the image belongs to the first unit and names both
+    other = world["units"]["A-00-01"]  # same floor; A-01-01 is not
+    r = client.post(url, headers=sales, json={"with_unit_id": world["units"]["A-01-01"]["id"]})
+    assert r.status_code == 422, r.text
+    r = client.post(url, headers=sales, json={"with_unit_id": other["id"]})
+    assert r.status_code == 202, r.text
+    assert r.json()["partner_unit_id"] == other["id"] and r.json()["partner_code"] == "A-00-01"
+    joined_id = r.json()["id"]
+    out = client.portal.call(render_jobs.generate, uuid.UUID(tid), uuid.UUID(joined_id))
+    assert out["status"] == "review", out
+    (single, _, _), (joined, _, joined_prompt) = stub.calls[0], stub.calls[1]
+    assert "joined into one larger apartment" in joined_prompt
+    one, two = Image.open(io.BytesIO(single)).size, Image.open(io.BytesIO(joined)).size
+    assert two[0] / two[1] > one[0] / one[1]  # both outlines side by side: a wider crop
+    media = client.get(media_url, headers=sales).json()
+    assert any("joined with A-00-01" in (m["alt_text"] or "") for m in media)
+    r = client.post(f"{base}/renders/{joined_id}/approve", headers=sales)
+    assert r.status_code == 200
+
     # a failing provider leaves a failed row with the reason; the cap counts every request
     stub.fail = True
     r = client.post(url, headers=sales, json={})
@@ -173,7 +193,7 @@ def test_render_request_review_approve_reject_and_limits(client, world, monkeypa
     r = client.post(f"{base}/renders/{rid2}/reject", headers=sales)
     assert r.status_code == 200 and r.json()["status"] == "rejected" and r.json()["url"] is None
     statuses = [i["status"] for i in client.get(url, headers=sales).json()["items"]]
-    assert sorted(statuses) == ["approved", "rejected"]
+    assert sorted(statuses) == ["approved", "approved", "rejected"]
 
 
 def test_setup_checklist_reflects_the_project_state(client, world):  # noqa: F811

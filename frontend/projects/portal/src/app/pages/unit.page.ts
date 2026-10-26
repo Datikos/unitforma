@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { combineLatest } from 'rxjs';
 import { EmptyStateComponent, StatusChipComponent, UF_ICONS } from 'ui';
-import { PlanPolygon, PlanViewerComponent } from 'plan-viewer';
+import { PlanPolygon, PlanViewerComponent, PolygonMove, Ring } from 'plan-viewer';
 import { MassingViewerComponent, type SiteFeature3D } from 'viewer-3d';
 import { Favourites } from '../core/favourites';
 import { AVAILABILITY, area, money, typeLabel } from '../core/format';
@@ -12,6 +12,47 @@ import { PortalApi, ProjectDoc, UnitDoc, problemOf } from '../core/portal-api';
 import { SiteStore } from '../core/site.store';
 
 /** Unit page: plan, labelled media, areas with definitions, price and terms (plan §7.1, §7.4). */
+interface Piece {
+  id: string;
+  name: string;
+  w: number; // metres
+  h: number;
+  cx: number; // normalised plan coordinates of the centre
+  cy: number;
+  rotated: boolean;
+}
+
+/** Common pieces, metres: a buyer checks what fits where. */
+const FURNITURE: { name: string; w: number; h: number }[] = [
+  { name: 'Bed 160×200', w: 1.6, h: 2.0 },
+  { name: 'Bed 140×200', w: 1.4, h: 2.0 },
+  { name: 'Sofa 220×90', w: 2.2, h: 0.9 },
+  { name: 'Table 120×80', w: 1.2, h: 0.8 },
+  { name: 'Wardrobe 200×60', w: 2.0, h: 0.6 },
+  { name: 'Desk 120×60', w: 1.2, h: 0.6 },
+  { name: 'Bathtub 170×75', w: 1.7, h: 0.75 },
+];
+
+/** Approximate sRGB of the RAL classic codes developers quote most (RAL colour charts). */
+const RAL: Record<string, string> = {
+  '1013': '#e3d9c6',
+  '1015': '#e6d2b5',
+  '3000': '#a72920',
+  '5010': '#0e294b',
+  '6005': '#0f4336',
+  '7016': '#383e42',
+  '7035': '#cbd0cc',
+  '7040': '#9da3a6',
+  '8017': '#44322d',
+  '9001': '#e9e0d2',
+  '9002': '#d7d5cb',
+  '9003': '#ecece7',
+  '9004': '#2b2b2c',
+  '9005': '#0e0e10',
+  '9010': '#f1ece1',
+  '9016': '#f1f0ea',
+};
+
 @Component({
   selector: 'uf-unit-page',
   imports: [
@@ -99,12 +140,30 @@ import { SiteStore } from '../core/site.store';
                 [height]="plan.height"
                 [polygons]="planPolygons()"
                 [focus]="plan.ring"
-                mode="view"
+                [mode]="furniture().length ? 'move' : 'view'"
+                (polygonMoved)="onMoved($event)"
               />
               <p class="uf-hint planbox__hint">
                 <ng-icon name="lucideMaximize2" /> The plan opens zoomed on {{ u.code }}; scroll to
                 zoom, drag to see the neighbours.
               </p>
+              @if (pxPerM()) {
+                <div class="furn">
+                  <span class="uf-muted small">Try furniture, true to scale:</span>
+                  @for (f of catalogue; track f.name) {
+                    <button type="button" class="uf-chip-btn" (click)="addFurniture(f)">
+                      {{ f.name }}
+                    </button>
+                  }
+                  @if (furniture().length) {
+                    <button type="button" class="uf-chip-btn" (click)="rotateLast()">Rotate</button>
+                    <button type="button" class="uf-chip-btn" (click)="furniture.set([])">
+                      Clear
+                    </button>
+                    <span class="uf-muted small">Drag the pieces on the plan.</span>
+                  }
+                </div>
+              }
             </div>
           }
           @if (doc()?.massing || building()?.model) {
@@ -219,6 +278,13 @@ import { SiteStore } from '../core/site.store';
             <dl>
               <dt>Type</dt>
               <dd>{{ typeLabel(u.unit_type) }}</dd>
+              @if (u.wall_colour) {
+                <dt>Walls</dt>
+                <dd>
+                  <span class="swatch" [style.background]="swatch(u.wall_colour)"></span
+                  >{{ u.wall_colour }}
+                </dd>
+              }
               <dt>Floor</dt>
               <dd>
                 <a
@@ -444,6 +510,23 @@ import { SiteStore } from '../core/site.store';
     .media {
       position: relative;
     }
+    .furn {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem;
+      margin: 0.5rem 0 0;
+    }
+    .swatch {
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      border: 1px solid var(--uf-border);
+      border-radius: 3px;
+      vertical-align: -0.15em;
+      margin-right: 0.35em;
+      background: transparent;
+    }
     /* the generated 3D plan view leads the page: shown whole, never cropped to 4:3 */
     .hero3d img {
       aspect-ratio: auto;
@@ -516,6 +599,79 @@ export class UnitPage {
   );
   readonly fav = computed(() => !!this.unit() && this.favs.has(this.slug(), this.unit()!.code));
   readonly cover = computed(() => this.doc()?.gallery?.[0] ?? null);
+  // --- furniture ruler (ADR-0017, owner's item 4): pieces at true scale, dragged on the plan
+  readonly catalogue = FURNITURE;
+  readonly furniture = signal<Piece[]>([]);
+  /** Plan pixels per metre from the unit's outline and its largest stated area; null without them. */
+  readonly pxPerM = computed(() => {
+    const u = this.unit();
+    const ring = u?.plan?.ring;
+    const areas = Object.values(u?.areas ?? {})
+      .map(Number)
+      .filter((x) => x > 0);
+    if (!u?.plan || !ring || ring.length < 3 || !areas.length) return null;
+    const w = u.plan.width;
+    const h = u.plan.height;
+    let a = 0;
+    for (let i = 0; i < ring.length; i++) {
+      const [x0, y0] = ring[i];
+      const [x1, y1] = ring[(i + 1) % ring.length];
+      a += x0 * w * y1 * h - x1 * w * y0 * h;
+    }
+    const px2 = Math.abs(a) / 2;
+    return px2 > 0 ? Math.sqrt(px2 / Math.max(...areas)) : null;
+  });
+
+  rect(f: Piece): Ring {
+    const u = this.unit()!;
+    const k = this.pxPerM() ?? 1;
+    const [w, h] = f.rotated ? [f.h, f.w] : [f.w, f.h];
+    const hw = (w * k) / 2 / u.plan!.width;
+    const hh = (h * k) / 2 / u.plan!.height;
+    return [
+      [f.cx - hw, f.cy - hh],
+      [f.cx + hw, f.cy - hh],
+      [f.cx + hw, f.cy + hh],
+      [f.cx - hw, f.cy + hh],
+    ];
+  }
+
+  addFurniture(f: { name: string; w: number; h: number }): void {
+    const ring = this.unit()?.plan?.ring;
+    if (!ring) return;
+    const cx = ring.reduce((s, p) => s + p[0], 0) / ring.length;
+    const cy = ring.reduce((s, p) => s + p[1], 0) / ring.length;
+    const n = this.furniture().length;
+    this.furniture.update((list) => [
+      ...list,
+      {
+        id: `furniture-${Date.now()}-${n}`,
+        ...f,
+        cx: cx + n * 0.01,
+        cy: cy + n * 0.01,
+        rotated: false,
+      },
+    ]);
+  }
+
+  rotateLast(): void {
+    this.furniture.update((list) =>
+      list.map((f, i) => (i === list.length - 1 ? { ...f, rotated: !f.rotated } : f)),
+    );
+  }
+
+  onMoved(mv: PolygonMove): void {
+    this.furniture.update((list) =>
+      list.map((f) => (f.id === mv.id ? { ...f, cx: f.cx + mv.dx, cy: f.cy + mv.dy } : f)),
+    );
+  }
+  /** A swatch for a hex colour or one of the common RAL codes; transparent otherwise. */
+  swatch(code: string): string {
+    const c = code.trim().toLowerCase();
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/.test(c)) return c;
+    const ral = c.replace(/^ral\s*/, '');
+    return RAL[ral] ?? 'transparent';
+  }
   /** The 3D plan view (generated or uploaded `plan_render`) leads the page (ADR-0017). */
   readonly hero = computed(
     () =>
@@ -543,7 +699,15 @@ export class UnitPage {
         fill: 'color-mix(in srgb, var(--uf-primary) 28%, transparent)',
         stroke: 'var(--uf-primary)',
         title: u.code,
+        locked: true,
       },
+      ...this.furniture().map((f) => ({
+        id: f.id,
+        ring: this.rect(f),
+        label: f.name,
+        kind: 'furniture' as const,
+        title: f.name,
+      })),
     ];
   });
   readonly areaRows = computed(() => {

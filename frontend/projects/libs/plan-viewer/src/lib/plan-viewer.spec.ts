@@ -121,4 +121,51 @@ describe('PlanViewerComponent', () => {
     expect(host.querySelector('.pv--has-selection')).toBeNull();
     expect(host.querySelector('.pv__poly--outline')).toBeNull();
   });
+
+  it('shrinks the label of a narrow parking stall so it stays inside the polygon', async () => {
+    await TestBed.configureTestingModule({ imports: [PlanViewerComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(PlanViewerComponent);
+    fixture.componentRef.setInput('width', 3000);
+    fixture.componentRef.setInput('height', 2000);
+    const c = fixture.componentInstance;
+    expect(c.labelSize()).toBe(50);
+    // a 2.5 m × 5 m stall on a sheet where 1 m is 24 px: 60 × 120 px
+    const stall: Ring = [
+      [0.1, 0.1],
+      [0.12, 0.1],
+      [0.12, 0.16],
+      [0.1, 0.16],
+    ];
+    const flat: Ring = [
+      [0.3, 0.1],
+      [0.5, 0.1],
+      [0.5, 0.2],
+      [0.3, 0.2],
+    ];
+    fixture.componentRef.setInput('polygons', [
+      { id: 'p10', ring: stall, label: 'P-10' },
+      { id: 'a1', ring: flat, label: 'A-1' },
+      { id: 'band', ring: flat, label: 'Floor 1 · 3 of 11' },
+    ]);
+    fixture.detectChanges();
+    const sizes = Array.from(fixture.nativeElement.querySelectorAll('text')).map((t) =>
+      Number((t as SVGTextElement).getAttribute('font-size')),
+    );
+    // 0.85 × 60 px / (0.6 em × 4 chars) = 21.25 px: the four glyphs fit the 60 px stall
+    expect(sizes[0]).toBeCloseTo(21.25, 0);
+    expect(sizes[0] * 0.6 * 4).toBeLessThan(60);
+    expect(sizes[1]).toBe(50); // a wide room keeps the sheet size
+    expect(sizes[2]).toBe(50); // 17 glyphs × 0.6 em × 50 px = 510 px fit the 600 px band
+    // selecting the stall must not push its label out again
+    fixture.componentRef.setInput('polygons', [
+      { id: 'p10', ring: stall, label: 'P-10', selected: true },
+      { id: 'a1', ring: flat, label: 'A-1', selected: true },
+    ]);
+    fixture.detectChanges();
+    const selected = Array.from(fixture.nativeElement.querySelectorAll('text')).map((t) =>
+      Number((t as SVGTextElement).getAttribute('font-size')),
+    );
+    expect(selected[0]).toBeCloseTo(21.25, 0);
+    expect(selected[1]).toBe(65);
+  });
 });

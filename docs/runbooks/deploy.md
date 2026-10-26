@@ -30,3 +30,17 @@ migrations inside the backend image (a migration was added on the host and appli
 was built before it). The dev stack mounts `backend/migrations` into `api` only; `db-migrate` runs the
 image's copy. Rebuild the image with `deploy/scripts/dev-up.sh api` (the migrate container shares it), then
 `up` again. Seen on 2026-10-26 after migrations 0014 and 0015.
+
+## OpenStreetMap embed (ADR-0016 E4)
+
+The portal project page embeds `openstreetmap.org/export/embed.html` around the project's position. The
+OSMF tile usage policy has no numeric limit but may withdraw access from commercial services without
+notice. What to do when that happens, or when portal traffic grows past a few thousand page views a day:
+
+1. Set `UF_PORTAL_MAP_EMBED=false` in `deploy/compose/.env` and recreate `api` (`docker compose up -d api`):
+   the portal shows the address and an "Open in OpenStreetMap" link only, no tiles are loaded. No deploy.
+2. Pick a hosted tile provider (https://switch2osm.org/providers/) or self-host tiles (http://switch2osm.org/);
+   that replaces the iframe with a slippy-map library and a tile URL, a frontend change (ADR-0016 Revisit).
+
+Attribution stays "© OpenStreetMap contributors" linked to https://www.openstreetmap.org/copyright in
+both modes.

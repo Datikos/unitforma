@@ -2967,6 +2967,11 @@ export interface components {
              * @description Layout code shared by units with the same plan (ADR-0016)
              */
             layout?: string | null;
+            /**
+             * Wall Colour
+             * @description Wall finish: a RAL code or a hex colour, shown to buyers
+             */
+            wall_colour?: string | null;
             /** Public Description */
             public_description: string | null;
             /** Internal Notes */
@@ -4003,6 +4008,10 @@ export interface components {
             cost_usd: string | null;
             /** Media Id */
             media_id: string | null;
+            /** Partner Unit Id */
+            partner_unit_id?: string | null;
+            /** Partner Code */
+            partner_code?: string | null;
             /** Requested By */
             requested_by: string | null;
             /** Reviewed By */
@@ -4026,6 +4035,11 @@ export interface components {
              * @description Extra instructions appended to the fixed prompt (style, finishes)
              */
             note?: string | null;
+            /**
+             * With Unit Id
+             * @description A neighbouring unit on the same floor to show joined into one apartment
+             */
+            with_unit_id?: string | null;
         };
         /** RendersOut */
         RendersOut: {
@@ -4117,6 +4131,8 @@ export interface components {
             entrance?: string | null;
             /** Layout */
             layout?: string | null;
+            /** Wall Colour */
+            wall_colour?: string | null;
             /** Public Fields */
             public_fields?: {
                 [key: string]: boolean;
@@ -4200,6 +4216,8 @@ export interface components {
             entrance?: string | null;
             /** Layout */
             layout?: string | null;
+            /** Wall Colour */
+            wall_colour?: string | null;
             /** Public Fields */
             public_fields?: {
                 [key: string]: boolean;

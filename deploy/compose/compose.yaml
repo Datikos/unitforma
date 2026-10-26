@@ -21,6 +21,7 @@ x-backend-env: &backend-env
   UF_S3_BUCKET: ${S3_BUCKET:-unitforma}
   UF_S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
   # AI-generated 3D plan renders (ADR-0017): none hides the feature; the key is a file secret
+  UF_PORTAL_MAP_EMBED: ${UF_PORTAL_MAP_EMBED:-true}
   UF_AI_IMAGE_PROVIDER: ${UF_AI_IMAGE_PROVIDER:-none}
   UF_AI_IMAGE_MODEL: ${UF_AI_IMAGE_MODEL:-gemini-nano-banana-2.1}
   UF_AI_IMAGE_DAILY_LIMIT: ${UF_AI_IMAGE_DAILY_LIMIT:-40}

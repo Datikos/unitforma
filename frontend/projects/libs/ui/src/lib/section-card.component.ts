@@ -70,7 +70,7 @@ import { UF_ICONS } from './icons';
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.6rem 0.75rem 0.6rem 0.5rem;
+      padding: 0.45rem 0.75rem 0.45rem 0.5rem;
       min-height: 3rem;
     }
     .sc--closed .sc__head {
@@ -128,7 +128,7 @@ import { UF_ICONS } from './icons';
       flex: none;
     }
     .sc__body {
-      padding: 0.25rem 1rem 1rem;
+      padding: 0.25rem 0.9rem 0.75rem;
       border-top: 1px solid var(--uf-border);
       padding-top: 0.75rem;
       display: grid;

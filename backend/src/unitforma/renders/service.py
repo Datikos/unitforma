@@ -39,6 +39,11 @@ PROMPT = (
     "furniture. Light wooden floors, white walls, soft daylight, a plain white background. "
     "No text, no labels, no dimension lines, no people."
 )
+JOINED_PROMPT = (
+    " The plan shows two neighbouring apartments that will be joined into one larger apartment: "
+    "show them as one home, with the partition wall between them opened into a doorway or removed, "
+    "keeping every outer wall, window and door as drawn."
+)
 DISCLOSURE = "Generated from the floor plan by AI — furniture and finishes are illustrative"
 CROP_MARGIN = 0.08  # of the outline's box, each side
 CROP_MAX_PX = 1536
@@ -117,9 +122,15 @@ async def current_outline(
 
 
 async def request_render(
-    db: AsyncSession, unit: Unit, note: str | None, actor: Actor
+    db: AsyncSession,
+    unit: Unit,
+    note: str | None,
+    actor: Actor,
+    partner: Unit | None = None,
 ) -> UnitRender:
-    """Validate, write the row, defer the job. The crop and the provider call run in the worker."""
+    """Validate, write the row, defer the job. The crop and the provider call run in the worker.
+    With ``partner`` (a unit of the same floor) the render shows both joined into one apartment
+    (ADR-0017 E4); the image belongs to ``unit``."""
     s = get_settings()
     if not enabled():
         raise ProblemError(
@@ -136,6 +147,16 @@ async def request_render(
             "The unit has no outline on a processed sheet",
             "Draw or approve its outline in the sheet editor first",
         )
+    if partner is not None:
+        if partner.id == unit.id or partner.project_id != unit.project_id:
+            raise ProblemError(422, "The joined unit must be another unit of this project")
+        if partner.floor_id != unit.floor_id or partner.building_id != unit.building_id:
+            raise ProblemError(422, "The joined unit must be on the same floor")
+        p_outline = await current_outline(db, partner.id)
+        if p_outline is None or p_outline[1].id != outline[1].id:
+            raise ProblemError(
+                409, "The joined unit has no outline on the same sheet", "Outline it first"
+            )
     active = (
         await db.execute(
             select(func.count())
@@ -153,7 +174,11 @@ async def request_render(
             f"{used} of {s.ai_image_daily_limit} requests today; raise UF_AI_IMAGE_DAILY_LIMIT",
         )
     clean = (note or "").strip() or None
-    prompt = PROMPT + (f"\n\nAdditional instructions from the sales team: {clean}" if clean else "")
+    prompt = PROMPT + (JOINED_PROMPT if partner is not None else "")
+    colour = ((unit.attributes or {}).get("wall_colour") or "").strip()
+    if colour:
+        prompt += f" The walls are painted {colour}."
+    prompt += f"\n\nAdditional instructions from the sales team: {clean}" if clean else ""
     r = UnitRender(
         id=new_id(),
         tenant_id=unit.tenant_id,
@@ -164,12 +189,19 @@ async def request_render(
         model=s.ai_image_model,
         prompt=prompt,
         note=clean,
+        partner_unit_id=partner.id if partner is not None else None,
         requested_by=actor[0],
     )
     db.add(r)
     await db.flush()
     await db.refresh(r)
-    await _audit(db, r, actor, "request", {"note": clean, "model": r.model})
+    await _audit(
+        db,
+        r,
+        actor,
+        "request",
+        {"note": clean, "model": r.model, "partner_unit_id": str(partner.id) if partner else None},
+    )
     await jobs.configure_task(name="renders.generate", queue="docs").defer_async(
         tenant_id=str(unit.tenant_id), render_id=str(r.id)
     )
@@ -206,16 +238,18 @@ def crop_plan(
     ring: list[list[float]],
     margin: float = CROP_MARGIN,
     max_px: int = CROP_MAX_PX,
+    extra_rings: list[list[list[float]]] | None = None,
 ) -> bytes:
     """The outline's bounding box plus ``margin`` with everything outside the ring painted white,
     so the model draws this apartment and not its neighbours; PNG, at most ``max_px`` on the long
     side."""
     from PIL import Image, ImageDraw
 
-    xs = [float(p[0]) for p in ring]
-    ys = [float(p[1]) for p in ring]
-    if len(ring) < 3:
+    rings = [ring, *(extra_rings or [])]
+    if any(len(r) < 3 for r in rings):
         raise ValueError("outline needs three points")
+    xs = [float(p[0]) for r in rings for p in r]
+    ys = [float(p[1]) for r in rings for p in r]
     with Image.open(io.BytesIO(raster)) as im:
         im = im.convert("RGB")
         w, h = im.size
@@ -229,9 +263,10 @@ def crop_plan(
         if box[2] - box[0] < 4 or box[3] - box[1] < 4:
             raise ValueError("outline is too small on the sheet")
         part = im.crop(box)
-        pts = [(x * w - box[0], y * h - box[1]) for x, y in zip(xs, ys, strict=True)]
         mask = Image.new("L", part.size, 0)
-        ImageDraw.Draw(mask).polygon(pts, fill=255)
+        draw = ImageDraw.Draw(mask)
+        for r in rings:  # every joined unit stays visible, the rest is white
+            draw.polygon([(float(x) * w - box[0], float(y) * h - box[1]) for x, y in r], fill=255)
         out = Image.composite(part, Image.new("RGB", part.size, (255, 255, 255)), mask)
         if max(out.size) > max_px:
             out.thumbnail((max_px, max_px))
@@ -241,7 +276,11 @@ def crop_plan(
 
 
 async def store_result(
-    db: AsyncSession, r: UnitRender, unit: Unit, image: GeneratedImage
+    db: AsyncSession,
+    r: UnitRender,
+    unit: Unit,
+    image: GeneratedImage,
+    partner_code: str | None = None,
 ) -> UnitMedia:
     """The generated image becomes a private, labelled media item of the unit."""
     ext = MIME_EXT.get(image.mime, "png")
@@ -270,7 +309,11 @@ async def store_result(
         status="ready",
         sort_order=next_order,
         is_public=False,
-        alt_text=f"Generated 3D view of {unit.code}",
+        alt_text=(
+            f"Generated 3D view of {unit.code} joined with {partner_code}"
+            if partner_code
+            else f"Generated 3D view of {unit.code}"
+        ),
         is_ai_generated=True,
         ai_disclosure_text=DISCLOSURE,
         uploaded_by=r.requested_by,

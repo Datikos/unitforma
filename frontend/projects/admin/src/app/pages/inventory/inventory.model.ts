@@ -48,6 +48,7 @@ export const SETS: Record<Exclude<ColumnSet, 'all'>, string[]> = {
     'floor_level',
     'unit_type',
     'layout',
+    'wall_colour',
     'availability',
     'list_price',
     'currency',
@@ -139,6 +140,7 @@ export function toChange(
     case 'price_on_request':
     case 'orientation':
     case 'layout':
+    case 'wall_colour':
     case 'entrance':
     case 'public_description':
     case 'internal_notes':
@@ -296,6 +298,13 @@ export function buildColumns(d: ColumnDeps): ColDef<InventoryRow>[] {
       editable: true,
       width: 110,
       headerTooltip: 'Plan type; units of one layout share renders',
+    },
+    {
+      field: 'wall_colour',
+      headerName: 'Walls',
+      editable: true,
+      width: 110,
+      headerTooltip: 'Wall finish: RAL code or hex colour; buyers see it',
     },
     { field: 'entrance', headerName: 'Entrance', editable: true, width: 110 },
     {

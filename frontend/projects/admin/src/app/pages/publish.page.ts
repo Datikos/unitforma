@@ -149,7 +149,8 @@ const FIX_LINKS: [RegExp, string, string][] = [
             </button>
             <span class="uf-hint"
               >Single units: select them in the inventory grid. Blocking items must be fixed;
-              warnings can be published with.</span
+              warnings can be published with. Availability and prices reach the portal at once;
+              outlines, plans, renders, texts and listing need a new version.</span
             >
           </div>
           @if (r.published_version) {
@@ -214,6 +215,21 @@ const FIX_LINKS: [RegExp, string, string][] = [
               placeholder="e.g. Settled in GEL at the NBG rate of the payment day"
             /><mat-hint
               >Printed next to every price. Text only; prices stay in one currency.</mat-hint
+            >
+          </mat-form-field>
+          <mat-form-field appearance="outline"
+            ><mat-label>Currency</mat-label
+            ><input
+              matInput
+              [(ngModel)]="currency"
+              name="currency"
+              maxlength="3"
+              minlength="3"
+              placeholder="EUR"
+              style="text-transform: uppercase"
+            /><mat-hint
+              >ISO 4217 code for new prices (EUR, USD, GEL). Unit prices already entered keep their
+              own currency.</mat-hint
             >
           </mat-form-field>
           <mat-form-field appearance="outline" class="wide"
@@ -485,6 +501,8 @@ export class PublishPage {
     terms: '',
   };
   location: { lat: number | null; lng: number | null } = { lat: null, lng: null };
+  /** The project's currency for new prices (ISO 4217); saved with the texts. */
+  currency = '';
   brand: BrandingForm = blankBrand();
   when = whenShort;
 
@@ -554,6 +572,7 @@ export class PublishPage {
       this.project.set(p);
       this.ctx.set(p);
       this.tenant.set(t);
+      this.currency = p.currency ?? '';
       const addr = (p.address ?? {}) as Record<string, unknown>;
       this.location = {
         lat: typeof addr['lat'] === 'number' ? addr['lat'] : null,
@@ -677,8 +696,10 @@ export class PublishPage {
     if (!p) return Promise.resolve();
     const ps = { ...(p.portal_settings ?? {}), ...this.portal };
     return this.act(async () => {
+      const currency = this.currency.trim().toUpperCase();
       await this.api.updateProject(this.tenantId(), this.projectId(), {
         portal_settings: clean(ps),
+        ...(currency.length === 3 && currency !== p.currency ? { currency } : {}),
         version: p.version,
       });
       this.toast.ok('Text saved. Publish a new version to show it to buyers.');

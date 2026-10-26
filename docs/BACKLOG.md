@@ -1,10 +1,13 @@
 # Backlog
 
-State on 2026-10-26: 37 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, plan Phases 5 to 7 and
+State on 2026-10-26: 39 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Rows that share one code area or one
 outside input are one row with every reference. Sizes: S up to a day, M a few days, L a week or more.
 *Needs* names the outside input, or "—".
+
+Decided out on 2026-10-26 by the owner: a Signify integration, automating the setup checklist from a permit
+import (ADR-0017 proposal 1b), and a block level between building and floor (blocks stay buildings).
 
 ## P0 — fix now
 
@@ -54,6 +57,8 @@ outside input are one row with every reference. Sizes: S up to a day, M a few da
 | 32 | Sample project `permit-1127975`: the owner checks the map position (OSM cluster of the street's `19/x` buildings, ±100 m), refines the 11 site features and the four facade regions drawn by eye from the general plan, and closes apartments №3 and №15 (no closed outline). | ADR-0016 #E1 (done, approximate) | owner's review | S |
 | 33 | First real generated 3D plan render on the sample project once a Gemini API key is in `secrets/ai_image_api_key` and `UF_AI_IMAGE_PROVIDER=gemini`: verify the response parser against the live answer, judge the image against the reference, approve or reject. | ADR-0017 #E1 | owner's API key | S |
 | 34 | Contract step of ADR-0016 E3 in the release after migration 0015: stop mirroring facade choices into `projects.site_frame.facades`, migrate leftovers, drop the key and the fallback in `geometry.facade_assignments`. | ADR-0016 #E5 | the 0015 release deployed | S |
-| 35 | OpenStreetMap embed volume against the tile usage policy before the first tenant goes live; fallback (self-hosted tiles) in the runbooks. | ADR-0016 #E4 | first tenant's traffic estimate | S |
+| 35 | Tile provider or self-hosted tiles for the portal map once traffic justifies it or OSM withdraws access (the `UF_PORTAL_MAP_EMBED` switch covers the gap; runbook written). | ADR-0016 Revisit (E4 done) | traffic figures, provider pick | M |
 | 36 | The architect's IFC export for `permit-1127975` (ArchiCAD: File → Save as → IFC, zones as IfcSpace) uploaded under building A, spaces linked; the portal then shows the real building. | ADR-0017 #E2 | the architect's file | S |
 | 37 | Second image provider (OpenAI GPT Image) for a quality and price comparison; batch pricing when volumes grow. | ADR-0017 #E3 | owner's wish | S |
+| 38 | UX pass on the pages the owner names (he sends the page or a screenshot with one sentence each). Done 2026-10-26: Projects (compact fields, top-aligned form rows, even cards); unit page (price and terms in one card, packed rows, two-column buyer toggles, 25 % shorter). | ADR-0009 (patterns) | owner's pages | S per page |
+| 39 | ADR-0019 (several developers on one general area): the owner picks Option A (one tenant, project-restricted members, per-project contacts) or Option B (platform area aggregating tenants); then its action items. | ADR-0019 Decision | owner's pick | S (A) / L (B) |

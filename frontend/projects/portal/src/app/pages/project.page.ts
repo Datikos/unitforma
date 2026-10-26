@@ -265,22 +265,28 @@ const FEATURE_STROKE: Record<string, string> = {
           <p>{{ d.project.description }}</p>
         </section>
       }
-      @if (mapEmbed(); as m) {
+      @if (coords()) {
         <section class="location" id="location">
           <h2>Location</h2>
           @if (address()) {
             <p class="uf-muted">{{ address() }}</p>
           }
-          <iframe
-            class="location__map"
-            [src]="m"
-            title="Map of the project location (OpenStreetMap)"
-            loading="lazy"
-            referrerpolicy="no-referrer"
-          ></iframe>
+          @if (mapEmbed(); as m) {
+            <iframe
+              class="location__map"
+              [src]="m"
+              title="Map of the project location (OpenStreetMap)"
+              loading="lazy"
+              referrerpolicy="no-referrer"
+            ></iframe>
+          }
           <p class="uf-muted uf-small">
             <a [href]="mapLink()" target="_blank" rel="noopener">Open in OpenStreetMap</a> · map
-            data © OpenStreetMap contributors
+            data ©
+            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener"
+              >OpenStreetMap</a
+            >
+            contributors
           </p>
         </section>
       }
@@ -664,7 +670,7 @@ export class ProjectPage {
     out.push({ id: 'buildings', label: 'Buildings' });
     if (this.gallery().length > 1) out.push({ id: 'gallery', label: 'Gallery' });
     if (d.project.description) out.push({ id: 'about', label: 'About' });
-    if (this.mapEmbed()) out.push({ id: 'location', label: 'Location' });
+    if (this.coords()) out.push({ id: 'location', label: 'Location' });
     if (d.payment_plans.length || d.promotions.length) out.push({ id: 'terms', label: 'Terms' });
     return out;
   });
@@ -675,10 +681,12 @@ export class ProjectPage {
     const lng = Number(a['lng']);
     return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
   });
-  /** OpenStreetMap embed around the position (ADR-0016 Decision 5): no key, no script. */
+  /** OpenStreetMap embed around the position (ADR-0016 Decision 5): no key, no script. The
+   * operator can turn the iframe off (`map_embed` on the site document, ADR-0016 E4); the
+   * address and the link stay. */
   readonly mapEmbed = computed<SafeResourceUrl | null>(() => {
     const c = this.coords();
-    if (!c) return null;
+    if (!c || this.store.site()?.map_embed === false) return null;
     const d = 0.004;
     const bbox = [c.lng - d, c.lat - d, c.lng + d, c.lat + d].map((v) => v.toFixed(5)).join('%2C');
     const marker = `${c.lat.toFixed(6)}%2C${c.lng.toFixed(6)}`;

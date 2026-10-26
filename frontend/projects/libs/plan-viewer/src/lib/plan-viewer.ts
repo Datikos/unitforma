@@ -16,7 +16,7 @@ import {
 export type Point = [number, number];
 export type Ring = Point[];
 
-export type PlanPolygonKind = 'unit' | 'candidate' | 'ghost' | 'footprint' | 'region';
+export type PlanPolygonKind = 'unit' | 'candidate' | 'ghost' | 'footprint' | 'region' | 'furniture';
 
 export interface PlanPolygon {
   id: string;
@@ -32,6 +32,8 @@ export interface PlanPolygon {
   /** Explicit colours (e.g. availability in the buyer portal); override the kind styles. */
   fill?: string;
   stroke?: string;
+  /** Not draggable in move mode (the unit outline behind the furniture ruler). */
+  locked?: boolean;
   /** Accessible name announced for the polygon. */
   title?: string;
 }
@@ -71,6 +73,7 @@ export interface PolygonMove {
       (pointerleave)="onPointerUp($event)"
       (dblclick)="onDblClick($event)"
       (keydown)="onKey($event)"
+      (fullscreenchange)="onFullscreenChange()"
       tabindex="0"
     >
       <div class="pv__stage" [style.transform]="transform()">
@@ -102,6 +105,7 @@ export interface PolygonMove {
               [class.pv__poly--ghost]="p.kind === 'ghost'"
               [class.pv__poly--footprint]="p.kind === 'footprint'"
               [class.pv__poly--region]="p.kind === 'region'"
+              [class.pv__poly--furniture]="p.kind === 'furniture'"
               [class.pv__poly--selected]="p.selected"
               [style.fill]="p.fill ?? null"
               [style.stroke]="p.stroke ?? null"
@@ -117,7 +121,7 @@ export interface PolygonMove {
               [attr.y]="centroid(p.ring, p.id)[1]"
               class="pv__label"
               [class.pv__label--selected]="p.selected"
-              [attr.font-size]="p.selected ? labelSize() * 1.3 : labelSize()"
+              [attr.font-size]="labelFontSize(p)"
             >
               {{ p.label ?? '' }}
             </text>
@@ -166,6 +170,26 @@ export interface PolygonMove {
           }
         </svg>
       </div>
+      <div class="pv__tools" role="toolbar" aria-label="Plan view">
+        <button type="button" class="pv__tool" title="Zoom in" (click)="zoomBy(1.25)">+</button>
+        <button type="button" class="pv__tool" title="Zoom out" (click)="zoomBy(1 / 1.25)">
+          −
+        </button>
+        <button type="button" class="pv__tool" title="Fit the plan" (click)="fitView()">⤢</button>
+        <button
+          type="button"
+          class="pv__tool"
+          [title]="fullscreen() ? 'Leave full screen' : 'Full screen'"
+          (click)="toggleFullscreen()"
+        >
+          {{ fullscreen() ? '✕' : '⛶' }}
+        </button>
+      </div>
+      @if (calloutPos(); as c) {
+        <div class="pv__callout" [style.left.px]="c[0]" [style.top.px]="c[1]">
+          <ng-content select="[callout]" />
+        </div>
+      }
     </div>
   `,
   styles: `
@@ -209,6 +233,48 @@ export interface PolygonMove {
     .pv__blank {
       background: #fff;
     }
+    .pv__tools {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      z-index: 3;
+    }
+    .pv__tool {
+      width: 2rem;
+      height: 2rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 0.4rem;
+      background: rgba(255, 255, 255, 0.95);
+      color: #0f172a;
+      font: inherit;
+      font-size: 1.05rem;
+      line-height: 1;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+    .pv__tool:hover {
+      background: #fff;
+      border-color: #94a3b8;
+    }
+    .pv__callout {
+      position: absolute;
+      z-index: 4;
+      transform: translate(-50%, calc(-100% - 10px));
+      pointer-events: none;
+    }
+    .pv__callout > * {
+      pointer-events: auto;
+    }
+    .pv:fullscreen {
+      background: #fff;
+      aspect-ratio: auto;
+      max-height: none;
+      height: 100vh;
+    }
     .pv__svg {
       position: absolute;
       left: 0;
@@ -247,6 +313,12 @@ export interface PolygonMove {
       stroke-width: 4;
       stroke-dasharray: 16 8;
       pointer-events: none;
+    }
+    .pv__poly--furniture {
+      fill: rgba(217, 119, 6, 0.28);
+      stroke: #b45309;
+      stroke-width: 2;
+      cursor: move;
     }
     .pv__poly--selected {
       fill: rgba(245, 158, 11, 0.3);
@@ -287,7 +359,7 @@ export interface PolygonMove {
       pointer-events: none;
       paint-order: stroke;
       stroke: #fff;
-      stroke-width: 4;
+      stroke-width: 0.2em; /* the halo follows the font, so a shrunk label keeps a thin one */
     }
     .pv__draft {
       fill: rgba(217, 119, 6, 0.15);
@@ -325,6 +397,25 @@ export class PlanViewerComponent {
   readonly width = input(1000);
   readonly height = input(700);
   readonly polygons = input<PlanPolygon[]>([]);
+  /** Polygon id a callout (projected content with the `callout` attribute) is anchored to. */
+  readonly callout = input<string | null>(null);
+  readonly fullscreen = signal(false);
+  /** Screen position of the callout anchor: the polygon's centroid under the current pan and zoom,
+   * clamped inside the box; null while dragging or without a match. */
+  readonly calloutPos = computed<[number, number] | null>(() => {
+    const id = this.callout();
+    if (!id || this.dragDelta()) return null;
+    const p = this.polygons().find((x) => x.id === id);
+    if (!p || p.ring.length < 3) return null;
+    const [cx, cy] = this.centroid(p.ring);
+    const [ox, oy] = this.offset();
+    const s = this.scale();
+    const el = this.host().nativeElement;
+    const w = el.clientWidth || 1;
+    const h = el.clientHeight || 1;
+    const top = Math.min(...p.ring.map((q) => q[1] * this.height())) * s + oy;
+    return [Math.min(w - 24, Math.max(24, cx * s + ox)), Math.min(h - 8, Math.max(56, top))];
+  });
   /** The unit (never a footprint or region) drawn on top with the halo and outline. */
   readonly selectedPolygon = computed(
     () =>
@@ -361,7 +452,27 @@ export class PlanViewerComponent {
     () => `translate(${this.offset()[0]}px, ${this.offset()[1]}px) scale(${this.scale()})`,
   );
   readonly handle = computed(() => Math.max(3, 6 / this.scale()));
+  /** Label size for the sheet (raster px); `labelFontSize` shrinks it per polygon. */
   readonly labelSize = computed(() => Math.max(12, Math.round(this.width() / 60)));
+
+  /**
+   * Font size (raster px, so it scales with the zoom) that keeps the label inside the polygon's
+   * bounding box: the sheet size, or less for a narrow polygon such as a parking stall ("P-10" in a
+   * 2.5 m stall). The selected label is 1.3× larger only where that still fits; its weight, halo
+   * and callout carry the emphasis otherwise. Glyph width is estimated at 0.6 em (system-ui 600)
+   * with 15 % left for the halo and the estimate's error.
+   */
+  labelFontSize(p: PlanPolygon): number {
+    const cap = p.selected ? this.labelSize() * 1.3 : this.labelSize();
+    const n = (p.label ?? '').length;
+    if (!n || p.ring.length < 2) return cap;
+    const xs = p.ring.map((q) => q[0]);
+    const ys = p.ring.map((q) => q[1]);
+    const bw = (Math.max(...xs) - Math.min(...xs)) * this.width();
+    const bh = (Math.max(...ys) - Math.min(...ys)) * this.height();
+    const fit = Math.min((0.85 * bw) / (0.6 * n), 0.8 * bh);
+    return Math.max(4, Math.min(cap, Math.round(fit * 10) / 10));
+  }
 
   constructor() {
     // fit the sheet into the viewport once its size is known
@@ -384,6 +495,34 @@ export class PlanViewerComponent {
         this.calib.set([]);
       }
     });
+  }
+
+  /** Zoom around the centre of the box (the +/− buttons; the wheel zooms around the pointer). */
+  zoomBy(factor: number): void {
+    const el = this.host().nativeElement;
+    const px = el.clientWidth / 2;
+    const py = el.clientHeight / 2;
+    const s0 = this.scale();
+    const s1 = Math.min(20, Math.max(0.05, s0 * factor));
+    const [ox, oy] = this.offset();
+    this.offset.set([px - ((px - ox) * s1) / s0, py - ((py - oy) * s1) / s0]);
+    this.scale.set(s1);
+  }
+
+  /** Fit the whole sheet again (or the `focus` ring): the reset button. */
+  fitView(): void {
+    this.fit();
+  }
+
+  toggleFullscreen(): void {
+    const el = this.host().nativeElement;
+    if (document.fullscreenElement === el) void document.exitFullscreen();
+    else void el.requestFullscreen?.();
+  }
+
+  onFullscreenChange(): void {
+    this.fullscreen.set(document.fullscreenElement === this.host().nativeElement);
+    setTimeout(() => this.fit(), 50); // the box has its new size after the browser's layout pass
   }
 
   /** Scale the sheet to the box and centre it, or zoom onto the `focus` ring with a margin. */
@@ -438,7 +577,7 @@ export class PlanViewerComponent {
   }
 
   grab(p: PlanPolygon, ev: PointerEvent): void {
-    if (this.mode() !== 'move' || p.kind === 'ghost' || p.kind === 'region') return;
+    if (this.mode() !== 'move' || p.kind === 'ghost' || p.kind === 'region' || p.locked) return;
     ev.stopPropagation();
     this.host().nativeElement.focus({ preventScroll: true }); // scrolling here would move the target between pointerdown and click
     this.grabbed = p.id;

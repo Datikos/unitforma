@@ -1,6 +1,6 @@
 # ADR-0017: Finished views for buyers: selection highlight on the plan, neutral massing with facades, AI-generated 3D plan renders under staff review, and a setup checklist
 
-- **Status:** accepted (2026-10-26; implemented 2026-10-26; E1 to E3 open: a real render needs the owner's API key, the architect's IFC, a second provider)
+- **Status:** accepted (2026-10-26; implemented 2026-10-26; first live renders approved and published the same day; E2 (architect's IFC) and E3 (second provider) open)
 - **Date:** 2026-10-26
 - **Deciders:** David Sakhelashvili (platform owner); he decided on 2026-10-26 that AI-generated images may be shown when a staff member has reviewed them and buyers see a "generated" label (closes ADR-0016 E2)
 - **Plan reference:** §5.3 (unit media, AI disclosure), §7.3 (3D and fallbacks), §11.2 (admin screens), §11.3 (portal screens), §12.3 (jobs), §21 (sources), ADR-0004 (`is_ai_generated`), ADR-0006 C (IFC model), ADR-0009 (design system), ADR-0016 (gallery, facades, layout-shared media)
@@ -211,7 +211,7 @@ detection; the architect's model itself (a file the developer must obtain); a se
 
 ### Phase E: open
 
-- [ ] E1 (in progress 2026-10-26: the owner put a key in place; the first live call returned 400 because
+- [x] E1 (done 2026-10-26: the owner put a key in place; the first live call returned 400 because
       only `image/jpeg` is accepted as output, fixed in `renders/gemini.py`; the second call returned a
       furnished isometric view of A-17 in 30 s for $0.0336, approved by the owner, published in v12.
       *Found while implementing:* the portal unit page listed the image last, under the plan and the 3D
@@ -222,3 +222,17 @@ detection; the architect's model itself (a file the developer must obtain); a se
 - [ ] E2 The architect's IFC export for `permit-1127975` (ArchiCAD: File → Save as → IFC, with zones as
       IfcSpace), uploaded under building A; the portal then shows the model instead of the massing.
 - [ ] E3 Second provider (OpenAI) if the owner wants a comparison; batch pricing when volumes grow.
+- [x] E4 Joined apartments (owner's item 3, 2026-10-26, "dollhouse only"): `RenderRequest.with_unit_id`,
+      `unit_renders.partner_unit_id` (migration `0016`), the crop masks both outlines, the prompt asks for
+      one enlarged home with the partition opened, the image belongs to the first unit and its alt text
+      names both; "Join with" select on the unit page lists the units of the same floor. Test in
+      `test_unit_renders.py`. The inventory keeps two units: viewing and sharing only.
+- [x] E5 Wall colour (owner's item 5): `units.attributes.wall_colour` (RAL code or hex, 1 to 40
+      characters) through the sales rules like `layout`; inventory column "Walls", unit form field, public
+      on the unit page with a swatch for hex and the common RAL codes; the render prompt paints the walls
+      in it.
+- [x] E6 Furniture ruler (owner's item 4): the portal unit page adds pieces (beds, sofa, table, wardrobe,
+      desk, bathtub) at true scale, computed from the unit's outline and its largest stated area, and the
+      buyer drags them on the plan (viewer move mode; the outline is locked). Nothing is stored.
+- [x] E7 Plan viewer controls (owner's items 1, 2, 10): + / − / fit / full screen on every plan viewer;
+      the selected unit on the building page gets a callout with its status and an "Open" button.

@@ -32,7 +32,7 @@ export const PORTAL_GUIDE: PortalGuideSection[] = [
   {
     title: 'Plans, 3D and "indicative"',
     icon: 'lucideBox',
-    text: 'Floor plans and the 3D building come from the developer’s drawings. Tap a unit on a plan or on the 3D building to open it.',
+    text: 'Floor plans and the 3D building come from the developer’s drawings. Tap a unit on a plan or on the 3D building to open it. The + and − buttons zoom a plan, ⤢ fits it again and ⛶ shows it full screen; the selected unit gets an Open button right on the plan.',
     points: [
       'Where the developer published a facade drawing, the building page shows it with one band per floor: tap a band to open that floor. Phones start there; desktops start in 3D.',
       'A building card shows its construction status (planned, under construction, completed) and the completion the developer stated.',

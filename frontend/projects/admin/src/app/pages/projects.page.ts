@@ -100,7 +100,7 @@ import { ToastService } from '../ui/toast.service';
           <uf-section-card
             title="Start from a building permit"
             icon="lucideScrollText"
-            summary="Tbilisi Architecture Service (tas.ge)"
+            summary="tas.ge"
             storageKey="projects-permit"
             [open]="projects().length === 0 || !!permitPreview()"
           >
@@ -228,7 +228,7 @@ import { ToastService } from '../ui/toast.service';
             >
           }
         </div>
-        <div class="uf-grid3">
+        <div class="uf-grid3 cards">
           @for (p of shown(); track p.id) {
             <a class="uf-card card uf-quiet" [routerLink]="[p.id]">
               <div class="card__head">
@@ -263,12 +263,18 @@ import { ToastService } from '../ui/toast.service';
     </div>
   `,
   styles: `
+    /* fields share the row with their button instead of pushing it to the next line */
+    .uf-form-row mat-form-field {
+      flex: 1 1 10rem;
+      min-width: 9rem;
+    }
     .wide {
-      min-width: 22rem;
-      flex: 1;
+      flex: 2 1 14rem;
+      min-width: 14rem;
     }
     .short {
-      width: 9rem;
+      flex: 0 1 9rem;
+      min-width: 8rem;
     }
     .search {
       min-width: 280px;
@@ -288,10 +294,16 @@ import { ToastService } from '../ui/toast.service';
       cursor: pointer;
       margin: 0.25rem 0;
     }
+    .cards {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 340px));
+      align-items: stretch;
+    }
     .card {
-      display: grid;
-      gap: 0.35rem;
-      align-content: start;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      min-height: 8.5rem;
+      padding: var(--uf-space-3) var(--uf-space-4);
       transition:
         box-shadow 0.15s,
         border-color 0.15s;
@@ -304,10 +316,18 @@ import { ToastService } from '../ui/toast.service';
       display: flex;
       justify-content: space-between;
       gap: 0.5rem;
-      align-items: center;
+      align-items: flex-start;
+    }
+    .card__head uf-status-chip {
+      flex: none;
     }
     .card__name {
-      font-size: 1.05rem;
+      font-size: 1rem;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
     .card__go {
       color: var(--uf-primary);
@@ -316,7 +336,8 @@ import { ToastService } from '../ui/toast.service';
       display: inline-flex;
       align-items: center;
       gap: 0.25rem;
-      margin-top: 0.25rem;
+      margin-top: auto;
+      padding-top: 0.35rem;
     }
     .ic {
       vertical-align: -0.15em;

@@ -360,6 +360,14 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
         does: 'The plan-type code shared with identical units (1 to 40 characters). A unit without media of its own shows the public media of the first unit with the same code.',
       },
       {
+        name: 'Walls (RAL or hex)',
+        does: 'The wall finish buyers read on the unit page, as a RAL code or a hex colour; the generated 3D plan render paints the walls in it.',
+      },
+      {
+        name: 'Join with',
+        does: 'Picks a neighbour on the same floor: the 3D plan render then shows both apartments as one enlarged home with the partition opened, for viewing and sharing only; the inventory keeps two units.',
+      },
+      {
         name: 'Generate 3D plan render',
         does: 'Sends the plan crop of this unit to an image model and lists the result for review. Approve publishes it as a labelled, generated image (shared with the units of the same layout code); Reject deletes it. Off until the installation has an image provider (ADR-0017).',
       },
@@ -424,9 +432,14 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
         name: 'Location',
         does: 'Latitude and longitude of the site in decimal degrees; the OpenStreetMap link searches the typed address. The portal shows a map around the position once published.',
       },
+      {
+        name: 'Currency',
+        does: 'The ISO 4217 code new prices get (EUR, USD, GEL). Prices already entered on units keep their own currency.',
+      },
     ],
     roles: STRUCTURE,
-    result: 'The portal at {slug}.unitforma.com serves the latest snapshot.',
+    result:
+      'The portal at {slug}.unitforma.com serves the latest snapshot. Availability and prices of published units change there at once (ADR-0018); outlines, plans, renders, texts and listing wait for the next version.',
   },
   members: {
     title: 'Members',

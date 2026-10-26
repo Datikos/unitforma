@@ -712,6 +712,10 @@ class UnitRender(Base):
     media_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("unit_media.id", ondelete="SET NULL")
     )
+    # a second unit joined into one apartment on the render (ADR-0017 E4)
+    partner_unit_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("units.id", ondelete="SET NULL")
+    )
     error: Mapped[str | None] = mapped_column(Text)
     cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(8, 4))
     requested_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))

@@ -152,9 +152,20 @@ import { SiteStore } from '../core/site.store';
                   [width]="plan.width"
                   [height]="plan.height"
                   [polygons]="polygons()"
+                  [callout]="selected()"
                   mode="view"
                   (polygonSelected)="selected.set($event)"
-                />
+                >
+                  @if (selectedUnit(); as u) {
+                    <div callout class="callout">
+                      <strong>{{ u.code }}</strong>
+                      <uf-status-chip domain="availability" [value]="u.availability" />
+                      <a class="uf-btn" [routerLink]="['/projects', slug(), 'units', u.code]"
+                        >Open <ng-icon name="lucideArrowRight"
+                      /></a>
+                    </div>
+                  }
+                </uf-plan-viewer>
               } @else {
                 <p class="uf-muted">No plan published for this floor.</p>
               }
@@ -299,6 +310,20 @@ import { SiteStore } from '../core/site.store';
       gap: 0.5rem;
       flex-wrap: wrap;
       margin: 0;
+    }
+    .callout {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.6rem;
+      background: var(--uf-surface);
+      border: 1px solid var(--uf-border);
+      border-radius: var(--uf-radius);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+      white-space: nowrap;
+    }
+    .callout .uf-btn {
+      padding: 0.3rem 0.6rem;
     }
     .pick {
       display: flex;

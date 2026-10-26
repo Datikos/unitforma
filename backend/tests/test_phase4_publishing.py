@@ -916,6 +916,7 @@ def test_portal_gallery_site_features_map_and_shared_layout_media(client, world)
     site = client.get("/api/v1/portal/site", headers=H_(world)).json()
     card = next(c for c in site["projects"] if c["slug"] == "riverside")
     assert card["cover"] == gallery[0]["url"]
+    assert site["map_embed"] is True  # the OSM iframe is on unless the operator turns it off
 
     [feature] = doc["site"]["features"]
     assert feature["kind"] == "garden" and feature["name"] == "Garden"
@@ -944,3 +945,86 @@ def test_portal_gallery_site_features_map_and_shared_layout_media(client, world)
     assert len(borrowed["media"]) == 1 and borrowed["media"][0]["shared_from"] == "A-00-01"
     assert borrowed["media"][0]["url"] == own["media"][0]["url"]
     assert "SECRET-MEDIA" not in json.dumps(borrowed)  # the donor's internal media stays internal
+
+
+def test_map_embed_switch_reaches_the_portal(client, world, monkeypatch):
+    """ADR-0016 E4: UF_PORTAL_MAP_EMBED=false makes the portal show the address and a link only,
+    the switch for the day the OSMF tile policy's withdrawal clause applies."""
+    from unitforma.core.settings import get_settings
+
+    monkeypatch.setattr(get_settings(), "portal_map_embed", False)
+    assert client.get("/api/v1/portal/site", headers=H_(world)).json()["map_embed"] is False
+
+
+def test_a_sale_reaches_the_portal_without_a_new_version(client, world):
+    """ADR-0018: availability and price flip on the unit page, the list filter and the project
+    document (floor unit and stats) in the sales transaction; the version does not change; a preview
+    built earlier keeps its picture."""
+    base, pid, sales, pm = world["base"], world["project"]["id"], world["sales"], world["pm"]
+    portal = "/api/v1/portal/projects/riverside"
+    unit = world["units"]["A-00-02"]
+    pv = client.post(f"{base}/projects/{pid}/publications", headers=pm, json={"mode": "preview"})
+    assert pv.status_code == 201, pv.text
+    token = pv.json()["preview_url"].split("preview=")[1]
+    version = client.get(f"{base}/projects/{pid}/publish/readiness", headers=pm).json()[
+        "published_version"
+    ]
+    assert client.get(f"{portal}/units/A-00-02", headers=H_(world)).json()["availability"] == (
+        "available"
+    )
+    row = client.get(f"{base}/units/{unit['id']}/sales", headers=sales).json()
+    r = client.patch(
+        f"{base}/units/{unit['id']}/sales",
+        headers=sales,
+        json={
+            "availability": "sold",
+            "availability_reason": "contract signed",
+            "list_price": "275000",
+            "version": row["version"],
+        },
+    )
+    assert r.status_code == 200, r.text
+
+    one = client.get(f"{portal}/units/A-00-02", headers=H_(world)).json()
+    assert one["availability"] == "sold" and one["price"]["amount"].startswith("275000")
+    sold = client.get(f"{portal}/units", headers=H_(world), params={"availability": "sold"}).json()
+    assert "A-00-02" in [x["code"] for x in sold["items"]]
+    doc = client.get(portal, headers=H_(world)).json()
+    fu = next(
+        u
+        for b in doc["buildings"]
+        for f in b["floors"]
+        for u in f["units"]
+        if u["code"] == "A-00-02"
+    )
+    assert fu["availability"] == "sold"
+    available = client.get(
+        f"{portal}/units", headers=H_(world), params={"availability": "available"}
+    ).json()["total"]
+    assert doc["stats"]["available"] == available
+    assert (
+        client.get(f"{base}/projects/{pid}/publish/readiness", headers=pm).json()[
+            "published_version"
+        ]
+        == version
+    )  # no new version was needed
+    # the preview built before the sale keeps its picture
+    prev = client.get(f"{portal}/units/A-00-02?preview={token}", headers=H_(world)).json()
+    assert prev["availability"] == "available"
+
+    # back to the state the other tests expect
+    row = client.get(f"{base}/units/{unit['id']}/sales", headers=sales).json()
+    r = client.patch(
+        f"{base}/units/{unit['id']}/sales",
+        headers=sales,
+        json={
+            "availability": "available",
+            "availability_reason": "test cleanup",
+            "list_price": "260000",
+            "version": row["version"],
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert client.get(f"{portal}/units/A-00-02", headers=H_(world)).json()["availability"] == (
+        "available"
+    )

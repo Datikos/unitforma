@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     public_scheme: str = "https"
     # Seconds a portal host → publication lookup is cached per process (unpublish latency)
     portal_cache_seconds: float = 5.0
+    # The portal embeds the OpenStreetMap map around a project's position (ADR-0016 Decision 5).
+    # False shows the address and a link to OpenStreetMap only: the switch for the day the OSMF
+    # tile policy's "access may be withdrawn" applies (ADR-0016 E4), without a deploy.
+    portal_map_embed: bool = True
 
     # Buyer sessions
     app_session_key: str = Field(default="dev-only-change-me", min_length=16)

@@ -816,6 +816,9 @@ class InventoryRow(BaseModel):
     layout: str | None = Field(
         default=None, description="Layout code shared by units with the same plan (ADR-0016)"
     )
+    wall_colour: str | None = Field(
+        default=None, description="Wall finish: a RAL code or a hex colour, shown to buyers"
+    )
     public_description: str | None
     internal_notes: str | None
     public_fields: dict[str, bool]
@@ -845,6 +848,7 @@ class SalesChanges(BaseModel):
     orientation: str | None = Field(default=None, max_length=20)
     entrance: str | None = Field(default=None, max_length=20)
     layout: str | None = Field(default=None, max_length=40)
+    wall_colour: str | None = Field(default=None, max_length=40)
     public_fields: dict[PublicFieldKey, bool] | None = None
 
 
@@ -1286,6 +1290,10 @@ class RenderRequest(BaseModel):
         max_length=500,
         description="Extra instructions appended to the fixed prompt (style, finishes)",
     )
+    with_unit_id: uuid.UUID | None = Field(
+        default=None,
+        description="A neighbouring unit on the same floor to show joined into one apartment",
+    )
 
 
 class RenderOut(ORM):
@@ -1298,6 +1306,8 @@ class RenderOut(ORM):
     error: str | None
     cost_usd: Decimal | None
     media_id: uuid.UUID | None
+    partner_unit_id: uuid.UUID | None = None
+    partner_code: str | None = None
     requested_by: uuid.UUID | None
     reviewed_by: uuid.UUID | None
     created_at: datetime

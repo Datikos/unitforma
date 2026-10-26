@@ -15,7 +15,7 @@ from fastapi.responses import RedirectResponse
 from unitforma.core.db import tenant_session
 from unitforma.core.errors import ProblemError
 from unitforma.domains.service import normalise_hostname
-from unitforma.publishing import portal
+from unitforma.publishing import live, portal
 from unitforma.storage.service import get_storage
 
 router = APIRouter(prefix="/api/v1/portal", tags=["portal"])
@@ -64,7 +64,8 @@ async def project(
     s = await portal.site_for_host(_host(request))
     async with tenant_session(s.tenant_id) as db:
         _p, pub, is_preview = await portal.resolve_publication(db, s, slug, preview or xp)
-        doc = portal.load_doc(pub)
+        # availability and price are live on the floor units and the stats (ADR-0018)
+        doc = await live.with_live_sales(db, pub, portal.load_doc(pub))
     _cache(response, is_preview)
     return {**doc, "preview": is_preview}
 

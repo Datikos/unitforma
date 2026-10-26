@@ -41,3 +41,23 @@ def test_layout_validation_rejects_blank_and_long_codes():
         )
         == []
     )
+
+
+def test_wall_colour_is_an_attribute_field_with_the_same_rules():
+    """ADR-0017 E5: the wall finish lives in ``units.attributes`` like the layout, diffs like a
+    column, and refuses blanks and codes over 40 characters."""
+    project = SimpleNamespace(currency="EUR")
+    cur = rules.current_values(project, _unit(wall_colour="RAL 9010"), None)
+    assert cur.values["wall_colour"] == "RAL 9010"
+    assert "wall_colour" in rules.UNIT_FIELDS and "wall_colour" in rules.ATTRIBUTE_FIELDS
+    diffs = rules.diff(cur, {"wall_colour": "#f1ece1"})
+    assert [(d.field, d.old, d.new) for d in diffs] == [("wall_colour", "RAL 9010", "#f1ece1")]
+    lookups = SimpleNamespace(plan_ids=set(), promotion_ids=set(), area_types={"net_internal"})
+    errors = rules.validate(
+        rules.diff(cur, {"wall_colour": "x" * 41}),
+        cur,
+        lookups,
+        allow_zero_price=False,
+        reason=None,
+    )
+    assert any("wall_colour" in e for e in errors)

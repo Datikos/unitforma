@@ -25,8 +25,17 @@ html {
 .uf-form-row {
   display: flex;
   gap: var(--uf-space-3);
-  align-items: center;
+  align-items: flex-start; /* a hint under one field must not push its neighbours down */
   flex-wrap: wrap;
+}
+.uf-form-row > button,
+.uf-form-row > .uf-btn,
+.uf-form-row > mat-checkbox,
+.uf-form-row > mat-slide-toggle,
+.uf-form-row > label,
+.uf-form-row > span,
+.uf-form-row > a {
+  margin-top: 6px; /* centred against a 48 px field */
 }
 .uf-row {
   display: flex;

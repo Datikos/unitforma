@@ -150,6 +150,7 @@ def row_dict(project, unit, building, floor, sales, areas, media_count, lookups)
         "orientation": unit.orientation,
         "entrance": unit.entrance,
         "layout": (unit.attributes or {}).get("layout"),
+        "wall_colour": (unit.attributes or {}).get("wall_colour"),
         "public_description": cur["public_description"],
         "internal_notes": cur["internal_notes"],
         "public_fields": rules.effective_public_fields(project, sales),
@@ -286,6 +287,10 @@ async def apply_changes(
             after=after,
         )
     await db.flush()
+    # a sale or a price change reaches the live publication at once (ADR-0018)
+    from unitforma.publishing import live
+
+    await live.sync_unit(db, project, unit)
     return sales
 
 
@@ -602,6 +607,8 @@ def public_view(
         out["entrance"] = row["entrance"]  # a location fact like the floor: public, no switch
     if row.get("layout"):
         out["layout"] = row["layout"]  # the plan type; renders of the same layout are shared
+    if row.get("wall_colour"):
+        out["wall_colour"] = row["wall_colour"]  # the wall finish buyers read (ADR-0017 E5)
     if pf.get("list_price") and row["list_price"] is not None and not row["price_on_request"]:
         out["price"] = {"amount": row["list_price"], "currency": row["currency"]}
         if row["price_per_m2"] is not None:

@@ -64,8 +64,7 @@ import { UnitSalesStore } from './unit-sales.store';
         </label>
       </div>
       <p class="uf-hint">
-        Public files appear on the portal with the next publication. AI-generated images carry a
-        disclosure text buyers see.
+        Public files reach the portal with the next publication; AI-generated ones carry a label.
       </p>
       @for (m of store.media(); track m.id; let i = $index) {
         <div class="item" [class.item--hidden]="!m.is_public">

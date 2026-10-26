@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { NgIcon } from '@ng-icons/core';
 import { SectionCardComponent, StatusChipComponent } from 'ui';
 import { UnitSalesStore } from './unit-sales.store';
@@ -15,6 +16,7 @@ import { UnitSalesStore } from './unit-sales.store';
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
     NgIcon,
     SectionCardComponent,
     StatusChipComponent,
@@ -30,10 +32,8 @@ import { UnitSalesStore } from './unit-sales.store';
     >
       @if (store.renders(); as r) {
         <p class="uf-hint">
-          The floor plan of this unit, cropped to its outline, is sent to an image model that
-          returns a furnished 3D cutaway view. The result stays private until you approve it; buyers
-          then see it labelled "Illustrative — AI generated", and every unit with the same layout
-          code shows it too.
+          A furnished 3D view made from the plan crop; private until approved, then labelled "AI
+          generated" and shared by layout code.
         </p>
         @if (!r.enabled) {
           <div class="uf-alert uf-alert--info">
@@ -55,6 +55,19 @@ import { UnitSalesStore } from './unit-sales.store';
                 placeholder="e.g. oak floors, grey kitchen"
               />
             </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="join">
+              <mat-label>Join with</mat-label>
+              <mat-select
+                [ngModel]="joinWith()"
+                (ngModelChange)="joinWith.set($event)"
+                name="joinWith"
+              >
+                <mat-option [value]="null">— this unit only —</mat-option>
+                @for (n of store.neighbours(); track n.unit_id) {
+                  <mat-option [value]="n.unit_id">{{ n.code }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
             <button
               mat-flat-button
               [disabled]="store.busy() || active() || r.used_today >= r.daily_limit"
@@ -64,11 +77,12 @@ import { UnitSalesStore } from './unit-sales.store';
             </button>
             <span class="uf-muted small">{{ costLine() }}</span>
           </div>
-          <p class="uf-hint">
-            Review before approving: walls, doors, windows and rooms must match the plan; furniture
-            and finishes are illustrative. Rejecting deletes the image; the request stays in the
-            list.
-          </p>
+          @if (inReview()) {
+            <p class="uf-hint">
+              Approve only when walls, doors, windows and rooms match the plan; Reject deletes the
+              image.
+            </p>
+          }
         }
         @for (it of r.items; track it.id) {
           <div class="item">
@@ -87,8 +101,11 @@ import { UnitSalesStore } from './unit-sales.store';
                   <span class="uf-muted small">· \${{ it.cost_usd }}</span>
                 }
               </div>
+              @if (it.partner_code) {
+                <div class="small">Joined with {{ it.partner_code }}: one enlarged apartment.</div>
+              }
               @if (it.note) {
-                <div class="small">Note: {{ it.note }}</div>
+                <div class="small clamp" [title]="it.note">Note: {{ it.note }}</div>
               }
               @if (it.error) {
                 <div class="uf-alert uf-alert--bad small">{{ it.error }}</div>
@@ -136,6 +153,9 @@ import { UnitSalesStore } from './unit-sales.store';
       .note {
         flex: 1 1 16rem;
       }
+      .join {
+        flex: 0 1 12rem;
+      }
       .item {
         display: grid;
         grid-template-columns: 9rem 1fr;
@@ -163,13 +183,23 @@ import { UnitSalesStore } from './unit-sales.store';
       .small {
         font-size: 0.85rem;
       }
+      .clamp {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        /* autoprefixer: ignore next */
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        max-height: 2.8em;
+      }
     `,
   ],
 })
 export class UnitRendersComponent {
   protected readonly store = inject(UnitSalesStore);
   readonly note = signal('');
+  readonly joinWith = signal<string | null>(null);
   readonly items = computed(() => this.store.renders()?.items ?? []);
+  readonly inReview = computed(() => this.items().some((i) => i.status === 'review'));
   readonly active = computed(() =>
     this.items().some((i) => i.status === 'queued' || i.status === 'running'),
   );
@@ -194,6 +224,6 @@ export class UnitRendersComponent {
   }
 
   async generate(): Promise<void> {
-    await this.store.requestRender(this.note());
+    await this.store.requestRender(this.note(), this.joinWith());
   }
 }

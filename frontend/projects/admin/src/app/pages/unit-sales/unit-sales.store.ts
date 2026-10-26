@@ -41,6 +41,8 @@ export class UnitSalesStore implements OnDestroy {
   readonly media = signal<MediaOut[]>([]);
   /** Generated 3D plan renders and the tenant's daily cap (ADR-0017). */
   readonly renders = signal<RendersOut | null>(null);
+  /** Units of the same floor a joined render can show with this one (ADR-0017 E4). */
+  readonly neighbours = signal<InventoryRow[]>([]);
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   readonly history = signal<SalesHistoryOut | null>(null);
   readonly preview = signal<Record<string, unknown> | null>(null);
@@ -102,6 +104,14 @@ export class UnitSalesStore implements OnDestroy {
       this.promotions.set(promos);
       this.media.set(media);
       this.setRenders(renders);
+      void this.api
+        .inventory(this.tenantId, this.projectId)
+        .then((rows) =>
+          this.neighbours.set(
+            rows.filter((x) => x.floor_id === row.floor_id && x.unit_id !== row.unit_id),
+          ),
+        )
+        .catch(() => this.neighbours.set([]));
       this.history.set(history);
       this.preview.set(preview);
       this.areaDefs.set(settings.area_definitions as { key: string; label?: string }[]);
@@ -241,11 +251,14 @@ export class UnitSalesStore implements OnDestroy {
     }
   }
 
-  async requestRender(note: string): Promise<void> {
+  async requestRender(note: string, withUnitId: string | null = null): Promise<void> {
     this.busy.set(true);
     this.error.set(null);
     try {
-      await this.api.requestRender(this.tenantId, this.unitId, { note: note.trim() || null });
+      await this.api.requestRender(this.tenantId, this.unitId, {
+        note: note.trim() || null,
+        with_unit_id: withUnitId,
+      });
       this.toast.ok('Render requested; it appears below when the model answers');
       await this.loadRenders();
     } catch (e) {

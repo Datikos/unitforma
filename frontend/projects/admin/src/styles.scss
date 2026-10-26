@@ -17,7 +17,8 @@ html {
         plain-family: $font,
         brand-family: $font,
       ),
-      density: 0,
+      // one console, compact: fields 48 px, buttons 36 px (owner's review of 2026-10-26)
+      density: -2,
     )
   );
   --mat-sys-surface: var(--uf-bg);

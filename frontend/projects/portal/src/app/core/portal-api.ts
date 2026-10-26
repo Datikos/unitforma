@@ -64,6 +64,8 @@ export interface SiteOut {
   mode: 'tenant' | 'project';
   projects: ProjectCard[];
   status: 'live' | 'coming_soon';
+  /** False: the project page shows the address and a link instead of the OSM iframe (ADR-0016 E4). */
+  map_embed?: boolean;
 }
 
 export interface PlanRef {
@@ -214,6 +216,8 @@ export interface UnitDoc {
   indicative: boolean;
   /** Plan type shared by several units; their renders are shared too (ADR-0016). */
   layout?: string;
+  /** Wall finish the developer stated: a RAL code or a hex colour (ADR-0017 E5). */
+  wall_colour?: string;
   listed: boolean;
   price:
     (Money & { per_m2?: string; per_m2_area_type?: string; per_m2_area_verified?: boolean }) | null;

@@ -39,6 +39,16 @@ async def generate(tenant_id: uuid.UUID, render_id: uuid.UUID) -> dict:
             return {"status": r.status}
         boundary, sheet = outline
         ring = list((boundary.polygon or {}).get("ring") or [])
+        extra: list[list[list[float]]] = []
+        partner_code: str | None = None
+        if r.partner_unit_id is not None:
+            partner = (
+                await db.execute(select(Unit).where(Unit.id == r.partner_unit_id))
+            ).scalar_one_or_none()
+            p_outline = await service.current_outline(db, r.partner_unit_id)
+            if partner is not None and p_outline is not None:
+                extra.append(list((p_outline[0].polygon or {}).get("ring") or []))
+                partner_code = partner.code
         raster_key = sheet.raster_key
         prompt = r.prompt
         input_key = object_key(
@@ -48,7 +58,7 @@ async def generate(tenant_id: uuid.UUID, render_id: uuid.UUID) -> dict:
     image = None
     error: str | None = None
     try:
-        crop = service.crop_plan(get_storage().get_bytes(raster_key), ring)
+        crop = service.crop_plan(get_storage().get_bytes(raster_key), ring, extra_rings=extra)
         get_storage().put_bytes(input_key, crop, "image/png")
         provider = get_provider()
         if provider is None:
@@ -67,7 +77,7 @@ async def generate(tenant_id: uuid.UUID, render_id: uuid.UUID) -> dict:
             r.finished_at = datetime.now(UTC)
             log.warning("renders.failed", render_id=str(render_id), error=r.error[:200])
             return {"status": r.status, "error": r.error}
-        m = await service.store_result(db, r, unit, image)
+        m = await service.store_result(db, r, unit, image, partner_code)
         log.info(
             "renders.generated",
             render_id=str(render_id),

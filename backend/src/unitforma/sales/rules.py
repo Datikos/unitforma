@@ -14,9 +14,10 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 AVAILABILITY = ("available", "reserved", "sold", "withdrawn")
-UNIT_FIELDS = ("rooms", "bedrooms", "bathrooms", "orientation", "entrance", "layout")
+UNIT_FIELDS = ("rooms", "bedrooms", "bathrooms", "orientation", "entrance", "layout", "wall_colour")
 # unit fields that live in ``units.attributes`` (JSONB) rather than in a column
-ATTRIBUTE_FIELDS = ("layout",)
+# stored in units.attributes: the plan type (ADR-0016) and the wall finish (ADR-0017 E5)
+ATTRIBUTE_FIELDS = ("layout", "wall_colour")
 SALES_FIELDS = (
     "availability",
     "availability_reason",
@@ -320,6 +321,9 @@ def validate(
         elif f == "layout":
             if v is not None and (not isinstance(v, str) or not v.strip() or len(v) > 40):
                 errors.append("layout is a code of 1 to 40 characters")
+        elif f == "wall_colour":
+            if v is not None and (not isinstance(v, str) or not v.strip() or len(v) > 40):
+                errors.append("wall_colour is a RAL code or a hex colour of 1 to 40 characters")
     return errors
 
 

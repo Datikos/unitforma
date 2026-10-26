@@ -10273,6 +10273,18 @@
       "title": "Layout",
       "description": "Layout code shared by units with the same plan (ADR-0016)"
      },
+     "wall_colour": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Wall Colour",
+      "description": "Wall finish: a RAL code or a hex colour, shown to buyers"
+     },
      "public_description": {
       "anyOf": [
        {
@@ -13348,6 +13360,29 @@
       ],
       "title": "Media Id"
      },
+     "partner_unit_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Partner Unit Id"
+     },
+     "partner_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Partner Code"
+     },
      "requested_by": {
       "anyOf": [
        {
@@ -13446,6 +13481,19 @@
       ],
       "title": "Note",
       "description": "Extra instructions appended to the fixed prompt (style, finishes)"
+     },
+     "with_unit_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "With Unit Id",
+      "description": "A neighbouring unit on the same floor to show joined into one apartment"
      }
     },
     "type": "object",
@@ -13825,6 +13873,18 @@
       ],
       "title": "Layout"
      },
+     "wall_colour": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Wall Colour"
+     },
      "public_fields": {
       "anyOf": [
        {
@@ -14190,6 +14250,18 @@
        }
       ],
       "title": "Layout"
+     },
+     "wall_colour": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Wall Colour"
      },
      "public_fields": {
       "anyOf": [

@@ -186,6 +186,7 @@ async def site_summary(site: Site) -> dict[str, Any]:
         "tenant": {"name": tenant.name, "slug": tenant.slug},
         "branding": branding or sanitise_branding(tenant.branding),
         "mode": "project" if site.project_id is not None else "tenant",
+        "map_embed": get_settings().portal_map_embed,
         "projects": projects,
         "status": "live" if projects else "coming_soon",
     }
