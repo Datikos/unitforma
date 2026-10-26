@@ -30,7 +30,7 @@ import { SiteStore } from '../core/site.store';
         </uf-empty-state>
       } @else {
         <h1>{{ s.branding.display_name || s.tenant.name }}</h1>
-        <div class="uf-grid">
+        <div class="uf-grid home-grid" [style.--n]="min(s.projects.length, 3)">
           @for (p of s.projects; track p.slug) {
             <a
               class="uf-card proj"
@@ -76,10 +76,23 @@ import { SiteStore } from '../core/site.store';
     }
   `,
   styles: `
+    /* one or two projects get cards of a reasonable width, not one column of a four-column grid */
+    .home-grid {
+      max-width: calc(var(--n) * 480px + (var(--n) - 1) * 1rem);
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    }
     .proj {
       display: grid;
+      /* minmax(0, …): an auto track would grow to the widest no-wrap chip and overflow the card */
+      grid-template-columns: minmax(0, 1fr);
       gap: 0.5rem;
       align-content: start;
+    }
+    .proj > * {
+      min-width: 0;
+    }
+    .proj .uf-chip {
+      white-space: normal; /* a long construction stage wraps inside this card */
     }
     .proj--cover {
       padding: 0;
@@ -100,6 +113,15 @@ import { SiteStore } from '../core/site.store';
     }
     .proj h2 {
       margin: 0;
+      font-size: 1.25rem;
+      overflow-wrap: anywhere; /* long Georgian names */
+    }
+    .proj p {
+      margin: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
     .proj__go {
       color: var(--uf-primary);
@@ -118,6 +140,7 @@ export class HomePage {
   protected readonly money = money;
   protected readonly area = area;
   protected readonly areaRange = areaRange;
+  protected readonly min = Math.min;
 
   constructor() {
     effect(() => {
