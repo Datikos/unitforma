@@ -8,15 +8,25 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { HeaderFact, PageHeaderComponent, SectionCardComponent, UF_ICONS, labelOf } from 'ui';
+import { PlanViewerComponent } from 'plan-viewer';
+import {
+  HeaderFact,
+  PageHeaderComponent,
+  SectionCardComponent,
+  StatusChipComponent,
+  UF_ICONS,
+  ago,
+  labelOf,
+} from 'ui';
 import { RouteInfo } from '../../core/route-info';
 import { AVAILABILITY, PUBLIC_FIELDS, formatPrice } from '../../sales/sales-format';
 import { UnitHistoryComponent } from './unit-history.component';
 import { UnitMediaComponent } from './unit-media.component';
 import { UnitRendersComponent } from './unit-renders.component';
 import { showValue } from '../inventory/inventory.model';
+import { AVAILABILITY_FILL } from './unit-sales.model';
 import { UnitSalesStore } from './unit-sales.store';
 
 /** Unit commercial detail (plan §11.2 "Unit detail"): pricing & terms, publication fields, media, history. */
@@ -34,7 +44,9 @@ import { UnitSalesStore } from './unit-sales.store';
     MatSlideToggleModule,
     NgIcon,
     PageHeaderComponent,
+    PlanViewerComponent,
     SectionCardComponent,
+    StatusChipComponent,
     UnitMediaComponent,
     UnitRendersComponent,
     UnitHistoryComponent,
@@ -110,6 +122,7 @@ import { UnitSalesStore } from './unit-sales.store';
           <div class="uf-stack main">
             <uf-section-card
               title="Price & terms"
+              tone="good"
               icon="lucideTag"
               [summary]="priceSummary()"
               storageKey="unit-price"
@@ -125,7 +138,9 @@ import { UnitSalesStore } from './unit-sales.store';
                     name="availability"
                   >
                     @for (a of availability; track a) {
-                      <mat-option [value]="a">{{ labelOf('availability', a) }}</mat-option>
+                      <mat-option [value]="a"
+                        ><uf-status-chip domain="availability" [value]="a"
+                      /></mat-option>
                     }
                   </mat-select>
                 </mat-form-field>
@@ -180,13 +195,18 @@ import { UnitSalesStore } from './unit-sales.store';
                 </div>
               </div>
               <p class="uf-hint">
-                Empty price = "on request"; 0 is a real price and needs the checkbox.
-                @if (r.price_per_m2) {
-                  Today: {{ fmt(r.price_per_m2, r.currency) }} per m² of
-                  {{ r.price_area_type }} area ({{
-                    r.price_area_verified ? 'verified' : 'unverified'
-                  }}).
+                @if (store.perM2(); as pm) {
+                  <span [class]="pm.verified ? 'uf-text-good' : 'uf-text-warning'"
+                    >= {{ pm.text }}{{ pm.verified ? '' : ' (area unverified)' }}</span
+                  >
+                  ·
+                } @else if (r.price_area_m2) {
+                  Pricing area {{ r.price_area_m2 }} m² ({{ areaLabel(r.price_area_type) }},
+                  {{ r.price_area_verified ? 'verified' : 'unverified' }}) ·
+                } @else {
+                  <span class="uf-text-warning">No pricing area yet: per-m² stays empty.</span> ·
                 }
+                Empty price = "on request"; 0 is a real price and needs the checkbox.
               </p>
               <div class="uf-form-row">
                 <mat-form-field
@@ -244,13 +264,17 @@ import { UnitSalesStore } from './unit-sales.store';
                 </mat-form-field>
               </div>
               <p class="uf-hint">
-                Defined under <a routerLink="../../sales-setup">Plans &amp; promotions</a>, picked
-                here.
+                @if (!f.price_area_type && r.price_area_type) {
+                  Area basis follows the project default ({{ areaLabel(r.price_area_type) }}) ·
+                }
+                Plans and promotions are defined under
+                <a routerLink="../../sales-setup">Plans &amp; promotions</a>.
               </p>
             </uf-section-card>
 
             <uf-section-card
               title="Rooms & description"
+              tone="info"
               icon="lucideBuilding"
               [summary]="roomsSummary()"
               storageKey="unit-rooms"
@@ -361,6 +385,7 @@ import { UnitSalesStore } from './unit-sales.store';
                     (ngModelChange)="store.set('public_description', $event)"
                     name="pd"
                   ></textarea>
+                  <mat-hint align="end">{{ f.public_description.length }} characters</mat-hint>
                 </mat-form-field>
                 <mat-form-field
                   appearance="outline"
@@ -386,7 +411,46 @@ import { UnitSalesStore } from './unit-sales.store';
 
           <aside class="uf-stack side">
             <uf-section-card
+              title="On the plan"
+              icon="lucideMap"
+              tone="info"
+              [summary]="
+                store.plan()
+                  ? 'level ' + r.floor_level + ' · ' + store.plan()!.others + ' other units'
+                  : 'no outline yet'
+              "
+              storageKey="unit-plan"
+            >
+              @if (store.plan(); as p) {
+                <div class="plan">
+                  <uf-plan-viewer
+                    [src]="p.src"
+                    [width]="p.width"
+                    [height]="p.height"
+                    [polygons]="p.polygons"
+                    [focus]="p.focus"
+                    mode="view"
+                    (polygonSelected)="openUnit($event)"
+                  />
+                </div>
+                <div class="legend">
+                  @for (l of legend; track l.key) {
+                    <span><i [style.background]="l.stroke"></i>{{ l.label }}</span>
+                  }
+                  <a [routerLink]="['../../sheets', p.sheetId]"
+                    ><ng-icon name="lucideFileImage" /><span>Open the sheet</span></a
+                  >
+                </div>
+              } @else {
+                <p class="uf-hint">
+                  No current outline on a processed sheet yet. Draw or approve one on the sheet page
+                  under <a routerLink="../../documents">Documents</a>.
+                </p>
+              }
+            </uf-section-card>
+            <uf-section-card
               title="Shown to buyers"
+              tone="info"
               icon="lucideEye"
               [summary]="publicSummary()"
               storageKey="unit-public"
@@ -425,7 +489,45 @@ import { UnitSalesStore } from './unit-sales.store';
               </button>
             </uf-section-card>
             <uf-section-card
+              title="Same floor"
+              icon="lucideLayers"
+              tone="neutral"
+              [count]="store.neighbours().length"
+              [summary]="
+                'level ' +
+                r.floor_level +
+                (r.floor_name && r.floor_name !== '' + r.floor_level ? ' · ' + r.floor_name : '')
+              "
+              storageKey="unit-floor"
+            >
+              @if (store.neighbours().length) {
+                <div class="mates">
+                  @for (n of store.neighbours(); track n.unit_id) {
+                    <a class="mate" [routerLink]="['..', n.unit_id]" [title]="mateTitle(n)"
+                      ><uf-status-chip
+                        domain="availability"
+                        [value]="n.availability"
+                        [label]="n.code"
+                    /></a>
+                  }
+                </div>
+              } @else {
+                <p class="uf-hint">The only unit on this floor.</p>
+              }
+              @if (store.layoutMates().length) {
+                <p class="uf-field-note">
+                  Same layout {{ r.layout }}:
+                  @for (n of store.layoutMates(); track n.unit_id; let last = $last) {
+                    <a [routerLink]="['..', n.unit_id]">{{ n.code }}</a
+                    >{{ last ? '' : ', ' }}
+                  }
+                  · they show this unit's public media until they get their own.
+                </p>
+              }
+            </uf-section-card>
+            <uf-section-card
               title="Buyer preview"
+              tone="neutral"
               icon="lucideGlobe"
               summary="what the portal receives"
               storageKey="unit-preview"
@@ -476,6 +578,44 @@ import { UnitSalesStore } from './unit-sales.store';
     .notes {
       flex: 1 1 12rem;
     }
+    .plan uf-plan-viewer {
+      --uf-plan-min-height: 170px;
+      --uf-plan-height: 230px;
+      display: block;
+      border-radius: var(--uf-radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--uf-border);
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.2rem 0.7rem;
+      font-size: 0.8rem;
+      color: var(--uf-muted);
+    }
+    .legend i {
+      display: inline-block;
+      width: 0.65rem;
+      height: 0.65rem;
+      border-radius: 3px;
+      margin-right: 0.3rem;
+      vertical-align: -1px;
+    }
+    .legend a {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    .mates {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .mate {
+      text-decoration: none;
+    }
     .toggles {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -525,21 +665,58 @@ export class UnitSalesPage {
   readonly labelOf = labelOf;
   show = showValue;
 
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  readonly legend = Object.entries(AVAILABILITY_FILL).map(([key, v]) => ({ key, ...v }));
+
   readonly facts = computed<HeaderFact[]>(() => {
     const r = this.store.row();
     if (!r) return [];
-    return [
+    const facts: HeaderFact[] = [
       { domain: 'availability', status: r.availability },
       { domain: 'unit.verification', status: r.verification_status },
       { domain: 'unit.publication', status: r.publication_status },
       {
         label: 'Price',
+        icon: 'lucideTag',
         value:
           formatPrice(r.list_price, r.currency) ?? (r.price_on_request ? 'on request' : 'not set'),
       },
-      { label: 'Version', value: r.version },
     ];
+    if (r.price_per_m2)
+      facts.push({ label: 'per m²', value: formatPrice(r.price_per_m2, r.currency) });
+    if (r.price_area_m2)
+      facts.push({
+        label: 'Area',
+        icon: 'lucideRuler',
+        value: `${r.price_area_m2} m² ${this.areaLabel(r.price_area_type)}${r.price_area_verified ? '' : ' (unverified)'}`,
+      });
+    if (r.rooms !== null && r.rooms !== undefined)
+      facts.push({
+        label: 'Rooms',
+        icon: 'lucideBedDouble',
+        value: `${r.rooms}${r.bedrooms !== null && r.bedrooms !== undefined ? ` · ${r.bedrooms} bed` : ''}`,
+      });
+    const when = r.updated_at ? ago(r.updated_at) : '';
+    facts.push({ label: 'Version', value: when ? `${r.version} · ${when}` : r.version });
+    return facts;
   });
+
+  /** A click on a neighbour's outline opens that unit; a click on this unit does nothing. */
+  openUnit(unitId: string): void {
+    if (unitId === this.unitId() || !this.store.allRows().some((r) => r.unit_id === unitId)) return;
+    void this.router.navigate(['..', unitId], { relativeTo: this.route });
+  }
+
+  /** An area type key in words ("net internal"), the vocabulary the inventory uses. */
+  areaLabel(key: string | null | undefined): string {
+    return (key ?? '').replace(/_/g, ' ');
+  }
+
+  mateTitle(n: { code: string; availability: string; rooms?: number | null }): string {
+    const rooms = n.rooms !== null && n.rooms !== undefined ? ` · ${n.rooms} rooms` : '';
+    return `${n.code} · ${labelOf('availability', n.availability)}${rooms}`;
+  }
 
   constructor() {
     toObservable(this.unitId).subscribe(() => {

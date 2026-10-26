@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from unitforma.core.db import tenant_session
 from unitforma.core.ids import new_id
@@ -356,3 +357,128 @@ async def resuggest_floors(tenant_id: uuid.UUID, project_id: uuid.UUID) -> dict:
         done += 1
     log.info("documents.floors_resuggested", project_id=str(project_id), revisions=done)
     return {"revisions": done}
+
+
+# --------------------------------------------------------------------------- stuck revisions
+# A revision is filed as "queued" by the API or the permit import and processed by the
+# ``documents.ingest_revision`` job, deferred after the row is committed. A worker killed between
+# the two (a restart past Docker's stop grace, a crash) leaves the row "queued" with no job; a
+# job killed while running leaves the row "processing" with a job stuck in "doing" on a worker
+# that no longer sends heartbeats (ADR-0016 Decision 8). ``requeue_stuck`` heals both.
+STUCK_AFTER = timedelta(minutes=15)
+MAX_TRIES = 3  # ingestion runs per revision before it is marked failed
+WORKER_DEAD_AFTER_S = 60.0  # no heartbeat for this long = the worker is gone (it beats every 10 s)
+INGEST_TASK = "documents.ingest_revision"
+
+_JOBS_OF_REVISION = text(
+    "SELECT j.id, j.status,"
+    " (w.last_heartbeat IS NOT NULL"
+    "  AND w.last_heartbeat > now() - make_interval(secs => :dead_s)) AS alive,"
+    " (SELECT count(*) FROM procrastinate_events e"
+    "  WHERE e.job_id = j.id AND e.type = 'started') AS started"
+    " FROM procrastinate_jobs j LEFT JOIN procrastinate_workers w ON w.id = j.worker_id"
+    " WHERE j.task_name IN (:task, 'geometry.ingest_ifc') AND j.args->>'revision_id' = :rid"
+)
+_FAIL_JOBS = text("UPDATE procrastinate_jobs SET status = 'failed' WHERE id = ANY(:ids)")
+
+
+async def _heal_revision(db, rev: DocumentRevision) -> str:
+    """One stuck revision: ``live`` (a job in ``todo``, or running on a worker with a fresh
+    heartbeat, will finish it), ``requeued`` (status reset to queued, the caller defers a new
+    job) or ``failed`` (MAX_TRIES runs were lost). Jobs left ``doing`` by a dead worker are
+    closed as failed so they never count as running again."""
+    rows = (
+        await db.execute(
+            _JOBS_OF_REVISION,
+            {"dead_s": WORKER_DEAD_AFTER_S, "task": INGEST_TASK, "rid": str(rev.id)},
+        )
+    ).all()
+    if any(r.status == "todo" or (r.status == "doing" and r.alive) for r in rows):
+        return "live"
+    stale = [r.id for r in rows if r.status == "doing"]
+    if stale:
+        await db.execute(_FAIL_JOBS, {"ids": stale})
+    tries = int(sum(r.started for r in rows))
+    if tries >= MAX_TRIES:
+        rev.processing_status = "failed"
+        rev.processing_error = f"worker lost {tries} times; upload the file again"
+        return "failed"
+    rev.processing_status = "queued"
+    rev.processing_error = None
+    return "requeued"
+
+
+async def defer_ingest(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> bool:
+    """Queue the ingestion of a committed revision; False (logged) when the queue is unavailable."""
+    try:
+        from unitforma.jobs.app import app as jobs
+
+        await jobs.configure_task(name=INGEST_TASK, queue="docs").defer_async(
+            tenant_id=str(tenant_id), revision_id=str(revision_id)
+        )
+        return True
+    except Exception as e:  # noqa: BLE001 - the sweep queues it again
+        log.warning("documents.enqueue_failed", revision_id=str(revision_id), error=str(e))
+        return False
+
+
+async def requeue_document_if_stuck(tenant_id: uuid.UUID, document_id: uuid.UUID) -> str | None:
+    """Heal a document's current revision left ``queued`` or ``processing`` with no live job.
+    The permit import calls this for every file it finds "existing": the file was filed by an
+    import whose worker died before it deferred the ingestion. None when nothing is stuck."""
+    async with tenant_session(tenant_id, scope="tenant") as db:
+        rev = (
+            await db.execute(
+                select(DocumentRevision)
+                .join(Document, Document.current_revision_id == DocumentRevision.id)
+                .where(Document.id == document_id)
+            )
+        ).scalar_one_or_none()
+        if rev is None or rev.processing_status not in ("queued", "processing"):
+            return None
+        outcome = await _heal_revision(db, rev)
+        rev_id = rev.id
+    if outcome == "live":
+        return None  # waiting its turn, or running: not stuck
+    if outcome == "requeued" and not await defer_ingest(tenant_id, rev_id):
+        outcome = "enqueue_failed"
+    log.info("documents.revision_healed", revision_id=str(rev_id), outcome=outcome)
+    return outcome
+
+
+async def requeue_stuck(now: datetime | None = None) -> dict:
+    """Periodic sweep (``documents.requeue_stuck``, every 10 minutes): every revision ``queued``
+    or ``processing`` for longer than STUCK_AFTER whose ingestion is neither waiting nor running
+    on a live worker is queued again, up to MAX_TRIES runs, then marked failed."""
+    cutoff = (now or datetime.now(UTC)) - STUCK_AFTER
+    out = {"requeued": 0, "failed": 0, "live": 0, "enqueue_failed": 0}
+    to_defer: list[tuple[uuid.UUID, uuid.UUID]] = []
+    async with tenant_session(None, scope="platform") as db:
+        revs = (
+            (
+                await db.execute(
+                    select(DocumentRevision)
+                    .where(
+                        DocumentRevision.processing_status.in_(("queued", "processing")),
+                        DocumentRevision.updated_at < cutoff,
+                    )
+                    .order_by(DocumentRevision.created_at)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for rev in revs:
+            outcome = await _heal_revision(db, rev)
+            out[outcome] += 1
+            if outcome == "requeued":
+                to_defer.append((rev.tenant_id, rev.id))
+            else:
+                log.info("documents.revision_healed", revision_id=str(rev.id), outcome=outcome)
+    for tenant_id, rev_id in to_defer:
+        if not await defer_ingest(tenant_id, rev_id):
+            out["requeued"] -= 1
+            out["enqueue_failed"] += 1
+    if sum(out.values()):
+        log.info("documents.stuck_swept", **out)
+    return out

@@ -97,6 +97,16 @@ async def resuggest_floors(tenant_id: str, project_id: str) -> dict:
     return await run(uuid.UUID(tenant_id), uuid.UUID(project_id))
 
 
+@app.periodic(cron="*/10 * * * *")
+@app.task(name="documents.requeue_stuck", queue="periodic", pass_context=True)
+async def requeue_stuck(context, timestamp: int) -> dict:
+    """Queue again every revision left "queued" or "processing" without a live job for over
+    15 minutes (a worker lost mid-import or mid-run), three runs at most (ADR-0016 Decision 8)."""
+    from unitforma.documents.jobs import requeue_stuck as run
+
+    return await run()
+
+
 @app.task(name="renders.generate", queue="docs", retry=0)
 async def render_generate(tenant_id: str, render_id: str) -> dict:
     """Crop a unit's plan, ask the image provider for a 3D plan render, store it for review

@@ -49,7 +49,9 @@ export interface PolygonMove {
 
 /**
  * Raster plan viewer with an SVG overlay (plan §11.1 `plan-viewer`).
- * - view: pan (drag) and zoom (wheel), click a polygon to select it
+ * - view: pan (drag) and zoom (wheel), click a polygon to select it; a mouse over a selectable
+ *   polygon outlines it in its own colour (touch pointers never hover: a tap selects, so the
+ *   outline would stick)
  * - draw: click to add vertices, double-click or Enter to close the polygon, Escape to cancel
  * - calibrate: click two points; emits both when the second is placed
  * - move: drag a polygon; emits the normalised delta on release (placement editor)
@@ -96,6 +98,10 @@ export interface PolygonMove {
           [attr.width]="width()"
           [attr.height]="height()"
         >
+          @if (maskPath(); as d) {
+            <!-- everything outside the clip ring is covered: the playground shows one apartment -->
+            <path class="pv__mask" [attr.d]="d" fill-rule="evenodd" />
+          }
           @for (p of polygons(); track p.id) {
             <polygon
               [attr.points]="toPoints(p.ring, p.id)"
@@ -107,10 +113,13 @@ export interface PolygonMove {
               [class.pv__poly--region]="p.kind === 'region'"
               [class.pv__poly--furniture]="p.kind === 'furniture'"
               [class.pv__poly--selected]="p.selected"
+              [class.pv__poly--hovered]="p.id === hoveredPolygon()?.id"
               [style.fill]="p.fill ?? null"
               [style.stroke]="p.stroke ?? null"
               (click)="select(p, $event)"
               (pointerdown)="grab(p, $event)"
+              (pointerenter)="hover(p, $event)"
+              (pointerleave)="unhover(p)"
             >
               @if (p.title) {
                 <title>{{ p.title }}</title>
@@ -121,10 +130,21 @@ export interface PolygonMove {
               [attr.y]="centroid(p.ring, p.id)[1]"
               class="pv__label"
               [class.pv__label--selected]="p.selected"
+              [class.pv__label--hovered]="p.id === hoveredPolygon()?.id"
               [attr.font-size]="labelFontSize(p)"
             >
               {{ p.label ?? '' }}
             </text>
+          }
+          @if (hoveredPolygon(); as hp) {
+            <!-- the unit under the mouse: a white halo under an outline in the unit's own colour,
+                 drawn over the inline fills like the selection but under the selection itself -->
+            <polygon [attr.points]="toPoints(hp.ring, hp.id)" class="pv__poly pv__poly--halo" />
+            <polygon
+              [attr.points]="toPoints(hp.ring, hp.id)"
+              class="pv__poly pv__poly--hover-outline"
+              [style.stroke]="hp.stroke ?? null"
+            />
           }
           @if (selectedPolygon(); as sp) {
             <!-- drawn after every polygon so it wins over their inline availability colours
@@ -186,7 +206,14 @@ export interface PolygonMove {
         </button>
       </div>
       @if (calloutPos(); as c) {
-        <div class="pv__callout" [style.left.px]="c[0]" [style.top.px]="c[1]">
+        <!-- a press on the callout must not start a pan or steal focus from the link inside -->
+        <div
+          class="pv__callout"
+          [style.left.px]="c[0]"
+          [style.top.px]="c[1]"
+          (pointerdown)="$event.stopPropagation()"
+          (dblclick)="$event.stopPropagation()"
+        >
           <ng-content select="[callout]" />
         </div>
       }
@@ -260,14 +287,13 @@ export interface PolygonMove {
       background: #fff;
       border-color: #94a3b8;
     }
+    /* shrink-wraps the projected content, so it may take pointer events itself; a child
+       selector would not reach projected nodes under emulated encapsulation */
     .pv__callout {
       position: absolute;
       z-index: 4;
       transform: translate(-50%, calc(-100% - 10px));
-      pointer-events: none;
-    }
-    .pv__callout > * {
-      pointer-events: auto;
+      cursor: default;
     }
     .pv:fullscreen {
       background: #fff;
@@ -290,6 +316,10 @@ export interface PolygonMove {
     .pv__poly--approved {
       fill: rgba(16, 185, 129, 0.18);
       stroke: #059669;
+    }
+    .pv__mask {
+      fill: #e5e7eb;
+      pointer-events: none;
     }
     .pv__poly--candidate {
       fill: rgba(168, 85, 247, 0.12);
@@ -338,16 +368,24 @@ export interface PolygonMove {
       stroke-linejoin: round;
       pointer-events: none;
     }
+    .pv__poly--hover-outline {
+      fill: rgba(17, 24, 39, 0.14);
+      stroke: #1f2937;
+      stroke-width: 6;
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
     .pv--has-selection
-      .pv__poly:not(.pv__poly--selected):not(.pv__poly--halo):not(.pv__poly--outline):not(
-        .pv__poly--footprint
-      ):not(.pv__poly--region) {
+      .pv__poly:not(.pv__poly--selected):not(.pv__poly--hovered):not(.pv__poly--halo):not(
+        .pv__poly--outline
+      ):not(.pv__poly--hover-outline):not(.pv__poly--footprint):not(.pv__poly--region) {
       opacity: 0.55;
     }
-    .pv--has-selection .pv__label:not(.pv__label--selected) {
+    .pv--has-selection .pv__label:not(.pv__label--selected):not(.pv__label--hovered) {
       opacity: 0.6;
     }
-    .pv__label--selected {
+    .pv__label--selected,
+    .pv__label--hovered {
       font-weight: 800;
     }
     .pv__label {
@@ -394,6 +432,19 @@ export class PlanViewerComponent {
   readonly src = input<string | null>(null);
   /** Zoom to this ring (normalised) after load instead of fitting the whole sheet: the unit page. */
   readonly focus = input<Ring | null>(null);
+  /** How much of the sheet around the focus ring is shown: 2.2 shows the neighbours, 1.15 the ring alone. */
+  readonly focusPadding = input(2.2);
+  /** Cover everything outside this ring (normalised) with the page colour: the playground's apartment. */
+  readonly clip = input<Ring | null>(null);
+  /** The sheet rectangle minus the clip ring, as an even-odd path in raster pixels; null without a clip. */
+  readonly maskPath = computed(() => {
+    const ring = this.clip();
+    if (!ring || ring.length < 3) return null;
+    const w = this.width();
+    const h = this.height();
+    const hole = ring.map(([x, y]) => `${x * w},${y * h}`).join(' L ');
+    return `M 0,0 H ${w} V ${h} H 0 Z M ${hole} Z`;
+  });
   readonly width = input(1000);
   readonly height = input(700);
   readonly polygons = input<PlanPolygon[]>([]);
@@ -424,6 +475,21 @@ export class PlanViewerComponent {
       ) ?? null,
   );
   readonly mode = input<PlanMode>('view');
+  /** Polygon id under a mouse pointer; cleared on leave, on a touch and when the polygon is gone. */
+  readonly hovered = signal<string | null>(null);
+  /** The unit under the mouse drawn with its own halo and outline: never a footprint, region,
+   * ghost or furniture piece (it has the move cursor), never the selected unit (it has its own),
+   * never a locked polygon in move mode (the outline behind the furniture ruler, which `grab`
+   * refuses), only while a click would select it. */
+  readonly hoveredPolygon = computed(() => {
+    const id = this.hovered();
+    const m = this.mode();
+    if (!id || (m !== 'view' && m !== 'move')) return null;
+    const p = this.polygons().find((x) => x.id === id);
+    if (!p || p.selected || (p.locked && m === 'move')) return null;
+    if (['footprint', 'region', 'ghost', 'furniture'].includes(p.kind ?? 'unit')) return null;
+    return p;
+  });
   /** Extra markers (normalised), e.g. alignment points picked by the user. */
   readonly marks = input<Point[]>([]);
 
@@ -535,9 +601,13 @@ export class PlanViewerComponent {
     if (ring && ring.length >= 3) {
       const xs = ring.map((p) => p[0] * w);
       const ys = ring.map((p) => p[1] * h);
-      const bw = Math.max(1, Math.max(...xs) - Math.min(...xs)) * 2.2;
-      const bh = Math.max(1, Math.max(...ys) - Math.min(...ys)) * 2.2;
-      const s = Math.min(el.clientWidth / bw, el.clientHeight / bh, el.clientWidth / w / 0.25);
+      const pad = this.focusPadding();
+      const bw = Math.max(1, Math.max(...xs) - Math.min(...xs)) * pad;
+      const bh = Math.max(1, Math.max(...ys) - Math.min(...ys)) * pad;
+      // a floor stays at most four sheet widths deep, so a tiny outline is not blown into pixels;
+      // a clipped apartment fills the view (the wheel's own limit of 20 still holds)
+      const maxScale = this.clip() ? 20 : el.clientWidth / w / 0.25;
+      const s = Math.min(el.clientWidth / bw, el.clientHeight / bh, maxScale);
       const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
       const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
       this.scale.set(s);
@@ -574,6 +644,16 @@ export class PlanViewerComponent {
     if (p.kind === 'ghost' || p.kind === 'region') return;
     ev.stopPropagation();
     this.polygonSelected.emit(p.id);
+  }
+
+  hover(p: PlanPolygon, ev: PointerEvent): void {
+    // a tap fires pointerenter without a pointerleave, so only a mouse hovers
+    if (ev.pointerType !== 'mouse') return;
+    this.hovered.set(p.id);
+  }
+
+  unhover(p: PlanPolygon): void {
+    if (this.hovered() === p.id) this.hovered.set(null);
   }
 
   grab(p: PlanPolygon, ev: PointerEvent): void {

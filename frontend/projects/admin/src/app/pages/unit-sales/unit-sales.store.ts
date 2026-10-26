@@ -1,5 +1,6 @@
 import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import {
+  BoundaryOut,
   InventoryRow,
   MediaOut,
   MediaUpdate,
@@ -8,6 +9,7 @@ import {
   RendersOut,
   SalesChanges,
   SalesHistoryOut,
+  SheetOut,
   UnitformaApi,
   problemMessage,
 } from 'api-client';
@@ -20,8 +22,11 @@ import {
   MediaKind,
   blankForm,
   changedKeys,
+  currentBoundary,
   diffChanges,
   formFrom,
+  perM2,
+  planOf,
   timelineOf,
 } from './unit-sales.model';
 
@@ -41,8 +46,37 @@ export class UnitSalesStore implements OnDestroy {
   readonly media = signal<MediaOut[]>([]);
   /** Generated 3D plan renders and the tenant's daily cap (ADR-0017). */
   readonly renders = signal<RendersOut | null>(null);
-  /** Units of the same floor a joined render can show with this one (ADR-0017 E4). */
-  readonly neighbours = signal<InventoryRow[]>([]);
+  /** Every unit of the project, for the floor plan colours and the same-floor and same-layout links. */
+  readonly allRows = signal<InventoryRow[]>([]);
+  /** Units of the same floor: the plan card's links and the partner choice of a joined render (ADR-0017 E4). */
+  readonly neighbours = computed(() => {
+    const r = this.row();
+    return r
+      ? this.allRows().filter((x) => x.floor_id === r.floor_id && x.unit_id !== r.unit_id)
+      : [];
+  });
+  /** Units sharing the layout code (they show this unit's public media until they get their own). */
+  readonly layoutMates = computed(() => {
+    const r = this.row();
+    return r?.layout
+      ? this.allRows().filter((x) => x.layout === r.layout && x.unit_id !== r.unit_id)
+      : [];
+  });
+  private readonly planBase = signal<{
+    unitId: string;
+    sheet: SheetOut;
+    boundaries: BoundaryOut[];
+  } | null>(null);
+  /** The floor plan around this unit, coloured by availability; null without a current outline. */
+  readonly plan = computed(() => {
+    const b = this.planBase();
+    return b ? planOf(b.unitId, b.sheet, b.boundaries, this.allRows()) : null;
+  });
+  /** Live price per m² from the typed price, before saving. */
+  readonly perM2 = computed(() => {
+    const r = this.row();
+    return r ? perM2(this.form(), r) : null;
+  });
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   readonly history = signal<SalesHistoryOut | null>(null);
   readonly preview = signal<Record<string, unknown> | null>(null);
@@ -77,6 +111,7 @@ export class UnitSalesStore implements OnDestroy {
   init(tenantId: string, projectId: string, unitId: string): void {
     this.tenantId = tenantId;
     this.projectId = projectId;
+    if (unitId !== this.unitId) this.planBase.set(null);
     this.unitId = unitId;
   }
 
@@ -106,18 +141,35 @@ export class UnitSalesStore implements OnDestroy {
       this.setRenders(renders);
       void this.api
         .inventory(this.tenantId, this.projectId)
-        .then((rows) =>
-          this.neighbours.set(
-            rows.filter((x) => x.floor_id === row.floor_id && x.unit_id !== row.unit_id),
-          ),
-        )
-        .catch(() => this.neighbours.set([]));
+        .then((rows) => this.allRows.set(rows))
+        .catch(() => this.allRows.set([]));
+      if (this.planBase()?.unitId !== this.unitId) void this.loadPlan();
       this.history.set(history);
       this.preview.set(preview);
       this.areaDefs.set(settings.area_definitions as { key: string; label?: string }[]);
       this.setRow(row);
     } catch (e) {
       this.error.set(problemMessage(e));
+    }
+  }
+
+  /** The unit's current outline, its sheet and the other outlines on it; silent when there is none. */
+  private async loadPlan(): Promise<void> {
+    const unitId = this.unitId;
+    try {
+      const unit = await this.api.getUnit(this.tenantId, unitId);
+      const b = currentBoundary(unit.boundaries ?? []);
+      if (!b) {
+        if (unitId === this.unitId) this.planBase.set(null);
+        return;
+      }
+      const [sheet, boundaries] = await Promise.all([
+        this.api.getSheet(this.tenantId, b.sheet_id),
+        this.api.listBoundaries(this.tenantId, b.sheet_id),
+      ]);
+      if (unitId === this.unitId) this.planBase.set({ unitId, sheet, boundaries });
+    } catch {
+      if (unitId === this.unitId) this.planBase.set(null);
     }
   }
 

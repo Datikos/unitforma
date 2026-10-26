@@ -138,6 +138,10 @@ services:
     image: *backend-image
     build: { context: ../../backend, target: runtime }
     command: ["worker", "--queues", "default,docs,mail,periodic", "--concurrency", "4"]
+    # Procrastinate finishes running jobs after SIGTERM; Docker's default 10 s would kill a
+    # permit import (downloads up to 300 s each) or a 50-page ingestion (222 s measured) and
+    # leave revisions "queued" without a job (ADR-0016 Decision 8).
+    stop_grace_period: 5m
     environment: *backend-env
     secrets: *backend-secrets
     depends_on:
@@ -154,6 +158,7 @@ services:
     image: ghcr.io/datikos/unitforma-backend-ifc:${BACKEND_TAG:-dev}
     build: { context: ../../backend, target: runtime-ifc }
     command: ["worker", "--queues", "docs-heavy,geometry,geometry-heavy", "--concurrency", "1"]
+    stop_grace_period: 15m  # an IFC conversion in flight finishes before the container stops
     environment: *backend-env
     secrets: *backend-secrets
     depends_on:

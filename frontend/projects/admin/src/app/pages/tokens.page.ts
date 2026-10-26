@@ -54,6 +54,70 @@ const EXPIRIES = [30, 90, 180, 365];
       }
 
       <uf-section-card
+        title="Connect an assistant"
+        icon="lucidePlug"
+        summary="the server URL and the ready commands"
+        storageKey="tokens-connect"
+        [open]="true"
+      >
+        <dl class="connect">
+          <div>
+            <dt>MCP server URL</dt>
+            <dd class="uf-mono row">
+              <code>{{ mcpUrl() }}</code>
+              <button mat-button (click)="copy(mcpUrl(), 'URL copied')">
+                <ng-icon name="lucideCopy" /> Copy
+              </button>
+            </dd>
+          </div>
+          <div>
+            <dt>Claude Code</dt>
+            <dd class="uf-mono row">
+              <code>{{ claudeCommand() }}</code>
+              <button mat-button (click)="copy(claudeCommand(), 'Command copied')">
+                <ng-icon name="lucideCopy" /> Copy
+              </button>
+            </dd>
+          </div>
+          <div>
+            <dt>.mcp.json (project or user scope)</dt>
+            <dd class="uf-mono row">
+              <pre>{{ mcpJson() }}</pre>
+              <button mat-button (click)="copy(mcpJson(), 'JSON copied')">
+                <ng-icon name="lucideCopy" /> Copy
+              </button>
+            </dd>
+          </div>
+          <div>
+            <dt>Claude.ai custom connector</dt>
+            <dd>
+              Settings → Connectors → Add custom connector: the URL above, authentication "API key",
+              header <code>Authorization: Bearer {{ tokenText() }}</code
+              >.
+            </dd>
+          </div>
+          <div>
+            <dt>Test from a terminal</dt>
+            <dd class="uf-mono row">
+              <code>{{ curlCommand() }}</code>
+              <button mat-button (click)="copy(curlCommand(), 'curl copied')">
+                <ng-icon name="lucideCopy" /> Copy
+              </button>
+            </dd>
+          </div>
+        </dl>
+        <p class="uf-hint">
+          @if (created()) {
+            The commands carry the token you just created. Copy them now: the secret is not shown
+            again after you leave this page.
+          } @else {
+            The commands carry a placeholder: create a token below and they fill in with its secret.
+            Then ask the assistant to call <code>whoami</code>.
+          }
+        </p>
+      </uf-section-card>
+
+      <uf-section-card
         title="Create a token"
         icon="lucidePlus"
         summary="name, scope, expiry; the secret shows once"
@@ -100,26 +164,14 @@ const EXPIRIES = [30, 90, 180, 365];
           <div class="uf-alert uf-alert--good secret">
             <ng-icon name="lucideShieldCheck" />
             <div>
-              <strong>Copy the secret now.</strong> It is shown once and never stored.
+              <strong>Copy the secret now.</strong> It is shown once and never stored; the commands
+              in "Connect an assistant" above carry it already.
               <div class="uf-mono row">
                 <code>{{ c.secret }}</code>
                 <button mat-button (click)="copy(c.secret, 'Secret copied')">
                   <ng-icon name="lucideCopy" /> Copy
                 </button>
               </div>
-              <p class="uf-small">Connect Claude Code (one command, the host is filled in):</p>
-              <div class="uf-mono row">
-                <code>{{ claudeCommand(c) }}</code>
-                <button mat-button (click)="copy(claudeCommand(c), 'Command copied')">
-                  <ng-icon name="lucideCopy" /> Copy
-                </button>
-              </div>
-              <p class="uf-small">
-                Claude.ai custom connector: URL <code>{{ mcpUrl() }}</code
-                >, authentication "API key", header
-                <code>Authorization: Bearer &lt;secret&gt;</code>. Then ask the assistant to call
-                <code>whoami</code>.
-              </p>
             </div>
           </div>
         }
@@ -211,6 +263,33 @@ const EXPIRIES = [30, 90, 180, 365];
     .dim td {
       color: var(--uf-muted);
     }
+    .connect {
+      margin: 0;
+      display: grid;
+      gap: 0.75rem;
+    }
+    .connect dt {
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+    }
+    .connect dd {
+      margin: 0;
+    }
+    .connect pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .row code {
+      word-break: break-all;
+      user-select: all;
+    }
     .secret .row {
       display: flex;
       align-items: center;
@@ -265,8 +344,34 @@ export class TokensPage {
     return `${location.origin}/mcp`;
   }
 
-  claudeCommand(c: ApiTokenCreated): string {
-    return `claude mcp add --transport http unitforma ${this.mcpUrl()} --header "Authorization: Bearer ${c.secret}"`;
+  /** The secret of the token just created, else a placeholder the reader replaces. */
+  tokenText(): string {
+    return this.created()?.secret ?? '<paste your token>';
+  }
+
+  claudeCommand(): string {
+    return `claude mcp add --transport http unitforma ${this.mcpUrl()} --header "Authorization: Bearer ${this.tokenText()}"`;
+  }
+
+  mcpJson(): string {
+    const token = this.created()?.secret ?? '${UNITFORMA_TOKEN}';
+    return JSON.stringify(
+      {
+        mcpServers: {
+          unitforma: {
+            type: 'http',
+            url: this.mcpUrl(),
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        },
+      },
+      null,
+      2,
+    );
+  }
+
+  curlCommand(): string {
+    return `curl -sS ${this.mcpUrl()} -H "Authorization: Bearer ${this.tokenText()}" -H "Accept: application/json, text/event-stream" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`;
   }
 
   async load(): Promise<void> {

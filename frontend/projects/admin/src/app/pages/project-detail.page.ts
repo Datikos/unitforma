@@ -143,7 +143,7 @@ import { ToastService } from '../ui/toast.service';
                   domain="regulatory_import"
                   value="failed"
                   label="Import stalled"
-                  tooltip="The worker did not report back; Check registry starts a fresh import"
+                  tooltip="The worker did not report back; Check registry starts a fresh import and queues the files it left behind"
                 />
               } @else {
                 <uf-status-chip domain="regulatory_import" [value]="j.status" />

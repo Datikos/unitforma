@@ -227,12 +227,21 @@ detection; the architect's model itself (a file the developer must obtain); a se
       one enlarged home with the partition opened, the image belongs to the first unit and its alt text
       names both; "Join with" select on the unit page lists the units of the same floor. Test in
       `test_unit_renders.py`. The inventory keeps two units: viewing and sharing only.
+      *Found while using (2026-10-26):* the model kept the partition wall although the prompt asked to
+      open it. The crop now cuts a white gap into the shared wall (`renders.service.shared_wall`: the
+      longest stretch where the two outlines run along each other; the gap is 40 % of it, 24 to 220 px)
+      and the prompt says the gap is an open passage; the model follows the drawing more than the text.
+      Outlines that do not touch get no gap. Test `test_joined_crop_cuts_an_opening_into_the_shared_wall`.
 - [x] E5 Wall colour (owner's item 5): `units.attributes.wall_colour` (RAL code or hex, 1 to 40
       characters) through the sales rules like `layout`; inventory column "Walls", unit form field, public
       on the unit page with a swatch for hex and the common RAL codes; the render prompt paints the walls
       in it.
 - [x] E6 Furniture ruler (owner's item 4): the portal unit page adds pieces (beds, sofa, table, wardrobe,
       desk, bathtub) at true scale, computed from the unit's outline and its largest stated area, and the
-      buyer drags them on the plan (viewer move mode; the outline is locked). Nothing is stored.
+      buyer drags them on the plan (viewer move mode; the outline is locked). The chips are an icon with
+      the size in cm and toggle one piece each (pressed while placed; a second click removes it); the name
+      ("Bed 160×200 cm") is the tooltip (native `title`, so not shown on touch screens) and the label on the
+      placed piece. Nothing is stored.
 - [x] E7 Plan viewer controls (owner's items 1, 2, 10): + / − / fit / full screen on every plan viewer;
-      the selected unit on the building page gets a callout with its status and an "Open" button.
+      the selected unit on the building page gets a compact callout (code, status, arrow) that opens the unit page; the
+      callout takes the pointer itself and a press on it never pans the plan (fixed 2026-10-26).

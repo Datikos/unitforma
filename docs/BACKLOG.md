@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-26: 39 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, plan Phases 5 to 7 and
+State on 2026-10-26: 42 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Rows that share one code area or one
 outside input are one row with every reference. Sizes: S up to a day, M a few days, L a week or more.
@@ -22,7 +22,7 @@ import (ADR-0017 proposal 1b), and a block level between building and floor (blo
 | # | Task | Ref | Needs | Size |
 |---|---|---|---|---|
 | 4 | DWG conversion: accept `.dwg`, converter container, `cad.convert_dwg` task, docs; then acceptance on 10 real DWG files reviewed by the owner. | ADR-0006 #D1 #D3 #D4 #D5 #D6 | item 3, owner's files | M |
-| 5 | Retention sweep (`housekeeping.retention` is a stub): drafts, attempts, soft-deleted media, orphaned storage prefixes including `pub/` of retired publications. | ADR-0012 Consequences (known gap), plan §10.3, §12.3 | — | M |
+| 5 | Retention sweep (`housekeeping.retention` is a stub): drafts, attempts, soft-deleted media, orphaned storage prefixes including `pub/` of retired publications; ended boards older than 7 days once ADR-0020 Phase E lands. | ADR-0012 Consequences (known gap), plan §10.3, §12.3, ADR-0020 #E8 | — | M |
 | 6 | Phase 5: buyer email-code auth through the BFF, app sessions, inquiries, leads, assignment, notifications via outbox, consent, rate limits. PoC V1 first. | plan Phase 5, ADR-0002 (pending PoC V1) | O5, O6 decisions | L |
 | 7 | Phase 6: domain lifecycle (add, DNS instructions, `domains.verify` job, activation, removal with certificate purge) and its admin screen; only the `ask` decision and host routing exist. | plan Phase 6, ADR-0003 | PoC V2 on a team-owned domain | M |
 | 8 | Worker health: Procrastinate heartbeat check so `worker-light` and `worker-heavy` stop running with `healthcheck: disable`. | plan §17, `compose.yaml` comment | — | S |
@@ -60,5 +60,8 @@ import (ADR-0017 proposal 1b), and a block level between building and floor (blo
 | 35 | Tile provider or self-hosted tiles for the portal map once traffic justifies it or OSM withdraws access (the `UF_PORTAL_MAP_EMBED` switch covers the gap; runbook written). | ADR-0016 Revisit (E4 done) | traffic figures, provider pick | M |
 | 36 | The architect's IFC export for `permit-1127975` (ArchiCAD: File → Save as → IFC, zones as IfcSpace) uploaded under building A, spaces linked; the portal then shows the real building. | ADR-0017 #E2 | the architect's file | S |
 | 37 | Second image provider (OpenAI GPT Image) for a quality and price comparison; batch pricing when volumes grow. | ADR-0017 #E3 | owner's wish | S |
-| 38 | UX pass on the pages the owner names (he sends the page or a screenshot with one sentence each). Done 2026-10-26: Projects (compact fields, top-aligned form rows, even cards); unit page (price and terms in one card, packed rows, two-column buyer toggles, 25 % shorter). | ADR-0009 (patterns) | owner's pages | S per page |
+| 38 | UX pass on the pages the owner names (he sends the page or a screenshot with one sentence each). Done 2026-10-26: Projects (compact fields, top-aligned form rows, even cards); unit page (price and terms in one card, packed rows, two-column buyer toggles, 25 % shorter); unit page richer (plan card with availability colours, same-floor and same-layout links, live price per m², header facts, toned card icons). | ADR-0009 (patterns) | owner's pages | S per page |
 | 39 | ADR-0019 (several developers on one general area): the owner picks Option A (one tenant, project-restricted members, per-project contacts) or Option B (platform area aggregating tenants); then its action items. | ADR-0019 Decision | owner's pick | S (A) / L (B) |
+| 40 | "Process again" on the document card for a revision queued, processing or failed, with its guide line; the manual escape hatch next to the 10-minute sweep. | ADR-0016 #F5 | — | S |
+| 41 | Long Georgian file names on the `local` storage backend: URL-quoting makes 9 bytes per letter and exceeds the 255-byte path component ("File name too long" on 2 of 16 permit files, 2026-10-26); cap or hash in `storage.object_key`. S3 is unaffected. | ADR-0016 #F6 | — | S |
+| 42 | ADR-0020 (renovation playground): the owner picks how the drawn furniture is cleared (generated blank plan, DXF layers, fade), whether tenants manage the catalogue, whether layouts wait for buyer accounts and whether buyers may spend AI images; the sharing code length (4 symbols or 6 digits) and who opens a live board; then Phase B (blank plan, M), C (catalogue, M), D (after Phase 5, M), E2 to E8 (live board over SSE, M). Phase A and E1 (editor, code catalogue, fade, browser save, share link) done 2026-10-26. | ADR-0020 Decision | owner's picks | S to M per phase |

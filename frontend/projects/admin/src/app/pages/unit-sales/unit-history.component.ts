@@ -11,6 +11,7 @@ import { TimelineEntry } from './unit-sales.model';
   template: `
     <uf-section-card
       title="History"
+      tone="neutral"
       icon="lucideHistory"
       [count]="entries().length"
       [summary]="entries()[0] ? 'last change ' + ago(entries()[0].at) : 'no changes yet'"

@@ -7,6 +7,8 @@ import { UF_ICONS } from './icons';
  * ("Timeouts · connect 500 ms · read 2 s") and a count, so a closed section still tells its state.
  * The open state is remembered per `storageKey` in localStorage (per browser convenience).
  */
+export type SectionTone = 'good' | 'info' | 'warning' | 'bad' | 'pending' | 'neutral';
+
 @Component({
   selector: 'uf-section-card',
   imports: [NgIcon],
@@ -28,7 +30,9 @@ import { UF_ICONS } from './icons';
               aria-hidden="true"
             />
             @if (icon()) {
-              <ng-icon [name]="icon()!" class="sc__icon" aria-hidden="true" />
+              <span class="sc__icon" [class]="iconClass()"
+                ><ng-icon [name]="icon()!" aria-hidden="true"
+              /></span>
             }
             <span class="sc__title">{{ title() }}</span>
             @if (count() !== null) {
@@ -41,7 +45,9 @@ import { UF_ICONS } from './icons';
         } @else {
           <div class="sc__toggle sc__toggle--static">
             @if (icon()) {
-              <ng-icon [name]="icon()!" class="sc__icon" aria-hidden="true" />
+              <span class="sc__icon" [class]="iconClass()"
+                ><ng-icon [name]="icon()!" aria-hidden="true"
+              /></span>
             }
             <span class="sc__title">{{ title() }}</span>
             @if (count() !== null) {
@@ -99,6 +105,39 @@ import { UF_ICONS } from './icons';
     }
     .sc__icon {
       color: var(--uf-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .sc__icon--badge {
+      width: 1.7rem;
+      height: 1.7rem;
+      border-radius: 8px;
+      flex: none;
+    }
+    .sc__icon--good {
+      background: var(--uf-tone-good-bg);
+      color: var(--uf-tone-good-fg);
+    }
+    .sc__icon--info {
+      background: var(--uf-tone-info-bg);
+      color: var(--uf-tone-info-fg);
+    }
+    .sc__icon--warning {
+      background: var(--uf-tone-warning-bg);
+      color: var(--uf-tone-warning-fg);
+    }
+    .sc__icon--bad {
+      background: var(--uf-tone-bad-bg);
+      color: var(--uf-tone-bad-fg);
+    }
+    .sc__icon--pending {
+      background: var(--uf-tone-pending-bg);
+      color: var(--uf-tone-pending-fg);
+    }
+    .sc__icon--neutral {
+      background: var(--uf-tone-neutral-bg);
+      color: var(--uf-tone-neutral-fg);
     }
     .sc__title {
       font-weight: 600;
@@ -144,6 +183,11 @@ export class SectionCardComponent {
   readonly id = `uf-sc-${++SectionCardComponent.seq}`;
   readonly title = input.required<string>();
   readonly icon = input<string | null>(null);
+  /** Colour of the icon badge (same vocabulary as the status chips); none keeps the plain icon. */
+  readonly tone = input<SectionTone | null>(null);
+  protected readonly iconClass = computed(() =>
+    this.tone() ? `sc__icon sc__icon--badge sc__icon--${this.tone()}` : 'sc__icon',
+  );
   readonly summary = input<string | null>(null);
   readonly count = input<number | string | null>(null);
   readonly collapsible = input(true);

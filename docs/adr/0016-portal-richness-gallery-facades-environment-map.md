@@ -1,6 +1,6 @@
 # ADR-0016: A buyer portal that shows the building: render gallery, facade drawings on the 3D massing, site environment, layout renders, map, and imports that cannot get stuck
 
-- **Status:** accepted (2026-10-26; implemented 2026-10-26; only the E5 contract step open, E2 decided in ADR-0017)
+- **Status:** accepted (2026-10-26; implemented 2026-10-26; Decision 8 added and implemented 2026-10-26; open: the E5 contract step, F5 and F6; E2 decided in ADR-0017)
 - **Date:** 2026-10-26
 - **Deciders:** David Sakhelashvili (platform owner); AI-generated renders (Out of scope) are his call
 - **Plan reference:** §6.6 (public fields), §7.1 (navigation model), §7.3 (3D and fallbacks), §9.3 (portal
@@ -108,6 +108,23 @@ Third-party facts (checked 2026-10-26):
    Units), the first render beside the 3D view, a gallery with a `<dialog>` lightbox, the map section, and
    the home page cards with cover images. All styling through the ADR-0009 tokens; the portal's initial
    bundle stays under the 400 kB budget (374.00 kB on 2026-10-26).
+8. **A lost worker cannot leave a revision "queued" or "processing" for ever** (added 2026-10-26, after
+   14 revisions of the first two real projects sat in those states). Evidence: `import_attachments` filed each file as a revision in its own transaction but deferred every `documents.ingest_revision` only after the last download. The 8 revisions of the second real project were filed 01:37–01:42 UTC by the import started at 01:26 (job 186), whose worker was lost before it reached the deferral (that container's logs are gone: inferred). The import started at 03:39:43 was killed by the `worker-light` recreate at 03:41:30 (container timestamps; Docker sends SIGTERM and kills after 10 s by default) and filed nothing; the import at 05:33 counted the 8 files as "existing" and never queued them, and Decision 6 closed the dead import rows without touching the revisions. Three more revisions stayed "processing" with their jobs stuck in
+   "doing" after an earlier restart. Three measures, together:
+   (a) the import defers each file's ingestion right after that file's commit (`documents.jobs.defer_ingest`),
+   and for a file it finds "existing" it calls `requeue_document_if_stuck`, so the next "Check registry"
+   heals what an earlier lost import left behind (the stats entry carries `healed: requeued | failed`);
+   (b) the periodic job `documents.requeue_stuck` (every 10 minutes, `periodic` queue) takes every
+   revision "queued" or "processing" for longer than `STUCK_AFTER = 15 minutes` whose ingestion job is
+   neither `todo` nor `doing` on a worker with a heartbeat younger than 60 s, closes stale `doing` jobs as
+   failed, and queues it again; after `MAX_TRIES = 3` started runs it marks the revision failed with
+   "worker lost 3 times; upload the file again" (an out-of-memory loop never runs for ever);
+   (c) `stop_grace_period: 5m` on `worker-light` and `15m` on `worker-heavy` in `compose.yaml`, so a
+   rollout waits for running jobs (a permit download is capped at 300 s, the largest ingestion measured
+   222 s for 50 pages); Procrastinate already finishes running jobs after SIGTERM, Docker's 10 s was the
+   killer. Alternatives not taken: a longer `STALE_AFTER` (does not queue anything), Procrastinate's
+   `shutdown_graceful_timeout` (makes the worker give up sooner, not later), a "Process again" button alone
+   (F5, kept as the manual escape hatch; a sweep heals without a person).
 
 ## Options considered
 
@@ -166,7 +183,7 @@ Harder: reviewers must keep the layout code consistent across units, or a buyer 
 (the portal states "renders of plan type X"); facade textures only look right when the marked region is the
 drawing itself without the title block; two JSON shapes without format markers (`site_frame.facades` and
 `attributes.layout`) are read tolerant of missing keys and must stay so on every review; the massing GLB
-grows by up to four JPEGs per building (≤ 1 MB). The facade rectangle is fixed per building by
+grows by up to four JPEGs per building (≤ 1 MB). The sweep's "worker lost N times" text also covers a run that died from an exception after its first transaction (a retry of `process_revision` skips a "processing" row): the revision ends failed, the wording is approximate. The facade rectangle is fixed per building by
 `geometry.collect` from every unit (`BuildingSolids.facade_rect`) before the portal build drops unlisted
 units, so withdrawing the storage rooms that define it does not move the drawings.
 
@@ -247,6 +264,33 @@ buyer accounts and inquiries (plan Phase 5); custom map providers.
 
 - [x] D1 This ADR; README status paragraph and decision list; plan §11.3; `docs/BACKLOG.md` rows for the
       open items; `frontend/README.md` portal section.
+
+### Phase F: imports that cannot leave revisions queued (Decision 8, 2026-10-26)
+
+- [x] F1 `documents/jobs.py`: `STUCK_AFTER`, `MAX_TRIES`, `WORKER_DEAD_AFTER_S`, `_heal_revision`,
+      `defer_ingest`, `requeue_document_if_stuck`, `requeue_stuck`; `jobs/tasks.py`
+      `documents.requeue_stuck` (cron `*/10 * * * *`, queue `periodic`).
+- [x] F2 `regulatory/service.py::import_attachments`: ingestion deferred per file after its commit; "existing"
+      files healed through `requeue_document_if_stuck`, the outcome in `stats.existing[].healed`.
+- [x] F3 `deploy/compose/compose.yaml`: `stop_grace_period` 5m (`worker-light`) and 15m (`worker-heavy`);
+      `docs/runbooks/deploy.md` says what a rollout waits for.
+- [x] F4 Test `test_regulatory_tasge.py::test_files_left_queued_by_a_lost_worker_are_queued_again` (job per
+      file, heal on refresh, sweep over a dead worker's job, live job left alone, failed after 3 runs);
+      plan §12.3 row; README; guide entry for "Check registry". The 14 stuck revisions of the dev stack were
+      queued again by hand on 2026-10-26 (3 reset from "processing", 6 stalled jobs closed, 14 jobs deferred).
+      *Found while implementing:* Procrastinate's status trigger writes the `started` event, so the run count
+      comes from `procrastinate_events`, not from `attempts` (0 on a killed job).
+      *First real run, 2026-10-26:* the owner's redeploy at 05:57:46 UTC recreated `worker-light` two seconds
+      after the 14 jobs were queued by hand and killed the 3 the old worker had taken; the sweep at 06:12:23
+      queued 2 again (the third was 23 s younger than `STUCK_AFTER`), the one at 06:20:00 the last; all 33
+      revisions of the dev stack were "done" at 06:22:31.
+- [ ] F5 "Process again" on the document card for a revision `queued`, `processing` or `failed`
+      (`POST /revisions/{id}/reprocess` → `requeue_document_if_stuck` without the age threshold, or status
+      reset for `failed`), with its guide line.
+- [ ] F6 File names on the `local` storage backend: a Georgian name URL-quoted to 9 bytes per letter exceeds
+      the 255-byte path component limit ("File name too long" on 2 of 16 permit files on 2026-10-26); cap the
+      quoted length in `storage.object_key` or hash long names. S3 keys allow 1024 bytes, production is
+      unaffected.
 
 ### Phase E: the sample project and open decisions
 

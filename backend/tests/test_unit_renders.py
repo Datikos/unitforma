@@ -45,6 +45,27 @@ def test_crop_whites_out_everything_outside_the_outline():
         renders.crop_plan(_png(400, 300), [[0.1, 0.1], [0.1, 0.1], [0.1, 0.1]])
 
 
+def test_joined_crop_cuts_an_opening_into_the_shared_wall():
+    """Two outlines that share a wall: the crop keeps both, and the middle of the shared wall is
+    painted white as an open passage (the model follows the drawing, not only the prompt); the
+    wall near the corners stays, and outlines that do not touch get no opening."""
+    left = [[0.2, 0.2], [0.5, 0.2], [0.5, 0.6], [0.2, 0.6]]
+    right = [[0.5, 0.2], [0.8, 0.2], [0.8, 0.6], [0.5, 0.6]]  # shares the x = 0.5 wall
+    wall = (0.5, 0.2), (0.5, 0.6)
+    assert renders.shared_wall(left, right, 0.01) == wall
+    assert renders.shared_wall(left, [[0.6, 0.2], [0.9, 0.2], [0.9, 0.6], [0.6, 0.6]], 0.01) is None
+    dark = _png(1000, 1000, (30, 30, 30))
+    out = Image.open(io.BytesIO(renders.crop_plan(dark, left, extra_rings=[right])))
+    # crop box starts at x = (0.2 - 0.08 * 0.6) * 1000 = 152, y = (0.2 - 0.08 * 0.4) * 1000 = 168
+    mid = (500 - 152, 400 - 168)
+    assert out.getpixel(mid) == (255, 255, 255)  # the opening
+    corner = (mid[0], 220 - 168)
+    assert out.getpixel(corner) == (30, 30, 30)  # the wall by the corner stays
+    assert out.getpixel((mid[0] - 120, mid[1])) == (30, 30, 30)  # inside the left unit
+    single = Image.open(io.BytesIO(renders.crop_plan(dark, left)))
+    assert single.getpixel((500 - 176 - 2, 400 - 168)) == (30, 30, 30)  # no gap for one unit
+
+
 def _provider(handler) -> GeminiProvider:
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     return GeminiProvider("k3y", "gemini-nano-banana-2.1", ENDPOINT, 0.0336, client=client)
@@ -174,7 +195,7 @@ def test_render_request_review_approve_reject_and_limits(client, world, monkeypa
     out = client.portal.call(render_jobs.generate, uuid.UUID(tid), uuid.UUID(joined_id))
     assert out["status"] == "review", out
     (single, _, _), (joined, _, joined_prompt) = stub.calls[0], stub.calls[1]
-    assert "joined into one larger apartment" in joined_prompt
+    assert "joined into one larger apartment" in joined_prompt and "open passage" in joined_prompt
     one, two = Image.open(io.BytesIO(single)).size, Image.open(io.BytesIO(joined)).size
     assert two[0] / two[1] > one[0] / one[1]  # both outlines side by side: a wider crop
     media = client.get(media_url, headers=sales).json()

@@ -3,7 +3,7 @@
 1. CI has pushed images tagged `sha-<short>` for backend, frontends, proxy, backup.
 2. On the host: `cd /srv/unitforma/deploy && git pull` (Compose files, Caddyfile, Kratos config).
 3. Review changes to `deploy/kratos/kratos.yaml` and `.env.example`; update `.env` if new variables appeared.
-4. Roll out: `./scripts/deploy.sh sha-<short>` (order: db-migrate → workers → api → frontends, waits for health).
+4. Roll out: `./scripts/deploy.sh sha-<short>` (order: db-migrate → workers → api → frontends, waits for health). Stopping a worker waits for its running jobs: up to 5 min for `worker-light` (a permit download is capped at 300 s), up to 15 min for `worker-heavy` (IFC conversion); `docker compose stop` returns only then. A revision a killed worker left `queued` or `processing` is queued again by `documents.requeue_stuck` within 25 min (ADR-0016 Decision 8).
 5. Verify: `docker compose -f compose/compose.yaml -f compose/compose.prod.yaml --env-file compose/.env ps`,
    `curl -fsS https://app.<domain>/api/v1/portal/branding -H 'Host: <tenant>.<domain>'`, log in, open a portal.
 6. If anything is wrong: `./scripts/rollback.sh <previous-tag>` (no down-migration needed; schemas are backward compatible for one release).

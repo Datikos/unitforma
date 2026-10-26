@@ -3,13 +3,14 @@ import { toObservable } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { PlanPolygon, PlanViewerComponent } from 'plan-viewer';
-import { StatusChipComponent, UF_ICONS } from 'ui';
+import { StatusChipComponent, UF_ICONS, statusOf } from 'ui';
 import type { MassingUnitInfo, SiteFeature3D } from 'viewer-3d';
 import { MassingViewerComponent } from 'viewer-3d';
 import { detectCapabilities } from '../core/capabilities';
 import { AVAILABILITY, typeLabel } from '../core/format';
-import { PortalApi, ProjectDoc } from '../core/portal-api';
+import { Availability, PortalApi, ProjectDoc } from '../core/portal-api';
 import { SiteStore } from '../core/site.store';
+import { countByAvailability, groupUnitsByType } from './building.model';
 
 /**
  * Building view, floor first (plan §7.1, ADR-0006 Decision 6): the floor stack, the 3D building
@@ -157,52 +158,88 @@ import { SiteStore } from '../core/site.store';
                   (polygonSelected)="selected.set($event)"
                 >
                   @if (selectedUnit(); as u) {
-                    <div callout class="callout">
+                    <a
+                      callout
+                      class="callout"
+                      [routerLink]="['/projects', slug(), 'units', u.code]"
+                      title="Open the unit page"
+                    >
                       <strong>{{ u.code }}</strong>
                       <uf-status-chip domain="availability" [value]="u.availability" />
-                      <a class="uf-btn" [routerLink]="['/projects', slug(), 'units', u.code]"
-                        >Open <ng-icon name="lucideArrowRight"
-                      /></a>
-                    </div>
+                      <ng-icon name="lucideArrowRight" aria-hidden="true" />
+                    </a>
                   }
                 </uf-plan-viewer>
               } @else {
                 <p class="uf-muted">No plan published for this floor.</p>
               }
-              <p class="legend">
-                @for (a of legend; track a.key) {
-                  <uf-status-chip domain="availability" [value]="a.key" />
-                }
-              </p>
-              @if (selectedUnit(); as u) {
-                <div class="uf-card pick" role="status">
-                  <strong>{{ u.code }}</strong> · {{ typeLabel(u.unit_type) }} · {{ f.name }}
-                  @if (u.entrance) {
-                    · Entrance {{ u.entrance }}
+              @if (f.units.length) {
+                <div class="status-bar">
+                  <ul class="legend" aria-label="Availability on this floor">
+                    @for (a of legend; track a.key) {
+                      <li [class.is-zero]="!counts()[a.key]">
+                        <uf-status-chip
+                          domain="availability"
+                          [value]="a.key"
+                          [label]="a.label + ' · ' + counts()[a.key]"
+                          [tooltip]="
+                            counts()[a.key] + ' of ' + f.units.length + ' ' + a.label.toLowerCase()
+                          "
+                        />
+                      </li>
+                    }
+                  </ul>
+                  @if (!selectedUnit()) {
+                    <span class="uf-muted uf-small"
+                      >Tap a unit on the plan or below to open it.</span
+                    >
                   }
+                </div>
+              }
+              @if (selectedUnit(); as u) {
+                <div class="pick" role="status">
+                  <strong class="pick__code">{{ u.code }}</strong>
+                  <span class="uf-muted pick__meta">
+                    {{ typeLabel(u.unit_type) }} · {{ f.name }}
+                    @if (u.entrance) {
+                      · Entrance {{ u.entrance }}
+                    }
+                  </span>
                   <uf-status-chip domain="availability" [value]="u.availability" />
-                  <a class="uf-btn" [routerLink]="['/projects', slug(), 'units', u.code]"
+                  <a class="uf-btn pick__open" [routerLink]="['/projects', slug(), 'units', u.code]"
                     >Open <ng-icon name="lucideArrowRight"
                   /></a>
                 </div>
-              } @else if (f.units.length) {
-                <p class="uf-muted small">
-                  {{ count(f.level) }} of {{ f.units.length }} units on this floor available. Tap
-                  one on the plan or in the list.
-                </p>
-              } @else {
-                <p class="uf-muted small">No units are published on this floor.</p>
+              } @else if (!f.units.length) {
+                <p class="uf-muted uf-small">No units are published on this floor.</p>
               }
-              <ul class="list">
-                @for (u of f.units; track u.id) {
-                  <li>
-                    <a [routerLink]="['/projects', slug(), 'units', u.code]" class="unit-link"
-                      ><strong>{{ u.code }}</strong>
-                      <uf-status-chip domain="availability" [value]="u.availability"
-                    /></a>
-                  </li>
-                }
-              </ul>
+              @for (g of groups(); track g.type) {
+                <section class="group">
+                  <h3 class="group__title">
+                    {{ g.label }}
+                    <span class="uf-muted"
+                      >· {{ g.available }} of {{ g.units.length }} available</span
+                    >
+                  </h3>
+                  <ul class="tiles">
+                    @for (u of g.units; track u.id) {
+                      <li>
+                        <a
+                          class="tile uf-tone-{{ tone(u.availability) }}"
+                          [class.is-selected]="u.id === selected()"
+                          [routerLink]="['/projects', slug(), 'units', u.code]"
+                          [attr.aria-current]="u.id === selected() ? 'true' : null"
+                          [attr.aria-label]="u.code + ', ' + label(u.availability)"
+                          [title]="u.code + ' · ' + label(u.availability)"
+                          ><ng-icon [name]="icon(u.availability)" aria-hidden="true" />{{
+                            u.code
+                          }}</a
+                        >
+                      </li>
+                    }
+                  </ul>
+                </section>
+              }
             }
           </section>
         </div>
@@ -266,20 +303,6 @@ import { SiteStore } from '../core/site.store';
       background: var(--uf-tone-neutral-bg);
       color: var(--uf-tone-neutral-fg);
     }
-    .unit-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      text-decoration: none;
-      color: var(--uf-text);
-      padding: 0.25rem 0.5rem;
-      border: 1px solid var(--uf-border);
-      border-radius: var(--uf-radius-sm);
-      background: var(--uf-surface);
-    }
-    .unit-link:hover {
-      border-color: var(--uf-primary);
-    }
     .plan {
       display: grid;
       gap: 0.5rem;
@@ -305,38 +328,147 @@ import { SiteStore } from '../core/site.store';
       font-size: 0.85rem;
       margin: 0;
     }
-    .legend {
+    /* one slim row: the legend with counts on the left, the hint on the right */
+    .status-bar {
       display: flex;
-      gap: 0.5rem;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem 1rem;
       flex-wrap: wrap;
-      margin: 0;
+      margin: 0.15rem 0 0;
     }
+    .legend {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+    .legend .is-zero {
+      opacity: 0.55;
+    }
+    /* one compact tap target on the plan: code, status, arrow; the whole pill opens the unit */
     .callout {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.4rem 0.6rem;
+      gap: 0.45rem;
+      padding: 0.25rem 0.5rem 0.25rem 0.7rem;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      color: var(--uf-text);
+      text-decoration: none;
       background: var(--uf-surface);
       border: 1px solid var(--uf-border);
-      border-radius: var(--uf-radius);
-      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+      border-radius: var(--uf-radius-pill);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.14);
       white-space: nowrap;
     }
-    .callout .uf-btn {
-      padding: 0.3rem 0.6rem;
+    .callout:hover,
+    .callout:focus-visible {
+      border-color: var(--uf-primary);
+      background: var(--uf-primary-soft);
     }
+    .callout ng-icon {
+      font-size: 1.05em;
+      color: var(--uf-primary);
+    }
+    /* the selected unit: a slim strip with a primary accent, not a full card */
     .pick {
       display: flex;
-      gap: 0.75rem;
+      gap: 0.6rem;
       align-items: center;
       flex-wrap: wrap;
+      padding: 0.4rem 0.6rem 0.4rem 0.75rem;
+      border: 1px solid var(--uf-border);
+      border-left: 4px solid var(--uf-primary);
+      border-radius: var(--uf-radius-sm);
+      background: var(--uf-surface);
+      box-shadow: var(--uf-shadow);
     }
-    .list {
+    .pick__code {
+      font-size: 1.05rem;
+    }
+    .pick__meta {
+      font-size: 0.9rem;
+    }
+    .pick__open {
+      margin-left: auto;
+      padding: 0.3rem 0.8rem;
+      font-size: 0.9rem;
+    }
+    /* unit tiles, grouped by type: the chip vocabulary (icon + tone) carries the status */
+    .group {
+      display: grid;
+      gap: 0.35rem;
+      margin-top: 0.35rem;
+    }
+    .group__title {
+      margin: 0;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--uf-text);
+    }
+    .group__title .uf-muted {
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .tiles {
       list-style: none;
+      margin: 0;
       padding: 0;
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 0.3rem;
+    }
+    .tile {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.18rem 0.6rem 0.18rem 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      line-height: 1.5;
+      text-decoration: none;
+      border: 1px solid var(--uf-tone-neutral-border);
+      border-radius: var(--uf-radius-pill);
+      background: var(--uf-tone-neutral-bg);
+      color: var(--uf-tone-neutral-fg);
+      transition:
+        box-shadow 0.15s,
+        border-color 0.15s;
+    }
+    /* the component's scoped rule outranks the global tone classes, so the tones are restated here */
+    .tile.uf-tone-good {
+      border-color: var(--uf-tone-good-border);
+      background: var(--uf-tone-good-bg);
+      color: var(--uf-tone-good-fg);
+    }
+    .tile.uf-tone-warning {
+      border-color: var(--uf-tone-warning-border);
+      background: var(--uf-tone-warning-bg);
+      color: var(--uf-tone-warning-fg);
+    }
+    .tile.uf-tone-bad {
+      border-color: var(--uf-tone-bad-border);
+      background: var(--uf-tone-bad-bg);
+      color: var(--uf-tone-bad-fg);
+    }
+    .tile ng-icon {
+      font-size: 0.9em;
+      flex: none;
+    }
+    .tile:hover,
+    .tile:focus-visible {
+      border-color: currentColor;
+      box-shadow: var(--uf-shadow);
+    }
+    .tile.is-selected {
+      outline: 2px solid var(--uf-primary);
+      outline-offset: 1px;
     }
     .bmeta {
       display: flex;
@@ -375,9 +507,9 @@ export class BuildingPage {
   readonly unitParam = input<string | undefined>(undefined, { alias: 'unit' });
   readonly doc = signal<ProjectDoc | null>(null);
   private readonly caps = detectCapabilities();
-  protected readonly legend = Object.entries(AVAILABILITY).map(([key, v]) => ({
+  protected readonly legend = (Object.keys(AVAILABILITY) as Availability[]).map((key) => ({
     key,
-    label: v.label,
+    label: AVAILABILITY[key].label,
   }));
   protected readonly typeLabel = typeLabel;
 
@@ -430,6 +562,10 @@ export class BuildingPage {
   readonly selectedUnit = computed(
     () => this.floor()?.units.find((u) => u.id === this.selected()) ?? null,
   );
+  /** The list below the plan: one group per unit type, codes in natural order (building.model.ts). */
+  readonly groups = computed(() => groupUnitsByType(this.floor()?.units ?? []));
+  /** Legend counts for the current floor, every state present. */
+  readonly counts = computed(() => countByAvailability(this.floor()?.units ?? []));
   readonly polygons = computed<PlanPolygon[]>(() =>
     (this.floor()?.units ?? [])
       .filter((u) => u.ring)
@@ -492,6 +628,15 @@ export class BuildingPage {
 
   label(a: keyof typeof AVAILABILITY): string {
     return AVAILABILITY[a].label;
+  }
+
+  /** Tile tone and icon come from the shared status vocabulary, the same as the chips. */
+  tone(a: keyof typeof AVAILABILITY): string {
+    return statusOf('availability', a).tone;
+  }
+
+  icon(a: keyof typeof AVAILABILITY): string {
+    return statusOf('availability', a).icon;
   }
 
   /** Facade band: the polygon id carries the level. */

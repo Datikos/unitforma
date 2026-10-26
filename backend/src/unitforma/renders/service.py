@@ -40,13 +40,19 @@ PROMPT = (
     "No text, no labels, no dimension lines, no people."
 )
 JOINED_PROMPT = (
-    " The plan shows two neighbouring apartments that will be joined into one larger apartment: "
-    "show them as one home, with the partition wall between them opened into a doorway or removed, "
-    "keeping every outer wall, window and door as drawn."
+    " The plan shows two neighbouring apartments joined into one larger apartment. The partition "
+    "wall between them already has a wide gap drawn in it: render that gap as an open passage with "
+    "no wall and no door, so both parts read as one home with one continuous floor, while every "
+    "outer wall, window and door stays as drawn."
 )
 DISCLOSURE = "Generated from the floor plan by AI — furniture and finishes are illustrative"
 CROP_MARGIN = 0.08  # of the outline's box, each side
 CROP_MAX_PX = 1536
+# the opening cut into the shared wall of two joined units (pixels of the crop before scaling)
+OPENING_SHARE = 0.4  # of the shared wall's length
+OPENING_MIN_PX, OPENING_MAX_PX = 24, 220
+OPENING_DEPTH = 0.05  # of the crop's short side, across the wall
+WALL_TOLERANCE = 0.03  # of the crop's short side: how far apart two "shared" edges may lie
 ACTIVE = ("queued", "running")
 MIME_EXT = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}
 
@@ -233,6 +239,47 @@ async def reject(db: AsyncSession, r: UnitRender, media: UnitMedia | None, actor
     return r
 
 
+Pt = tuple[float, float]
+
+
+def shared_wall(a: list[Pt], b: list[Pt], tolerance: float) -> tuple[Pt, Pt] | None:
+    """The longest stretch where an edge of ``a`` runs along an edge of ``b`` (parallel within
+    about 6 degrees and closer than ``tolerance``): the wall the two units share, as the segment
+    between the two edges. None when the outlines do not touch."""
+    import math
+
+    def edges(r: list[Pt]) -> list[tuple[Pt, Pt]]:
+        return [(r[i], r[(i + 1) % len(r)]) for i in range(len(r))]
+
+    best: tuple[float, Pt, Pt] | None = None
+    for p1, p2 in edges(a):
+        dx, dy = p2[0] - p1[0], p2[1] - p1[1]
+        length = math.hypot(dx, dy)
+        if length < 1e-9:
+            continue
+        ux, uy = dx / length, dy / length  # along the edge
+        nx, ny = -uy, ux  # across it
+        for q1, q2 in edges(b):
+            ex, ey = q2[0] - q1[0], q2[1] - q1[1]
+            elen = math.hypot(ex, ey)
+            if elen < 1e-9 or abs(ux * ex + uy * ey) / elen < 0.995:
+                continue  # not parallel
+            d1 = (q1[0] - p1[0]) * nx + (q1[1] - p1[1]) * ny
+            d2 = (q2[0] - p1[0]) * nx + (q2[1] - p1[1]) * ny
+            if abs(d1) > tolerance or abs(d2) > tolerance:
+                continue  # parallel but not next to each other
+            t1 = (q1[0] - p1[0]) * ux + (q1[1] - p1[1]) * uy
+            t2 = (q2[0] - p1[0]) * ux + (q2[1] - p1[1]) * uy
+            lo, hi = max(0.0, min(t1, t2)), min(length, max(t1, t2))
+            if hi - lo <= 0 or (best and hi - lo <= best[0]):
+                continue
+            off = (d1 + d2) / 4  # halfway between the two edges
+            s1 = (p1[0] + ux * lo + nx * off, p1[1] + uy * lo + ny * off)
+            s2 = (p1[0] + ux * hi + nx * off, p1[1] + uy * hi + ny * off)
+            best = (hi - lo, s1, s2)
+    return (best[1], best[2]) if best else None
+
+
 def crop_plan(
     raster: bytes,
     ring: list[list[float]],
@@ -242,7 +289,10 @@ def crop_plan(
 ) -> bytes:
     """The outline's bounding box plus ``margin`` with everything outside the ring painted white,
     so the model draws this apartment and not its neighbours; PNG, at most ``max_px`` on the long
-    side."""
+    side. With ``extra_rings`` (a joined unit) the shared wall gets a white gap: the model renders
+    the drawing more faithfully than the prompt, so the opening is drawn into the plan itself."""
+    import math
+
     from PIL import Image, ImageDraw
 
     rings = [ring, *(extra_rings or [])]
@@ -268,6 +318,26 @@ def crop_plan(
         for r in rings:  # every joined unit stays visible, the rest is white
             draw.polygon([(float(x) * w - box[0], float(y) * h - box[1]) for x, y in r], fill=255)
         out = Image.composite(part, Image.new("RGB", part.size, (255, 255, 255)), mask)
+        px = [[(float(x) * w - box[0], float(y) * h - box[1]) for x, y in r] for r in rings]
+        short = min(part.size)
+        for other in px[1:]:
+            wall = shared_wall(px[0], other, short * WALL_TOLERANCE)
+            if wall is None:
+                continue
+            (x1, y1), (x2, y2) = wall
+            length = math.hypot(x2 - x1, y2 - y1)
+            gap = min(OPENING_MAX_PX, max(OPENING_MIN_PX, length * OPENING_SHARE), length * 0.9)
+            depth = max(8.0, short * OPENING_DEPTH)
+            ux, uy = (x2 - x1) / length, (y2 - y1) / length
+            nx, ny = -uy, ux
+            cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+            corners = [
+                (cx - ux * gap / 2 - nx * depth / 2, cy - uy * gap / 2 - ny * depth / 2),
+                (cx + ux * gap / 2 - nx * depth / 2, cy + uy * gap / 2 - ny * depth / 2),
+                (cx + ux * gap / 2 + nx * depth / 2, cy + uy * gap / 2 + ny * depth / 2),
+                (cx - ux * gap / 2 + nx * depth / 2, cy - uy * gap / 2 + ny * depth / 2),
+            ]
+            ImageDraw.Draw(out).polygon(corners, fill=(255, 255, 255))
         if max(out.size) > max_px:
             out.thumbnail((max_px, max_px))
         buf = io.BytesIO()

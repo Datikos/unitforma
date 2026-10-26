@@ -524,3 +524,157 @@ def test_feature_flag_hides_the_endpoints(client: TestClient, world: dict):
         assert r.status_code == 404
     finally:
         settings.regulatory_tasge_enabled = True
+
+
+@pytestmark_db
+def test_files_left_queued_by_a_lost_worker_are_queued_again(client: TestClient, world: dict):
+    """ADR-0016 Decision 8: the import queues each file's ingestion right after that file's
+    commit; a file found "existing" whose revision is still queued with no job (its import's
+    worker died first) is queued by the next refresh; the 10-minute sweep heals a revision left
+    "processing" by a job on a dead worker, leaves a job on a live worker alone, and gives up
+    after three lost runs."""
+    from unitforma.documents.jobs import requeue_stuck
+    from unitforma.regulatory.service import import_attachments
+
+    base = world["base"]
+    tenant_id = uuid.UUID(world["tenant"]["id"])
+    r = client.post(
+        f"{base}/regulatory/tasge/import",
+        headers=cookie("pm"),
+        json={"reference": str(DOC_ID), "slug": f"lost-{world['s']}"},
+    )
+    assert r.status_code == 201, r.text
+    project, job = r.json()["project"], r.json()["job"]
+    result = client.portal.call(import_attachments, tenant_id, uuid.UUID(job["id"]))
+    assert result["imported"] == 2, result
+    docs_url = f"{base}/projects/{project['id']}/documents"
+    revs = {
+        d["source"]["attached_file_id"]: d["current_revision"]["id"]
+        for d in client.get(docs_url, headers=cookie("pm")).json()
+        if d["source"].get("system") == "tasge"
+    }
+    eng = create_engine(os.environ["UF_TEST_DATABASE_ADMIN_URL"])
+
+    def jobs_of(rev_id: str) -> list[str]:
+        with eng.begin() as conn:
+            return [
+                s
+                for (s,) in conn.execute(
+                    text(
+                        "SELECT status FROM procrastinate_jobs WHERE args->>'revision_id' = :r"
+                        " ORDER BY id"
+                    ),
+                    {"r": rev_id},
+                )
+            ]
+
+    def status_of(rev_id: str) -> tuple[str, str | None]:
+        for d in client.get(docs_url, headers=cookie("pm")).json():
+            if d["current_revision"]["id"] == rev_id:
+                return d["current_revision"]["processing_status"], d["current_revision"].get(
+                    "processing_error"
+                )
+        raise AssertionError(rev_id)
+
+    # each file got its ingestion job right after its own commit
+    assert jobs_of(revs[901]) == ["todo"] and jobs_of(revs[902]) == ["todo"]
+
+    # the worker died before it queued file 901: no job, revision "queued" → the next refresh
+    with eng.begin() as conn:
+        conn.execute(
+            text("DELETE FROM procrastinate_jobs WHERE args->>'revision_id' = :r"),
+            {"r": revs[901]},
+        )
+    refresh = f"{base}/projects/{project['id']}/regulatory/tasge/refresh"
+    r = client.post(refresh, headers=cookie("pm"))
+    assert r.status_code == 200, r.text
+    result = client.portal.call(import_attachments, tenant_id, uuid.UUID(r.json()["id"]))
+    assert result == {"imported": 0, "existing": 2, "skipped": 1, "failed": 0}, result
+    imports = {
+        i["id"]: i
+        for i in client.get(
+            f"{base}/projects/{project['id']}/regulatory/imports", headers=cookie("pm")
+        ).json()
+    }
+    existing = imports[r.json()["id"]]["stats"]["existing"]
+    healed = {e["attached_file_id"]: e.get("healed") for e in existing}
+    assert healed == {901: "requeued", 902: None}
+    assert jobs_of(revs[901]) == ["todo"] and status_of(revs[901]) == ("queued", None)
+
+    # the sweep: file 902 "processing" for 16 minutes, its job "doing" on a worker whose
+    # heartbeat stopped 2 minutes ago
+    with eng.begin() as conn:
+        conn.execute(text("SELECT set_config('app.scope', 'platform', true)"))
+        wid = conn.execute(
+            text(
+                "INSERT INTO procrastinate_workers (last_heartbeat)"
+                " VALUES (now() - interval '2 minutes') RETURNING id"
+            )
+        ).scalar_one()
+        conn.execute(
+            text(
+                "UPDATE procrastinate_jobs SET status = 'doing', worker_id = :w"
+                " WHERE args->>'revision_id' = :r"
+            ),
+            {"w": wid, "r": revs[902]},
+        )
+        conn.execute(
+            text(
+                "UPDATE document_revisions SET processing_status = 'processing',"
+                " updated_at = now() - interval '16 minutes' WHERE id = :r"
+            ),
+            {"r": revs[902]},
+        )
+    out = client.portal.call(requeue_stuck)  # Procrastinate's trigger logged one "started"
+    assert out["requeued"] >= 1 and out["failed"] == 0, out
+    assert jobs_of(revs[902]) == ["failed", "todo"]
+    assert status_of(revs[902]) == ("queued", None)
+
+    # a job running on a live worker is left alone, however old the revision is
+    with eng.begin() as conn:
+        conn.execute(text("SELECT set_config('app.scope', 'platform', true)"))
+        conn.execute(
+            text("UPDATE procrastinate_workers SET last_heartbeat = now() WHERE id = :w"),
+            {"w": wid},
+        )
+        conn.execute(
+            text(
+                "UPDATE procrastinate_jobs SET status = 'doing', worker_id = :w"
+                " WHERE args->>'revision_id' = :r AND status = 'todo'"
+            ),
+            {"w": wid, "r": revs[902]},
+        )
+        conn.execute(
+            text(
+                "UPDATE document_revisions SET processing_status = 'processing',"
+                " updated_at = now() - interval '16 minutes' WHERE id = :r"
+            ),
+            {"r": revs[902]},
+        )
+    out = client.portal.call(requeue_stuck)
+    assert out["live"] >= 1, out
+    assert jobs_of(revs[902]) == ["failed", "doing"]
+    assert status_of(revs[902])[0] == "processing"
+
+    # the worker dies again, for the third time of this revision: the sweep gives up
+    with eng.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE procrastinate_workers SET last_heartbeat = now() - interval '2 minutes'"
+                " WHERE id = :w"
+            ),
+            {"w": wid},
+        )
+        for status in ("todo", "doing"):  # one more run started: the third
+            conn.execute(
+                text(
+                    "UPDATE procrastinate_jobs SET status = :s"
+                    " WHERE args->>'revision_id' = :r AND status <> 'failed'"
+                ),
+                {"s": status, "r": revs[902]},
+            )
+    out = client.portal.call(requeue_stuck)
+    assert out["failed"] >= 1, out
+    assert jobs_of(revs[902]) == ["failed", "failed"]
+    assert status_of(revs[902]) == ("failed", "worker lost 3 times; upload the file again")
+    eng.dispose()

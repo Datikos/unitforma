@@ -32,6 +32,7 @@ import { UnitSalesStore } from './unit-sales.store';
   template: `
     <uf-section-card
       title="Media"
+      tone="warning"
       icon="lucideImage"
       [count]="store.media().length"
       [summary]="summary()"

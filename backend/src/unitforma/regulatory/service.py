@@ -19,6 +19,7 @@ from unitforma.audit.service import write_audit
 from unitforma.core.db import tenant_session
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
+from unitforma.documents import jobs as documents_jobs
 from unitforma.documents import service as documents
 from unitforma.projects import service as projects
 from unitforma.regulatory import tasge
@@ -229,9 +230,9 @@ async def import_attachments(tenant_id: uuid.UUID, import_id: uuid.UUID) -> dict
         project_id, requested_by, external_id = row.project_id, row.requested_by, row.external_id
         plan = tasge.classify_attachments(row.record)
         existing = {
-            int(src["attached_file_id"])
-            for (src,) in await db.execute(
-                select(Document.source).where(Document.project_id == project_id)
+            int(src["attached_file_id"]): doc_id
+            for doc_id, src in await db.execute(
+                select(Document.id, Document.source).where(Document.project_id == project_id)
             )
             if isinstance(src, dict)
             and src.get("system") == tasge.SYSTEM
@@ -244,14 +245,18 @@ async def import_attachments(tenant_id: uuid.UUID, import_id: uuid.UUID) -> dict
         "skipped": [],
         "failed": [],
     }
-    to_ingest: list[uuid.UUID] = []
     for a in plan:
         brief = {"attached_file_id": a["attached_file_id"], "file_name": a["file_name"]}
         if a["skip_reason"]:
             stats["skipped"].append({**brief, "reason": a["skip_reason"]})
             continue
         if a["attached_file_id"] in existing:
-            stats["existing"].append(brief)
+            # filed by an earlier import whose worker died before it queued the ingestion
+            # (Decision 8): queue it now instead of leaving it "queued" for ever
+            healed = await documents_jobs.requeue_document_if_stuck(
+                tenant_id, existing[a["attached_file_id"]]
+            )
+            stats["existing"].append({**brief, "healed": healed} if healed else brief)
             continue
         try:
             data = await get_fetcher().download(a["download_url"])
@@ -289,22 +294,17 @@ async def import_attachments(tenant_id: uuid.UUID, import_id: uuid.UUID) -> dict
                 )
                 get_storage().put_bytes(rev.object_key, data, mime)
                 rev = await documents.complete_upload(db, rev, actor)
-                to_ingest.append(rev.id)
+                rev_id = rev.id
                 stats["imported"].append(
-                    {**brief, "document_id": str(doc.id), "revision_id": str(rev.id)}
+                    {**brief, "document_id": str(doc.id), "revision_id": str(rev_id)}
                 )
         except Exception as e:  # noqa: BLE001
             log.warning("regulatory.file_failed", import_id=str(import_id), error=str(e))
             stats["failed"].append({**brief, "error": str(e)[:200]})
-    for rev_id in to_ingest:
-        try:
-            from unitforma.jobs.app import app as jobs
-
-            await jobs.configure_task(name="documents.ingest_revision", queue="docs").defer_async(
-                tenant_id=str(tenant_id), revision_id=str(rev_id)
-            )
-        except Exception as e:  # noqa: BLE001 - the worker schema may be absent in tests
-            log.warning("regulatory.enqueue_failed", revision_id=str(rev_id), error=str(e))
+            continue
+        # queued right after this file's commit, not after the last download (Decision 8): a
+        # worker lost mid-import leaves at most one revision for the sweep to queue again
+        await documents_jobs.defer_ingest(tenant_id, rev_id)
     async with tenant_session(tenant_id, scope="tenant") as db:
         row = (
             await db.execute(select(RegulatoryImport).where(RegulatoryImport.id == import_id))

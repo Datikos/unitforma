@@ -122,7 +122,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
       {
         name: 'Check registry for new files',
-        does: 'Fetches the permit again and imports only drawings that are not here yet. An import shown as stalled (importing for over 20 minutes, its worker lost) is closed as failed by this button and a new one starts.',
+        does: 'Fetches the permit again and imports only drawings that are not here yet. An import shown as stalled (importing for over 20 minutes, its worker lost) is closed as failed by this button and a new one starts. A file the lost import had filed but left "Queued" is queued for processing again by the new import; a sweep every 10 minutes does the same for any file queued or processing for over 15 minutes without a worker, three tries, then it is marked failed with "worker lost".',
       },
       {
         name: 'Archive / Reactivate',
@@ -348,6 +348,18 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
         does: 'Saves the changed fields with a version check; a conflict shows both values.',
       },
       {
+        name: 'On the plan',
+        does: 'The floor plan around the unit with every outline coloured by availability (green available, amber reserved, red sold, grey not for sale); a click on a neighbour opens it, "Open the sheet" goes to the drawing.',
+      },
+      {
+        name: 'Same floor / same layout',
+        does: "Links to the other units of the floor as availability chips, and to the units sharing the layout code, which show this unit's public media until they get their own.",
+      },
+      {
+        name: 'Price per m²',
+        does: 'Computed live from the typed price and the pricing area (green when the area is verified, amber when not); the saved figure is in the header.',
+      },
+      {
         name: 'Buyer-visible fields',
         does: 'Toggle what the portal shows for this unit; the preview is what the portal receives.',
       },
@@ -365,7 +377,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
       {
         name: 'Join with',
-        does: 'Picks a neighbour on the same floor: the 3D plan render then shows both apartments as one enlarged home with the partition opened, for viewing and sharing only; the inventory keeps two units.',
+        does: 'Picks a neighbour on the same floor: the 3D plan render then shows both apartments as one enlarged home: the crop sent to the model has a gap cut into the shared wall, rendered as an open passage. For viewing and sharing only; the inventory keeps two units.',
       },
       {
         name: 'Generate 3D plan render',
@@ -470,8 +482,8 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
         does: 'Name, scope (read or write) and expiry (90 days by default, one year at most). The secret is shown once; copy it into your assistant right away.',
       },
       {
-        name: 'Connect command',
-        does: 'The exact command for Claude Code with the host filled in; Claude.ai custom connectors take the same URL and token as an API key.',
+        name: 'Connect an assistant',
+        does: 'Always on top: the MCP server URL, the Claude Code command, a .mcp.json snippet, the Claude.ai connector settings and a curl test, each with Copy. They carry a placeholder until you create a token, then its secret.',
       },
       {
         name: 'Revoke',

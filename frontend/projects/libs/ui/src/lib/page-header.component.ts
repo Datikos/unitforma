@@ -75,6 +75,8 @@ export interface HeaderFact {
       display: grid;
       gap: 0.35rem;
       min-width: 0;
+      /* the facts wrap under the title; the actions keep the top-right corner */
+      flex: 1 1 20rem;
     }
     .ph__kicker {
       margin: 0;

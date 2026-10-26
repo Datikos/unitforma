@@ -65,6 +65,7 @@ import {
   lucideMousePointer,
   lucidePanelLeft,
   lucidePencil,
+  lucidePlug,
   lucidePenTool,
   lucidePercent,
   lucidePhone,
@@ -96,7 +97,14 @@ import {
   lucideLayoutGrid,
   lucideMove,
   lucideScan,
+  lucideBedSingle,
+  lucideSofa,
+  lucideUtensils,
+  lucideShirt,
+  lucideLampDesk,
+  lucideRotateCw,
   lucideX,
+  lucideArmchair,
 } from '@ng-icons/lucide';
 
 /**
@@ -170,6 +178,7 @@ export const UF_ICONS: Record<string, string> = {
   lucideMousePointer,
   lucidePanelLeft,
   lucidePencil,
+  lucidePlug,
   lucidePenTool,
   lucidePercent,
   lucidePhone,
@@ -201,7 +210,14 @@ export const UF_ICONS: Record<string, string> = {
   lucideLayoutGrid,
   lucideMove,
   lucideScan,
+  lucideBedSingle,
+  lucideSofa,
+  lucideUtensils,
+  lucideShirt,
+  lucideLampDesk,
+  lucideRotateCw,
   lucideX,
+  lucideArmchair,
 };
 
 export type UfIconName = keyof typeof UF_ICONS & string;

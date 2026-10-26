@@ -25,6 +25,7 @@ import { UnitSalesStore } from './unit-sales.store';
   template: `
     <uf-section-card
       title="3D plan render (generated)"
+      tone="pending"
       icon="lucideSparkles"
       [count]="items().length"
       [summary]="summary()"

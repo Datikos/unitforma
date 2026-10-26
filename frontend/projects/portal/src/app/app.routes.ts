@@ -16,6 +16,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/unit.page').then((m) => m.UnitPage),
   },
   {
+    // the renovation playground in its own window (ADR-0020)
+    path: 'projects/:slug/units/:code/playground',
+    loadComponent: () => import('./pages/playground.page').then((m) => m.PlaygroundPage),
+  },
+  {
     path: 'projects/:slug/buildings/:code',
     loadComponent: () => import('./pages/building.page').then((m) => m.BuildingPage),
   },

@@ -32,12 +32,15 @@ export const PORTAL_GUIDE: PortalGuideSection[] = [
   {
     title: 'Plans, 3D and "indicative"',
     icon: 'lucideBox',
-    text: 'Floor plans and the 3D building come from the developer’s drawings. Tap a unit on a plan or on the 3D building to open it. The + and − buttons zoom a plan, ⤢ fits it again and ⛶ shows it full screen; the selected unit gets an Open button right on the plan.',
+    text: 'Floor plans and the 3D building come from the developer’s drawings. Tap a unit on a plan or on the 3D building to open it; on a desktop the unit under the mouse is outlined in its status colour before you click. The + and − buttons zoom a plan, ⤢ fits it again and ⛶ shows it full screen; the selected unit gets a small label right on the plan with its code and status; tap the label to open the unit. Under the plan the legend counts the units of the floor by status, and the list groups them by type (apartments, parking, …) in code order; each tile carries the status colour and icon, and a tap opens the unit.',
     points: [
       'Where the developer published a facade drawing, the building page shows it with one band per floor: tap a band to open that floor. Phones start there; desktops start in 3D.',
       'A building card shows its construction status (planned, under construction, completed) and the completion the developer stated.',
       '"Indicative" means the plan or the area has not yet been verified against the final drawings; the figures may change.',
       'Areas are listed by type (for example net, gross, terrace); the definition is shown when you hover a row.',
+      '"Design this apartment" under the unit plan opens the planner in a new window: only that apartment on the left (the neighbours are covered), the tools on the right. Pick a room (bedroom, living, kitchen, bathroom, hall, balcony), tap a piece in the catalogue to put it on the plan at its real size (the size is in cm; add the same piece as often as you like), drag it where you want it. "On the plan" lists what you placed: tap a row to select the piece, use its buttons to turn it by 90°, flip it or remove it (on a keyboard: R, F, Delete), "Clear all" starts over. "Empty the apartment" fades what the architect drew so your pieces stand out; "Walls" tries a colour on the plan (the developer\'s stated colour is shown next to it). The arrangement is kept in this browser for this unit (the line at the bottom says so, and the unit page shows the count) and nothing is sent to the developer.',
+      'Share copies a link that opens this unit with your arrangement, for example to send to your partner on WhatsApp. Whoever opens it sees your pieces with a note; their own saved arrangement stays untouched until they change something, and the first change makes the shared one theirs.',
+      "Furniture needs a stated area: the scale of the plan comes from the unit's area, so a unit without one shows the plan alone and says why.",
     ],
   },
   {
