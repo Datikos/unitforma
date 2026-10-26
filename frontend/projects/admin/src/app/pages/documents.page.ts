@@ -244,6 +244,20 @@ const SOURCE_LABELS: Record<string, string> = {
                 }
               </mat-select>
             </mat-form-field>
+            <mat-form-field appearance="outline" class="building">
+              <mat-label>Building</mat-label>
+              <mat-select
+                [value]="d.building_id ?? ''"
+                (selectionChange)="setBuilding(d, $event.value || null)"
+                [disabled]="busy()"
+                aria-label="Building the document is filed under"
+              >
+                <mat-option value="">Project level</mat-option>
+                @for (b of buildings(); track b.id) {
+                  <mat-option [value]="b.id">{{ b.code }} {{ b.name ?? '' }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
             @if (d.kind === 'render') {
               <mat-slide-toggle
                 [checked]="d.visibility === 'public'"
@@ -272,6 +286,13 @@ const SOURCE_LABELS: Record<string, string> = {
               <ng-icon name="lucideTrash2" /> Delete
             </button>
           </div>
+          @if (unfiledPlan(d)) {
+            <p class="uf-hint">
+              This project has {{ buildings().length }} buildings and this floor plan is filed at
+              project level: the floor proposal of a building skips it. Pick the building it belongs
+              to; a sheet that shows several blocks stays at project level.
+            </p>
+          }
           @if (d.kind === 'unclassified') {
             <p class="uf-hint">
               The name and the content did not say what this file is. Pick a kind. A project-level
@@ -394,6 +415,9 @@ const SOURCE_LABELS: Record<string, string> = {
     }
     .kind {
       width: 12rem;
+    }
+    .building {
+      width: 14rem;
     }
     .pick {
       display: inline-flex;
@@ -580,6 +604,39 @@ export class DocumentsPage {
   }
 
   readonly parsePages = parsePages;
+
+  /** A floor plan at project level in a multi-building project: the floor proposal of a
+   *  building reads only that building's documents, so the file counts for none of them. */
+  unfiledPlan(d: DocumentOut): boolean {
+    return d.kind === 'floor_plan' && !d.building_id && this.buildings().length > 1;
+  }
+
+  buildingLabel(id: string | null): string {
+    const b = this.buildings().find((x) => x.id === id);
+    return b ? `${b.code} ${b.name ?? ''}`.trim() : 'project level';
+  }
+
+  /** Files the document under a building or back at project level (ADR-0008 Decision 3).
+   *  Suggestions already made for its sheets stay; the building's floor proposal reads the
+   *  document at once. */
+  async setBuilding(d: DocumentOut, buildingId: string | null): Promise<void> {
+    if ((d.building_id ?? null) === buildingId) return;
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      const updated = await this.api.updateDocument(
+        this.tenantId(),
+        d.id,
+        buildingId ? { building_id: buildingId } : { clear_building: true },
+      );
+      this.docs.update((list) => list.map((x) => (x.id === d.id ? updated : x)));
+      this.toast.ok(`${d.title}: ${this.buildingLabel(buildingId)}`);
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
+    }
+  }
 
   async setKind(d: DocumentOut, kind: string | null): Promise<void> {
     if (!kind) return;

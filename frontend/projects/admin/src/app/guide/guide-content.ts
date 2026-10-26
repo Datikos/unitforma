@@ -186,6 +186,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
         does: 'Filters to documents whose kind is still a guess or missing.',
       },
       {
+        name: 'Building',
+        does: "The building a document is filed under, or project level. With several buildings, file each plan set under its building: a building's floor proposal reads only its own documents, and sheet suggestions prefer its floors. Keep site plans, renders and sheets that show several blocks at project level. Changing it keeps the sheet suggestions already made; they are not redone until a new revision or a re-save of the building's floors.",
+      },
+      {
         name: 'Sheet thumbnails',
         does: 'Open a page in the mapping editor. Exclude pages that are not plans (cover, legend) so they stop proposing floors.',
       },
