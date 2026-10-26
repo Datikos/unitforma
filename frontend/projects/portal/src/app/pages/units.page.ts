@@ -27,6 +27,8 @@ interface Form {
   /** Meaningful only with a building (ADR-0014 Decision 2). */
   entrance: string[];
   rooms: number[];
+  /** Plan type codes from the layout registry (ADR-0024 Decision 3). */
+  layout: string[];
   min_price: number | null;
   max_price: number | null;
   min_area: number | null;
@@ -129,6 +131,24 @@ interface Form {
                   {{ r === 5 ? '5+' : r }}</label
                 >
               }
+            </fieldset>
+          }
+          @if (d.layouts?.length) {
+            <fieldset>
+              <legend>Plan type</legend>
+              @for (l of d.layouts; track l.code) {
+                <label class="chip"
+                  ><input
+                    type="checkbox"
+                    [checked]="form.layout.includes(l.code)"
+                    (change)="toggle(form.layout, l.code)"
+                  />
+                  {{ l.code }}{{ l.name ? ' · ' + l.name : '' }}</label
+                >
+              }
+              <a class="uf-small" [routerLink]="['/projects', slug(), 'plans']"
+                >What the plan types look like</a
+              >
             </fieldset>
           }
           <fieldset>
@@ -519,6 +539,7 @@ export class UnitsPage {
     else if (key.startsWith('entrance:')) f.entrance = f.entrance.filter((e) => e !== key.slice(9));
     else if (key.startsWith('type:')) f.unit_type = f.unit_type.filter((t) => t !== key.slice(5));
     else if (key.startsWith('rooms:')) f.rooms = f.rooms.filter((r) => String(r) !== key.slice(6));
+    else if (key.startsWith('layout:')) f.layout = f.layout.filter((l) => l !== key.slice(7));
     else if (key === 'building') f.building = '';
     else if (key === 'price') f.min_price = f.max_price = null;
     else if (key === 'area') f.min_area = f.max_area = null;
@@ -556,6 +577,10 @@ function chipsOf(f: Form, d: ProjectDoc | null): { key: string; label: string }[
   if (f.building)
     for (const e of f.entrance) out.push({ key: `entrance:${e}`, label: `Entrance ${e}` });
   for (const r of f.rooms) out.push({ key: `rooms:${r}`, label: `${r === 5 ? '5+' : r} rooms` });
+  for (const l of f.layout) {
+    const name = d?.layouts?.find((x) => x.code.toLowerCase() === l.toLowerCase())?.name;
+    out.push({ key: `layout:${l}`, label: `Plan ${l}${name ? ` (${name})` : ''}` });
+  }
   if (f.min_price != null || f.max_price != null)
     out.push({ key: 'price', label: `Price ${f.min_price ?? '…'} – ${f.max_price ?? '…'}` });
   if (f.min_area != null || f.max_area != null)
@@ -586,6 +611,7 @@ function blank(): Form {
     building: '',
     entrance: [],
     rooms: [],
+    layout: [],
     min_price: null,
     max_price: null,
     min_area: null,
@@ -610,6 +636,7 @@ function fromQuery(q: import('@angular/router').ParamMap): Form {
       .getAll('rooms')
       .map(Number)
       .filter((n) => n > 0),
+    layout: q.getAll('layout').filter((l) => l.trim() !== ''),
     min_price: num(q.get('min_price')),
     max_price: num(q.get('max_price')),
     min_area: num(q.get('min_area')),
@@ -629,6 +656,7 @@ function toQuery(f: Form): Record<string, unknown> {
     building: f.building || null,
     entrance: f.building && f.entrance.length ? f.entrance : null,
     rooms: f.rooms.length ? f.rooms : null,
+    layout: f.layout.length ? f.layout : null,
     min_price: f.min_price ?? null,
     max_price: f.max_price ?? null,
     min_area: f.min_area ?? null,
@@ -645,6 +673,7 @@ function toFilters(f: Form): UnitFilters {
     building: f.building ? [f.building] : [],
     entrance: f.building ? f.entrance : [],
     rooms: f.rooms,
+    layout: f.layout,
     min_price: f.min_price,
     max_price: f.max_price,
     min_area: f.min_area,

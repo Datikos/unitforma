@@ -9,7 +9,7 @@ import type { MassingUnitInfo, SiteFeature3D } from 'viewer-3d';
 import { MassingViewerComponent } from 'viewer-3d';
 import { detectCapabilities } from '../core/capabilities';
 import { AVAILABILITY, CONSTRUCTION, area, areaRange, money } from '../core/format';
-import { PortalApi, ProjectDoc, problemOf } from '../core/portal-api';
+import { LayoutDoc, PortalApi, ProjectDoc, UnitMedia, problemOf } from '../core/portal-api';
 import { SiteStore } from '../core/site.store';
 
 /** Site feature colours on the 2D site plan; the 3D viewer uses the same hues. */
@@ -241,6 +241,41 @@ const FEATURE_STROKE: Record<string, string> = {
         </div>
       </section>
 
+      @if (d.layouts?.length) {
+        <section class="plans" id="plans">
+          <div class="plans__head">
+            <h2>Plan types</h2>
+            <a class="uf-btn" [routerLink]="['/projects', slug(), 'plans']"
+              >All plan types, with the units left <ng-icon name="lucideArrowRight"
+            /></a>
+          </div>
+          <div class="uf-grid plans__grid">
+            @for (l of d.layouts!.slice(0, 6); track l.code) {
+              <a
+                class="uf-card pcard"
+                [routerLink]="['/projects', slug(), 'units']"
+                [queryParams]="{ layout: l.code }"
+              >
+                @if (layoutCover(l); as c) {
+                  <img
+                    [src]="api.asset(c.url)"
+                    [alt]="c.alt_text || 'Plan type ' + l.code"
+                    loading="lazy"
+                  />
+                } @else {
+                  <span class="pcard__ph"><ng-icon name="lucideLayoutGrid" /></span>
+                }
+                <span class="pcard__cap"
+                  ><strong>{{ l.code }}</strong>
+                  @if (l.name) {
+                    <span class="uf-muted">{{ l.name }}</span>
+                  }
+                </span>
+              </a>
+            }
+          </div>
+        </section>
+      }
       @if (gallery().length > 1) {
         <section class="gallery" id="gallery">
           <h2>Gallery</h2>
@@ -504,6 +539,45 @@ const FEATURE_STROKE: Record<string, string> = {
       background: var(--uf-bg);
       border-bottom: 1px solid var(--uf-border);
     }
+    .plans__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 0.75rem;
+    }
+    .plans__head h2 {
+      margin: 0;
+    }
+    .plans__grid {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+    }
+    .pcard {
+      display: grid;
+      padding: 0;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+    }
+    .pcard img,
+    .pcard__ph {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      display: grid;
+      place-items: center;
+      background: var(--uf-surface-2);
+      color: var(--uf-muted);
+      font-size: 2rem;
+    }
+    .pcard__cap {
+      display: flex;
+      gap: 0.5rem;
+      align-items: baseline;
+      padding: 0.6rem 0.8rem;
+      flex-wrap: wrap;
+    }
     .subnav a {
       white-space: nowrap;
       padding: 0.35rem 0.8rem;
@@ -668,6 +742,7 @@ export class ProjectPage {
     const out: { id: string; label: string }[] = [];
     if (d.massing || d.site?.plan) out.push({ id: 'site', label: 'Site' });
     out.push({ id: 'buildings', label: 'Buildings' });
+    if (d.layouts?.length) out.push({ id: 'plans', label: 'Plan types' });
     if (this.gallery().length > 1) out.push({ id: 'gallery', label: 'Gallery' });
     if (d.project.description) out.push({ id: 'about', label: 'About' });
     if (this.coords()) out.push({ id: 'location', label: 'Location' });
@@ -694,6 +769,12 @@ export class ProjectPage {
       `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${marker}`,
     );
   });
+
+  /** The first image of a plan type, a 3D plan render first (ADR-0024). */
+  layoutCover(l: LayoutDoc): UnitMedia | null {
+    const images = l.media.filter((m) => m.mime.startsWith('image/'));
+    return images.find((m) => m.kind === 'plan_render') ?? images[0] ?? null;
+  }
 
   mapLink(): string {
     const c = this.coords();

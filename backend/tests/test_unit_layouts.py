@@ -187,15 +187,46 @@ def test_layout_media_and_a_layout_render_from_a_member(client, world, monkeypat
         json={"status": "published", "all_active": True},
     )
     assert r.status_code == 200, r.text
+    # the lowest-coded member hides its media: the layout's own media still publish (ADR-0024)
+    row = client.get(f"{base}/units/{units['A-01-01']['id']}/sales", headers=sales).json()
+    r = client.patch(
+        f"{base}/units/{units['A-01-01']['id']}/sales",
+        headers=sales,
+        json={"public_fields": {"media": False}, "version": row["version"]},
+    )
+    assert r.status_code == 200, r.text
     r = client.post(f"{base}/projects/{pid}/publications", headers=pm, json={"mode": "publish"})
     assert r.status_code == 201, r.text
     portal = "/api/v1/portal/projects/riverside"
     for code in ("A-01-01", "A-01-02"):
         doc = client.get(f"{portal}/units/{code}", headers=H_(world)).json()
         assert doc["layout"] == "R2" and doc["layout_name"] == "Corner"
-        assert [m["from_layout"] for m in doc["media"]] == ["R2", "R2"]
-        assert {m["kind"] for m in doc["media"]} == {"interior_render", "plan_render"}
+        if code == "A-01-01":
+            assert "media" not in doc  # its media switch is off
+        else:
+            assert [m["from_layout"] for m in doc["media"]] == ["R2", "R2"]
+            assert {m["kind"] for m in doc["media"]} == {"interior_render", "plan_render"}
         assert "SECRET-LAYOUT" not in json.dumps(doc)
+
+    # the plan types of the publication (ADR-0024): the document's static entry carries the
+    # layout's public media only; the grouped endpoint adds live counts; the list filters by code
+    doc = client.get(portal, headers=H_(world)).json()
+    [r2] = doc["layouts"]
+    assert r2["code"] == "R2" and r2["name"] == "Corner"
+    assert {m["kind"] for m in r2["media"]} == {"interior_render", "plan_render"}
+    assert all("from_layout" not in m for m in r2["media"])
+    assert "SECRET-LAYOUT" not in json.dumps(doc)
+    plans = client.get(f"{portal}/layouts", headers=H_(world)).json()
+    [item] = plans["items"]
+    assert item["code"] == "R2" and item["units"] == 2 and item["available"] >= 1
+    assert item["buildings"] == ["A"] and len(item["media"]) == 2
+    assert item["price_from"] is None or "amount" in item["price_from"]
+    listed = client.get(f"{portal}/units", headers=H_(world), params={"layout": "r2"}).json()
+    assert sorted(x["code"] for x in listed["items"]) == ["A-01-01", "A-01-02"]
+    assert (
+        client.get(f"{portal}/units", headers=H_(world), params={"layout": "zz"}).json()["total"]
+        == 0
+    )
 
     # the layout's render stays with the layout when the source unit is unlinked
     assert _link(client, base, sales, units["A-01-01"]["id"], None).status_code == 200
@@ -233,3 +264,27 @@ def test_a_mirror_without_a_link_still_publishes(client, world):  # noqa: F811
         ).status_code
         == 201
     )
+
+
+def test_a_document_without_layouts_still_lists_plan_types(client, world):  # noqa: F811
+    """Publications made before ADR-0024 carry no ``layouts`` key: the endpoint answers from the
+    read model alone (code without name or media) and the units list still filters."""
+    from unitforma.publishing import portal as portal_service
+
+    pub_id = client.get("/api/v1/portal/projects/riverside", headers=H_(world)).json()[
+        "publication"
+    ]["id"]
+    snapshot_key = phase4._admin_sql(
+        "SELECT snapshot_key FROM publications WHERE id = :i", {"i": pub_id}
+    )[0][0]
+    from unitforma.storage.service import get_storage
+
+    storage = get_storage()
+    doc = json.loads(storage.get_bytes(snapshot_key))
+    doc.pop("layouts", None)
+    storage.put_bytes(snapshot_key, json.dumps(doc).encode(), "application/json")
+    portal_service.invalidate()
+    portal_service._docs.clear()  # the document cache keeps the old shape otherwise
+    plans = client.get("/api/v1/portal/projects/riverside/layouts", headers=H_(world)).json()
+    codes = {i["code"]: i for i in plans["items"]}
+    assert "R2" in codes and codes["R2"]["media"] == [] and codes["R2"]["units"] == 2

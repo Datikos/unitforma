@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-26: 40 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, plan Phases 5 to 7 and
+State on 2026-10-27: 40 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Rows that share one code area or one
 outside input are one row with every reference. Sizes: S up to a day, M a few days, L a week or more.

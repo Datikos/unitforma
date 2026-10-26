@@ -359,10 +359,40 @@ async def build(
                 rooms=view.get("rooms", {}).get("rooms") if view.get("rooms") else None,
                 bedrooms=view.get("rooms", {}).get("bedrooms") if view.get("rooms") else None,
                 entrance=view.get("entrance"),
+                layout=view.get("layout"),
                 sort_order=len(read_rows),
                 data=view,
             )
         )
+
+    # plan types (ADR-0024 Decision 1): every layout with a listed unit, with the layout's own
+    # public media, independent of any unit's media switch
+    layout_docs: dict[uuid.UUID, dict[str, Any]] = {}
+    for u in sorted(units, key=lambda x: x.code):
+        row = rows_by_id.get(u.id)
+        if u.id not in listed or u.layout_id is None or u.layout_id in layout_docs or row is None:
+            continue
+        media_items = []
+        for m in media_by_layout.get(u.layout_id, []):
+            if not (m.is_public and m.status == "ready"):
+                continue
+            ext = MEDIA_EXT.get(m.mime, "bin")
+            name = assets.copy(m.object_key, f"m-{m.id.hex}.{ext}")
+            media_items.append(
+                {
+                    "kind": m.kind,
+                    "alt_text": m.alt_text,
+                    "is_ai_generated": m.is_ai_generated,
+                    "ai_disclosure_text": m.ai_disclosure_text,
+                    "url": assets.url(name),
+                    "mime": m.mime,
+                }
+            )
+        layout_docs[u.layout_id] = {
+            "code": row["layout"],
+            "name": row.get("layout_name"),
+            "media": media_items,
+        }
 
     # buildings & floors (only floors with public units)
     buildings = list(
@@ -530,6 +560,7 @@ async def build(
             "stats": stats,
             "site": site,
             "gallery": gallery,
+            "layouts": sorted(layout_docs.values(), key=lambda d: d["code"].lower()),
             "buildings": building_docs,
             "massing": massing_ref,
             "payment_plans": public_plans,
