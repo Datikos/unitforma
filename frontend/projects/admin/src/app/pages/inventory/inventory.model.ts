@@ -169,6 +169,8 @@ export function bulkChanges(b: BulkForm): SalesChanges | undefined {
 export interface ColumnDeps {
   settings: SalesSettingsOut | null;
   plans: () => PaymentPlanOut[];
+  /** Codes of the project's layout registry (ADR-0022); the Layout cell picks from them. */
+  layouts: () => string[];
   onBadPrice: (text: string) => void;
 }
 
@@ -296,8 +298,10 @@ export function buildColumns(d: ColumnDeps): ColDef<InventoryRow>[] {
       field: 'layout',
       headerName: 'Layout',
       editable: true,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: () => ({ values: ['', ...d.layouts()] }),
       width: 110,
-      headerTooltip: 'Plan type; units of one layout share renders',
+      headerTooltip: 'Plan type from the Layouts registry; linked units share its media',
     },
     {
       field: 'wall_colour',

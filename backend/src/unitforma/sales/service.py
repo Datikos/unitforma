@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from unitforma.audit.service import write_audit
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
-from unitforma.sales import rules
+from unitforma.sales import layouts, rules
 from unitforma.tenants.models import (
     AuditLog,
     AvailabilityHistory,
@@ -29,6 +29,7 @@ from unitforma.tenants.models import (
     Promotion,
     Unit,
     UnitArea,
+    UnitLayout,
     UnitMedia,
     UnitSales,
 )
@@ -46,6 +47,9 @@ async def load_lookups(db: AsyncSession, project: Project) -> rules.Lookups:
     promos = list(
         (await db.execute(select(Promotion).where(Promotion.project_id == project.id))).scalars()
     )
+    layouts = list(
+        (await db.execute(select(UnitLayout).where(UnitLayout.project_id == project.id))).scalars()
+    )
     return rules.Lookups(
         area_keys={a.get("key") for a in (project.area_definitions or []) if isinstance(a, dict)},
         plan_ids={p.id for p in plans},
@@ -54,6 +58,9 @@ async def load_lookups(db: AsyncSession, project: Project) -> rules.Lookups:
         promotion_ids={p.id for p in promos},
         promotion_by_name={p.name.strip().lower(): p.id for p in promos},
         promotion_names={p.id: p.name for p in promos},
+        layouts={lay.code.lower(): (lay.id, lay.code, lay.name) for lay in layouts},
+        layout_codes={lay.id: lay.code for lay in layouts},
+        layout_names={lay.id: lay.name for lay in layouts},
     )
 
 
@@ -93,7 +100,11 @@ async def inventory(
         (
             await db.execute(
                 select(UnitMedia.unit_id, func.count())
-                .where(UnitMedia.project_id == project.id, UnitMedia.status == "ready")
+                .where(
+                    UnitMedia.project_id == project.id,
+                    UnitMedia.status == "ready",
+                    UnitMedia.unit_id.is_not(None),
+                )
                 .group_by(UnitMedia.unit_id)
             )
         ).all()
@@ -149,7 +160,10 @@ def row_dict(project, unit, building, floor, sales, areas, media_count, lookups)
         "bathrooms": unit.bathrooms,
         "orientation": unit.orientation,
         "entrance": unit.entrance,
-        "layout": (unit.attributes or {}).get("layout"),
+        # the registry's code when linked (ADR-0022); the mirror for a unit not yet linked
+        "layout": lookups.layout_codes.get(unit.layout_id) or (unit.attributes or {}).get("layout"),
+        "layout_id": unit.layout_id,
+        "layout_name": lookups.layout_names.get(unit.layout_id) if unit.layout_id else None,
         "wall_colour": (unit.attributes or {}).get("wall_colour"),
         "public_description": cur["public_description"],
         "internal_notes": cur["internal_notes"],
@@ -220,6 +234,13 @@ async def apply_changes(
     new = {d.field: d.new for d in diffs}
     unit_changed = False
     for d in diffs:
+        if d.field == "layout":
+            # the link is the FK (ADR-0022 Decision 2); the code stays mirrored until E1
+            lay = await layouts.by_code(db, unit.project_id, d.new) if d.new else None
+            if d.new and lay is None:
+                raise ProblemError(422, "Invalid sales data", f"layout {d.new} is not registered")
+            unit.layout_id = lay.id if lay else None
+            d.new = lay.code if lay else None
         if d.field in rules.ATTRIBUTE_FIELDS:
             attrs = dict(unit.attributes or {})
             if d.new is None:
@@ -321,8 +342,8 @@ async def update_unit_sales(
         raise conflict(await unit_row(db, project, unit.id), version)
     if "currency" in changes and isinstance(changes["currency"], str):
         changes["currency"] = changes["currency"].strip().upper()
-    diffs = rules.diff(cur, changes)
     lookups = await load_lookups(db, project)
+    diffs = rules.diff(cur, rules.normalise(changes, lookups))
     errors = rules.validate(diffs, cur, lookups, allow_zero_price=confirm_zero_price, reason=reason)
     if errors:
         raise ProblemError(422, "Invalid sales data", "; ".join(errors))
@@ -352,6 +373,7 @@ async def bulk_update(
     if "currency" in changes and isinstance(changes["currency"], str):
         changes["currency"] = changes["currency"].strip().upper()
     lookups = await load_lookups(db, project)
+    changes = rules.normalise(changes, lookups)
     units = {
         u.id: u
         for u in (
@@ -606,7 +628,9 @@ def public_view(
     if row.get("entrance"):
         out["entrance"] = row["entrance"]  # a location fact like the floor: public, no switch
     if row.get("layout"):
-        out["layout"] = row["layout"]  # the plan type; renders of the same layout are shared
+        out["layout"] = row["layout"]  # the plan type; its media are shared (ADR-0022)
+        if row.get("layout_name"):
+            out["layout_name"] = row["layout_name"]
     if row.get("wall_colour"):
         out["wall_colour"] = row["wall_colour"]  # the wall finish buyers read (ADR-0017 E5)
     if pf.get("list_price") and row["list_price"] is not None and not row["price_on_request"]:

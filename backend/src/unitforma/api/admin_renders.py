@@ -28,10 +28,16 @@ def _actor(ctx: TenantContext) -> tuple[uuid.UUID, str]:
     return ctx.principal.user_id, ctx.actor_role
 
 
-def _out(r: UnitRender, m: UnitMedia | None, partner_code: str | None = None) -> RenderOut:
+def _out(
+    r: UnitRender,
+    m: UnitMedia | None,
+    partner_code: str | None = None,
+    source_code: str | None = None,
+) -> RenderOut:
     out = RenderOut.model_validate(r)
     out.url = media_service.signed_url(m) if m is not None else None
     out.partner_code = partner_code
+    out.source_code = source_code
     return out
 
 
@@ -45,7 +51,7 @@ async def _unit(ctx: TenantContext, unit_id: uuid.UUID, action: Action):
 @router.get("/units/{unit_id}/renders", response_model=RendersOut)
 async def list_renders(unit_id: uuid.UUID, ctx: Ctx):
     unit = await _unit(ctx, unit_id, Action.READ)
-    data = await renders.overview(ctx.session, unit)
+    data = await renders.overview(ctx.session, unit.tenant_id, unit_id=unit.id)
     partner_ids = {r.partner_unit_id for r, _ in data["items"] if r.partner_unit_id}
     codes = (
         {
@@ -84,7 +90,8 @@ async def _render(ctx: TenantContext, render_id: uuid.UUID):
 
 @router.post("/renders/{render_id}/approve", response_model=RenderOut)
 async def approve_render(render_id: uuid.UUID, ctx: Ctx):
-    """The generated image becomes public media of the unit (and of its layout, ADR-0016)."""
+    """The generated image becomes public media of its owner: the unit, or the layout when the
+    render was requested for one (ADR-0022)."""
     r, m = await _render(ctx, render_id)
     await renders.approve(ctx.session, r, m, _actor(ctx))
     return _out(r, m)

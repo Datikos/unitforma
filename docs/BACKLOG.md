@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-26: 40 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, plan Phases 5 to 7 and
+State on 2026-10-26: 40 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Rows that share one code area or one
 outside input are one row with every reference. Sizes: S up to a day, M a few days, L a week or more.
@@ -54,7 +54,7 @@ import (ADR-0017 proposal 1b), and a block level between building and floor (blo
 | 31 | MCP beyond projects and buildings: tools for documents, mapping and sales, a `delete_*` family with an explicit confirmation argument, the buyer-side read-only server. | ADR-0015 Revisit (Option A) | owner's pick | M |
 | 32 | Sample project `permit-1127975`: the owner sets the ADR-0014 data on building A (construction status, completion text, terms, the elevation drawing for the floor picker, entrances) so the portal shows them; checks the map position (OSM cluster of the street's `19/x` buildings, ±100 m), refines the 11 site features and the four facade regions drawn by eye from the general plan, and closes apartments №3 and №15 (no closed outline). | ADR-0016 #E1 (done, approximate) | owner's review | S |
 | 33 | First real generated 3D plan render on the sample project once a Gemini API key is in `secrets/ai_image_api_key` and `UF_AI_IMAGE_PROVIDER=gemini`: verify the response parser against the live answer, judge the image against the reference, approve or reject. | ADR-0017 #E1 | owner's API key | S |
-| 34 | Contract step of ADR-0016 E3 in the release after migration 0015: stop mirroring facade choices into `projects.site_frame.facades`, migrate leftovers, drop the key and the fallback in `geometry.facade_assignments`. | ADR-0016 #E5 | the 0015 release deployed | S |
+| 34 | Contract steps for the release after migrations 0015 and 0017: stop mirroring facade choices into `projects.site_frame.facades`, migrate leftovers, drop the key and the fallback in `geometry.facade_assignments` (ADR-0016 E5); stop mirroring the layout code into `units.attributes.layout`, read only `units.layout_id`, drop the key and `layout` from `rules.ATTRIBUTE_FIELDS` (ADR-0022 E1). | ADR-0016 #E5, ADR-0022 #E1 | the 0015 and 0017 releases deployed | S |
 | 35 | Tile provider or self-hosted tiles for the portal map once traffic justifies it or OSM withdraws access (the `UF_PORTAL_MAP_EMBED` switch covers the gap; runbook written). | ADR-0016 Revisit (E4 done) | traffic figures, provider pick | M |
 | 36 | The architect's IFC export for `permit-1127975` (ArchiCAD: File → Save as → IFC, zones as IfcSpace) uploaded under building A, spaces linked; the portal then shows the real building. | ADR-0017 #E2 | the architect's file | S |
 | 37 | Second image provider (OpenAI GPT Image) for a quality and price comparison; batch pricing when volumes grow. | ADR-0017 #E3 | owner's wish | S |

@@ -1,6 +1,6 @@
 # ADR-0016: A buyer portal that shows the building: render gallery, facade drawings on the 3D massing, site environment, layout renders, map, and imports that cannot get stuck
 
-- **Status:** accepted (2026-10-26; implemented 2026-10-26; Decision 8 added and implemented 2026-10-26; open: the E5 contract step, F5 and F6; E2 decided in ADR-0017)
+- **Status:** accepted (2026-10-26; implemented 2026-10-26; Decision 8 added and implemented 2026-10-26; open: the E5 contract step, F5 and F6; E2 decided in ADR-0017; Decision 4 superseded by ADR-0022 on 2026-10-26: the layout registry owns the shared media, the donor rule and `shared_from` are gone from new snapshots)
 - **Date:** 2026-10-26
 - **Deciders:** David Sakhelashvili (platform owner); AI-generated renders (Out of scope) are his call
 - **Plan reference:** §6.6 (public fields), §7.1 (navigation model), §7.3 (3D and fallbacks), §9.3 (portal

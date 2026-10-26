@@ -1,5 +1,6 @@
-"""The unit layout code (ADR-0016 Decision 4) is a sales-editable unit field kept in
-``units.attributes``; no column, no migration."""
+"""The unit layout code is a sales-editable unit field: the link is ``units.layout_id`` and the
+code stays mirrored in ``units.attributes`` until ADR-0022 E1; a written code must exist in the
+project's layout registry and is spelled as registered."""
 
 from types import SimpleNamespace
 
@@ -25,7 +26,12 @@ def test_layout_reads_from_attributes_and_diffs_like_a_column():
 def test_layout_validation_rejects_blank_and_long_codes():
     project = SimpleNamespace(currency="EUR")
     cur = rules.current_values(project, _unit(), None)
-    lookups = SimpleNamespace(plan_ids=set(), promotion_ids=set(), area_types={"net_internal"})
+    lookups = SimpleNamespace(
+        plan_ids=set(),
+        promotion_ids=set(),
+        area_types={"net_internal"},
+        layouts={"type a": (None, "Type A", None)},
+    )
     assert cur.values["layout"] is None
     errors = rules.validate(
         rules.diff(cur, {"layout": "   "}), cur, lookups, allow_zero_price=False, reason=None
@@ -41,6 +47,13 @@ def test_layout_validation_rejects_blank_and_long_codes():
         )
         == []
     )
+    # an unregistered code is refused; a registered one is spelled as the registry has it
+    errors = rules.validate(
+        rules.diff(cur, {"layout": "Type B"}), cur, lookups, allow_zero_price=False, reason=None
+    )
+    assert any("registry" in e for e in errors)
+    assert rules.normalise({"layout": " type a "}, lookups) == {"layout": "Type A"}
+    assert rules.normalise({"layout": "Type B"}, lookups) == {"layout": "Type B"}
 
 
 def test_wall_colour_is_an_attribute_field_with_the_same_rules():

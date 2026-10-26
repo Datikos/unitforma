@@ -1,4 +1,6 @@
-"""Unit media: presigned upload, ordering, visibility and the AI-generated flag (plan §5.3)."""
+"""Unit and layout media: presigned upload, ordering, visibility and the AI-generated flag
+(plan §5.3). A media row is owned by one unit or by one layout (ADR-0022 Decision 3); every
+function here takes the owner and the rest of the flow is the same."""
 
 from __future__ import annotations
 
@@ -12,7 +14,7 @@ from unitforma.audit.service import write_audit
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
 from unitforma.storage.service import get_storage, object_key, safe_filename
-from unitforma.tenants.models import Unit, UnitMedia
+from unitforma.tenants.models import Unit, UnitLayout, UnitMedia
 
 ALLOWED_MEDIA = {
     "image/jpeg",
@@ -25,12 +27,27 @@ MAX_MEDIA_BYTES = 500 * 1024 * 1024
 DEFAULT_AI_DISCLOSURE = "AI-generated visualisation — not a photograph of the finished unit"
 
 Actor = tuple[uuid.UUID, str]
+Owner = Unit | UnitLayout
 
 
-async def list_media(db: AsyncSession, unit_id: uuid.UUID) -> list[UnitMedia]:
+def owner_filter(unit_id: uuid.UUID | None = None, layout_id: uuid.UUID | None = None):
+    if (unit_id is None) == (layout_id is None):
+        raise ValueError("media are listed per unit or per layout")
+    return UnitMedia.unit_id == unit_id if unit_id else UnitMedia.layout_id == layout_id
+
+
+def owner_of(owner: Owner) -> dict[str, uuid.UUID | None]:
+    if isinstance(owner, UnitLayout):
+        return {"unit_id": None, "layout_id": owner.id}
+    return {"unit_id": owner.id, "layout_id": None}
+
+
+async def list_media(
+    db: AsyncSession, unit_id: uuid.UUID | None = None, *, layout_id: uuid.UUID | None = None
+) -> list[UnitMedia]:
     rows = await db.execute(
         select(UnitMedia)
-        .where(UnitMedia.unit_id == unit_id)
+        .where(owner_filter(unit_id, layout_id))
         .order_by(UnitMedia.sort_order, UnitMedia.created_at)
     )
     return list(rows.scalars())
@@ -54,36 +71,41 @@ def _ai_fields(data: dict[str, Any], current_text: str | None = None) -> None:
         )
 
 
+def media_key(owner: Owner, name: str) -> str:
+    """Object key of a media file: ``media/<unit id>/`` for a unit, ``media/layout/<layout id>/``
+    for a layout."""
+    parts = ("layout", str(owner.id)) if isinstance(owner, UnitLayout) else (str(owner.id),)
+    return object_key(owner.tenant_id, owner.project_id, "media", *parts, name)
+
+
+async def next_sort_order(db: AsyncSession, owner: Owner) -> int:
+    return (
+        await db.execute(
+            select(func.coalesce(func.max(UnitMedia.sort_order), -1) + 1).where(
+                owner_filter(**owner_of(owner))
+            )
+        )
+    ).scalar_one()
+
+
 async def create_intent(
-    db: AsyncSession, unit: Unit, data: dict[str, Any], actor: Actor
+    db: AsyncSession, owner: Owner, data: dict[str, Any], actor: Actor
 ) -> tuple[UnitMedia, str]:
     if data["content_type"] not in ALLOWED_MEDIA:
         raise ProblemError(415, "Unsupported media type", data["content_type"])
     if not 0 < data["byte_size"] <= MAX_MEDIA_BYTES:
         raise ProblemError(413, "File too large")
-    if unit.lifecycle_status == "removed":
+    if isinstance(owner, Unit) and owner.lifecycle_status == "removed":
         raise ProblemError(409, "Unit is removed")
     _ai_fields(data)
-    next_order = (
-        await db.execute(
-            select(func.coalesce(func.max(UnitMedia.sort_order), -1) + 1).where(
-                UnitMedia.unit_id == unit.id
-            )
-        )
-    ).scalar_one()
+    next_order = await next_sort_order(db, owner)
     mid = new_id()
-    key = object_key(
-        unit.tenant_id,
-        unit.project_id,
-        "media",
-        str(unit.id),
-        f"{mid.hex[:12]}-{safe_filename(data['file_name'])}",
-    )
+    key = media_key(owner, f"{mid.hex[:12]}-{safe_filename(data['file_name'])}")
     m = UnitMedia(
         id=mid,
-        tenant_id=unit.tenant_id,
-        project_id=unit.project_id,
-        unit_id=unit.id,
+        tenant_id=owner.tenant_id,
+        project_id=owner.project_id,
+        **owner_of(owner),
         kind=data["kind"],
         object_key=key,
         file_name=safe_filename(data["file_name"]),
@@ -132,21 +154,21 @@ async def update(db: AsyncSession, m: UnitMedia, data: dict[str, Any], version: 
 
 
 async def reorder(
-    db: AsyncSession, unit: Unit, ids: list[uuid.UUID], actor: Actor
+    db: AsyncSession, owner: Owner, ids: list[uuid.UUID], actor: Actor
 ) -> list[UnitMedia]:
-    items = await list_media(db, unit.id)
+    items = await list_media(db, **owner_of(owner))
     if sorted(map(str, ids)) != sorted(str(m.id) for m in items):
-        raise ProblemError(422, "The order must list every media item of the unit exactly once")
+        raise ProblemError(422, "The order must list every media item of the owner exactly once")
     pos = {mid: i for i, mid in enumerate(ids)}
     for m in items:
         m.sort_order = pos[m.id]
     await write_audit(
         db,
-        tenant_id=unit.tenant_id,
+        tenant_id=owner.tenant_id,
         actor_user_id=actor[0],
         actor_role=actor[1],
         entity_type="unit_media",
-        entity_id=unit.id,
+        entity_id=owner.id,
         action="reorder",
         after={"order": [str(i) for i in ids]},
     )
@@ -173,7 +195,7 @@ async def _audit(db, m: UnitMedia, actor: Actor, action: str, after: dict[str, A
         actor_user_id=actor[0],
         actor_role=actor[1],
         entity_type="unit_media",
-        entity_id=m.unit_id,
+        entity_id=m.unit_id or m.layout_id,
         action=action,
         after={"media_id": str(m.id), **{k: v for k, v in after.items() if k != "content_type"}},
     )

@@ -38,19 +38,8 @@ export interface TimelineEntry {
   icon: string;
 }
 
-export type MediaKind = NonNullable<MediaCreate['kind']>;
-export const MEDIA_KINDS: { value: MediaKind; label: string }[] = [
-  { value: 'plan_render', label: 'Plan render' },
-  { value: 'interior_render', label: 'Interior render' },
-  { value: 'exterior_render', label: 'Exterior render' },
-  { value: 'photo', label: 'Photo' },
-  { value: 'video', label: 'Video' },
-  { value: 'document', label: 'Document' },
-];
-
-export function mediaKindLabel(k: string): string {
-  return MEDIA_KINDS.find((m) => m.value === k)?.label ?? k;
-}
+export { MEDIA_KINDS, mediaKindLabel } from '../../sales/media-list.component';
+export type { MediaKind } from '../../sales/media-list.component';
 
 export function blankForm(): Form {
   return {

@@ -1,6 +1,6 @@
 # ADR-0017: Finished views for buyers: selection highlight on the plan, neutral massing with facades, AI-generated 3D plan renders under staff review, and a setup checklist
 
-- **Status:** accepted (2026-10-26; implemented 2026-10-26; first live renders approved and published the same day; E2 (architect's IFC) and E3 (second provider) open)
+- **Status:** accepted (2026-10-26; implemented 2026-10-26; first live renders approved and published the same day; E2 (architect's IFC) and E3 (second provider) open; the sharing of an approved render by layout code is replaced by a render owned by the layout, ADR-0022 Decision 4)
 - **Date:** 2026-10-26
 - **Deciders:** David Sakhelashvili (platform owner); he decided on 2026-10-26 that AI-generated images may be shown when a staff member has reviewed them and buyers see a "generated" label (closes ADR-0016 E2)
 - **Plan reference:** §5.3 (unit media, AI disclosure), §7.3 (3D and fallbacks), §11.2 (admin screens), §11.3 (portal screens), §12.3 (jobs), §21 (sources), ADR-0004 (`is_ai_generated`), ADR-0006 C (IFC model), ADR-0009 (design system), ADR-0016 (gallery, facades, layout-shared media)

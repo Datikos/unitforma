@@ -13,6 +13,7 @@ from unitforma.api import (
     admin,
     admin_documents,
     admin_geometry,
+    admin_layouts,
     admin_mapping,
     admin_projects,
     admin_publishing,
@@ -81,6 +82,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_geometry.router)
     app.include_router(admin_sales.router)
     app.include_router(admin_renders.router)
+    app.include_router(admin_layouts.router)
     app.include_router(admin_publishing.router)
     app.include_router(admin_regulatory.router)
     app.state.mcp_server = None

@@ -813,7 +813,7 @@ def test_portal_content_entrance_building_fields_price_note_and_elevation(client
 def test_portal_gallery_site_features_map_and_shared_layout_media(client, world):
     """ADR-0016: pages of ``public`` render documents become the gallery and the project card
     cover (Decision 1), public site features reach the snapshot in sheet and metre coordinates
-    (Decision 3), a unit without media borrows the renders of its layout (Decision 4) and the
+    (Decision 3), units of one layout show the layout's media (ADR-0022 Decision 5) and the
     map position travels with the address (Decision 5); internal values stay out."""
     base, pid, tid = world["base"], world["project"]["id"], world["tenant"]["id"]
     adm, sales, pm = world["adm"], world["sales"], world["pm"]
@@ -891,15 +891,36 @@ def test_portal_gallery_site_features_map_and_shared_layout_media(client, world)
     )
     assert r.status_code == 200, r.text
 
-    # layout L1 on the unit with media and on one without
+    # layout L1 in the registry (ADR-0022), linked to the unit with media and to one without,
+    # with one public image of its own
+    lay = client.post(
+        f"{base}/projects/{pid}/layouts", headers=sales, json={"code": "L1", "name": "Two rooms"}
+    )
+    assert lay.status_code == 201, lay.text
     for code in ("A-00-01", "A-00-02"):
         row = client.get(f"{base}/units/{units[code]['id']}/sales", headers=sales).json()
         r = client.patch(
             f"{base}/units/{units[code]['id']}/sales",
             headers=sales,
-            json={"layout": "L1", "version": row["version"]},
+            json={"layout": "l1", "version": row["version"]},
         )
         assert r.status_code == 200 and r.json()["layout"] == "L1", r.text
+        assert r.json()["layout_name"] == "Two rooms"
+    m = client.post(
+        f"{base}/layouts/{lay.json()['id']}/media",
+        headers=sales,
+        json={
+            "file_name": "layout.png",
+            "content_type": "image/png",
+            "byte_size": 8,
+            "is_public": True,
+            "kind": "plan_render",
+        },
+    ).json()
+    client.put(m["upload_url"], content=b"\x89PNG\r\n\x1a\n", headers={"Content-Type": "image/png"})
+    assert (
+        client.post(f"{base}/media/{m['media']['id']}/complete", headers=sales).status_code == 200
+    )
 
     r = client.post(f"{base}/projects/{pid}/publications", headers=pm, json={"mode": "publish"})
     assert r.status_code == 201, r.text
@@ -941,10 +962,12 @@ def test_portal_gallery_site_features_map_and_shared_layout_media(client, world)
     own = client.get(f"{portal}/units/A-00-01", headers=H_(world)).json()
     borrowed = client.get(f"{portal}/units/A-00-02", headers=H_(world)).json()
     assert own["layout"] == "L1" and borrowed["layout"] == "L1"
-    assert len(own["media"]) == 1 and "shared_from" not in own["media"][0]
-    assert len(borrowed["media"]) == 1 and borrowed["media"][0]["shared_from"] == "A-00-01"
-    assert borrowed["media"][0]["url"] == own["media"][0]["url"]
-    assert "SECRET-MEDIA" not in json.dumps(borrowed)  # the donor's internal media stays internal
+    assert own["layout_name"] == "Two rooms" and borrowed["layout_name"] == "Two rooms"
+    # own media first, then the layout's, marked with the code (ADR-0022 Decision 5)
+    assert [m.get("from_layout") for m in own["media"]] == [None, "L1"]
+    assert len(borrowed["media"]) == 1 and borrowed["media"][0]["from_layout"] == "L1"
+    assert borrowed["media"][0]["url"] == own["media"][1]["url"]
+    assert "SECRET-MEDIA" not in json.dumps(borrowed)  # the twin's internal media stays internal
 
 
 def test_map_embed_switch_reaches_the_portal(client, world, monkeypatch):

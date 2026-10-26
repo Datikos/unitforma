@@ -1765,7 +1765,8 @@ export interface paths {
         put?: never;
         /**
          * Approve Render
-         * @description The generated image becomes public media of the unit (and of its layout, ADR-0016).
+         * @description The generated image becomes public media of its owner: the unit, or the layout when the
+         *     render was requested for one (ADR-0022).
          */
         post: operations["approve_render_api_v1_admin_tenants__tenant_id__renders__render_id__approve_post"];
         delete?: never;
@@ -1788,6 +1789,118 @@ export interface paths {
          * @description Deletes the generated image; the request stays as a record.
          */
         post: operations["reject_render_api_v1_admin_tenants__tenant_id__renders__render_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/layouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Layouts
+         * @description Every layout with its linked units, media counts and cover, ordered by code.
+         */
+        get: operations["list_layouts_api_v1_admin_tenants__tenant_id__projects__project_id__layouts_get"];
+        put?: never;
+        /**
+         * Create Layout
+         * @description 409 when the code exists in the project (compared without case).
+         */
+        post: operations["create_layout_api_v1_admin_tenants__tenant_id__projects__project_id__layouts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/layouts/{layout_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Layout */
+        get: operations["get_layout_api_v1_admin_tenants__tenant_id__layouts__layout_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Layout
+         * @description 409 ``layout-in-use`` while units link to it unless ``unlink_units`` is sent; the layout's
+         *     media files are removed at once.
+         */
+        delete: operations["delete_layout_api_v1_admin_tenants__tenant_id__layouts__layout_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Layout
+         * @description Rename the code (every linked unit follows) or the name; version-checked.
+         */
+        patch: operations["update_layout_api_v1_admin_tenants__tenant_id__layouts__layout_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/layouts/{layout_id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Layout Media */
+        get: operations["list_layout_media_api_v1_admin_tenants__tenant_id__layouts__layout_id__media_get"];
+        put?: never;
+        /**
+         * Create Layout Media
+         * @description Reserve a media item owned by the layout and return a presigned PUT URL; then call
+         *     ``/media/{id}/complete`` like unit media.
+         */
+        post: operations["create_layout_media_api_v1_admin_tenants__tenant_id__layouts__layout_id__media_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/layouts/{layout_id}/media/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reorder Layout Media */
+        put: operations["reorder_layout_media_api_v1_admin_tenants__tenant_id__layouts__layout_id__media_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/layouts/{layout_id}/renders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Layout Renders */
+        get: operations["list_layout_renders_api_v1_admin_tenants__tenant_id__layouts__layout_id__renders_get"];
+        put?: never;
+        /**
+         * Request Layout Render
+         * @description Queue one render owned by the layout, cropped from one member unit: ``unit_id`` or the
+         *     first member by code that has an outline on a processed sheet. 409 when not configured, when
+         *     no member has an outline or when a render is running; 429 past the daily cap.
+         */
+        post: operations["request_layout_render_api_v1_admin_tenants__tenant_id__layouts__layout_id__renders_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2964,9 +3077,13 @@ export interface components {
             entrance?: string | null;
             /**
              * Layout
-             * @description Layout code shared by units with the same plan (ADR-0016)
+             * @description Code of the unit's layout in the project registry (ADR-0022)
              */
             layout?: string | null;
+            /** Layout Id */
+            layout_id?: string | null;
+            /** Layout Name */
+            layout_name?: string | null;
             /**
              * Wall Colour
              * @description Wall finish: a RAL code or a hex colour, shown to buyers
@@ -2988,7 +3105,10 @@ export interface components {
             areas: {
                 [key: string]: string;
             };
-            /** Media Count */
+            /**
+             * Media Count
+             * @description The unit's own ready media; layout media not counted
+             */
             media_count: number;
             /**
              * Version
@@ -3051,6 +3171,94 @@ export interface components {
              * @description Only returned to the creator at creation time
              */
             accept_url?: string | null;
+        };
+        /** LayoutIn */
+        LayoutIn: {
+            /**
+             * Code
+             * @description Unique per project, without case
+             */
+            code: string;
+            /** Name */
+            name?: string | null;
+        };
+        /** LayoutOut */
+        LayoutOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string | null;
+            /** Version */
+            version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Units
+             * @description Linked units by code
+             */
+            units: components["schemas"]["LayoutUnitOut"][];
+            /** Media Count */
+            media_count: number;
+            /** Public Media Count */
+            public_media_count: number;
+            /**
+             * Cover Url
+             * @description Signed URL of the first public image, or null
+             */
+            cover_url: string | null;
+        };
+        /** LayoutRenderRequest */
+        LayoutRenderRequest: {
+            /** Note */
+            note?: string | null;
+            /**
+             * Unit Id
+             * @description The member whose outline is cropped; default: the first by code with one
+             */
+            unit_id?: string | null;
+        };
+        /** LayoutUnitOut */
+        LayoutUnitOut: {
+            /**
+             * Unit Id
+             * Format: uuid
+             */
+            unit_id: string;
+            /** Code */
+            code: string;
+            /** Availability */
+            availability: string;
+            /** Building Code */
+            building_code: string;
+            /** Floor Level */
+            floor_level: number;
+        };
+        /** LayoutUpdate */
+        LayoutUpdate: {
+            /** Code */
+            code?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Version */
+            version: number;
         };
         /** LineageOut */
         LineageOut: {
@@ -3184,9 +3392,14 @@ export interface components {
             id: string;
             /**
              * Unit Id
-             * Format: uuid
+             * @description Owner, or null for layout media
              */
-            unit_id: string;
+            unit_id?: string | null;
+            /**
+             * Layout Id
+             * @description Owner when a layout's media
+             */
+            layout_id?: string | null;
             /** Kind */
             kind: string;
             /** File Name */
@@ -4012,6 +4225,16 @@ export interface components {
             partner_unit_id?: string | null;
             /** Partner Code */
             partner_code?: string | null;
+            /**
+             * Layout Id
+             * @description Set when the layout owns it
+             */
+            layout_id?: string | null;
+            /**
+             * Source Code
+             * @description Unit whose outline was cropped
+             */
+            source_code?: string | null;
             /** Requested By */
             requested_by: string | null;
             /** Reviewed By */
@@ -4129,7 +4352,10 @@ export interface components {
             orientation?: string | null;
             /** Entrance */
             entrance?: string | null;
-            /** Layout */
+            /**
+             * Layout
+             * @description A code from the layout registry; null unlinks
+             */
             layout?: string | null;
             /** Wall Colour */
             wall_colour?: string | null;
@@ -4214,7 +4440,10 @@ export interface components {
             orientation?: string | null;
             /** Entrance */
             entrance?: string | null;
-            /** Layout */
+            /**
+             * Layout
+             * @description A code from the layout registry; null unlinks
+             */
             layout?: string | null;
             /** Wall Colour */
             wall_colour?: string | null;
@@ -8687,6 +8916,347 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RenderOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_layouts_api_v1_admin_tenants__tenant_id__projects__project_id__layouts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_layout_api_v1_admin_tenants__tenant_id__projects__project_id__layouts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LayoutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_layout_api_v1_admin_tenants__tenant_id__layouts__layout_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layout_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_layout_api_v1_admin_tenants__tenant_id__layouts__layout_id__delete: {
+        parameters: {
+            query?: {
+                /** @description Unlink the units instead of refusing */
+                unlink_units?: boolean;
+            };
+            header?: never;
+            path: {
+                layout_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_layout_api_v1_admin_tenants__tenant_id__layouts__layout_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layout_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LayoutUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_layout_media_api_v1_admin_tenants__tenant_id__layouts__layout_id__media_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layout_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_layout_media_api_v1_admin_tenants__tenant_id__layouts__layout_id__media_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layout_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaIntentOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reorder_layout_media_api_v1_admin_tenants__tenant_id__layouts__layout_id__media_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layout_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MediaOrder"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_layout_renders_api_v1_admin_tenants__tenant_id__layouts__layout_id__renders_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layout_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RendersOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_layout_render_api_v1_admin_tenants__tenant_id__layouts__layout_id__renders_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layout_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LayoutRenderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };

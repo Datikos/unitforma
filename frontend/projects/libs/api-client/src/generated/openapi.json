@@ -184,7 +184,7 @@
      "portal"
     ],
     "summary": "Project",
-    "description": "The project snapshot: project text, site, buildings → floors → unit polygons, massing.",
+    "description": "The project snapshot: project text, site, buildings \u2192 floors \u2192 unit polygons, massing.",
     "operationId": "project_api_v1_portal_projects__slug__get",
     "parameters": [
      {
@@ -3165,7 +3165,7 @@
      "documents"
     ],
     "summary": "Set Sheet Floors",
-    "description": "Every floor the sheet shows, each optionally limited to a region of the sheet.\n\nA split-level or multi-block sheet shows several floors side by side; units drawn on it\nbelong to the floor whose region holds them (plan §13.2). Suggested assignments (from\nlevel markers or the previous revision) become confirmed when they are sent here.",
+    "description": "Every floor the sheet shows, each optionally limited to a region of the sheet.\n\nA split-level or multi-block sheet shows several floors side by side; units drawn on it\nbelong to the floor whose region holds them (plan \u00a713.2). Suggested assignments (from\nlevel markers or the previous revision) become confirmed when they are sent here.",
     "operationId": "set_sheet_floors_api_v1_admin_tenants__tenant_id__sheets__sheet_id__floors_put",
     "parameters": [
      {
@@ -3600,7 +3600,7 @@
      "mapping"
     ],
     "summary": "Suggest Boundaries",
-    "description": "Closed loops found in the sheet's vector line work, labelled from inner text (plan §13.2).\n\nNothing is written: the reviewer accepts candidates one by one (creating boundaries with\n``source=vector_suggest``). Scanned sheets have no vectors and return an empty list.",
+    "description": "Closed loops found in the sheet's vector line work, labelled from inner text (plan \u00a713.2).\n\nNothing is written: the reviewer accepts candidates one by one (creating boundaries with\n``source=vector_suggest``). Scanned sheets have no vectors and return an empty list.",
     "operationId": "suggest_boundaries_api_v1_admin_tenants__tenant_id__sheets__sheet_id__suggestions_post",
     "parameters": [
      {
@@ -3775,7 +3775,7 @@
      "mapping"
     ],
     "summary": "Approve Sheet",
-    "description": "Architectural reviewer approves the mapping on a sheet (plan §13.1 step 5).",
+    "description": "Architectural reviewer approves the mapping on a sheet (plan \u00a713.1 step 5).",
     "operationId": "approve_sheet_api_v1_admin_tenants__tenant_id__sheets__sheet_id__approve_post",
     "parameters": [
      {
@@ -5273,7 +5273,7 @@
      "sales"
     ],
     "summary": "Update Unit Sales",
-    "description": "Inline edit. Send the row ``version`` in the body or as ``If-Match``; a stale version\nreturns 409 with the current row so the UI can show both and re-apply (plan §6.4).",
+    "description": "Inline edit. Send the row ``version`` in the body or as ``If-Match``; a stale version\nreturns 409 with the current row so the UI can show both and re-apply (plan \u00a76.4).",
     "operationId": "update_unit_sales_api_v1_admin_tenants__tenant_id__units__unit_id__sales_patch",
     "parameters": [
      {
@@ -6913,7 +6913,7 @@
      "renders"
     ],
     "summary": "Approve Render",
-    "description": "The generated image becomes public media of the unit (and of its layout, ADR-0016).",
+    "description": "The generated image becomes public media of its owner: the unit, or the layout when the\nrender was requested for one (ADR-0022).",
     "operationId": "approve_render_api_v1_admin_tenants__tenant_id__renders__render_id__approve_post",
     "parameters": [
      {
@@ -7015,6 +7015,599 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/layouts": {
+   "get": {
+    "tags": [
+     "layouts"
+    ],
+    "summary": "List Layouts",
+    "description": "Every layout with its linked units, media counts and cover, ordered by code.",
+    "operationId": "list_layouts_api_v1_admin_tenants__tenant_id__projects__project_id__layouts_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/LayoutOut"
+         },
+         "title": "Response List Layouts Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Layouts Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "layouts"
+    ],
+    "summary": "Create Layout",
+    "description": "409 when the code exists in the project (compared without case).",
+    "operationId": "create_layout_api_v1_admin_tenants__tenant_id__projects__project_id__layouts_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LayoutIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LayoutOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/layouts/{layout_id}": {
+   "get": {
+    "tags": [
+     "layouts"
+    ],
+    "summary": "Get Layout",
+    "operationId": "get_layout_api_v1_admin_tenants__tenant_id__layouts__layout_id__get",
+    "parameters": [
+     {
+      "name": "layout_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Layout Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LayoutOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "layouts"
+    ],
+    "summary": "Update Layout",
+    "description": "Rename the code (every linked unit follows) or the name; version-checked.",
+    "operationId": "update_layout_api_v1_admin_tenants__tenant_id__layouts__layout_id__patch",
+    "parameters": [
+     {
+      "name": "layout_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Layout Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LayoutUpdate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LayoutOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "layouts"
+    ],
+    "summary": "Delete Layout",
+    "description": "409 ``layout-in-use`` while units link to it unless ``unlink_units`` is sent; the layout's\nmedia files are removed at once.",
+    "operationId": "delete_layout_api_v1_admin_tenants__tenant_id__layouts__layout_id__delete",
+    "parameters": [
+     {
+      "name": "layout_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Layout Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     },
+     {
+      "name": "unlink_units",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "description": "Unlink the units instead of refusing",
+       "default": false,
+       "title": "Unlink Units"
+      },
+      "description": "Unlink the units instead of refusing"
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/layouts/{layout_id}/media": {
+   "get": {
+    "tags": [
+     "layouts"
+    ],
+    "summary": "List Layout Media",
+    "operationId": "list_layout_media_api_v1_admin_tenants__tenant_id__layouts__layout_id__media_get",
+    "parameters": [
+     {
+      "name": "layout_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Layout Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/MediaOut"
+         },
+         "title": "Response List Layout Media Api V1 Admin Tenants  Tenant Id  Layouts  Layout Id  Media Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "layouts"
+    ],
+    "summary": "Create Layout Media",
+    "description": "Reserve a media item owned by the layout and return a presigned PUT URL; then call\n``/media/{id}/complete`` like unit media.",
+    "operationId": "create_layout_media_api_v1_admin_tenants__tenant_id__layouts__layout_id__media_post",
+    "parameters": [
+     {
+      "name": "layout_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Layout Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MediaCreate"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MediaIntentOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/layouts/{layout_id}/media/order": {
+   "put": {
+    "tags": [
+     "layouts"
+    ],
+    "summary": "Reorder Layout Media",
+    "operationId": "reorder_layout_media_api_v1_admin_tenants__tenant_id__layouts__layout_id__media_order_put",
+    "parameters": [
+     {
+      "name": "layout_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Layout Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/MediaOrder"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/MediaOut"
+         },
+         "title": "Response Reorder Layout Media Api V1 Admin Tenants  Tenant Id  Layouts  Layout Id  Media Order Put"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/layouts/{layout_id}/renders": {
+   "get": {
+    "tags": [
+     "layouts"
+    ],
+    "summary": "List Layout Renders",
+    "operationId": "list_layout_renders_api_v1_admin_tenants__tenant_id__layouts__layout_id__renders_get",
+    "parameters": [
+     {
+      "name": "layout_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Layout Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RendersOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "layouts"
+    ],
+    "summary": "Request Layout Render",
+    "description": "Queue one render owned by the layout, cropped from one member unit: ``unit_id`` or the\nfirst member by code that has an outline on a processed sheet. 409 when not configured, when\nno member has an outline or when a render is running; 429 past the daily cap.",
+    "operationId": "request_layout_render_api_v1_admin_tenants__tenant_id__layouts__layout_id__renders_post",
+    "parameters": [
+     {
+      "name": "layout_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Layout Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/LayoutRenderRequest"
+       }
+      }
+     }
+    },
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RenderOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/publish/readiness": {
    "get": {
     "tags": [
@@ -7074,7 +7667,7 @@
      "publishing"
     ],
     "summary": "Set Unit Publication",
-    "description": "Mark units published / hidden (linkable, not listed) / unpublished (plan §6.1).",
+    "description": "Mark units published / hidden (linkable, not listed) / unpublished (plan \u00a76.1).",
     "operationId": "set_unit_publication_api_v1_admin_tenants__tenant_id__projects__project_id__units_publication_put",
     "parameters": [
      {
@@ -9966,7 +10559,7 @@
       },
       "type": "object",
       "title": "Mapping",
-      "description": "import field → column header"
+      "description": "import field \u2192 column header"
      },
      "options": {
       "$ref": "#/components/schemas/ImportOptions"
@@ -10116,7 +10709,7 @@
      "price_area_type": {
       "type": "string",
       "title": "Price Area Type",
-      "description": "Effective area type the price per m² uses"
+      "description": "Effective area type the price per m\u00b2 uses"
      },
      "price_area_type_override": {
       "anyOf": [
@@ -10271,7 +10864,30 @@
        }
       ],
       "title": "Layout",
-      "description": "Layout code shared by units with the same plan (ADR-0016)"
+      "description": "Code of the unit's layout in the project registry (ADR-0022)"
+     },
+     "layout_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Layout Id"
+     },
+     "layout_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Layout Name"
      },
      "wall_colour": {
       "anyOf": [
@@ -10330,7 +10946,8 @@
      },
      "media_count": {
       "type": "integer",
-      "title": "Media Count"
+      "title": "Media Count",
+      "description": "The unit's own ready media; layout media not counted"
      },
      "version": {
       "type": "integer",
@@ -10508,6 +11125,223 @@
      "accepted"
     ],
     "title": "InvitationOut"
+   },
+   "LayoutIn": {
+    "properties": {
+     "code": {
+      "type": "string",
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Code",
+      "description": "Unique per project, without case"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     }
+    },
+    "type": "object",
+    "required": [
+     "code"
+    ],
+    "title": "LayoutIn"
+   },
+   "LayoutOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "project_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Project Id"
+     },
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Updated At"
+     },
+     "units": {
+      "items": {
+       "$ref": "#/components/schemas/LayoutUnitOut"
+      },
+      "type": "array",
+      "title": "Units",
+      "description": "Linked units by code"
+     },
+     "media_count": {
+      "type": "integer",
+      "title": "Media Count"
+     },
+     "public_media_count": {
+      "type": "integer",
+      "title": "Public Media Count"
+     },
+     "cover_url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cover Url",
+      "description": "Signed URL of the first public image, or null"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "project_id",
+     "code",
+     "name",
+     "version",
+     "created_at",
+     "updated_at",
+     "units",
+     "media_count",
+     "public_media_count",
+     "cover_url"
+    ],
+    "title": "LayoutOut"
+   },
+   "LayoutRenderRequest": {
+    "properties": {
+     "note": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 500
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "unit_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit Id",
+      "description": "The member whose outline is cropped; default: the first by code with one"
+     }
+    },
+    "type": "object",
+    "title": "LayoutRenderRequest"
+   },
+   "LayoutUnitOut": {
+    "properties": {
+     "unit_id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Unit Id"
+     },
+     "code": {
+      "type": "string",
+      "title": "Code"
+     },
+     "availability": {
+      "type": "string",
+      "title": "Availability"
+     },
+     "building_code": {
+      "type": "string",
+      "title": "Building Code"
+     },
+     "floor_level": {
+      "type": "integer",
+      "title": "Floor Level"
+     }
+    },
+    "type": "object",
+    "required": [
+     "unit_id",
+     "code",
+     "availability",
+     "building_code",
+     "floor_level"
+    ],
+    "title": "LayoutUnitOut"
+   },
+   "LayoutUpdate": {
+    "properties": {
+     "code": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 40,
+        "minLength": 1
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Code"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 120
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "version": {
+      "type": "integer",
+      "title": "Version"
+     }
+    },
+    "type": "object",
+    "required": [
+     "version"
+    ],
+    "title": "LayoutUpdate"
    },
    "LineageOut": {
     "properties": {
@@ -10830,9 +11664,30 @@
       "title": "Id"
      },
      "unit_id": {
-      "type": "string",
-      "format": "uuid",
-      "title": "Unit Id"
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit Id",
+      "description": "Owner, or null for layout media"
+     },
+     "layout_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Layout Id",
+      "description": "Owner when a layout's media"
      },
      "kind": {
       "type": "string",
@@ -10919,7 +11774,6 @@
     "type": "object",
     "required": [
      "id",
-     "unit_id",
      "kind",
      "file_name",
      "mime",
@@ -11278,7 +12132,7 @@
      "excluded"
     ],
     "title": "PagesExclude",
-    "description": "Exclude or include pages of a revision at once (e.g. a fire-safety set, pages 12–51)."
+    "description": "Exclude or include pages of a revision at once (e.g. a fire-safety set, pages 12\u201351)."
    },
    "PaymentPlanIn": {
     "properties": {
@@ -13383,6 +14237,31 @@
       ],
       "title": "Partner Code"
      },
+     "layout_id": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Layout Id",
+      "description": "Set when the layout owns it"
+     },
+     "source_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Code",
+      "description": "Unit whose outline was cropped"
+     },
      "requested_by": {
       "anyOf": [
        {
@@ -13871,7 +14750,8 @@
         "type": "null"
        }
       ],
-      "title": "Layout"
+      "title": "Layout",
+      "description": "A code from the layout registry; null unlinks"
      },
      "wall_colour": {
       "anyOf": [
@@ -14249,7 +15129,8 @@
         "type": "null"
        }
       ],
-      "title": "Layout"
+      "title": "Layout",
+      "description": "A code from the layout registry; null unlinks"
      },
      "wall_colour": {
       "anyOf": [
@@ -14976,7 +15857,7 @@
     },
     "type": "object",
     "title": "SiteTransform",
-    "description": "Building local frame → site frame (metres, plan §3.5)."
+    "description": "Building local frame \u2192 site frame (metres, plan \u00a73.5)."
    },
    "SuggestionOut": {
     "properties": {

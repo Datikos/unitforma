@@ -200,7 +200,9 @@ export interface UnitMedia {
   ai_disclosure_text?: string | null;
   url: string;
   mime: string;
-  /** Code of the unit whose media this is, when shown here because both share a layout. */
+  /** Layout code when the item is the layout's, shown to every linked unit (ADR-0022). */
+  from_layout?: string;
+  /** Publications before ADR-0022: the unit whose media this is, shared by layout code. */
   shared_from?: string;
 }
 
@@ -214,8 +216,9 @@ export interface UnitDoc {
   availability: Availability;
   entrance?: string;
   indicative: boolean;
-  /** Plan type shared by several units; their renders are shared too (ADR-0016). */
+  /** Plan type from the project's layout registry; its media are shared (ADR-0022). */
   layout?: string;
+  layout_name?: string;
   /** Wall finish the developer stated: a RAL code or a hex colour (ADR-0017 E5). */
   wall_colour?: string;
   listed: boolean;

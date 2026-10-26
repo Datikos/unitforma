@@ -17,7 +17,7 @@ from unitforma.core.db import tenant_session
 from unitforma.renders import service
 from unitforma.renders.provider import ProviderError, get_provider
 from unitforma.storage.service import get_storage, object_key
-from unitforma.tenants.models import Unit, UnitRender
+from unitforma.tenants.models import Unit, UnitLayout, UnitRender
 
 log = structlog.get_logger()
 
@@ -70,6 +70,11 @@ async def generate(tenant_id: uuid.UUID, render_id: uuid.UUID) -> dict:
     async with tenant_session(tenant_id, scope="tenant") as db:
         r = (await db.execute(select(UnitRender).where(UnitRender.id == render_id))).scalar_one()
         unit = (await db.execute(select(Unit).where(Unit.id == r.unit_id))).scalar_one()
+        layout = (
+            (await db.execute(select(UnitLayout).where(UnitLayout.id == r.layout_id))).scalar_one()
+            if r.layout_id is not None
+            else None
+        )
         r.input_key = input_key
         if error is not None or image is None:
             r.status = "failed"
@@ -77,7 +82,7 @@ async def generate(tenant_id: uuid.UUID, render_id: uuid.UUID) -> dict:
             r.finished_at = datetime.now(UTC)
             log.warning("renders.failed", render_id=str(render_id), error=r.error[:200])
             return {"status": r.status, "error": r.error}
-        m = await service.store_result(db, r, unit, image, partner_code)
+        m = await service.store_result(db, r, unit, image, partner_code, layout)
         log.info(
             "renders.generated",
             render_id=str(render_id),

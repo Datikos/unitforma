@@ -4,6 +4,7 @@ import {
   BulkResult,
   BulkUpdate,
   InventoryRow,
+  LayoutOut,
   PaymentPlanOut,
   PromotionOut,
   SalesChanges,
@@ -38,6 +39,7 @@ export class InventoryStore {
 
   readonly rows = signal<InventoryRow[]>([]);
   readonly plans = signal<PaymentPlanOut[]>([]);
+  readonly layouts = signal<LayoutOut[]>([]);
   readonly promotions = signal<PromotionOut[]>([]);
   readonly settings = signal<SalesSettingsOut | null>(null);
   readonly selected = signal<InventoryRow[]>([]);
@@ -77,6 +79,7 @@ export class InventoryStore {
     return buildColumns({
       settings: this.settings(),
       plans: () => this.plans(),
+      layouts: () => this.layouts().map((l) => l.code),
       onBadPrice: (t) => this.error.set(t),
     });
   }
@@ -89,13 +92,15 @@ export class InventoryStore {
 
   async load(): Promise<void> {
     try {
-      const [rows, plans, promos, settings] = await Promise.all([
+      const [rows, plans, promos, settings, layouts] = await Promise.all([
         this.api.inventory(this.tenantId, this.projectId),
         this.api.listPaymentPlans(this.tenantId, this.projectId),
         this.api.listPromotions(this.tenantId, this.projectId),
         this.api.getSalesSettings(this.tenantId, this.projectId),
+        this.api.listLayouts(this.tenantId, this.projectId).catch(() => [] as LayoutOut[]),
       ]);
       this.plans.set(plans);
+      this.layouts.set(layouts);
       this.promotions.set(promos);
       this.settings.set(settings);
       this.rows.set(rows);
