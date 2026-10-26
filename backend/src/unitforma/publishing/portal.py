@@ -216,6 +216,8 @@ async def list_units(db: AsyncSession, pub: Publication, f: dict[str, Any]) -> d
     if f.get("entrance") and f.get("building"):
         # entrance numbers repeat across buildings; the filter means nothing alone (ADR-0014)
         q = q.where(PublishedUnit.entrance.in_(f["entrance"]))
+    if f.get("layout"):
+        q = q.where(func.lower(PublishedUnit.layout).in_([x.lower() for x in f["layout"]]))
     if f.get("min_price") is not None:
         q = q.where(PublishedUnit.price_amount >= Decimal(f["min_price"]))
     if f.get("max_price") is not None:
@@ -235,6 +237,63 @@ async def list_units(db: AsyncSession, pub: Publication, f: dict[str, Any]) -> d
     q = q.offset(f.get("offset", 0)).limit(f.get("limit", 200))
     items = [u.data for u in (await db.execute(q)).scalars()]
     return {"total": total, "items": items}
+
+
+async def list_layouts(db: AsyncSession, pub: Publication) -> dict[str, Any]:
+    """The plan types of a publication (ADR-0024 Decision 2): the document's static entries
+    (code, name, media) with live counts from one grouped query over the listed rows."""
+    doc = load_doc(pub)
+    static = {d["code"].lower(): d for d in doc.get("layouts") or []}
+    rows = (
+        await db.execute(
+            select(
+                PublishedUnit.layout,
+                func.count(),
+                func.count().filter(PublishedUnit.availability == "available"),
+                func.min(PublishedUnit.price_amount),
+                func.count(func.distinct(PublishedUnit.currency)).filter(
+                    PublishedUnit.price_amount.is_not(None)
+                ),
+                func.min(PublishedUnit.currency).filter(PublishedUnit.price_amount.is_not(None)),
+                func.min(PublishedUnit.area_m2),
+                func.max(PublishedUnit.area_m2),
+                func.array_agg(func.distinct(PublishedUnit.rooms)),
+                func.array_agg(func.distinct(PublishedUnit.building_code)),
+            )
+            .where(
+                PublishedUnit.publication_id == pub.id,
+                PublishedUnit.listed.is_(True),
+                PublishedUnit.layout.is_not(None),
+            )
+            .group_by(PublishedUnit.layout)
+        )
+    ).all()
+    live = {r[0].lower(): r for r in rows}
+    items = []
+    for key in sorted(set(static) | set(live)):
+        s = static.get(key) or {"code": live[key][0], "name": None, "media": []}
+        r = live.get(key)
+        units, available = (r[1], r[2]) if r else (0, 0)
+        price_from = (
+            {"amount": format(r[3], "f"), "currency": r[5]}
+            if r and r[3] is not None and r[4] == 1
+            else None
+        )
+        items.append(
+            {
+                "code": s["code"],
+                "name": s.get("name"),
+                "media": s.get("media") or [],
+                "units": units,
+                "available": available,
+                "price_from": price_from,
+                "area_min": format(r[6], "f") if r and r[6] is not None else None,
+                "area_max": format(r[7], "f") if r and r[7] is not None else None,
+                "rooms": sorted(x for x in (r[8] if r else []) if x is not None),
+                "buildings": sorted(x for x in (r[9] if r else []) if x),
+            }
+        )
+    return {"items": items}
 
 
 async def get_unit(db: AsyncSession, pub: Publication, code: str) -> dict[str, Any]:

@@ -53,6 +53,9 @@ import { PortalApi, UnitDoc } from '../core/portal-api';
           @if (u.rooms?.rooms) {
             <li><ng-icon name="lucideDoorOpen" /> {{ u.rooms?.rooms }} rooms</li>
           }
+          @if (u.layout) {
+            <li><ng-icon name="lucideLayoutGrid" /> Plan {{ u.layout }}</li>
+          }
           @if (mainArea(); as a) {
             <li><ng-icon name="lucideMaximize2" /> {{ a }}</li>
           }

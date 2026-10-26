@@ -19,6 +19,16 @@ export const PORTAL_GUIDE: PortalGuideSection[] = [
     ],
   },
   {
+    title: 'Plan types',
+    icon: 'lucideLayoutGrid',
+    text: 'When the developer groups the units by plan type, the project page shows the plan types and "Plan types" lists each one with its render, the rooms, the area range, the lowest price and how many units are still available. The count is live: a sale shows at once.',
+    points: [
+      'Every unit of a plan type has the same layout; the finish, the floor and the view differ per unit, so the renders are illustrative.',
+      '"See the units" opens the units list filtered by that plan type; the Plan type filter on the list does the same.',
+      'A unit page names its plan type under the renders and links to the other units of it.',
+    ],
+  },
+  {
     title: 'What the colours mean',
     icon: 'lucideTag',
     text: 'The same colours appear on plans, in the 3D view and on every card.',
