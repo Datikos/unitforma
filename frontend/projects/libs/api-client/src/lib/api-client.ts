@@ -14,6 +14,8 @@ export type MemberUpdate = Schemas['MemberUpdate'];
 export type RenderOut = Schemas['RenderOut'];
 export type RendersOut = Schemas['RendersOut'];
 export type RenderRequest = Schemas['RenderRequest'];
+export type RenderPromptOut = Schemas['RenderPromptOut'];
+export type RenderPromptUpdate = Schemas['RenderPromptUpdate'];
 export type LayoutOut = Schemas['LayoutOut'];
 export type LayoutIn = Schemas['LayoutIn'];
 export type LayoutUpdate = Schemas['LayoutUpdate'];
@@ -601,6 +603,13 @@ export class UnitformaApi {
   }
   rejectRender(tenantId: string, renderId: string): Promise<RenderOut> {
     return this.post(`${BASE}/admin/tenants/${tenantId}/renders/${renderId}/reject`, undefined);
+  }
+  /** The workspace's base prompt for generated plan renders (ADR-0023); tenant admin only. */
+  getRenderPrompt(tenantId: string): Promise<RenderPromptOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/render-prompt`);
+  }
+  setRenderPrompt(tenantId: string, body: RenderPromptUpdate): Promise<RenderPromptOut> {
+    return this.put(`${BASE}/admin/tenants/${tenantId}/render-prompt`, body);
   }
   /** The setup checklist: ordered steps with status, detail and the screen that completes each. */
   projectSetup(tenantId: string, projectId: string): Promise<SetupOut> {

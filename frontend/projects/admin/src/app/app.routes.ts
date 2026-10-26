@@ -151,6 +151,11 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/tokens.page').then((m) => m.TokensPage),
       },
       {
+        path: 'settings',
+        data: { guide: 'settings', breadcrumb: 'Settings' },
+        loadComponent: () => import('./pages/settings.page').then((m) => m.SettingsPage),
+      },
+      {
         path: 'audit',
         data: { guide: 'audit', breadcrumb: 'Audit log' },
         loadComponent: () => import('./pages/audit.page').then((m) => m.AuditPage),

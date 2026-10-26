@@ -64,7 +64,7 @@ import { LayoutsStore } from './layouts.store';
         </div>
       }
 
-      <div class="layout">
+      <div class="layout" [class.layout--split]="!!store.selected()">
         <div class="uf-stack list">
           <uf-section-card
             title="New layout"
@@ -255,20 +255,23 @@ import { LayoutsStore } from './layouts.store';
   styles: `
     .layout {
       display: grid;
-      grid-template-columns: minmax(18rem, 2fr) minmax(0, 3fr);
+      grid-template-columns: minmax(0, 1fr);
       gap: 1rem;
       align-items: start;
     }
+    .layout--split {
+      grid-template-columns: minmax(18rem, 2fr) minmax(0, 3fr);
+    }
     @media (max-width: 1100px) {
-      .layout {
+      .layout--split {
         grid-template-columns: 1fr;
       }
     }
     .code {
-      flex: 0 1 10rem;
+      flex: 0 1 9rem;
     }
     .name {
-      flex: 1 1 14rem;
+      flex: 1 1 11rem;
     }
     .card {
       display: grid;

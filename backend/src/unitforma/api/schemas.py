@@ -1375,6 +1375,21 @@ class RendersOut(BaseModel):
     items: list[RenderOut]
 
 
+# --- workspace render prompt (ADR-0023) ------------------------------------------------------
+class RenderPromptOut(BaseModel):
+    """The base text of every generated plan render: the workspace's own or the code default."""
+
+    default: str
+    prompt: str | None = Field(default=None, description="The workspace text; null = default")
+    source: Literal["workspace", "default"]
+
+
+class RenderPromptUpdate(BaseModel):
+    prompt: str | None = Field(
+        default=None, max_length=4000, description="null or blank clears the workspace text"
+    )
+
+
 # --- setup checklist (ADR-0017 Decision 5) -------------------------------------------------------
 class SetupStepOut(BaseModel):
     key: str

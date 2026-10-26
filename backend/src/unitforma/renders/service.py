@@ -26,7 +26,15 @@ from unitforma.jobs.app import app as jobs
 from unitforma.renders.provider import GeneratedImage
 from unitforma.sales import media as media_service
 from unitforma.storage.service import get_storage
-from unitforma.tenants.models import Sheet, Unit, UnitBoundary, UnitLayout, UnitMedia, UnitRender
+from unitforma.tenants.models import (
+    Sheet,
+    Tenant,
+    Unit,
+    UnitBoundary,
+    UnitLayout,
+    UnitMedia,
+    UnitRender,
+)
 
 Actor = tuple[uuid.UUID, str]
 
@@ -46,6 +54,8 @@ JOINED_PROMPT = (
     "no wall and no door, so both parts read as one home with one continuous floor, while every "
     "outer wall, window and door stays as drawn."
 )
+PROMPT_KEY = "render_prompt"  # in tenants.settings (ADR-0023 Decision 1)
+PROMPT_MAX = 4000
 DISCLOSURE = "Generated from the floor plan by AI — furniture and finishes are illustrative"
 CROP_MARGIN = 0.08  # of the outline's box, each side
 CROP_MAX_PX = 1536
@@ -60,6 +70,43 @@ MIME_EXT = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}
 
 def enabled() -> bool:
     return get_settings().ai_image_provider != "none"
+
+
+def workspace_prompt(tenant: Tenant) -> str | None:
+    """The base text the workspace admin set on the Settings page, or None for the code default."""
+    text = ((tenant.settings or {}).get(PROMPT_KEY) or "").strip()
+    return text or None
+
+
+def base_prompt(tenant: Tenant) -> str:
+    return workspace_prompt(tenant) or PROMPT
+
+
+async def set_workspace_prompt(
+    db: AsyncSession, tenant: Tenant, prompt: str | None, actor: Actor, request_id: str | None
+) -> str | None:
+    """Store, or clear with None or blank, the workspace's base prompt; one audit row."""
+    clean = (prompt or "").strip() or None
+    if clean is not None and len(clean) > PROMPT_MAX:
+        raise ProblemError(422, f"The prompt is longer than {PROMPT_MAX} characters")
+    before = workspace_prompt(tenant)
+    settings = {k: v for k, v in (tenant.settings or {}).items() if k != PROMPT_KEY}
+    if clean is not None:
+        settings[PROMPT_KEY] = clean
+    tenant.settings = settings  # a new dict so the JSONB column is marked changed
+    await write_audit(
+        db,
+        tenant_id=tenant.id,
+        actor_user_id=actor[0],
+        actor_role=actor[1],
+        entity_type="tenant",
+        entity_id=tenant.id,
+        action="render_prompt",
+        before={PROMPT_KEY: before},
+        after={PROMPT_KEY: clean},
+        request_id=request_id,
+    )
+    return clean
 
 
 async def used_today(db: AsyncSession, tenant_id: uuid.UUID) -> int:
@@ -198,7 +245,8 @@ async def request_render(
             f"{used} of {s.ai_image_daily_limit} requests today; raise UF_AI_IMAGE_DAILY_LIMIT",
         )
     clean = (note or "").strip() or None
-    prompt = PROMPT + (JOINED_PROMPT if partner is not None else "")
+    tenant = (await db.execute(select(Tenant).where(Tenant.id == unit.tenant_id))).scalar_one()
+    prompt = base_prompt(tenant) + (JOINED_PROMPT if partner is not None else "")
     colour = ((unit.attributes or {}).get("wall_colour") or "").strip()
     if colour:
         prompt += f" The walls are painted {colour}."

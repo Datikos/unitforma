@@ -262,3 +262,55 @@ def test_setup_checklist_reflects_the_project_state(client, world):  # noqa: F81
     again = client.get(f"{base}/projects/{pid}/setup", headers=pm).json()
     st = {s["key"]: s for s in again["steps"]}
     assert st["location"]["status"] == "done" and st["location"]["detail"] == "41.7, 44.8"
+
+
+def test_workspace_render_prompt_replaces_the_base_text(client, world, monkeypatch):  # noqa: F811
+    """ADR-0023: the tenant admin sets one base prompt for the workspace; the next request starts
+    with it, the joined sentence and the note are still appended; blank resets to the default."""
+    base, tid, adm, sales = world["base"], world["tenant"]["id"], world["adm"], world["sales"]
+    url = f"{base}/render-prompt"
+
+    r = client.get(url, headers=adm)
+    assert r.status_code == 200, r.text
+    assert r.json() == {"default": renders.PROMPT, "prompt": None, "source": "default"}
+    assert client.get(url, headers=sales).status_code == 403
+    assert client.put(url, headers=sales, json={"prompt": "x"}).status_code == 403
+    assert client.put(url, headers=adm, json={"prompt": "x" * 4001}).status_code == 422
+
+    custom = "Render a bright Scandinavian apartment seen from above at 30 degrees."
+    r = client.put(url, headers=adm, json={"prompt": f"  {custom}\n"})
+    assert r.status_code == 200 and r.json()["prompt"] == custom
+    assert r.json()["source"] == "workspace" and r.json()["default"] == renders.PROMPT
+
+    # PATCH /tenants/{id} with another settings key keeps the prompt (merge, not replace)
+    r = client.patch(f"{base}", headers=adm, json={"settings": {"other": 1}})
+    assert r.status_code == 200 and r.json()["settings"]["render_prompt"] == custom
+    assert r.json()["settings"]["other"] == 1
+
+    settings = get_settings()
+    stub = _Stub()
+    monkeypatch.setattr(settings, "ai_image_provider", "gemini")
+    monkeypatch.setattr(render_jobs, "get_provider", lambda: stub)
+    unit = world["units"]["A-00-02"]
+    other = world["units"]["A-00-01"]
+    r = client.post(
+        f"{base}/units/{unit['id']}/renders",
+        headers=sales,
+        json={"note": "marble kitchen", "with_unit_id": other["id"]},
+    )
+    assert r.status_code == 202, r.text
+    out = client.portal.call(render_jobs.generate, uuid.UUID(tid), uuid.UUID(r.json()["id"]))
+    assert out["status"] == "review", out
+    [(_, _, prompt)] = stub.calls
+    assert prompt.startswith(custom) and "Create a photorealistic" not in prompt
+    assert "joined into one larger apartment" in prompt and prompt.endswith("marble kitchen")
+
+    r = client.put(url, headers=adm, json={"prompt": "   "})
+    assert r.status_code == 200 and r.json() == {
+        "default": renders.PROMPT,
+        "prompt": None,
+        "source": "default",
+    }
+    audit = client.get(f"{base}/audit", headers=adm, params={"entity_type": "tenant"}).json()
+    actions = [a["action"] for a in audit["items"]]
+    assert actions.count("render_prompt") == 2

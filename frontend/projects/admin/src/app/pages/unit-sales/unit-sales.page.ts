@@ -351,9 +351,7 @@ import { UnitSalesStore } from './unit-sales.store';
                       <option [value]="l.code">{{ l.name ?? '' }}</option>
                     }
                   </datalist>
-                  <mat-hint
-                    >From the <a routerLink="../../layouts">Layouts</a> registry</mat-hint
-                  ></mat-form-field
+                  <mat-hint><a routerLink="../../layouts">Layouts</a></mat-hint></mat-form-field
                 >
                 <mat-form-field
                   appearance="outline"

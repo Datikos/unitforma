@@ -115,6 +115,8 @@ async def update_tenant(body: TenantUpdate, ctx: Ctx):
         raise ProblemError(403, "Only platform administrators change tenant status")
     before = {k: getattr(t, k) for k in changes}
     for k, v in changes.items():
+        if k == "settings":  # merge: a page editing one key keeps the others (ADR-0023)
+            v = {**(t.settings or {}), **v}  # branding stays replace-whole: Publish clears keys
         setattr(t, k, v.upper() if k == "default_currency" else v)
     await write_audit(
         ctx.session,

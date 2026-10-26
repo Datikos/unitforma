@@ -86,6 +86,9 @@ Third-party facts (read on 2026-10-26 from ai.google.dev, pages dated 2026-10-22
    `UF_AI_IMAGE_ENDPOINT`, `UF_AI_IMAGE_DAILY_LIMIT` per tenant (default 40), `UF_AI_IMAGE_COST_PER_IMAGE_USD`
    (default 0.0336, shown on the button, source in plan §21). The prompt is fixed in code (keep the drawn
    layout, furnish by room function, white background, no text) plus an optional note from the staff member.
+   *Amended 2026-10-26 (ADR-0023):* the base text is `tenants.settings.render_prompt` when the workspace
+   admin set one on the Settings page, else the constant in code; the joined sentence, the wall colour and
+   the note are still appended by the code.
 5. **A setup checklist page shows the order of work and what is missing.** `GET /projects/{id}/setup`
    returns ordered steps, each `done | todo | optional | attention` with a one-line detail, a count and the
    screen that fixes it: documents, floors, mapping, site plan, placement, facades, site features (optional),

@@ -12,13 +12,19 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 
-from unitforma.api.schemas import RenderOut, RenderRequest, RendersOut
+from unitforma.api.schemas import (
+    RenderOut,
+    RenderPromptOut,
+    RenderPromptUpdate,
+    RenderRequest,
+    RendersOut,
+)
 from unitforma.identity.authz import Action
 from unitforma.identity.deps import TenantContext, tenant_context
 from unitforma.renders import service as renders
 from unitforma.sales import media as media_service
 from unitforma.sales import service as sales
-from unitforma.tenants.models import Unit, UnitMedia, UnitRender
+from unitforma.tenants.models import Tenant, Unit, UnitMedia, UnitRender
 
 router = APIRouter(prefix="/api/v1/admin/tenants/{tenant_id}", tags=["renders"])
 Ctx = Annotated[TenantContext, Depends(tenant_context)]
@@ -103,3 +109,33 @@ async def reject_render(render_id: uuid.UUID, ctx: Ctx):
     r, m = await _render(ctx, render_id)
     await renders.reject(ctx.session, r, m, _actor(ctx))
     return _out(r, None)
+
+
+# --- workspace render prompt (ADR-0023 Decision 2) ----------------------------------------------
+async def _tenant(ctx: TenantContext) -> Tenant:
+    return (
+        await ctx.session.execute(select(Tenant).where(Tenant.id == ctx.tenant_id))
+    ).scalar_one()
+
+
+def _prompt_out(tenant: Tenant) -> RenderPromptOut:
+    own = renders.workspace_prompt(tenant)
+    return RenderPromptOut(
+        default=renders.PROMPT, prompt=own, source="workspace" if own else "default"
+    )
+
+
+@router.get("/render-prompt", response_model=RenderPromptOut)
+async def get_render_prompt(ctx: Ctx):
+    ctx.require("tenant.settings", Action.READ)
+    return _prompt_out(await _tenant(ctx))
+
+
+@router.put("/render-prompt", response_model=RenderPromptOut)
+async def set_render_prompt(body: RenderPromptUpdate, ctx: Ctx):
+    ctx.require("tenant.settings", Action.WRITE)
+    tenant = await _tenant(ctx)
+    await renders.set_workspace_prompt(
+        ctx.session, tenant, body.prompt, _actor(ctx), ctx.request_id
+    )
+    return _prompt_out(tenant)
