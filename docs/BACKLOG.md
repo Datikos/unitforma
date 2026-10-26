@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-26: 42 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, plan Phases 5 to 7 and
+State on 2026-10-26: 40 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Rows that share one code area or one
 outside input are one row with every reference. Sizes: S up to a day, M a few days, L a week or more.
@@ -13,7 +13,6 @@ import (ADR-0017 proposal 1b), and a block level between building and floor (blo
 
 | # | Task | Ref | Needs | Size |
 |---|---|---|---|---|
-| 1 | Dev-stack verification run: `STORAGE_BACKEND=s3` against Garage (upload, process, publish, delete a document and a project, watch `storage.delete_prefix` empty the bucket prefix; closes the unverified S3 branch and PoC V6) and a browser pass with screenshots over the ADR-0014 screens (facade floor picker, site plan by construction status, Terms, entrance filter, table view, building "Shown to buyers" row) after publishing a project and opening the Preview link. | ADR-0012 #A1, ADR-0005 (pending PoC V6), plan PoC V6, ADR-0014 Revisit | dev stack up, a published project | S |
 | 2 | Acceptance of DXF intake on a real ArchiCAD export: zones as fills, labels decoded, `from_file` calibration within 1 % of the printed scale. | ADR-0006 #B8 | owner's DXF file | S |
 | 3 | Pick the DWG converter: `libredwg` (GPL, separate container), ODA File Converter (free binary, licence terms), or none. | ADR-0006 #D2 | owner's decision | — |
 
@@ -22,7 +21,6 @@ import (ADR-0017 proposal 1b), and a block level between building and floor (blo
 | # | Task | Ref | Needs | Size |
 |---|---|---|---|---|
 | 4 | DWG conversion: accept `.dwg`, converter container, `cad.convert_dwg` task, docs; then acceptance on 10 real DWG files reviewed by the owner. | ADR-0006 #D1 #D3 #D4 #D5 #D6 | item 3, owner's files | M |
-| 5 | Retention sweep (`housekeeping.retention` is a stub): drafts, attempts, soft-deleted media, orphaned storage prefixes including `pub/` of retired publications; ended boards older than 7 days once ADR-0020 Phase E lands. | ADR-0012 Consequences (known gap), plan §10.3, §12.3, ADR-0020 #E8 | — | M |
 | 6 | Phase 5: buyer email-code auth through the BFF, app sessions, inquiries, leads, assignment, notifications via outbox, consent, rate limits. PoC V1 first. | plan Phase 5, ADR-0002 (pending PoC V1) | O5, O6 decisions | L |
 | 7 | Phase 6: domain lifecycle (add, DNS instructions, `domains.verify` job, activation, removal with certificate purge) and its admin screen; only the `ask` decision and host routing exist. | plan Phase 6, ADR-0003 | PoC V2 on a team-owned domain | M |
 | 8 | Worker health: Procrastinate heartbeat check so `worker-light` and `worker-heavy` stop running with `healthcheck: disable`. | plan §17, `compose.yaml` comment | — | S |
@@ -54,7 +52,7 @@ import (ADR-0017 proposal 1b), and a block level between building and floor (blo
 | 29 | Second portal language (Georgian and English on one host): per-field translations of the editable texts, language switch. | ADR-0014 Revisit, plan §2.3 R3 | — | L |
 | 30 | OAuth 2.1 for the MCP server: Ory Hydra as the authorization server next to Kratos, login and consent in the admin app, the SDK's `AuthSettings` and RFC 9728 metadata, client registration; tokens stay for scripts. Decided on 2026-10-26 to follow the tokens, not replace them. | ADR-0015 Option C (Revisit) | an OAuth-only client; owner's go | L |
 | 31 | MCP beyond projects and buildings: tools for documents, mapping and sales, a `delete_*` family with an explicit confirmation argument, the buyer-side read-only server. | ADR-0015 Revisit (Option A) | owner's pick | M |
-| 32 | Sample project `permit-1127975`: the owner checks the map position (OSM cluster of the street's `19/x` buildings, ±100 m), refines the 11 site features and the four facade regions drawn by eye from the general plan, and closes apartments №3 and №15 (no closed outline). | ADR-0016 #E1 (done, approximate) | owner's review | S |
+| 32 | Sample project `permit-1127975`: the owner sets the ADR-0014 data on building A (construction status, completion text, terms, the elevation drawing for the floor picker, entrances) so the portal shows them; checks the map position (OSM cluster of the street's `19/x` buildings, ±100 m), refines the 11 site features and the four facade regions drawn by eye from the general plan, and closes apartments №3 and №15 (no closed outline). | ADR-0016 #E1 (done, approximate) | owner's review | S |
 | 33 | First real generated 3D plan render on the sample project once a Gemini API key is in `secrets/ai_image_api_key` and `UF_AI_IMAGE_PROVIDER=gemini`: verify the response parser against the live answer, judge the image against the reference, approve or reject. | ADR-0017 #E1 | owner's API key | S |
 | 34 | Contract step of ADR-0016 E3 in the release after migration 0015: stop mirroring facade choices into `projects.site_frame.facades`, migrate leftovers, drop the key and the fallback in `geometry.facade_assignments`. | ADR-0016 #E5 | the 0015 release deployed | S |
 | 35 | Tile provider or self-hosted tiles for the portal map once traffic justifies it or OSM withdraws access (the `UF_PORTAL_MAP_EMBED` switch covers the gap; runbook written). | ADR-0016 Revisit (E4 done) | traffic figures, provider pick | M |

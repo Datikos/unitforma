@@ -159,9 +159,12 @@ documents only then.
 
 Revisit: proposing the entrance from the drawing (the stair core labels sit on the plan next to the
 units); a second language; drawn footprints for planned buildings; a warning before the document that
-holds a building's elevation sheet is deleted; a browser pass with screenshots over the new screens, not
-done on 2026-10-26 because the dev stack belonged to another session (the Preview link after a publish
-shows them).
+holds a building's elevation sheet is deleted. Browser pass done 2026-10-26 on the published sample
+project: the admin building "Shown to buyers" row (construction status, completion, elevation drawing
+picker, terms), the portal units table view with its filters, the building page with the floor list, the
+project page with the site plan and legend. The elevation floor picker, the construction-status colours,
+the Terms section and the entrance filter could not be seen because the sample project has none of that
+data yet; the owner enters it (backlog row 32).
 
 **Out of scope here:** booking and leads (Phase 5), a mortgage calculator, a second currency, a second
 portal language, drawn footprints for planned buildings, deleting a floor.

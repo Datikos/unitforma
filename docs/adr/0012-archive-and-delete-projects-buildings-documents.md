@@ -1,6 +1,6 @@
 # ADR-0012: Archiving a project, deleting a document or an empty building, and the tenant admin's permanent project delete
 
-- **Status:** accepted (2026-10-25; implemented 2026-10-25; the S3 branch of `delete_prefix` is not exercised by a test or a probe, see A1)
+- **Status:** accepted (2026-10-25; implemented 2026-10-25; the S3 branch of `delete_prefix` verified on Garage 2026-10-26, see A1)
 - **Date:** 2026-10-25
 - **Deciders:** David Sakhelashvili (platform owner)
 - **Plan reference:** §3.4 (roles), §4.4 (object storage keys), §5.1 ("soft delete only where history matters"), §5.3 (`units`: permanent identity), §12.3 (background jobs)
@@ -137,8 +137,8 @@ job runs (at most 5 attempts over about 2 minutes, then it fails and the prefix 
 Known gap: published assets are copied under `pub/{tenant}/{project}/…` (`publishing/snapshot.py`
 `Assets.prefix`), outside the project prefix, so the prefix job does not reach them. A project cannot
 be deleted while published, and unpublish owns the `pub/` cleanup (plan §9.3), so only the assets of
-an already retired publication can remain. Revisit: when the retention sweep (plan §10.3) exists, it
-should list prefixes without a matching row, `pub/` included.
+an already retired publication can remain. Closed by ADR-0021 (2026-10-26): the daily sweep lists the
+project, document and `pub/` prefixes against the rows and removes the assets of retired versions.
 When Phase 5 adds leads, `DELETE /projects` must decide what happens to a lead of a deleted project (plan
 §10.3 says anonymise, not delete).
 
@@ -155,6 +155,8 @@ project cannot be archived, so the portal never shows one).
       *Found while implementing:* the S3 branch is written against the boto3 API only; tests and the
       dev stack run the local backend, and Garage was stopped when this was finished, so it is
       **unverified** against a real bucket (AGENTS.md rule 8).
+      *Verified 2026-10-26 on Garage v2.5.0:* 1005 keys under a throwaway prefix removed in 0.2 s across two
+      batches, 0 left; `delete_prefix("/")` refused (ADR-0005 PoC V6 note).
 - [x] A2 `jobs/tasks.py` `storage.delete_prefix` with the row guard and retry; `storage/jobs.py` holds the
       body; test that the guard refuses while the row exists.
 - [x] A3 `projects/service.py`: `archive` check in `update_project`, `delete_building`, `delete_project`

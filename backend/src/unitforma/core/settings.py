@@ -76,6 +76,16 @@ class Settings(BaseSettings):
     # False shows the address and a link to OpenStreetMap only: the switch for the day the OSMF
     # tile policy's "access may be withdrawn" applies (ADR-0016 E4), without a deploy.
     portal_map_embed: bool = True
+    # retention sweep (ADR-0021); false counts and logs without deleting
+    retention_enabled: bool = True
+    retention_pending_upload_hours: int = 24
+    retention_invitation_days: int = 30
+    retention_token_days: int = 90
+    retention_render_input_days: int = 30
+    retention_orphan_days: int = 7
+    retention_retired_asset_days: int = 30
+    retention_job_days: int = 7
+    retention_failed_job_days: int = 30
 
     # Buyer sessions
     app_session_key: str = Field(default="dev-only-change-me", min_length=16)

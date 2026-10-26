@@ -1020,7 +1020,7 @@ Versioning: URL major version; additive changes only within `v1`; breaking chang
 | `identity.revalidate_sessions` | periodic 15 min | `periodic` | Batch `GET /admin/sessions/{id}`; revoke stale app sessions. |
 | `reservations.expire` (R2) | periodic 1 min | `periodic` | |
 | `storage.delete_prefix` | project or document deleted | `default` | Removes `t/{t}/p/{p}/…` once the owning row is gone; retries while it still exists (ADR-0012). |
-| `housekeeping.retention` | daily | `periodic` | Drafts, attempts, handoffs, soft-deleted media, retention policies, orphaned storage prefixes. |
+| `housekeeping.retention` | daily 03:15 | `periodic` | ADR-0021: upload intents never completed (24 h), expired invitations (30 d) and tokens (90 d), render crops (30 d), orphaned storage prefixes (7 d), assets of retired publications (30 d), then Procrastinate's `remove_old_jobs` (7 d, failed 30 d); `UF_RETENTION_ENABLED=false` counts only. Drafts, attempts, leads and soft-deleted media join it in Phase 5. |
 | `documents.requeue_stuck` | periodic 10 min | `periodic` | Revisions `queued` or `processing` for over 15 min with no job in `todo` and none running on a worker with a heartbeat younger than 60 s are queued again; failed after 3 lost runs (ADR-0016 Decision 8). |
 
 Worker containers subscribe to queue sets (`worker-light: default,docs,mail,periodic`; `worker-heavy: docs-heavy,geometry,geometry-heavy`) so a 300-page PDF never starves email sending. The `scheduler` container runs only Procrastinate's periodic deferrer (single replica). Both workers finish running jobs after SIGTERM: `stop_grace_period` is 5 min on `worker-light` and 15 min on `worker-heavy` (Docker's default of 10 s killed imports mid-download on 2026-10-26, ADR-0016 Decision 8).
@@ -1526,7 +1526,7 @@ Definition of done per task: unit tests, integration test where SQL is involved,
 | V3 | Unit identity across revisions | Script applies 6 golden scenarios on two real revisions; IDs preserved; diff proposals ≥ 80 % correct on clean vector PDFs. |
 | V4 | RLS in FastAPI | Cross-tenant reads return zero rows with wrong context; `FORCE ROW LEVEL SECURITY` verified; overhead < 10 % on representative queries. |
 | V5 | Procrastinate in its own container | Transactional enqueue, retry, periodic task, graceful shutdown, concurrency limits per queue. |
-| V6 | Garage | Browser presigned PUT (CORS), multipart upload of a 500 MB file, presigned GET with content headers, bucket policy for `pub/`. |
+| V6 | Garage | Browser presigned PUT (CORS), multipart upload of a 500 MB file, presigned GET with content headers, bucket policy for `pub/`. Run 2026-10-26 at the storage layer (ADR-0005): presigned PUT and GET with headers, content type bound to the signature, anonymous GET refused, batched prefix delete; the browser CORS leg and the 500 MB upload stay open. |
 | V7 | 3D representative view | Massing GLB (generated) and a 10 MB detailed GLB at ≥ 30 fps on desktop and ≥ 20 fps on a mid-range Android and iPhone from the last three years; memory < 300 MB; fallback engages on a WebGL2-less profile. |
 | V8 | AG Grid Community suffices for the inventory grid | Inline edit, 50k rows virtual scroll, CSV export without Enterprise modules. |
 | V9 | Independent updates & data survival | Rebuild/redeploy `api` alone with zero errors on portal; `down` + `up` recreates containers with data intact; restore from backup on a fresh VM. |

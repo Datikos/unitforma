@@ -18,9 +18,25 @@ async def ping(message: str = "pong") -> str:
 
 @app.periodic(cron="15 3 * * *")
 @app.task(name="housekeeping.retention", queue="periodic", pass_context=True)
-async def retention(context, timestamp: int) -> None:
-    """Daily retention sweep (drafts, auth attempts, invitations). Implemented in Phase 5."""
-    log.info("job.retention", at=timestamp)
+async def retention(context, timestamp: int) -> dict:
+    """Daily retention sweep (ADR-0021): dead uploads, expired invitations and tokens, old render
+    crops, orphaned and retired storage objects; then Procrastinate's own job-table cleanup."""
+    from unitforma.core.settings import get_settings
+    from unitforma.housekeeping.service import sweep
+
+    counts = await sweep()
+    s = get_settings()
+    old_jobs = app.configure_task(
+        name="procrastinate.builtin_tasks.remove_old_jobs", queue="periodic"
+    )
+    await old_jobs.defer_async(max_hours=s.retention_job_days * 24)
+    await old_jobs.defer_async(
+        max_hours=s.retention_failed_job_days * 24,
+        remove_failed=True,
+        remove_cancelled=True,
+        remove_aborted=True,
+    )
+    return counts
 
 
 @app.task(

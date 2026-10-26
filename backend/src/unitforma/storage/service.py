@@ -12,6 +12,7 @@ import os
 import shutil
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 from urllib.parse import quote
@@ -24,6 +25,7 @@ class ObjectInfo:
     key: str
     size: int
     content_type: str | None
+    modified: datetime | None = None
 
 
 class Storage(Protocol):
@@ -35,6 +37,8 @@ class Storage(Protocol):
     def delete(self, key: str) -> None: ...
     def delete_prefix(self, prefix: str) -> int: ...
     def copy(self, src: str, dst: str) -> None: ...
+    def list_prefixes(self, prefix: str) -> list[str]: ...
+    def list_objects(self, prefix: str) -> list[ObjectInfo]: ...
 
 
 class LocalStorage:
@@ -110,6 +114,33 @@ class LocalStorage:
         d = self._path(dst)
         d.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(self._path(src), d)
+
+    def list_prefixes(self, prefix: str) -> list[str]:
+        """The immediate child prefixes of ``prefix`` (directories here), each ending with ``/``."""
+        p = self._path(prefix.rstrip("/")) if prefix.strip("/") else self.root
+        if not p.is_dir():
+            return []
+        base = prefix if prefix.endswith("/") or not prefix else prefix + "/"
+        return sorted(f"{base}{e.name}/" for e in os.scandir(p) if e.is_dir())
+
+    def list_objects(self, prefix: str) -> list[ObjectInfo]:
+        p = self._path(prefix.rstrip("/")) if prefix.strip("/") else self.root
+        if not p.is_dir():
+            return []
+        root = self.root.resolve()
+        out = []
+        for f in sorted(p.rglob("*")):
+            if f.is_file():
+                st = f.stat()
+                out.append(
+                    ObjectInfo(
+                        key=f.resolve().relative_to(root).as_posix(),
+                        size=st.st_size,
+                        content_type=None,
+                        modified=datetime.fromtimestamp(st.st_mtime, UTC),
+                    )
+                )
+        return out
 
 
 class S3Storage:
@@ -228,3 +259,22 @@ def project_prefix(tenant_id, project_id, *parts: str) -> str:
 def safe_filename(name: str) -> str:
     base = os.path.basename(name).strip() or "file"
     return "".join(c if c.isalnum() or c in "._- ()" else "_" for c in base)[:200]
+
+    def list_prefixes(self, prefix: str) -> list[str]:
+        out: list[str] = []
+        paginator = self.client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix, Delimiter="/"):
+            out.extend(c["Prefix"] for c in page.get("CommonPrefixes", []))
+        return out
+
+    def list_objects(self, prefix: str) -> list[ObjectInfo]:
+        out: list[ObjectInfo] = []
+        paginator = self.client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix):
+            out.extend(
+                ObjectInfo(
+                    key=o["Key"], size=o["Size"], content_type=None, modified=o.get("LastModified")
+                )
+                for o in page.get("Contents", [])
+            )
+        return out

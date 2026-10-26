@@ -31,6 +31,16 @@ was built before it). The dev stack mounts `backend/migrations` into `api` only;
 image's copy. Rebuild the image with `deploy/scripts/dev-up.sh api` (the migrate container shares it), then
 `up` again. Seen on 2026-10-26 after migrations 0014 and 0015.
 
+## Retention sweep (ADR-0021)
+
+`housekeeping.retention` runs daily at 03:15 on the `periodic` queue (worker-light) and deletes upload
+intents never completed (24 h), expired invitations (30 d) and tokens (90 d), render crops (30 d),
+storage prefixes whose project or document row is gone (7 d), the images and models of retired
+publications (30 d), and finished job rows (7 d, failed 30 d). On an installation with history, set
+`UF_RETENTION_ENABLED=false` in `.env` for the first night and read the counts in the worker log
+(`job.retention` with `dry_run=true`), then set it to `true`. One line per removed prefix
+(`retention.orphan_prefix`) names what went.
+
 ## OpenStreetMap embed (ADR-0016 E4)
 
 The portal project page embeds `openstreetmap.org/export/embed.html` around the project's position. The
