@@ -149,7 +149,14 @@ import { layoutKey, loadLayout, swatch } from './playground.model';
           }
           @if (otherMedia().length) {
             @if (sharesLayoutMedia()) {
-              <p class="uf-indicative"><ng-icon name="lucideInfo" /> {{ layoutNote() }}</p>
+              <p class="uf-indicative">
+                <ng-icon name="lucideInfo" /> {{ layoutNote() }}
+                <a
+                  [routerLink]="['/projects', slug(), 'units']"
+                  [queryParams]="{ layout: u.layout }"
+                  >All units of this plan type</a
+                >
+              </p>
             }
             <div class="gallery">
               @for (m of otherMedia(); track m.url) {

@@ -8,6 +8,10 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/project.page').then((m) => m.ProjectPage),
   },
   {
+    path: 'projects/:slug/plans',
+    loadComponent: () => import('./pages/plans.page').then((m) => m.PlansPage),
+  },
+  {
     path: 'projects/:slug/units',
     loadComponent: () => import('./pages/units.page').then((m) => m.UnitsPage),
   },

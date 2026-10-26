@@ -141,6 +141,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/portal/projects/{slug}/layouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Layouts
+         * @description The project's plan types (ADR-0024): code, name and media from the publication, the
+         *     number of listed and available units, the lowest price and the area range live.
+         */
+        get: operations["layouts_api_v1_portal_projects__slug__layouts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/portal/projects/{slug}/units/{code}": {
         parameters: {
             query?: never;
@@ -5194,6 +5215,8 @@ export interface operations {
                 entrance?: string[] | null;
                 /** @description 5 = five or more */
                 rooms?: number[] | null;
+                /** @description Plan type codes, without case */
+                layout?: string[] | null;
                 min_price?: number | null;
                 max_price?: number | null;
                 min_area?: number | null;
@@ -5201,6 +5224,44 @@ export interface operations {
                 sort?: "code" | "price_asc" | "price_desc" | "area_asc" | "area_desc";
                 offset?: number;
                 limit?: number;
+                /** @description Signed preview token */
+                preview?: string | null;
+            };
+            header?: {
+                "X-Unitforma-Preview"?: string | null;
+            };
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    layouts_api_v1_portal_projects__slug__layouts_get: {
+        parameters: {
+            query?: {
                 /** @description Signed preview token */
                 preview?: string | null;
             };

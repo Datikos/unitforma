@@ -831,6 +831,7 @@ class PublishedUnit(Base):
     rooms: Mapped[int | None] = mapped_column()
     bedrooms: Mapped[int | None] = mapped_column()
     entrance: Mapped[str | None] = mapped_column(String(20))
+    layout: Mapped[str | None] = mapped_column(String(40))  # plan type code (ADR-0024)
     sort_order: Mapped[int] = mapped_column(default=0)
     data: Mapped[dict] = mapped_column(JSONB)
 

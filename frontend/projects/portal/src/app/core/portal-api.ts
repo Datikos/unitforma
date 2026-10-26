@@ -186,11 +186,31 @@ export interface ProjectDoc {
     features?: SiteFeatureDoc[];
   } | null;
   gallery?: GalleryItem[];
+  /** Plan types with their shared media (ADR-0024); absent in older publications. */
+  layouts?: LayoutDoc[];
   buildings: BuildingDoc[];
   massing: { url: string; units: number; bytes: number; disclaimer: string } | null;
   payment_plans: PaymentPlan[];
   promotions: Promotion[];
   preview: boolean;
+}
+
+/** A plan type as published: the static part (ADR-0024 Decision 1). */
+export interface LayoutDoc {
+  code: string;
+  name?: string | null;
+  media: UnitMedia[];
+}
+
+/** A plan type with live counts from the read model (ADR-0024 Decision 2). */
+export interface LayoutSummary extends LayoutDoc {
+  units: number;
+  available: number;
+  price_from: Money | null;
+  area_min: string | null;
+  area_max: string | null;
+  rooms: number[];
+  buildings: string[];
 }
 
 export interface UnitMedia {
@@ -246,6 +266,8 @@ export interface UnitFilters {
   /** Applied by the API only together with `building` (ADR-0014 Decision 2). */
   entrance?: string[];
   rooms?: number[];
+  /** Plan type codes, compared without case (ADR-0024 Decision 3). */
+  layout?: string[];
   min_price?: number | null;
   max_price?: number | null;
   min_area?: number | null;
@@ -283,6 +305,9 @@ export class PortalApi {
       else p = p.set(k, String(v));
     }
     return this.get(`${BASE}/projects/${encodeURIComponent(slug)}/units`, p);
+  }
+  layouts(slug: string): Promise<{ items: LayoutSummary[] }> {
+    return this.get(`${BASE}/projects/${encodeURIComponent(slug)}/layouts`);
   }
   unit(slug: string, code: string): Promise<UnitDoc> {
     return this.get(

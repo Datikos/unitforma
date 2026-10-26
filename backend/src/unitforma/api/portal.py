@@ -85,6 +85,9 @@ async def units(
         list[str] | None, Query(max_length=20, description="Applied only with building")
     ] = None,
     rooms: Annotated[list[int] | None, Query(max_length=10, description="5 = five or more")] = None,
+    layout: Annotated[
+        list[str] | None, Query(max_length=50, description="Plan type codes, without case")
+    ] = None,
     min_price: Annotated[float | None, Query(ge=0)] = None,
     max_price: Annotated[float | None, Query(ge=0)] = None,
     min_area: Annotated[float | None, Query(ge=0)] = None,
@@ -110,6 +113,7 @@ async def units(
                 "floor": floor,
                 "entrance": entrance,
                 "rooms": rooms,
+                "layout": layout,
                 "min_price": min_price,
                 "max_price": max_price,
                 "min_area": min_area,
@@ -119,6 +123,24 @@ async def units(
                 "limit": limit,
             },
         )
+    _cache(response, is_preview)
+    return out
+
+
+@router.get("/projects/{slug}/layouts", response_model=dict)
+async def layouts(
+    slug: str,
+    request: Request,
+    response: Response,
+    preview: Preview = None,
+    xp: PreviewHeader = None,
+):
+    """The project's plan types (ADR-0024): code, name and media from the publication, the
+    number of listed and available units, the lowest price and the area range live."""
+    s = await portal.site_for_host(_host(request))
+    async with tenant_session(s.tenant_id) as db:
+        _p, pub, is_preview = await portal.resolve_publication(db, s, slug, preview or xp)
+        out = await portal.list_layouts(db, pub)
     _cache(response, is_preview)
     return out
 

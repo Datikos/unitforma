@@ -407,6 +407,28 @@
       "description": "5 = five or more"
      },
      {
+      "name": "layout",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "maxItems": 50
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Plan type codes, without case",
+       "title": "Layout"
+      },
+      "description": "Plan type codes, without case"
+     },
+     {
       "name": "min_price",
       "in": "query",
       "required": false,
@@ -560,6 +582,87 @@
          "type": "object",
          "additionalProperties": true,
          "title": "Response Units Api V1 Portal Projects  Slug  Units Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/portal/projects/{slug}/layouts": {
+   "get": {
+    "tags": [
+     "portal"
+    ],
+    "summary": "Layouts",
+    "description": "The project's plan types (ADR-0024): code, name and media from the publication, the\nnumber of listed and available units, the lowest price and the area range live.",
+    "operationId": "layouts_api_v1_portal_projects__slug__layouts_get",
+    "parameters": [
+     {
+      "name": "slug",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Slug"
+      }
+     },
+     {
+      "name": "preview",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 512
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Signed preview token",
+       "title": "Preview"
+      },
+      "description": "Signed preview token"
+     },
+     {
+      "name": "X-Unitforma-Preview",
+      "in": "header",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 512
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "X-Unitforma-Preview"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Layouts Api V1 Portal Projects  Slug  Layouts Get"
         }
        }
       }
