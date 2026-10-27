@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from unitforma.autopilot import rules
 from unitforma.autopilot.passes.common import current_sheets, page_label
@@ -19,8 +19,9 @@ from unitforma.inventory import service as inventory
 from unitforma.mapping import service as mapping
 from unitforma.projects import service as projects
 from unitforma.publishing import service as publishing
+from unitforma.publishing import setup as setup_checklist
 from unitforma.sales import layouts as layout_service
-from unitforma.tenants.models import Building, Project, UnitLayout
+from unitforma.tenants.models import Building, Project, Unit, UnitLayout
 
 STEP = "defaults"
 SOURCE = "autopilot"
@@ -166,14 +167,27 @@ async def _mark_and_publish(ctx: Context) -> None:
         try:
             pub, _token = await publishing.publish(db, project, mode="publish", actor=ctx.actor)
         except ProblemError as e:
+            n_units, n_active = (
+                await db.execute(
+                    select(
+                        func.count(),
+                        func.count().filter(Unit.lifecycle_status == "active"),
+                    ).where(Unit.project_id == project.id, Unit.lifecycle_status != "removed")
+                )
+            ).one()
             ctx.decide(
                 STEP,
                 "skipped",
                 "Not published",
-                f"{e.detail or e.title}. Fix it and press Publish with defaults again",
+                f"{e.detail or e.title}",
                 needs_you=True,
                 entity_type="project",
                 entity_id=project.id,
+                todo=(
+                    setup_checklist.units_todo(int(n_units), int(n_active))
+                    if n_active == 0
+                    else "Fix the item named above, then press Publish with defaults again"
+                ),
             )
             return
         base = await publishing.portal_base_url(db, project)

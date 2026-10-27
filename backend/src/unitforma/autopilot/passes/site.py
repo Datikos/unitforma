@@ -66,4 +66,6 @@ async def run(ctx: Context) -> None:
                 entity_type="sheet",
                 entity_id=sheet.id,
                 sheet_id=sheet.id,
+                todo="On Site placement, calibrate the site plan: two points on a known distance "
+                "(a dimension or a plot side), then run again",
             )

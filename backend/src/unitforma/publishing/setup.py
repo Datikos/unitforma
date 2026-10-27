@@ -13,7 +13,7 @@ from unitforma.documents import service as documents
 from unitforma.geometry import service as geometry
 from unitforma.projects import service as projects
 from unitforma.publishing.service import current_publication, readiness
-from unitforma.tenants.models import Floor, GeometryModel, Project, Sheet, SiteFeature
+from unitforma.tenants.models import Floor, GeometryModel, Project, Sheet, SiteFeature, Unit
 
 Status = str  # done | todo | optional | attention
 
@@ -34,6 +34,25 @@ def _step(
         "count": count,
         "link": link,
     }
+
+
+def units_todo(n_units: int, n_active: int) -> str:
+    """What stands between the project and its first publication, said exactly (ADR-0029
+    Decision 5): the readiness item only says "no units are marked"."""
+    if n_units == 0:
+        return (
+            "No units yet: open a processed floor plan page, accept the solver's candidates or "
+            "draw the apartments, then approve the sheet"
+        )
+    if n_active == 0:
+        return (
+            f"{n_units} draft unit(s) and none approved: open their sheets and approve them, or "
+            "press Publish with defaults on this checklist"
+        )
+    return (
+        f"{n_active} active unit(s) and none marked for publication: select them in the "
+        "inventory grid, or press Publish with defaults on this checklist"
+    )
 
 
 def _msg(item: dict[str, Any] | None) -> str:
@@ -92,13 +111,21 @@ async def setup_status(db: AsyncSession, project: Project) -> dict[str, Any]:
     rd = await readiness(db, project)
     items = {i["key"]: i for i in rd["items"]}
     units_item = items.get("units")
+    n_units, n_active = (
+        await db.execute(
+            select(
+                func.count(),
+                func.count().filter(Unit.lifecycle_status == "active"),
+            ).where(Unit.project_id == project.id, Unit.lifecycle_status != "removed")
+        )
+    ).one()
+    units_ok = units_item is not None and units_item.get("level") == "ok"
     steps.append(
         _step(
             "mapping",
             "Units outlined and approved on the sheets",
-            "done" if units_item is not None and units_item.get("level") == "ok" else "todo",
-            _msg(units_item)
-            or "Open a processed sheet, confirm its floor, outline the units, approve",
+            "done" if units_ok else "todo",
+            _msg(units_item) if units_ok else units_todo(int(n_units), int(n_active)),
             "documents",
         )
     )
@@ -246,7 +273,11 @@ async def setup_status(db: AsyncSession, project: Project) -> dict[str, Any]:
     )
 
     pub = await current_publication(db, project.id)
-    blocking = [_msg(i) for i in rd["items"] if i.get("level") == "error"]
+    blocking = [
+        units_todo(int(n_units), int(n_active)) if i.get("key") == "units" else _msg(i)
+        for i in rd["items"]
+        if i.get("level") == "error"
+    ]
     steps.append(
         _step(
             "publish",
@@ -254,7 +285,11 @@ async def setup_status(db: AsyncSession, project: Project) -> dict[str, Any]:
             "done" if pub is not None else ("attention" if blocking else "todo"),
             f"v{pub.version_no} is live"
             if pub is not None
-            else ("; ".join(blocking) if blocking else "Preview, then publish the first version"),
+            else (
+                "; ".join(blocking)
+                if blocking
+                else "Preview, then publish the first version, or press Publish with defaults"
+            ),
             "publish",
         )
     )
