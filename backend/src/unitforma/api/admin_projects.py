@@ -27,6 +27,7 @@ from unitforma.api.schemas import (
     SiteFeatureOut,
     SiteFeatureUpdate,
 )
+from unitforma.autopilot import control as setup_control
 from unitforma.autopilot import service as autopilot
 from unitforma.autopilot.queue import queue_run
 from unitforma.core.errors import ProblemError
@@ -35,7 +36,6 @@ from unitforma.identity.authz import Action, is_allowed
 from unitforma.identity.deps import TenantContext, tenant_context
 from unitforma.projects import service as projects
 from unitforma.publishing import service as publishing
-from unitforma.publishing import setup as setup_service
 from unitforma.tenants.models import Project, SiteFeature, Tenant
 
 router = APIRouter(prefix="/api/v1/admin/tenants/{tenant_id}", tags=["projects"])
@@ -288,15 +288,6 @@ async def delete_site_feature(feature_id: uuid.UUID, ctx: Ctx):
 
 @router.get("/projects/{project_id}/setup", response_model=SetupOut)
 async def project_setup(project_id: uuid.UUID, ctx: Ctx):
-    """The setup checklist: the order of work and what each step still needs (ADR-0017)."""
-    ctx.require("project", Action.READ)
-    ctx.require_project(project_id)
-    p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
-    out = await setup_service.setup_status(ctx.session, p)
-    # what the setup solver did and left (ADR-0025 Decision 7)
-    view = await autopilot.checklist_view(ctx.session, p)
-    for st in out["steps"]:
-        st["auto_detail"] = view["auto_detail"].get(st["key"])
-    out["auto"] = view["auto"]
-    out["decisions"] = view["decisions"]
-    return out
+    """The setup checklist: the order of work and what each step still needs (ADR-0017), with
+    what the setup solver did and left (ADR-0025 Decision 7)."""
+    return await setup_control.checklist(ctx, project_id)

@@ -1,6 +1,6 @@
 # ADR-0028: Language models (Claude, OpenAI) behind one text provider, AI settings per project, and an assistant chat in the admin app that works through the Unitforma MCP tools
 
-- **Status:** proposed (2026-10-27; the owner decided the same day that the LLM configuration is platform-wide, not per tenant: provider, models, key and budgets are deployment settings, no workspace layer, usage shown to the platform admin). Widens two earlier scope lines: ADR-0015 put "the Unitforma backend calling a model itself" out of scope, and ADR-0025 put "an agent over MCP" out of scope and rejected its Option B (a model drives the setup pipeline). ADR-0025 Option A stands: the deterministic solver stays the pipeline; a language model gets only the residue the solver hands to the person, and a chat that works through the same tools a person's assistant already has (ADR-0015). Picks up ADR-0025 Revisit ("an MCP tool that reports the checklist and runs the solver", facade sides from title text, layout facts on the proposed layout), ADR-0023 Revisit (a per-project prompt override, its Option D) and backlog #31 (MCP tools beyond projects and buildings).
+- **Status:** proposed; Phase C (#C1 to #C3, the tool registry and the twelve new tools) implemented 2026-10-27 on the owner's request "add all missing tools", ahead of Phases A, B and D (2026-10-27; the owner decided the same day that the LLM configuration is platform-wide, not per tenant: provider, models, key and budgets are deployment settings, no workspace layer, usage shown to the platform admin). Widens two earlier scope lines: ADR-0015 put "the Unitforma backend calling a model itself" out of scope, and ADR-0025 put "an agent over MCP" out of scope and rejected its Option B (a model drives the setup pipeline). ADR-0025 Option A stands: the deterministic solver stays the pipeline; a language model gets only the residue the solver hands to the person, and a chat that works through the same tools a person's assistant already has (ADR-0015). Picks up ADR-0025 Revisit ("an MCP tool that reports the checklist and runs the solver", facade sides from title text, layout facts on the proposed layout), ADR-0023 Revisit (a per-project prompt override, its Option D) and backlog #31 (MCP tools beyond projects and buildings).
 - **Date:** 2026-10-27
 - **Deciders:** David Sakhelashvili (platform owner). Decided 2026-10-27: the platform pays and configures (Decision 2); a tenant's own key is not an option. Two picks are his before "start": which OpenAI model tier is the default (Decision 2 lists prices, not capability), and whether the chat may run write tools at all in phase 1 (Decision 6 takes "yes, each write approved in the chat").
 - **Plan reference:** §8.6 (abuse protection), §11.2 (Setup screen, platform screens), §12.2 (API boundaries), §12.3 (jobs), §13.2 (automation classification), §21 (sources), ADR-0015 (MCP server, tokens, `request_id = mcp:<prefix>`), ADR-0017 Decision 4 (image provider interface), ADR-0021 (retention sweep), ADR-0023 (workspace settings), ADR-0025 Decisions 3 to 5, 8 and 9 (solver, passes, settings with `none` defaults)
@@ -362,21 +362,47 @@ fine-tuning; embeddings or search over documents; a second image provider (ADR-0
 
 ### Phase C: tool registry and new tools (M)
 
-- [ ] C1 Move the 13 tool bodies of `mcp/server.py` into `mcp/tools/{projects,buildings}.py` as plain functions
+- [x] C1 Move the 13 tool bodies of `mcp/server.py` into `mcp/tools/{projects,buildings}.py` as plain functions
       with `tag` and schema; `mcp/server.py` registers from the list; `mcp/auth.py`: `tenant_ctx` takes a
       principal from the contextvar **or** an explicit `(tenant_id, user_id, origin)` so the worker can build it
       from a Kratos user without a token (read `TokenPrincipal` and `StaffPrincipal` first; the token path must
       stay byte-for-byte as tested in `test_mcp_server.py`). Verify how the SDK exposes registered tools for an
       in-process call before relying on it; if it does not, the registry list is the source and the SDK is one
       consumer.
-- [ ] C2 New tools of Decision 6 in `mcp/tools/{units,documents,renders,layouts,setup}.py` over
+- [x] C2 New tools of Decision 6 in `mcp/tools/{units,documents,renders,layouts,setup}.py` over
       `inventory`, `documents`, `renders.service`, `sales.layouts`, `publishing.setup`, `autopilot.queue`;
       `find_units` normalises codes (`"A 21"` → `"A21"`, case-insensitive, also matches `A-21`); tool docstrings
       state units and the 422/409 texts the model will see.
-- [ ] C3 Tests `test_mcp_server.py`: the tool count and names through `tools/list`; `find_units` with spaced
+- [x] C3 Tests `test_mcp_server.py`: the tool count and names through `tools/list`; `find_units` with spaced
       codes; `request_render` with a partner on another floor returns the 422 text as a tool error; `read`
       token refused on `run_setup`; `list_documents` output has no page text. Plan §12.2 unchanged (same
       door), ADR-0015 status line notes the tool families added here.
+      *Found while implementing (2026-10-27):*
+      - The registry is `mcp/tools/__init__.py::TOOLS`, a list of `Tool(fn, tag, title, destructive,
+        idempotent, open_world)`; `mcp/server.py` registers each entry with MCP annotations
+        (`readOnlyHint` and the others), so a client can let reads through without asking. The
+        registry list is the source; the SDK's in-process call is not relied on. The 13 bodies moved
+        unchanged into `mcp/tools/projects.py` and `mcp/tools/buildings.py`.
+      - The explicit-principal path of `tenant_ctx` moves to D1, where its only caller (the chat
+        worker) lands; nothing calls it before then.
+      - The setup checklist, the solver's switches and "Run now" moved from the router bodies into
+        `autopilot/control.py`; the admin API and the tools call the same functions, so the rights
+        checks cannot drift. The unit render list moved into `api/admin_renders.unit_renders` the
+        same way.
+      - The unit tools return the inventory row (`InventoryRow`: building, floor, layout,
+        availability, price, areas) instead of `UnitOut`, whose boundary rings are long and say
+        nothing a model can use. `find_units` answers `{items, not_found}` and compares codes by
+        `inventory.codes.match_key` (letters and digits, upper case); a `query` returns at most 50.
+        `list_units` pages (`limit` 1 to 200, default 50, `total` in the answer) and filters by
+        building, floor and availability. The page bounds what reaches a model's context; the
+        Caddy 1 MB limit applies to request bodies, not to answers.
+      - `get_render` needs the `sales` read right; the router's helper asks for write because it
+        serves approve and reject. `set_setup_auto` leaves `publish_defaults` (ADR-0029) as stored:
+        going live stays a person's click.
+      - Tests: `test_mcp_tools.py` on the publishing world (units on two floors, documents, admin and
+        sales members), `test_mcp_registry.py` without a database (unique names, every tool
+        documented, every write tool refuses a read token before its body runs, the server
+        publishes the hints), `test_mcp_server.py` lists the 25 names.
 
 ### Phase D: chat (L)
 

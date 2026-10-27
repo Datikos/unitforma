@@ -10,7 +10,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 
 from unitforma.api.schemas import SetupAutoIn, SetupAutoOut, SetupRunDetailOut, SetupRunOut
+from unitforma.autopilot import control
 from unitforma.autopilot import service as autopilot
+from unitforma.autopilot.control import require_publish_defaults
 from unitforma.autopilot.queue import queue_run
 from unitforma.core.errors import ProblemError
 from unitforma.identity.authz import Action
@@ -22,16 +24,7 @@ router = APIRouter(prefix="/api/v1/admin/tenants/{tenant_id}", tags=["setup"])
 Ctx = Annotated[TenantContext, Depends(tenant_context)]
 
 
-def _actor(ctx: TenantContext) -> tuple[uuid.UUID, str]:
-    return ctx.principal.user_id, ctx.actor_role
-
-
-def require_publish_defaults(ctx: TenantContext) -> None:
-    """ADR-0029 Decision 2: the worker approves, confirms and publishes as the person, so the
-    person holds all three rights."""
-    ctx.require("mapping", Action.APPROVE)
-    ctx.require("sales", Action.WRITE)
-    ctx.require("publication", Action.PUBLISH)
+__all__ = ["require_publish_defaults", "router"]  # the check lives in autopilot.control
 
 
 @router.put("/projects/{project_id}/setup/auto", response_model=SetupAutoOut)
@@ -39,52 +32,20 @@ async def set_auto(project_id: uuid.UUID, body: SetupAutoIn, ctx: Ctx):
     """Switch the solver on or off for the project. ``approve_sheets`` needs the mapping approve
     right, since the worker approves as the person who switched it on. Switching on queues a
     run at once."""
-    ctx.require("project", Action.WRITE)
-    ctx.require_project(project_id)
-    if body.enabled and body.approve_sheets:
-        ctx.require("mapping", Action.APPROVE)
-    if body.enabled and body.publish_defaults:
-        require_publish_defaults(ctx)
-    p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
-    autopilot.set_auto_settings(
-        p,
+    return await control.switch(
+        ctx,
+        project_id,
         enabled=body.enabled,
         approve_sheets=body.approve_sheets,
         publish_defaults=body.publish_defaults,
-        actor=_actor(ctx),
     )
-    p.version += 1
-    await ctx.session.flush()
-    if body.enabled:
-        # the switches travel with the run: the worker may start before this request commits
-        await queue_run(
-            ctx.tenant_id,
-            project_id,
-            "switched_on",
-            requested_by=ctx.principal.user_id,
-            force=True,
-            switches={"approve_sheets": body.approve_sheets},
-        )
-    view = await autopilot.checklist_view(ctx.session, p)
-    return view["auto"]
 
 
 @router.post("/projects/{project_id}/setup/run", response_model=SetupRunOut, status_code=202)
 async def run_now(project_id: uuid.UUID, ctx: Ctx):
     """Queue one run now, whether or not the solver is switched on; the run acts as the caller
     (it needs the mapping approve right when the project's switches ask for sheet approval)."""
-    ctx.require("project", Action.WRITE)
-    ctx.require_project(project_id)
-    p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
-    if autopilot.auto_settings(p)["approve_sheets"]:
-        ctx.require("mapping", Action.APPROVE)
-    run_id = await queue_run(
-        ctx.tenant_id, project_id, "run_now", requested_by=ctx.principal.user_id, force=True
-    )
-    if run_id is None:
-        raise ProblemError(503, "The job queue is unavailable", "Try again in a minute")
-    run = (await ctx.session.execute(select(SetupRun).where(SetupRun.id == run_id))).scalar_one()
-    return autopilot.run_out(run)
+    return await control.run_now(ctx, project_id)
 
 
 @router.post(

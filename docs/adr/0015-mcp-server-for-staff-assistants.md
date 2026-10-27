@@ -1,6 +1,6 @@
 # ADR-0015: An MCP server so a developer's staff can build projects from their AI assistant
 
-- **Status:** accepted (2026-10-26, Option B now, Option C to the backlog; implemented 2026-10-26)
+- **Status:** accepted (2026-10-26, Option B now, Option C to the backlog; implemented 2026-10-26; on 2026-10-27 ADR-0028 #C1 to #C3 moved the tools into one registry in `mcp/tools/` and added units, documents, generated renders, plan types and setup: 25 tools, the same door, token and audit origin)
 - **Date:** 2026-10-26
 - **Deciders:** David Sakhelashvili (platform owner); the credential kind (Decision 2) is his call
 - **Plan reference:** §3.3 (routing), §3.4 (authorization), §8.6 (abuse protection), §12.2 (API

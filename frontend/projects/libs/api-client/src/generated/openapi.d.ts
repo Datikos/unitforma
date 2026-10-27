@@ -622,7 +622,8 @@ export interface paths {
         };
         /**
          * Project Setup
-         * @description The setup checklist: the order of work and what each step still needs (ADR-0017).
+         * @description The setup checklist: the order of work and what each step still needs (ADR-0017), with
+         *     what the setup solver did and left (ADR-0025 Decision 7).
          */
         get: operations["project_setup_api_v1_admin_tenants__tenant_id__projects__project_id__setup_get"];
         put?: never;
@@ -5041,7 +5042,10 @@ export interface components {
             kind: "garden" | "road" | "parking_zone" | "amenity" | "common_area" | "entrance" | "other";
             /** Name */
             name: string;
-            /** Polygon */
+            /**
+             * Polygon
+             * @description {"ring": [[x, y], ...]}: a closed outline on the project's site plan sheet, each coordinate a fraction 0 to 1 of the sheet raster (x across its width, y down its height, origin top left). Not GeoJSON and not metres: the publication converts it to site-frame metres with the sheet's calibration.
+             */
             polygon?: {
                 [key: string]: unknown;
             } | null;
@@ -5072,7 +5076,10 @@ export interface components {
             kind: string;
             /** Name */
             name: string;
-            /** Polygon */
+            /**
+             * Polygon
+             * @description {"ring": [[x, y], ...]}: a closed outline on the project's site plan sheet, each coordinate a fraction 0 to 1 of the sheet raster (x across its width, y down its height, origin top left). Not GeoJSON and not metres: the publication converts it to site-frame metres with the sheet's calibration.
+             */
             polygon: {
                 [key: string]: unknown;
             } | null;
@@ -5087,7 +5094,10 @@ export interface components {
             kind?: ("garden" | "road" | "parking_zone" | "amenity" | "common_area" | "entrance" | "other") | null;
             /** Name */
             name?: string | null;
-            /** Polygon */
+            /**
+             * Polygon
+             * @description {"ring": [[x, y], ...]}: a closed outline on the project's site plan sheet, each coordinate a fraction 0 to 1 of the sheet raster (x across its width, y down its height, origin top left). Not GeoJSON and not metres: the publication converts it to site-frame metres with the sheet's calibration.
+             */
             polygon?: {
                 [key: string]: unknown;
             } | null;

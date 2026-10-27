@@ -28,3 +28,9 @@ def normalise_code(code: str) -> str:
     if not re.fullmatch(r"[A-Z0-9][A-Z0-9./-]{0,39}", code):
         raise ValueError("code may contain letters, digits, '.', '/', '-' (max 40)")
     return code
+
+
+def match_key(code: str) -> str:
+    """The letters and digits of a code, upper case: what a person means when they type
+    "A 21", "a-21" or "A21". For lookups only; a stored code keeps its separators."""
+    return re.sub(r"[^A-Z0-9]", "", code.upper())
