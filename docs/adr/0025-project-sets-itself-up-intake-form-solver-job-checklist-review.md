@@ -271,6 +271,24 @@ copy of a layout's render.
 
 ### Phase D: done 2026-10-27
 
+*Found on the owner's first try, 2026-10-27 (project `test2`, four files named 1 to 4 and a render,
+"Set up automatically", Run now; the checklist stayed unsolved):*
+
+- Nothing classified the files: ADR-0008's content rule needs half the pages to be plans and a
+  permit's plan set has 6 plan pages in 51, the file names say nothing, and the vision classifier
+  is off by default, so every pass that needs a `floor_plan` document did nothing and the classify
+  pass said nothing. Now `classify.classify_on_host` files a pending set with at least two plan pages
+  (one in a set of up to three) as `floor_plan`, `kind_source = content`, before the model is even
+  considered (`HOST_KIND_MIN_PLAN_PAGES`, `is_plan_page` shared with `documents/classify.py`), and
+  the documents still pending are one "needs you" line that names the `UF_AI_CLASSIFY` setting.
+  `test_an_unclassified_plan_set_is_filed_on_the_host_and_the_rest_is_listed`.
+- The floors of the same split-level set stepped by 1 m, so the merged storey list had 17 storeys of
+  1 m and the D3 guard set nothing. The storeys of blocks stepping by less than a storey are the
+  blocks' own, united by level (`floors.storeys_from_blocks`: the block with the most floors gives
+  the list, a level only another block has is added); the real five blocks give B1, Ground, 1, 2, 3,
+  the owner's list (`test_storeys_of_split_level_blocks_are_the_main_blocks_storeys`). Blocks
+  stepping by whole storeys keep the merged list.
+
 *Not done on 2026-10-27:* a screenshot pass over the Projects, Setup and Layouts pages (the dev
 stack runs the `main` images; the branch was verified by `ng build admin`, `ng test admin` and the
 backend tests, not in a browser).

@@ -21,10 +21,11 @@ tasks such as "give me a merged view of the A 21, A22 apartments dollhouse image
 - **The solver is deterministic and leaves a residue.** `autopilot/service.py` runs the eleven passes of ADR-0025
   Decision 5 and records every decision in `setup_runs.summary.decisions[]` with `step, kind, entity, detail,
   confidence, needs_you, link`. On permit 1127975 (ADR-0025 D3, 2026-10-27) the residue it handed over was:
-  the facade side of each elevation drawing ("verify which of the two parallel sides", 0.6), the kinds of the
-  documents whose pages the vision pass may not see (text-heavy sheets, ADR-0025 D2), labels printed twice on
-  one sheet ("7" at 0.65), the ten proposed plan types with codes `L1`..`L7` and no names, the split-level
-  blocks (ADR-0025 D3 keeps them a proposal). Each of these is a reading of printed words (sheet titles such as
+  the kinds of the documents whose pages the vision pass may not see (text-heavy sheets, ADR-0025 D2), labels
+  printed twice on one sheet ("7" at 0.65), the ten proposed plan types with codes `L1`..`L7` and no names,
+  the split-level blocks (ADR-0025 D3 keeps them a proposal). The facades pass wrote nothing there ("facades 0,
+  needs the placed building"); by rule it writes at 0.6 with "verify which of the two parallel sides" once the
+  building is placed, and reading the sheet title would let it decide the side even then. Each of these is a reading of printed words (sheet titles such as
   "ფასადი ღერძებში 1-9", room labels, legends), not of geometry. `passes/facades.py` says in its docstring
   that axis labels in the titles are "a later refinement".
 - **Settings live on three levels already, each with one home.** Deployment: `core/settings.py` (`UF_AI_IMAGE_*`,
@@ -61,9 +62,9 @@ Third-party facts (read 2026-10-27 unless stated; URLs in plan §21):
 
 | Fact | Value | Source |
 |---|---|---|
-| Claude Opus 5.5 | $4 input, $20 output, $0.20 cache read per 1M tokens; 1M context; Batch API 50 % off | platform.claude.com pricing page, read 2026-10-27 |
-| Claude Sonnet 5.5 | $2 / $10 / $0.10 per 1M tokens | same page |
-| Claude Haiku 5.5 | $0.10 / $0.50 / $0.01 per 1M tokens for prompts up to 100 000 tokens; $0.50 / $2.50 above | same page |
+| Claude Opus 5.5 | API id `claude-opus-5-5`; $4 input, $20 output, $0.20 cache read per 1M tokens; 1M context, 128K output; retirement not sooner than 2027-09-22; Batch API 50 % off | platform.claude.com pricing page and models overview, read 2026-10-27 |
+| Claude Sonnet 5.5 | API id `claude-sonnet-5-5`; $2 / $10 / $0.10 per 1M tokens; retirement not sooner than 2027-09-28 | same pages |
+| Claude Haiku 5.5 | API id `claude-haiku-5-5`; $0.10 / $0.50 / $0.01 per 1M tokens for prompts up to 100 000 tokens; $0.50 / $2.50 above; the overview names it "for high-volume, latency-sensitive tasks such as classification, extraction"; retirement not sooner than 2027-10-07 | same pages |
 | Tool use overhead | 286 tokens of system prompt per request with tools on Opus 5.5, plus the tool schemas, `tool_use` and `tool_result` blocks | same page |
 | Anthropic training on API data | "By default, we will not use your inputs or outputs from our commercial products" (page dated 2026-08-18); the default retention period is not stated on that page: **unverified** | privacy.claude.com article 7996868 |
 | `anthropic` Python SDK | 2.3.0 reported by PyPI (version **unverified**: the release list was truncated), Apache-2.0, Python ≥ 3.10, depends on `httpx2 >= 2, < 3`, `pydantic < 3`, `anyio < 5` | pypi.org/pypi/anthropic/json |
@@ -134,7 +135,7 @@ itself stays $0.0336 (ADR-0017).
    | Pass | Input sent (text only) | Asks for | Writes through | Confidence |
    |---|---|---|---|---|
    | facade sides | per elevation sheet: the title words and axis labels from `extract.json` `words`, the building's footprint side lengths and the axis labels read on the plan sheets | which side (`north \| south \| east \| west` in the site frame's orientation) and the axis range | `projects.update_building(facades)` only where ADR-0025 left `flip` unverified at 0.6; the record names the title it read | 0.8 when the title names axes that match the plan's labels, else no write |
-   | document kinds | per `kind_source = pending` document the vision pass skipped: file name, first page's words (at most 1 500 characters), never a `permit` document's text (ADR-0007 Decision 3) | one of `rules.CLASSIFY_KINDS` or `unknown` | `documents.update_document(kind, kind_source = "ai")` | 0.8; `unknown` writes nothing |
+   | document kinds | per `kind_source = pending` document whose first page passes `classify.page_is_drawing` (at least 50 vectors) but that the vision pass did not reach (budget, cap, or `UF_AI_CLASSIFY` off): the file name and the title-block words only (the words in the lowest 15 % of the page and the largest font, at most 600 characters). A page without line work stays on the host whatever its kind, as in ADR-0025 Decision 5: a permit decision, a contract or a letter is `pending` until classified and the `permit` kind cannot protect it before then | one of `rules.CLASSIFY_KINDS` or `unknown` | `documents.update_document(kind, kind_source = "ai")` | 0.8; `unknown` writes nothing |
    | layout names | per proposed layout: the room labels inside the member outlines (words of the sheet within the polygon), printed areas, the count of members | a name of at most 40 characters ("2-bedroom with loggia") and a room list | `sales.layouts.update(name, match.rooms)` on `status = proposed` layouts only; a confirmed layout is the person's | 0.7; shown on the Layouts page as "suggested" |
 
    The outlines, calibration, floors, placement and approval passes do not call a model: a wrong outline cannot be
@@ -163,7 +164,7 @@ itself stays $0.0336 (ADR-0017).
    writes the user message, refuses a second running turn (409), and defers task `ai.chat_turn` on the `default`
    queue (`retry = 0`); the worker opens `tenant_session(tenant_id, user_id, scope = "tenant")`, builds the
    `TenantContext` from the user's membership (the role matrix applies; a `sales` member's chat cannot call a
-   project write tool), sets the audit origin `chat:<conversation_id>`, and runs one provider turn with budgets:
+   project write tool), sets the audit origin `chat:<conversation_id>` (`audit_log.request_id` is `Text`, so the 41 characters fit), and runs one provider turn with budgets:
    at most 12 tool calls, 16 000 output tokens, 180 s wall clock, and the daily USD budget. Read tools run at
    once. A write tool does not run: the turn ends with `pending_action = {tool, arguments, summary}` and the
    page shows "The assistant wants to request a render of A-21 joined with A-22" with Allow and Deny; Allow
@@ -346,7 +347,7 @@ fine-tuning; embeddings or search over documents; a second image provider (ADR-0
       false or the budget is reached (one decision "budget reached, N documents left"); ADR-0025 Decision 4
       honoured (skip entities decided before, skip what a person set).
 - [ ] B3 Tests in `test_autopilot.py`: a stub names the facade side from "ფასადი ღერძებში 1-9" and the plan's
-      axis labels; a `permit` document's text is never in a request body; a proposed layout gets a name and a
+      axis labels; a `permit` document's text is never in a request body; a `pending` page without line work (a letter, a contract) is never in a request body; a proposed layout gets a name and a
       confirmed one does not; the daily budget stops the third pass and records it; the decisions carry
       `kind = llm` and the model.
 - [ ] B4 `sales/layouts.update` accepts `match.rooms`; Layouts page shows the suggested name with a
