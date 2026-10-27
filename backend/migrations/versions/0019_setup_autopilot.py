@@ -101,7 +101,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # the migration role owns the table and FORCE RLS applies: without the platform scope the
+    # UPDATE matches nothing and the constraint below fails on the first ``ai`` row (seen in the
+    # CI-style downgrade on 2026-10-27, ADR-0030)
+    op.execute("SELECT set_config('app.scope', 'platform', true)")
     op.execute("UPDATE documents SET kind_source = 'manual' WHERE kind_source = 'ai'")
+    op.execute("SELECT set_config('app.scope', '', true)")
     op.drop_constraint("ck_document_kind_source", "documents", type_="check")
     op.create_check_constraint(
         "ck_document_kind_source", "documents", f"kind_source IN ({_KIND_SOURCES_OLD})"
