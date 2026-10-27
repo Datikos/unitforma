@@ -20,6 +20,7 @@ from unitforma.api import (
     admin_regulatory,
     admin_renders,
     admin_sales,
+    admin_setup,
     internal,
     platform,
     portal,
@@ -85,6 +86,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_layouts.router)
     app.include_router(admin_publishing.router)
     app.include_router(admin_regulatory.router)
+    app.include_router(admin_setup.router)
     app.state.mcp_server = None
     if settings.mcp_enabled:
         # one route, not a Mount: a Mount would answer /mcp with a redirect to /mcp/

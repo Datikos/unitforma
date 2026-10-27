@@ -97,6 +97,10 @@ async def create_intent(
         raise ProblemError(413, "File too large")
     if isinstance(owner, Unit) and owner.lifecycle_status == "removed":
         raise ProblemError(409, "Unit is removed")
+    if isinstance(owner, UnitLayout):
+        from unitforma.sales.layouts import require_confirmed
+
+        require_confirmed(owner)
     _ai_fields(data)
     next_order = await next_sort_order(db, owner)
     mid = new_id()

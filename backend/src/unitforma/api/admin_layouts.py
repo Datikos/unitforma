@@ -61,6 +61,9 @@ def _out(item: dict) -> LayoutOut:
         project_id=lay.project_id,
         code=lay.code,
         name=lay.name,
+        status=lay.status,
+        source=lay.source,
+        match=lay.match,
         version=lay.version,
         created_at=lay.created_at,
         updated_at=lay.updated_at,
@@ -121,6 +124,15 @@ async def delete_layout(
     lay = await _layout(ctx, layout_id, Action.WRITE)
     await layout_service.delete(ctx.session, lay, unlink_units=unlink_units, actor=_actor(ctx))
     return Response(status_code=204)
+
+
+@router.post("/layouts/{layout_id}/confirm", response_model=LayoutOut)
+async def confirm_layout(layout_id: uuid.UUID, ctx: Ctx):
+    """A plan type the setup solver proposed becomes a confirmed layout (ADR-0025 Decision 6):
+    from now on it can own media and renders and its code reaches the portal."""
+    lay = await _layout(ctx, layout_id, Action.WRITE)
+    await layout_service.confirm(ctx.session, lay, _actor(ctx))
+    return await _one(ctx, lay)
 
 
 # --- media of a layout --------------------------------------------------------------------------

@@ -7504,6 +7504,60 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/layouts/{layout_id}/confirm": {
+   "post": {
+    "tags": [
+     "layouts"
+    ],
+    "summary": "Confirm Layout",
+    "description": "A plan type the setup solver proposed becomes a confirmed layout (ADR-0025 Decision 6):\nfrom now on it can own media and renders and its code reaches the portal.",
+    "operationId": "confirm_layout_api_v1_admin_tenants__tenant_id__layouts__layout_id__confirm_post",
+    "parameters": [
+     {
+      "name": "layout_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Layout Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/LayoutOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/layouts/{layout_id}/media": {
    "get": {
     "tags": [
@@ -8294,6 +8348,244 @@
           "$ref": "#/components/schemas/RegulatoryImportOut"
          },
          "title": "Response List Imports Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Regulatory Imports Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup/auto": {
+   "put": {
+    "tags": [
+     "setup"
+    ],
+    "summary": "Set Auto",
+    "description": "Switch the solver on or off for the project. ``approve_sheets`` needs the mapping approve\nright, since the worker approves as the person who switched it on. Switching on queues a\nrun at once.",
+    "operationId": "set_auto_api_v1_admin_tenants__tenant_id__projects__project_id__setup_auto_put",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SetupAutoIn"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SetupAutoOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup/run": {
+   "post": {
+    "tags": [
+     "setup"
+    ],
+    "summary": "Run Now",
+    "description": "Queue one run now, whether or not the solver is switched on; the run acts as the caller\n(it needs the mapping approve right when the project's switches ask for sheet approval).",
+    "operationId": "run_now_api_v1_admin_tenants__tenant_id__projects__project_id__setup_run_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SetupRunOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup/runs": {
+   "get": {
+    "tags": [
+     "setup"
+    ],
+    "summary": "List Runs",
+    "operationId": "list_runs_api_v1_admin_tenants__tenant_id__projects__project_id__setup_runs_get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SetupRunOut"
+         },
+         "title": "Response List Runs Api V1 Admin Tenants  Tenant Id  Projects  Project Id  Setup Runs Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup/runs/{run_id}": {
+   "get": {
+    "tags": [
+     "setup"
+    ],
+    "summary": "Get Run",
+    "operationId": "get_run_api_v1_admin_tenants__tenant_id__projects__project_id__setup_runs__run_id__get",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "run_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Run Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SetupRunDetailOut"
         }
        }
       }
@@ -11378,6 +11670,36 @@
       ],
       "title": "Name"
      },
+     "status": {
+      "type": "string",
+      "enum": [
+       "confirmed",
+       "proposed"
+      ],
+      "title": "Status",
+      "default": "confirmed"
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "manual",
+       "autopilot"
+      ],
+      "title": "Source",
+      "default": "manual"
+     },
+     "match": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Match"
+     },
      "version": {
       "type": "integer",
       "title": "Version"
@@ -12655,6 +12977,16 @@
        }
       ],
       "title": "Building Code"
+     },
+     "setup_auto": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SetupAutoIn"
+       },
+       {
+        "type": "null"
+       }
+      ]
      }
     },
     "type": "object",
@@ -13040,6 +13372,30 @@
        }
       ],
       "title": "Description"
+     },
+     "building_code": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 20,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9.-]{0,19}$"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Building Code"
+     },
+     "setup_auto": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SetupAutoIn"
+       },
+       {
+        "type": "null"
+       }
+      ]
      },
      "area_definitions": {
       "items": {
@@ -15453,6 +15809,186 @@
     "type": "object",
     "title": "SalesUpdate"
    },
+   "SetupAutoIn": {
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled",
+      "default": true
+     },
+     "approve_sheets": {
+      "type": "boolean",
+      "title": "Approve Sheets",
+      "default": true
+     }
+    },
+    "type": "object",
+    "title": "SetupAutoIn",
+    "description": "The setup solver's switches (ADR-0025 Decision 2). ``approve_sheets`` needs the\n``mapping`` approve right: the worker approves as the person who switched it on."
+   },
+   "SetupAutoOut": {
+    "properties": {
+     "enabled": {
+      "type": "boolean",
+      "title": "Enabled"
+     },
+     "approve_sheets": {
+      "type": "boolean",
+      "title": "Approve Sheets"
+     },
+     "requested_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Requested By"
+     },
+     "since": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Since"
+     },
+     "running": {
+      "type": "boolean",
+      "title": "Running",
+      "default": false
+     },
+     "last_run": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SetupRunOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "type": "object",
+    "required": [
+     "enabled",
+     "approve_sheets"
+    ],
+    "title": "SetupAutoOut"
+   },
+   "SetupDecisionOut": {
+    "properties": {
+     "step": {
+      "type": "string",
+      "title": "Step"
+     },
+     "kind": {
+      "type": "string",
+      "enum": [
+       "accepted",
+       "skipped",
+       "waiting",
+       "error"
+      ],
+      "title": "Kind"
+     },
+     "title": {
+      "type": "string",
+      "title": "Title"
+     },
+     "detail": {
+      "type": "string",
+      "title": "Detail"
+     },
+     "confidence": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confidence"
+     },
+     "needs_you": {
+      "type": "boolean",
+      "title": "Needs You",
+      "default": false
+     },
+     "entity_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entity Type"
+     },
+     "entity_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entity Id"
+     },
+     "entity_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Entity Ids"
+     },
+     "sheet_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sheet Id"
+     },
+     "link": {
+      "type": "string",
+      "title": "Link",
+      "default": "overview"
+     },
+     "at": {
+      "type": "string",
+      "title": "At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "step",
+     "kind",
+     "title",
+     "detail",
+     "at"
+    ],
+    "title": "SetupDecisionOut",
+    "description": "One decision of a run: made for the person (``accepted``), left to them (``needs_you``) or\nfailed (``error``); ``link`` is the checklist screen that shows it."
+   },
    "SetupOut": {
     "properties": {
      "done": {
@@ -15469,6 +16005,23 @@
       },
       "type": "array",
       "title": "Steps"
+     },
+     "auto": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SetupAutoOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "decisions": {
+      "items": {
+       "$ref": "#/components/schemas/SetupDecisionOut"
+      },
+      "type": "array",
+      "title": "Decisions"
      }
     },
     "type": "object",
@@ -15478,6 +16031,212 @@
      "steps"
     ],
     "title": "SetupOut"
+   },
+   "SetupRunDetailOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "queued",
+       "running",
+       "waiting",
+       "done",
+       "failed"
+      ],
+      "title": "Status"
+     },
+     "trigger": {
+      "type": "string",
+      "title": "Trigger"
+     },
+     "requested_by": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Requested By"
+     },
+     "started_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started At"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "accepted": {
+      "type": "integer",
+      "title": "Accepted",
+      "default": 0
+     },
+     "needs_you": {
+      "type": "integer",
+      "title": "Needs You",
+      "default": 0
+     },
+     "errors": {
+      "type": "integer",
+      "title": "Errors",
+      "default": 0
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "decisions": {
+      "items": {
+       "$ref": "#/components/schemas/SetupDecisionOut"
+      },
+      "type": "array",
+      "title": "Decisions"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "status",
+     "trigger",
+     "created_at"
+    ],
+    "title": "SetupRunDetailOut"
+   },
+   "SetupRunOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "format": "uuid",
+      "title": "Id"
+     },
+     "status": {
+      "type": "string",
+      "enum": [
+       "queued",
+       "running",
+       "waiting",
+       "done",
+       "failed"
+      ],
+      "title": "Status"
+     },
+     "trigger": {
+      "type": "string",
+      "title": "Trigger"
+     },
+     "requested_by": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "uuid"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Requested By"
+     },
+     "started_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Started At"
+     },
+     "finished_at": {
+      "anyOf": [
+       {
+        "type": "string",
+        "format": "date-time"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Finished At"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "accepted": {
+      "type": "integer",
+      "title": "Accepted",
+      "default": 0
+     },
+     "needs_you": {
+      "type": "integer",
+      "title": "Needs You",
+      "default": 0
+     },
+     "errors": {
+      "type": "integer",
+      "title": "Errors",
+      "default": 0
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "status",
+     "trigger",
+     "created_at"
+    ],
+    "title": "SetupRunOut",
+    "description": "One run of the setup solver (ADR-0025 Decision 3)."
    },
    "SetupStepOut": {
     "properties": {
@@ -15518,6 +16277,18 @@
       "type": "string",
       "title": "Link",
       "description": "Admin screen that completes the step"
+     },
+     "auto_detail": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Auto Detail",
+      "description": "What the setup solver did for this step, or left for you"
      }
     },
     "type": "object",

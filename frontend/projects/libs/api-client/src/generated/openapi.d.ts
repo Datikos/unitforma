@@ -1884,6 +1884,27 @@ export interface paths {
         patch: operations["update_layout_api_v1_admin_tenants__tenant_id__layouts__layout_id__patch"];
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/layouts/{layout_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Layout
+         * @description A plan type the setup solver proposed becomes a confirmed layout (ADR-0025 Decision 6):
+         *     from now on it can own media and renders and its code reaches the portal.
+         */
+        post: operations["confirm_layout_api_v1_admin_tenants__tenant_id__layouts__layout_id__confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tenants/{tenant_id}/layouts/{layout_id}/media": {
         parameters: {
             query?: never;
@@ -2085,6 +2106,83 @@ export interface paths {
         };
         /** List Imports */
         get: operations["list_imports_api_v1_admin_tenants__tenant_id__projects__project_id__regulatory_imports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup/auto": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Auto
+         * @description Switch the solver on or off for the project. ``approve_sheets`` needs the mapping approve
+         *     right, since the worker approves as the person who switched it on. Switching on queues a
+         *     run at once.
+         */
+        put: operations["set_auto_api_v1_admin_tenants__tenant_id__projects__project_id__setup_auto_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Now
+         * @description Queue one run now, whether or not the solver is switched on; the run acts as the caller
+         *     (it needs the mapping approve right when the project's switches ask for sheet approval).
+         */
+        post: operations["run_now_api_v1_admin_tenants__tenant_id__projects__project_id__setup_run_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Runs */
+        get: operations["list_runs_api_v1_admin_tenants__tenant_id__projects__project_id__setup_runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run */
+        get: operations["get_run_api_v1_admin_tenants__tenant_id__projects__project_id__setup_runs__run_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3237,6 +3335,22 @@ export interface components {
             code: string;
             /** Name */
             name: string | null;
+            /**
+             * Status
+             * @default confirmed
+             * @enum {string}
+             */
+            status?: "confirmed" | "proposed";
+            /**
+             * Source
+             * @default manual
+             * @enum {string}
+             */
+            source?: "manual" | "autopilot";
+            /** Match */
+            match?: {
+                [key: string]: unknown;
+            } | null;
             /** Version */
             version: number;
             /**
@@ -3674,6 +3788,7 @@ export interface components {
             name?: string | null;
             /** Building Code */
             building_code?: string | null;
+            setup_auto?: components["schemas"]["SetupAutoIn"] | null;
         };
         /** PermitImportResult */
         PermitImportResult: {
@@ -3800,6 +3915,9 @@ export interface components {
             };
             /** Description */
             description?: string | null;
+            /** Building Code */
+            building_code?: string | null;
+            setup_auto?: components["schemas"]["SetupAutoIn"] | null;
             /** Area Definitions */
             area_definitions?: components["schemas"]["AreaDefinition"][];
         };
@@ -4529,6 +4647,80 @@ export interface components {
              */
             confirm_zero_price?: boolean;
         };
+        /**
+         * SetupAutoIn
+         * @description The setup solver's switches (ADR-0025 Decision 2). ``approve_sheets`` needs the
+         *     ``mapping`` approve right: the worker approves as the person who switched it on.
+         */
+        SetupAutoIn: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled?: boolean;
+            /**
+             * Approve Sheets
+             * @default true
+             */
+            approve_sheets?: boolean;
+        };
+        /** SetupAutoOut */
+        SetupAutoOut: {
+            /** Enabled */
+            enabled: boolean;
+            /** Approve Sheets */
+            approve_sheets: boolean;
+            /** Requested By */
+            requested_by?: string | null;
+            /** Since */
+            since?: string | null;
+            /**
+             * Running
+             * @default false
+             */
+            running?: boolean;
+            last_run?: components["schemas"]["SetupRunOut"] | null;
+        };
+        /**
+         * SetupDecisionOut
+         * @description One decision of a run: made for the person (``accepted``), left to them (``needs_you``) or
+         *     failed (``error``); ``link`` is the checklist screen that shows it.
+         */
+        SetupDecisionOut: {
+            /** Step */
+            step: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "accepted" | "skipped" | "waiting" | "error";
+            /** Title */
+            title: string;
+            /** Detail */
+            detail: string;
+            /** Confidence */
+            confidence?: number | null;
+            /**
+             * Needs You
+             * @default false
+             */
+            needs_you?: boolean;
+            /** Entity Type */
+            entity_type?: string | null;
+            /** Entity Id */
+            entity_id?: string | null;
+            /** Entity Ids */
+            entity_ids?: string[] | null;
+            /** Sheet Id */
+            sheet_id?: string | null;
+            /**
+             * Link
+             * @default overview
+             */
+            link?: string;
+            /** At */
+            at: string;
+        };
         /** SetupOut */
         SetupOut: {
             /** Done */
@@ -4537,6 +4729,100 @@ export interface components {
             total: number;
             /** Steps */
             steps: components["schemas"]["SetupStepOut"][];
+            auto?: components["schemas"]["SetupAutoOut"] | null;
+            /** Decisions */
+            decisions?: components["schemas"]["SetupDecisionOut"][];
+        };
+        /** SetupRunDetailOut */
+        SetupRunDetailOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "waiting" | "done" | "failed";
+            /** Trigger */
+            trigger: string;
+            /** Requested By */
+            requested_by?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Accepted
+             * @default 0
+             */
+            accepted?: number;
+            /**
+             * Needs You
+             * @default 0
+             */
+            needs_you?: number;
+            /**
+             * Errors
+             * @default 0
+             */
+            errors?: number;
+            /** Error */
+            error?: string | null;
+            /** Decisions */
+            decisions?: components["schemas"]["SetupDecisionOut"][];
+        };
+        /**
+         * SetupRunOut
+         * @description One run of the setup solver (ADR-0025 Decision 3).
+         */
+        SetupRunOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "waiting" | "done" | "failed";
+            /** Trigger */
+            trigger: string;
+            /** Requested By */
+            requested_by?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Accepted
+             * @default 0
+             */
+            accepted?: number;
+            /**
+             * Needs You
+             * @default 0
+             */
+            needs_you?: number;
+            /**
+             * Errors
+             * @default 0
+             */
+            errors?: number;
+            /** Error */
+            error?: string | null;
         };
         /** SetupStepOut */
         SetupStepOut: {
@@ -4558,6 +4844,11 @@ export interface components {
              * @description Admin screen that completes the step
              */
             link: string;
+            /**
+             * Auto Detail
+             * @description What the setup solver did for this step, or left for you
+             */
+            auto_detail?: string | null;
         };
         /** SheetAssign */
         SheetAssign: {
@@ -9274,6 +9565,38 @@ export interface operations {
             };
         };
     };
+    confirm_layout_api_v1_admin_tenants__tenant_id__layouts__layout_id__confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                layout_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LayoutOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_layout_media_api_v1_admin_tenants__tenant_id__layouts__layout_id__media_get: {
         parameters: {
             query?: never;
@@ -9735,6 +10058,139 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RegulatoryImportOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_auto_api_v1_admin_tenants__tenant_id__projects__project_id__setup_auto_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupAutoIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupAutoOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_now_api_v1_admin_tenants__tenant_id__projects__project_id__setup_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_runs_api_v1_admin_tenants__tenant_id__projects__project_id__setup_runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupRunOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_api_v1_admin_tenants__tenant_id__projects__project_id__setup_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                run_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupRunDetailOut"];
                 };
             };
             /** @description Validation Error */

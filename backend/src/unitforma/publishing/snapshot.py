@@ -42,6 +42,7 @@ from unitforma.tenants.models import (
     Tenant,
     Unit,
     UnitBoundary,
+    UnitLayout,
     UnitMedia,
 )
 
@@ -233,7 +234,18 @@ async def build(
     }
     media_by_unit: dict[uuid.UUID, list[UnitMedia]] = {}
     media_by_layout: dict[uuid.UUID, list[UnitMedia]] = {}
-    layout_ids = sorted({u.layout_id for u in units if u.layout_id is not None})
+    # proposed layouts (ADR-0025 Decision 6) own no media and publish no plan type
+    confirmed_layouts = {
+        lid
+        for (lid,) in await db.execute(
+            select(UnitLayout.id).where(
+                UnitLayout.project_id == project.id, UnitLayout.status == "confirmed"
+            )
+        )
+    }
+    layout_ids = sorted(
+        {u.layout_id for u in units if u.layout_id is not None and u.layout_id in confirmed_layouts}
+    )
     if unit_ids:
         for m in (
             await db.execute(
@@ -371,6 +383,8 @@ async def build(
     for u in sorted(units, key=lambda x: x.code):
         row = rows_by_id.get(u.id)
         if u.id not in listed or u.layout_id is None or u.layout_id in layout_docs or row is None:
+            continue
+        if u.layout_id not in confirmed_layouts or not row.get("layout"):
             continue
         media_items = []
         for m in media_by_layout.get(u.layout_id, []):

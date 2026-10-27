@@ -93,10 +93,21 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
     purpose:
       'A project is one development: buildings, floors, units, documents and a published portal page. Create one by hand or start from a public building permit.',
     controls: [
-      { name: 'New project', does: 'Slug (used in the portal URL) and a display name.' },
+      {
+        name: 'New project',
+        does: 'Slug (used in the portal URL), a display name, the address line, the currency (the workspace default when empty), the code of the first building (A) and, optionally, the drawings: each file becomes a document under that building and is processed at once.',
+      },
+      {
+        name: 'Set up automatically',
+        does: 'On by default. When the drawings are processed, the setup solver accepts the floors read from the level markers, assigns the sheets to their floors, calibrates them from the printed scale, outlines the units the drawing names clearly (confidence 0.9 or more), picks the site plan, places the building, publishes render documents to the gallery, puts the address on the map and proposes plan types. Everything it did and everything it left for you is listed on the setup checklist.',
+      },
+      {
+        name: 'Approve mapped sheets',
+        does: 'Only with the mapping approve right. When every apartment label printed on a sheet is outlined, the sheet is approved and its units become active (not yet published). Off: the units stay drafts for you to approve in the sheet editor.',
+      },
       {
         name: 'Start from a building permit',
-        does: 'Paste a tas.ge permit address. Preview shows the permit facts and which drawings will be imported; Import creates the project, one building and queues the drawings for Documents.',
+        does: 'Paste a tas.ge permit address. Preview shows the permit facts and which drawings will be imported; Import creates the project, one building and queues the drawings for Documents. With "Set up automatically" the solver runs once the last drawing is processed.',
       },
       { name: 'Search', does: 'Filters the list by name, slug or permit number.' },
       {
@@ -162,6 +173,14 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       {
         name: 'Open',
         does: 'Jumps to the screen that completes the step; come back here to see the next one.',
+      },
+      {
+        name: 'Set up automatically',
+        does: 'The setup solver (ADR-0025) applies the confident proposals after every processed document: floors, sheet floors, calibration, unit outlines at 0.9 or more, the site plan, the placement, the gallery, the map position, proposed plan types. "Approve mapped sheets" needs the mapping approve right. Switching on runs it now; "Run now" runs it once whatever the switch says.',
+      },
+      {
+        name: 'Decided for you',
+        does: 'Every decision of the last run with its confidence, lowest first; the items marked "Needs you" come first of all and name the screen where you finish them. A step\'s own line says what was done for it. While a run is queued or running the page refreshes every 5 seconds.',
       },
       {
         name: "Architect's 3D model",
@@ -403,6 +422,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       {
         name: 'New layout',
         does: 'A code (1 to 40 characters, unique in the project without case) and an optional name such as "Two rooms, corner".',
+      },
+      {
+        name: 'Proposed',
+        does: 'A plan type the setup solver found: apartments whose outlines coincide (IoU 0.95 or more); a mirrored flat gets its own code with an "m". It owns no media and buyers never see it until you press Confirm; delete it if the grouping is wrong: the units keep everything of their own and the solver never proposes that grouping again.',
       },
       {
         name: 'Units',

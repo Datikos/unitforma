@@ -22,6 +22,7 @@ import {
   blankLayoutForm,
   formOf,
   layoutSummary,
+  orderLayouts,
   registryFacts,
   validateCode,
 } from './layouts.model';
@@ -110,11 +111,12 @@ import { LayoutsStore } from './layouts.store';
             </p>
           </uf-section-card>
 
-          @for (l of store.layouts(); track l.id) {
+          @for (l of ordered(); track l.id) {
             <button
               type="button"
               class="card"
               [class.card--selected]="l.id === store.selectedId()"
+              [class.card--proposed]="l.status === 'proposed'"
               (click)="store.select(l.id)"
             >
               @if (l.cover_url) {
@@ -129,7 +131,9 @@ import { LayoutsStore } from './layouts.store';
                     <span class="uf-muted">{{ l.name }}</span>
                   }
                   <span class="uf-spacer"></span>
-                  @if (!l.public_media_count) {
+                  @if (l.status === 'proposed') {
+                    <uf-status-chip domain="layout" [value]="l.status" />
+                  } @else if (!l.public_media_count) {
                     <span class="uf-chip uf-tone-warning" title="Nothing reaches the portal yet"
                       ><ng-icon name="lucideTriangleAlert" />no public media</span
                     >
@@ -166,8 +170,30 @@ import { LayoutsStore } from './layouts.store';
               [title]="'Layout ' + l.code"
               icon="lucideLayoutGrid"
               [summary]="l.name ?? 'no name'"
+              [tone]="l.status === 'proposed' ? 'warning' : null"
               storageKey="layouts-detail"
             >
+              @if (l.status === 'proposed') {
+                <div class="uf-alert uf-alert--info proposed" role="status">
+                  <ng-icon name="lucideSparkles" />
+                  <span
+                    >The setup solver grouped these {{ l.units.length }} units: their outlines
+                    coincide
+                    @if (l.match?.['iou_min']; as iou) {
+                      (overlap {{ iou }} or better)
+                    }
+                    @if (l.match?.['mirror_of']; as base) {
+                      as the mirror image of {{ base }}
+                    }
+                    . Until you confirm it, the layout owns no media and buyers never see it; if the
+                    grouping is wrong, delete it and the units keep their own data.</span
+                  >
+                  <span class="uf-spacer"></span>
+                  <button mat-flat-button [disabled]="store.busy()" (click)="store.confirm(l)">
+                    <ng-icon name="lucideCheck" /> Confirm plan type
+                  </button>
+                </div>
+              }
               <div class="uf-form-row">
                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="code"
                   ><mat-label>Code</mat-label
@@ -294,6 +320,15 @@ import { LayoutsStore } from './layouts.store';
       border-color: var(--uf-primary);
       box-shadow: 0 0 0 2px color-mix(in srgb, var(--uf-primary) 25%, transparent);
     }
+    .card--proposed {
+      border-left: 4px solid var(--uf-warning, #d97706);
+    }
+    .proposed {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
     .card__cover {
       width: 7rem;
       aspect-ratio: 4 / 3;
@@ -349,10 +384,14 @@ export class LayoutsPage {
   readonly members = computed(() =>
     (this.store.selected()?.units ?? []).map((u) => ({ id: u.unit_id, code: u.code })),
   );
+  readonly ordered = computed(() => orderLayouts(this.store.layouts()));
   readonly facts = computed<HeaderFact[]>(() => {
     const f = registryFacts(this.store.layouts());
     return [
       { label: 'layouts', value: f.layouts, icon: 'lucideLayoutGrid' },
+      ...(f.proposed
+        ? [{ label: 'proposed, waiting for you', value: f.proposed, icon: 'lucideSparkles' }]
+        : []),
       { label: 'linked units', value: f.linked, icon: 'lucideLayers' },
       {
         label: 'without public media',

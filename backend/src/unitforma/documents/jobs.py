@@ -189,6 +189,14 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
         except Exception as e:  # noqa: BLE001 - processing succeeded; the diff can be re-run
             log.warning("mapping.diff_failed", revision_id=str(revision_id), error=str(e))
             result["diff"] = {"error": str(e)[:500]}
+    if processed:
+        # the setup solver applies the confident proposals when the project asks for it
+        # (ADR-0025 Decision 3); a run that finds other revisions processing waits
+        from unitforma.autopilot.queue import queue_run
+
+        run_id = await queue_run(tenant_id, project_id, "document_processed")
+        if run_id is not None:
+            result["autopilot_run_id"] = str(run_id)
     return result
 
 

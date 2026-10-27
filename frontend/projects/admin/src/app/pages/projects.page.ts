@@ -10,8 +10,11 @@ import { Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import {
   PermitAttachmentOut,
+  PermitImportCreate,
   PermitPreviewOut,
+  ProjectCreate,
   ProjectOut,
+  SetupAutoIn,
   UnitformaApi,
   problemMessage,
 } from 'api-client';
@@ -30,7 +33,11 @@ import {
 import { TenantContext } from '../core/tenant-context';
 import { ToastService } from '../ui/toast.service';
 
-/** Projects: create one by hand, or start from a public building permit (ADR-0007). */
+/**
+ * Projects: the intake form (ADR-0025 Decision 1). Create one by hand with its address, currency,
+ * first building and drawings, or start from a public building permit (ADR-0007); both can hand
+ * the rest of the setup to the solver, reviewed on the setup checklist.
+ */
 @Component({
   selector: 'uf-projects-page',
   imports: [
@@ -62,7 +69,7 @@ import { ToastService } from '../ui/toast.service';
         <uf-section-card
           title="New project"
           icon="lucidePlus"
-          summary="slug and name"
+          summary="name, address, first building, drawings"
           storageKey="projects-new"
           [open]="projects().length === 0"
         >
@@ -77,7 +84,7 @@ import { ToastService } from '../ui/toast.service';
                 (keyup.enter)="create()"
               /><mat-hint>Part of the portal address</mat-hint></mat-form-field
             >
-            <mat-form-field appearance="outline" subscriptSizing="dynamic"
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="wide"
               ><mat-label>Name</mat-label
               ><input
                 matInput
@@ -86,13 +93,79 @@ import { ToastService } from '../ui/toast.service';
                 placeholder="Green Hills"
                 (keyup.enter)="create()"
             /></mat-form-field>
+          </div>
+          <div class="uf-form-row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="wide"
+              ><mat-label>Address</mat-label
+              ><input
+                matInput
+                [(ngModel)]="address"
+                name="address"
+                placeholder="ჭავჭავაძის გამზ. 19, თბილისი"
+              /><mat-hint>Shown to buyers; the solver puts it on the map</mat-hint></mat-form-field
+            >
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="short"
+              ><mat-label>Currency</mat-label
+              ><input
+                matInput
+                [(ngModel)]="currency"
+                name="currency"
+                maxlength="3"
+                placeholder="workspace default"
+            /></mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="short"
+              ><mat-label>First building</mat-label
+              ><input
+                matInput
+                [(ngModel)]="buildingCode"
+                name="buildingCode"
+                maxlength="20"
+              /><mat-hint>Drawings are filed under it</mat-hint></mat-form-field
+            >
+          </div>
+          <div class="uf-form-row">
+            <label class="pick" [class.is-busy]="busy()">
+              <ng-icon name="lucideFileUp" />
+              {{
+                files.length
+                  ? files.length + ' file' + (files.length === 1 ? '' : 's') + ' chosen'
+                  : 'Drawings (optional): PDF, DXF, images…'
+              }}
+              <input
+                type="file"
+                multiple
+                accept="application/pdf,image/png,image/jpeg,.dxf,application/dxf,image/vnd.dxf"
+                (change)="onFiles($event)"
+                hidden
+              />
+            </label>
+          </div>
+          <div class="switches">
+            <mat-slide-toggle [(ngModel)]="autoEnabled" name="autoEnabled"
+              >Set up automatically</mat-slide-toggle
+            >
+            <mat-slide-toggle [(ngModel)]="autoApprove" [disabled]="!autoEnabled" name="autoApprove"
+              >Approve mapped sheets when every printed label is outlined</mat-slide-toggle
+            >
+          </div>
+          <p class="uf-hint">
+            With the switch on, the processed drawings give the project its floors, sheet floors,
+            scale, unit outlines, site plan, placement, gallery, map position and plan types; what
+            the solver cannot decide waits for you on the setup checklist. Approval needs the
+            mapping approve right.
+          </p>
+          <div class="uf-form-row">
             <button
               mat-flat-button
               [disabled]="busy() || !slug.trim() || !name.trim()"
               (click)="create()"
             >
-              Create
+              <ng-icon name="lucidePlus" />
+              {{ files.length ? 'Create and upload ' + files.length + ' file(s)' : 'Create' }}
             </button>
+            @if (progress(); as p) {
+              <span class="uf-muted">{{ p }}</span>
+            }
           </div>
         </uf-section-card>
 
@@ -192,14 +265,27 @@ import { ToastService } from '../ui/toast.service';
                   ><mat-label>Building code</mat-label
                   ><input matInput [(ngModel)]="permitBuilding" name="permitBuilding"
                 /></mat-form-field>
+              </div>
+              <div class="switches">
+                <mat-slide-toggle [(ngModel)]="permitAuto" name="permitAuto"
+                  >Set up automatically</mat-slide-toggle
+                >
+                <mat-slide-toggle
+                  [(ngModel)]="permitAutoApprove"
+                  [disabled]="!permitAuto"
+                  name="permitAutoApprove"
+                  >Approve mapped sheets when every printed label is outlined</mat-slide-toggle
+                >
+                <span class="uf-spacer"></span>
                 <button mat-flat-button [disabled]="permitBusy()" (click)="importPermit()">
                   <ng-icon name="lucideDownload" /> Import
                 </button>
               </div>
               <p class="uf-hint">
-                Creates the project with its address and one building. Floors are added by you on
-                the project page (the heights above are the hint); the drawings arrive in Documents
-                within a minute and propose floors from their level markers.
+                Creates the project with its address and one building; the drawings arrive in
+                Documents within a minute. With the switch on, the solver runs once the last drawing
+                is processed and the setup checklist shows what it decided; off, you add the floors
+                on the project page (the heights above are the hint).
               </p>
             }
           </uf-section-card>
@@ -257,7 +343,7 @@ import { ToastService } from '../ui/toast.service';
         <uf-empty-state
           icon="lucideFolderKanban"
           title="No projects yet"
-          text="Create one above with a slug and a name, or paste a tas.ge permit address and import the project with its drawings."
+          text="Create one above with a slug, a name and its drawings, or paste a tas.ge permit address and import the project with its drawings."
         />
       }
     </div>
@@ -282,6 +368,28 @@ import { ToastService } from '../ui/toast.service';
     .search ng-icon {
       margin: 0 0.25rem 0 0.5rem;
       color: var(--uf-muted);
+    }
+    .switches {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+      align-items: center;
+      margin: 0.5rem 0;
+    }
+    .pick {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 0.9rem;
+      border: 1px dashed var(--uf-border-strong, var(--uf-border));
+      border-radius: var(--uf-radius);
+      cursor: pointer;
+      color: var(--uf-primary);
+      font-weight: 600;
+    }
+    .pick.is-busy {
+      opacity: 0.6;
+      pointer-events: none;
     }
     .files {
       margin: 0.75rem 0 0.25rem;
@@ -387,8 +495,15 @@ export class ProjectsPage {
   ]);
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
+  readonly progress = signal<string | null>(null);
   slug = '';
   name = '';
+  address = '';
+  currency = '';
+  buildingCode = 'A';
+  files: File[] = [];
+  autoEnabled = true;
+  autoApprove = true;
 
   // permit import (ADR-0007)
   readonly permitPreview = signal<PermitPreviewOut | null>(null);
@@ -401,6 +516,8 @@ export class ProjectsPage {
   permitSlug = '';
   permitName = '';
   permitBuilding = '';
+  permitAuto = true;
+  permitAutoApprove = true;
 
   constructor() {
     toObservable(this.tenantId).subscribe(() => void this.load());
@@ -414,23 +531,106 @@ export class ProjectsPage {
     }
   }
 
+  onFiles(ev: Event): void {
+    this.files = Array.from((ev.target as HTMLInputElement).files ?? []);
+  }
+
+  /**
+   * The intake (ADR-0025 Decision 1): the project with its address, currency and first building;
+   * each chosen file becomes an unclassified document under that building through the ordinary
+   * upload path, so classification and processing are what an upload gets; then the checklist.
+   */
   async create(): Promise<void> {
     if (!this.slug.trim() || !this.name.trim()) return;
     this.busy.set(true);
     this.error.set(null);
     try {
-      const p = await this.api.createProject(this.tenantId(), {
+      const building = this.buildingCode.trim() || null;
+      const body: ProjectCreate = {
         slug: this.slug.trim(),
         name: this.name.trim(),
-      });
-      this.slug = this.name = '';
-      this.toast.ok(`Project ${p.name} created`);
-      await this.load();
+        currency: this.currency.trim() ? this.currency.trim().toUpperCase() : null,
+        address: this.address.trim() ? { line1: this.address.trim() } : {},
+        building_code: building,
+        setup_auto: {
+          enabled: this.autoEnabled,
+          approve_sheets: this.autoEnabled && this.autoApprove,
+        },
+      };
+      const p = await this.withoutApprovalOn403(body, (b) =>
+        this.api.createProject(this.tenantId(), b),
+      );
+      const buildingId = building
+        ? ((await this.api.listBuildings(this.tenantId(), p.id)).find((b) => b.kind === 'building')
+            ?.id ?? null)
+        : null;
+      const failed: string[] = [];
+      let n = 0;
+      for (const file of this.files) {
+        n++;
+        this.progress.set(`Uploading ${n} of ${this.files.length}: ${file.name}`);
+        try {
+          const doc = await this.api.createDocument(this.tenantId(), p.id, {
+            kind: 'unclassified',
+            title: file.name.replace(/\.[^.]+$/, ''),
+            building_id: buildingId,
+            visibility: 'internal',
+            source: {},
+          });
+          // site plans, renders, schedules and permits live at project level (ADR-0008 guide)
+          if (buildingId && ['site_plan', 'render', 'schedule', 'permit'].includes(doc.kind)) {
+            await this.api.updateDocument(this.tenantId(), doc.id, { clear_building: true });
+          }
+          const ct =
+            file.type ||
+            (/\.dxf$/i.test(file.name) ? 'application/dxf' : 'application/octet-stream');
+          const intent = await this.api.createUpload(this.tenantId(), doc.id, {
+            file_name: file.name,
+            content_type: ct,
+            byte_size: file.size,
+            source_note: null,
+          });
+          await this.api.uploadToPresignedUrl(intent.upload_url, file, ct);
+          await this.api.completeUpload(this.tenantId(), intent.revision.id);
+        } catch (e) {
+          failed.push(`${file.name}: ${problemMessage(e)}`);
+        }
+      }
+      this.toast.ok(
+        `Project ${p.name} created` +
+          (this.files.length ? `; ${this.files.length - failed.length} file(s) uploaded` : ''),
+      );
+      if (failed.length) this.error.set(`${failed.length} file(s) failed. ${failed.join(' · ')}`);
+      this.slug = this.name = this.address = this.currency = '';
+      this.files = [];
       void this.tenantCtx.refreshProjects();
+      await this.load();
+      if (!failed.length) {
+        await this.router.navigate(['/t', this.tenantId(), 'projects', p.id, 'setup']);
+      }
     } catch (e) {
       this.error.set(problemMessage(e));
     } finally {
       this.busy.set(false);
+      this.progress.set(null);
+    }
+  }
+
+  /**
+   * Sheet approval needs the mapping approve right; a project manager keeps the solver and gets
+   * drafts instead of a refusal (ADR-0025 Decision 2).
+   */
+  private async withoutApprovalOn403<B extends { setup_auto?: SetupAutoIn | null }, R>(
+    body: B,
+    call: (b: B) => Promise<R>,
+  ): Promise<R> {
+    try {
+      return await call(body);
+    } catch (e) {
+      const status = (e as { status?: number })?.status;
+      if (status !== 403 || !body.setup_auto?.approve_sheets) throw e;
+      this.toast.ok('Approving sheets needs the mapping approve right: the units stay drafts');
+      return call({ ...body, setup_auto: { ...body.setup_auto, approve_sheets: false } });
     }
   }
 
@@ -486,15 +686,32 @@ export class ProjectsPage {
     this.permitBusy.set(true);
     this.permitError.set(null);
     try {
-      const res = await this.api.importPermit(this.tenantId(), {
+      const body: PermitImportCreate = {
         reference: this.reference.trim(),
         slug: this.permitSlug || null,
         name: this.permitName || null,
         building_code: this.permitBuilding || null,
-      });
-      this.toast.ok('Project created from the permit; drawings are being imported');
+        setup_auto: {
+          enabled: this.permitAuto,
+          approve_sheets: this.permitAuto && this.permitAutoApprove,
+        },
+      };
+      const res = await this.withoutApprovalOn403(body, (b) =>
+        this.api.importPermit(this.tenantId(), b),
+      );
+      this.toast.ok(
+        this.permitAuto
+          ? 'Project created from the permit; drawings are being imported, the solver follows'
+          : 'Project created from the permit; drawings are being imported',
+      );
       void this.tenantCtx.refreshProjects();
-      await this.router.navigate(['/t', this.tenantId(), 'projects', res.project.id]);
+      await this.router.navigate([
+        '/t',
+        this.tenantId(),
+        'projects',
+        res.project.id,
+        ...(this.permitAuto ? ['setup'] : []),
+      ]);
     } catch (e) {
       this.permitError.set(problemMessage(e));
     } finally {

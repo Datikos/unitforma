@@ -1,5 +1,5 @@
 import { LayoutOut } from 'api-client';
-import { layoutSummary, registryFacts, validateCode } from './layouts.model';
+import { layoutSummary, orderLayouts, registryFacts, validateCode } from './layouts.model';
 
 function layout(partial: Partial<LayoutOut>): LayoutOut {
   return {
@@ -7,6 +7,9 @@ function layout(partial: Partial<LayoutOut>): LayoutOut {
     project_id: 'p',
     code: 'L1',
     name: null,
+    status: 'confirmed',
+    source: 'manual',
+    match: null,
     version: 1,
     created_at: '2026-10-26T00:00:00Z',
     updated_at: '2026-10-26T00:00:00Z',
@@ -71,6 +74,22 @@ describe('layouts model (ADR-0022)', () => {
         ],
       }),
     ];
-    expect(registryFacts(list)).toEqual({ layouts: 2, linked: 1, withoutMedia: 1 });
+    expect(registryFacts(list)).toEqual({ layouts: 2, linked: 1, withoutMedia: 1, proposed: 0 });
+  });
+
+  it('names a proposed layout and its match in the summary, and lists proposed ones first', () => {
+    const proposed = layout({
+      id: 'p',
+      code: 'L2',
+      status: 'proposed',
+      source: 'autopilot',
+      match: { iou_min: 0.973, members: 4 },
+    });
+    expect(layoutSummary(proposed)).toBe(
+      '0 units · proposed by the solver (outlines match 0.97) · no media yet',
+    );
+    const list = [layout({ id: 'a', code: 'L10' }), proposed, layout({ id: 'b', code: 'L1' })];
+    expect(orderLayouts(list).map((l) => l.code)).toEqual(['L2', 'L1', 'L10']);
+    expect(registryFacts(list).proposed).toBe(1);
   });
 });

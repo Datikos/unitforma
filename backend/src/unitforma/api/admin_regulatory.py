@@ -71,6 +71,8 @@ async def import_permit(body: PermitImportCreate, ctx: Ctx):
     tenant = (
         await ctx.session.execute(select(Tenant).where(Tenant.id == ctx.tenant_id))
     ).scalar_one()
+    if body.setup_auto and body.setup_auto.enabled and body.setup_auto.approve_sheets:
+        ctx.require("mapping", Action.APPROVE)
     project, building, row = await regulatory.start_import(
         ctx.session,
         tenant_id=ctx.tenant_id,
@@ -80,6 +82,7 @@ async def import_permit(body: PermitImportCreate, ctx: Ctx):
         name=body.name,
         building_code=body.building_code,
         default_currency=tenant.default_currency,
+        setup_auto=body.setup_auto.model_dump() if body.setup_auto else None,
     )
     await _enqueue(row)
     return PermitImportResult(project=project, building=building, job=_out(row))

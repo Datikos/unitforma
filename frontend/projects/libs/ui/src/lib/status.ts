@@ -184,6 +184,26 @@ export const STATUS_TABLES = {
     optional: v('neutral', 'Optional', 'lucideCircleDashed'),
     attention: v('warning', 'Needs attention', 'lucideTriangleAlert'),
   },
+  // runs of the setup solver (ADR-0025 Decision 3)
+  'setup.run': {
+    queued: v('pending', 'Queued', 'lucideClock'),
+    running: v('info', 'Running', 'lucideLoaderCircle'),
+    waiting: v('pending', 'Waiting for processing', 'lucideClock'),
+    done: v('good', 'Done', 'lucideCircleCheck'),
+    failed: v('bad', 'Failed', 'lucideCircleX'),
+  },
+  // one decision of a run (ADR-0025 Decision 7)
+  'setup.decision': {
+    accepted: v('good', 'Decided for you', 'lucideCircleCheck'),
+    skipped: v('warning', 'Needs you', 'lucideTriangleAlert'),
+    waiting: v('pending', 'Waiting', 'lucideClock'),
+    error: v('bad', 'Failed', 'lucideCircleX'),
+  },
+  // a layout of the registry (ADR-0022, ADR-0025 Decision 6)
+  layout: {
+    confirmed: v('good', 'Confirmed', 'lucideCircleCheck'),
+    proposed: v('pending', 'Proposed', 'lucideCircleDashed'),
+  },
   // personal API tokens for assistants and scripts (ADR-0015)
   token: {
     active: v('good', 'Active', 'lucideCircleCheck'),
