@@ -5132,6 +5132,62 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/ifc-links/confirm-plan": {
+   "post": {
+    "tags": [
+     "geometry"
+    ],
+    "summary": "Confirm Plan Ifc Links",
+    "description": "Confirm every suggested plan space of the building's model as its unit (ADR-0030).",
+    "operationId": "confirm_plan_ifc_links_api_v1_admin_tenants__tenant_id__buildings__building_id__ifc_links_confirm_plan_post",
+    "parameters": [
+     {
+      "name": "building_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Building Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Confirm Plan Ifc Links Api V1 Admin Tenants  Tenant Id  Buildings  Building Id  Ifc Links Confirm Plan Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/ifc-links/{link_id}": {
    "post": {
     "tags": [

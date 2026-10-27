@@ -275,7 +275,7 @@ Phase C: IFC ingestion (L, plan Phase 8 pulled forward)
       written against the 785 MB `runtime` base and is moot; DracoPy stays the fallback if the image
       size ever matters). Verified inside the built image: `tests/test_ifc_ingest.py` 4 passed, the
       Draco test included; on a machine without the CLI that test skips.
-- [x] C3 `geometry/ifc.py`: storeys, spaces with footprints and quantities, tessellation to GLB with
+- [x] C3 (ADR-0030 of 2026-10-27 splits the reader into `parse_ifc`/`pack_ifc` and adds plan-derived spaces for files without `IfcSpace`) `geometry/ifc.py`: storeys, spaces with footprints and quantities, tessellation to GLB with
       per-space nodes; `gltf-transform` Draco step; stats (`spaces`, `storeys`, `glb_bytes`); fail the
       job when the GLB exceeds 15 MB.
 - [x] C4 `jobs/tasks.py` `geometry.ingest_ifc` on queue `geometry-heavy`; enqueued by

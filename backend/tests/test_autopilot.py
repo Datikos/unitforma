@@ -26,6 +26,7 @@ from tests.pdf_fixture import (
 from tests.test_phase4_publishing import _admin_sql
 from unitforma.autopilot import rules
 from unitforma.autopilot.passes import classify, facades, floors, geocode, layouts, placement
+from unitforma.geometry import plan_fit
 from unitforma.renders.gemini import _find_text
 
 pytestmark = pytest.mark.skipif(
@@ -76,13 +77,13 @@ def test_placement_finds_rotation_and_translation():
     from shapely.geometry import Polygon
 
     foot = Polygon([[0, 0], [21, 0], [21, 7], [21, 7], [0, 7]])
-    placed = placement._placed(foot, 37.0, 120.0, 80.0)
+    placed = plan_fit.placed(foot, 37.0, 120.0, 80.0)
     faces = [Polygon([[0, 0], [300, 0], [300, 200], [0, 200]]), placed]
     fit = placement.best_fit(foot, faces)
     assert fit is not None and fit["iou"] >= rules.PLACEMENT_CONFIRM_IOU
     # a rectangle fits at its angle or turned by 180°
     assert min(abs(fit["rotation_deg"] - 37.0), abs(fit["rotation_deg"] - 217.0)) <= 1.0
-    again = placement._placed(foot, fit["rotation_deg"], fit["tx"], fit["ty"])
+    again = plan_fit.placed(foot, fit["rotation_deg"], fit["tx"], fit["ty"])
     assert again.symmetric_difference(placed).area / placed.area < 0.05
 
 

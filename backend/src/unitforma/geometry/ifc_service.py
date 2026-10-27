@@ -20,7 +20,8 @@ from unitforma.audit.service import write_audit
 from unitforma.core.db import tenant_session
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
-from unitforma.geometry import ifc, ifc_match
+from unitforma.geometry import ifc, ifc_match, plan_spaces
+from unitforma.geometry.service import floor_elevations
 from unitforma.storage.service import get_storage, object_key
 from unitforma.tenants.models import (
     Building,
@@ -63,7 +64,18 @@ async def ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str, 
         project_id, building_id, object_key_ = doc.project_id, doc.building_id, rev.object_key
     data = storage.get_bytes(object_key_)
     try:
-        model_in = ifc.read_ifc(data)
+        parsed = ifc.parse_ifc(data)
+        extra: list[tuple[ifc.Space, list[float], list[int]]] = []
+        plan_fit: dict[str, Any] | None = None
+        if not parsed.spaces:
+            # ADR-0030 Decision 3: no IfcSpace in the file → the approved plan outlines of the
+            # building, placed in the IFC frame
+            async with tenant_session(tenant_id, scope="tenant") as db:
+                plan_floors, outlines = await _plan_inputs(db, project_id, building_id)
+            extra, plan_fit = plan_spaces.build(parsed, plan_floors, outlines)
+        model_in = ifc.pack_ifc(parsed, extra_spaces=extra)
+        if plan_fit is not None:
+            model_in = replace(model_in, stats={**model_in.stats, "plan_fit": plan_fit})
         # Draco in the heavy image (ADR-0006 C2a); the 15 MB budget above applies to the raw GLB,
         # which also bounds what the browser decodes
         glb_small, compression = ifc.compress_glb(model_in.glb)
@@ -125,10 +137,18 @@ async def ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str, 
                     s.storey.elevation_m if s.storey else None,
                 )
                 for s in model_in.spaces
+                if s.source == "ifc"
             ],
             [ifc_match.FloorRef(f.id, f.level, _f(f.elevation_m)) for f in floors],
             units,
         )
+        # a plan space is its unit by construction; the reviewer confirms the alignment
+        fit_iou = (plan_fit or {}).get("iou")
+        matches += [
+            ifc_match.Match(s.global_id, s.floor_id, s.unit_id, fit_iou, "suggested")
+            for s in model_in.spaces
+            if s.source == "plan"
+        ]
         by_gid = {m.global_id: m for m in matches}
         for s in model_in.spaces:
             m = by_gid[s.global_id]
@@ -150,6 +170,7 @@ async def ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str, 
                     confidence=m.confidence,
                     footprint_m={"ring": s.footprint_m} if s.footprint_m else None,
                     areas=s.areas,
+                    source=s.source,
                 )
             )
         # the viewer compares floor_level with the project's floor levels, not storey indexes
@@ -206,6 +227,77 @@ async def ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str, 
 
 def _f(v: Any) -> float | None:
     return float(v) if v is not None else None
+
+
+async def _plan_inputs(
+    db: AsyncSession, project_id: uuid.UUID, building_id: uuid.UUID
+) -> tuple[list[plan_spaces.PlanFloor], list[plan_spaces.Outline]]:
+    """The building's floors with stacked elevations and one current calibrated outline per
+    non-removed unit (ADR-0030 Decision 4 inputs)."""
+    floors = list(
+        (await db.execute(select(Floor).where(Floor.building_id == building_id))).scalars()
+    )
+    elev = floor_elevations(floors)
+    plan_floors = [
+        plan_spaces.PlanFloor(
+            id=f.id,
+            level=f.level,
+            elevation_m=_f(f.elevation_m),
+            base_m=elev[f.id][0],
+            height_m=elev[f.id][1],
+        )
+        for f in floors
+    ]
+    rows = await db.execute(
+        select(Unit, UnitBoundary)
+        .join(UnitBoundary, UnitBoundary.unit_id == Unit.id)
+        .where(
+            Unit.project_id == project_id,
+            Unit.building_id == building_id,
+            Unit.lifecycle_status != "removed",
+            UnitBoundary.is_current.is_(True),
+        )
+        .order_by(Unit.code)
+    )
+    seen: set[uuid.UUID] = set()
+    outlines: list[plan_spaces.Outline] = []
+    for unit, bd in rows:
+        ring = (bd.polygon_m or {}).get("ring") if isinstance(bd.polygon_m, dict) else None
+        if unit.id in seen or not ring or unit.floor_id is None:
+            continue
+        seen.add(unit.id)
+        outlines.append(plan_spaces.Outline(unit.id, unit.code, unit.floor_id, ring))
+    return plan_floors, outlines
+
+
+async def confirm_plan_links(db: AsyncSession, model: GeometryModel, actor: Actor) -> int:
+    """Confirm every suggested plan space of the model as its unit in one go (one relink, one
+    audit row): the alignment was judged right for the whole building (ADR-0030 C1)."""
+    links = await list_links(db, model.id)
+    taken = {lk.unit_id for lk in links if lk.status == "confirmed" and lk.unit_id}
+    done = 0
+    for lk in links:
+        if lk.source != "plan" or lk.status != "suggested" or lk.unit_id is None:
+            continue
+        if lk.unit_id in taken:
+            continue
+        lk.status, lk.confidence = "confirmed", Decimal("1.00")
+        taken.add(lk.unit_id)
+        done += 1
+    if done:
+        await db.flush()
+        await write_audit(
+            db,
+            tenant_id=model.tenant_id,
+            actor_user_id=actor[0],
+            actor_role=actor[1],
+            entity_type="geometry_model",
+            entity_id=model.id,
+            action="confirm_plan_spaces",
+            after={"confirmed": done},
+        )
+        await relink_model(db, model.id)
+    return done
 
 
 async def _units_with_labels(

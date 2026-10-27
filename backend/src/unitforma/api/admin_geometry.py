@@ -128,6 +128,18 @@ async def list_ifc_links(building_id: uuid.UUID, ctx: Ctx):
     return [await _link_out(ctx, lk) for lk in await ifc_service.list_links(ctx.session, m.id)]
 
 
+@router.post("/buildings/{building_id}/ifc-links/confirm-plan", response_model=dict)
+async def confirm_plan_ifc_links(building_id: uuid.UUID, ctx: Ctx) -> dict:
+    """Confirm every suggested plan space of the building's model as its unit (ADR-0030)."""
+    ctx.require("mapping", Action.APPROVE)
+    b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)
+    ctx.require_project(b.project_id)
+    m = await ifc_service.current_model(ctx.session, b.id)
+    if m is None:
+        raise ProblemError(404, "No IFC model for this building")
+    return {"confirmed": await ifc_service.confirm_plan_links(ctx.session, m, _actor(ctx))}
+
+
 @router.post("/ifc-links/{link_id}", response_model=IfcSpaceLinkOut)
 async def decide_ifc_link(link_id: uuid.UUID, body: IfcSpaceLinkDecide, ctx: Ctx):
     """Confirm a space as a unit (the suggested one or another), reject it, or reset it."""

@@ -1,6 +1,6 @@
 # ADR-0030: IFC spaces from the architect's zones or from the approved plan outlines; export diagnostics; duplicate uploads
 
-- **Status:** accepted (2026-10-27, "let start")
+- **Status:** accepted (2026-10-27, "let start"; implemented 2026-10-27, C2 docs in the same change)
 - **Date:** 2026-10-27
 - **Deciders:** David Sakhelashvili (platform owner)
 - **Plan reference:** §7.3 (building model budget), §13.1 (document → published project), ADR-0006 Phase C (IFC intake, space links), ADR-0008 (document kinds), ADR-0011 (massing from outlines), ADR-0025 Decision 5 (placement by footprint fit)
@@ -181,20 +181,25 @@ spaces (the documented areas of the drawing already exist, ADR-0006 Phase A), DW
 - [x] A4 Admin: the note on the document card (neutral line), the advice lines on the 3D massing page.
 
 ### Phase B: spaces from the plan outlines
-- [ ] B1 `geometry/ifc.py`: `parse_ifc` / `pack_ifc` split, `PlanSpace` input, storey slab hulls,
+- [x] B1 `geometry/ifc.py`: `parse_ifc` / `pack_ifc` split, `PlanSpace` input, storey slab hulls,
       `floor_level` from the floor; `read_ifc` unchanged for callers.
-- [ ] B2 `geometry/plan_fit.py`: the fit (shared rotation search with `autopilot/passes/placement.py`,
+- [x] B2 `geometry/plan_fit.py`: the fit (shared rotation search with `autopilot/passes/placement.py`,
       moved there from the pass), the (x, −y) mapping; test with a known rotation and translation
       recovered within 1° and 0.1 m.
-- [ ] B3 `geometry/ifc_service.py`: load floors, units and boundaries; decide the source; plan
+- [x] B3 `geometry/ifc_service.py`: load floors, units and boundaries; decide the source; plan
       spaces → links with `source = plan`; `stats.plan_fit`, `stats.spaces_plan`;
-      `rules.IFC_PLAN_FIT_MIN_IOU`.
-- [ ] B4 Tests: `make_ifc(spaces=False)`; end to end: IFC without spaces plus two calibrated outlines →
+      `plan_fit.IFC_PLAN_FIT_MIN_IOU` (in `geometry`, not `autopilot.rules`: geometry must not
+      import the solver). *Found while implementing:* the pure part lives in
+      `geometry/plan_spaces.py`; `confirm_plan_links` and
+      `POST /buildings/{id}/ifc-links/confirm-plan` confirm every suggested plan space with one
+      relink, since one `decide` per space rewrites the GLB each time (ADR-0006 E3).
+- [x] B4 Tests: `make_ifc(spaces=False)`; end to end: IFC without spaces plus two calibrated outlines →
       two `plan` links suggested with the IoU, two space nodes carrying the units' ids, `public_glb`
       keeps them pickable only when listed; the reason path when no outline is calibrated.
 
 ### Phase C: screen and docs
-- [ ] C1 Admin 3D massing page: source chip per row ("from plan" / "IFC"), the fit line (rotation,
-      IoU, fit floor) or the reason, "confirm all plan spaces" button, the areas caveat; guide entry.
+- [x] C1 Admin 3D massing page: source chip per row ("from plan"), the fit line (rotation, IoU, fit
+      floor, slab or bounds) or the reason, "Confirm all plan spaces" button, the areas caveat in the
+      section text.
 - [ ] C2 README status sentence; BACKLOG rows (#36 updated, new Revisit rows); ADR-0006 Phase C and
       ADR-0008 #6 pointers; this ADR's status line.

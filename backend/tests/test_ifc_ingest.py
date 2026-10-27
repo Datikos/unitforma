@@ -20,9 +20,10 @@ from unitforma.geometry import ifc  # noqa: E402
 from unitforma.geometry.massing import parse_glb  # noqa: E402
 
 
-def make_ifc(*, long_names: bool = True) -> bytes:
+def make_ifc(*, long_names: bool = True, spaces: bool = True) -> bytes:
     """IFC4: building A, storeys at 0.00 and 3.20, spaces 1 and 2 on the ground floor and 3 above,
-    one wall and one slab; space 1 carries base quantities."""
+    one wall and one slab; space 1 carries base quantities. ``spaces=False`` is the zoneless
+    export of ADR-0030: storeys, wall and slab only."""
     import ifcopenshell.api
     import ifcopenshell.util.shape_builder as sb
     import numpy as np
@@ -73,13 +74,15 @@ def make_ifc(*, long_names: bool = True) -> bytes:
             )
         return e
 
+    box("IfcWall", "W1", 0, -0.3, 0, 16, 0.3, 6.4, st0)
+    box("IfcSlab", "S1", 0, 0, -0.3, 16, 6, 0.3, st0)
+    if not spaces:
+        return f.to_string().encode("utf-8")
     sp1 = box("IfcSpace", "1", 0, 0, 0, 8, 6, 3.2, st0)
     if long_names:
         sp1.LongName = "ბინა 1"
     box("IfcSpace", "2", 8, 0, 0, 8, 6, 3.2, st0)
     box("IfcSpace", "3", 0, 0, 3.2, 16, 6, 3.2, st1)
-    box("IfcWall", "W1", 0, -0.3, 0, 16, 0.3, 6.4, st0)
-    box("IfcSlab", "S1", 0, 0, -0.3, 16, 6, 0.3, st0)
     qto = ifcopenshell.api.run("pset.add_qto", f, product=sp1, name="Qto_SpaceBaseQuantities")
     ifcopenshell.api.run(
         "pset.edit_qto", f, qto=qto, properties={"NetFloorArea": 47.5, "GrossFloorArea": 48.0}
@@ -143,6 +146,24 @@ def test_header_options_reads_the_archicad_translator_settings():
     }
     assert ifc.header_options(["ViewDefinition [CoordinationView]"]) == {}
     assert ifc.header_options([]) == {}
+
+
+def test_plan_fit_recovers_a_known_rotation_and_translation():
+    """ADR-0030 Decision 4: an L-shaped footprint turned 37° and moved is found within 1° and
+    0.1 m; the sheet frame enters the IFC frame with y flipped."""
+    from shapely.geometry import Polygon
+
+    from unitforma.geometry import plan_fit
+
+    foot = Polygon([(0, 0), (16, 0), (16, 6), (6, 6), (6, 10), (0, 10)]).buffer(0)
+    target = plan_fit.placed(foot, 37.0, 12.5, -4.0)
+    fit = plan_fit.best_rotation(foot, target)
+    assert abs(fit["rotation_deg"] - 37.0) <= 1.0, fit
+    assert abs(fit["tx"] - 12.5) <= 0.1 and abs(fit["ty"] + 4.0) <= 0.1, fit
+    assert fit["iou"] > 0.98
+    assert plan_fit.sheet_to_ifc([[1, 2], [3, -4]]) == [(1.0, -2.0), (3.0, 4.0)]
+    moved = plan_fit.apply([(1.0, 0.0)], 90.0, 0.0, 0.0)
+    assert abs(moved[0][0]) < 1e-9 and abs(moved[0][1] - 1.0) < 1e-9
 
 
 def test_compress_glb_without_the_cli_returns_the_input(monkeypatch):
@@ -215,27 +236,25 @@ def _document(client: TestClient, base: str, project_id: str, doc_id: str, heade
     return next(d for d in docs if d["id"] == doc_id)
 
 
-@pytestmark_db
-def test_ifc_upload_links_spaces_to_units_and_confirmation_writes_areas(
-    kratos: FakeKratos, client: TestClient
-):
+def _building_with_two_units(kratos: FakeKratos, client: TestClient, who: str) -> dict:
+    """A tenant, a project, building A with two floors, a calibrated ground-floor plan and two
+    apartment outlines on it (units 1 and 2), as the earlier mapping phases leave them."""
     from unitforma.documents.jobs import process_revision
-    from unitforma.geometry.ifc_service import ingest_ifc
 
     s = uuid.uuid4().hex[:6]
-    kratos.add("rooti", f"rooti-{s}@unitforma.example.com", aal="aal2")
-    assert client.get("/api/v1/admin/me", headers=cookie("rooti")).status_code == 200
+    kratos.add(who, f"{who}-{s}@unitforma.example.com", aal="aal2")
+    assert client.get("/api/v1/admin/me", headers=cookie(who)).status_code == 200
     eng = create_engine(os.environ["UF_TEST_DATABASE_ADMIN_URL"])
     with eng.begin() as conn:
         conn.execute(
             text("UPDATE users SET is_platform_admin = true WHERE email = :e"),
-            {"e": f"rooti-{s}@unitforma.example.com"},
+            {"e": f"{who}-{s}@unitforma.example.com"},
         )
     eng.dispose()
     from unitforma.identity.deps import clear_whoami_cache
 
     clear_whoami_cache()
-    root = cookie("rooti")
+    root = cookie(who)
     t = client.post(
         "/api/v1/platform/tenants", headers=root, json={"slug": f"ifc{s}", "name": "I"}
     ).json()
@@ -303,6 +322,27 @@ def test_ifc_upload_links_spaces_to_units_and_confirmation_writes_areas(
         )
         assert r.status_code == 201, r.text
         units.append(r.json()["unit"])
+    return {
+        "base": base,
+        "tid": tid,
+        "root": root,
+        "project": p,
+        "building": b,
+        "floors": floors,
+        "units": units,
+    }
+
+
+@pytestmark_db
+def test_ifc_upload_links_spaces_to_units_and_confirmation_writes_areas(
+    kratos: FakeKratos, client: TestClient
+):
+    from unitforma.documents.jobs import process_revision
+    from unitforma.geometry.ifc_service import ingest_ifc
+
+    w = _building_with_two_units(kratos, client, "rooti")
+    base, tid, root = w["base"], w["tid"], w["root"]
+    p, b, units = w["project"], w["building"], w["units"]
 
     # the IFC upload, filed under the building, without a kind: the file type fixes it
     # (ADR-0008 amendment) at the upload intent, and the worker keeps it
@@ -455,3 +495,99 @@ def test_ifc_upload_links_spaces_to_units_and_confirmation_writes_areas(
     )
     assert space3["extras"]["unit_id"] == f"space:{links['3']['ifc_global_id']}"
     assert space3["extras"]["floor_level"] == 1
+
+
+def _upload_ifc(client: TestClient, base: str, headers: dict, doc_id: str, data: bytes) -> dict:
+    intent = client.post(
+        f"{base}/documents/{doc_id}/uploads",
+        headers=headers,
+        json={
+            "file_name": "model.ifc",
+            "content_type": "application/x-step",
+            "byte_size": len(data),
+            "source_note": None,
+        },
+    ).json()
+    client.put(intent["upload_url"], content=data, headers={"Content-Type": "application/x-step"})
+    return client.post(
+        f"{base}/revisions/{intent['revision']['id']}/complete", headers=headers
+    ).json()
+
+
+@pytestmark_db
+def test_ifc_without_spaces_takes_the_plan_outlines(kratos: FakeKratos, client: TestClient):
+    """ADR-0030 Decisions 3 to 5: a zoneless export gets one space per approved outline, placed by
+    the slab fit, suggested with the IoU; confirm-all makes them pickable as their units and copies
+    no areas; the published copy keeps only listed units; a building without outlines says why."""
+    from unitforma.documents.jobs import process_revision
+    from unitforma.geometry.ifc_service import ingest_ifc
+
+    w = _building_with_two_units(kratos, client, "rootp")
+    base, tid, root = w["base"], w["tid"], w["root"]
+    p, b, units = w["project"], w["building"], w["units"]
+    doc = client.post(
+        f"{base}/projects/{p['id']}/documents",
+        headers=root,
+        json={"title": "Zoneless", "building_id": b["id"]},
+    ).json()
+    rev = _upload_ifc(client, base, root, doc["id"], make_ifc(spaces=False))
+    assert client.portal.call(process_revision, tid, uuid.UUID(rev["id"]))["ifc"] is True
+    result = client.portal.call(ingest_ifc, tid, uuid.UUID(rev["id"]))
+    assert result["status"] == "ready", result
+    stats = result["stats"]
+    assert stats["spaces"] == 2 and stats["spaces_plan"] == 2, stats
+    fit = stats["plan_fit"]
+    assert "reason" not in fit and fit["floor_level"] == 0 and fit["face"] == "slabs", fit
+    assert fit["iou"] >= 0.3
+
+    links = client.get(f"{base}/buildings/{b['id']}/ifc-links", headers=root).json()
+    assert {lk["source"] for lk in links} == {"plan"}
+    assert {lk["status"] for lk in links} == {"suggested"}
+    assert {lk["unit_id"] for lk in links} == {u["id"] for u in units}
+    assert {lk["floor_level"] for lk in links} == {0}
+    assert all(float(lk["confidence"]) == round(fit["iou"], 2) for lk in links)
+    model = client.get(f"{base}/buildings/{b['id']}/model", headers=root).json()
+    gltf, _ = parse_glb(client.get(model["glb_url"]).content)
+    plan_nodes = [n for n in gltf["nodes"] if (n.get("extras") or {}).get("source") == "plan"]
+    assert len(plan_nodes) == 2
+    assert all(n["extras"]["unit_id"].startswith("space:") for n in plan_nodes)
+    assert {n["extras"]["code"] for n in plan_nodes} == {u["code"] for u in units}
+
+    # confirm all: one call, one relink, pickable as the units, no ifc_quantity areas
+    r = client.post(f"{base}/buildings/{b['id']}/ifc-links/confirm-plan", headers=root)
+    assert r.status_code == 200 and r.json() == {"confirmed": 2}, r.text
+    links = client.get(f"{base}/buildings/{b['id']}/ifc-links", headers=root).json()
+    assert {lk["status"] for lk in links} == {"confirmed"}
+    model = client.get(f"{base}/buildings/{b['id']}/model", headers=root).json()
+    gltf, _ = parse_glb(client.get(model["glb_url"]).content)
+    picked = {
+        n["extras"]["unit_id"]
+        for n in gltf["nodes"]
+        if (n.get("extras") or {}).get("source") == "plan"
+    }
+    assert picked == {u["id"] for u in units}
+    for u in units:
+        areas = client.get(f"{base}/units/{u['id']}", headers=root).json()["areas"]
+        assert not [a for a in areas if a["source"] == "ifc_quantity"]
+    r = client.post(f"{base}/buildings/{b['id']}/ifc-links/confirm-plan", headers=root)
+    assert r.json() == {"confirmed": 0}
+
+    # a building with floors but no outlines: the model is built, the reason is written
+    other = client.post(
+        f"{base}/projects/{p['id']}/buildings", headers=root, json={"code": "B"}
+    ).json()
+    client.put(
+        f"{base}/buildings/{other['id']}/floors",
+        headers=root,
+        json={"floors": [{"level": 0, "display_name": "Ground", "elevation_m": "0"}]},
+    )
+    doc_b = client.post(
+        f"{base}/projects/{p['id']}/documents",
+        headers=root,
+        json={"title": "Zoneless B", "building_id": other["id"]},
+    ).json()
+    rev_b = _upload_ifc(client, base, root, doc_b["id"], make_ifc(spaces=False))
+    client.portal.call(process_revision, tid, uuid.UUID(rev_b["id"]))
+    result = client.portal.call(ingest_ifc, tid, uuid.UUID(rev_b["id"]))
+    assert result["status"] == "ready" and result["stats"]["spaces"] == 0
+    assert "no calibrated unit outline" in result["stats"]["plan_fit"]["reason"]

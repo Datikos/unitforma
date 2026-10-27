@@ -116,6 +116,35 @@ class Space:
     footprint_m: list[list[float]] | None  # XY ring in IFC metres
     areas: dict[str, float] = field(default_factory=dict)
     triangles: int = 0
+    source: str = "ifc"  # ifc (an IfcSpace of the file) | plan (ADR-0030 Decision 4)
+    floor_level: int | None = None  # the project's floor level when known (plan spaces)
+    unit_id: Any | None = None  # plan spaces: the unit whose outline this is
+    floor_id: Any | None = None
+
+
+Geometry = tuple[list[float], list[int]]  # raw IFC coordinates (metres, Z up), triangle indices
+
+
+@dataclass
+class ParsedIfc:
+    """What :func:`parse_ifc` reads before packing: the caller may add plan spaces in between."""
+
+    schema: str
+    building_name: str | None
+    application: str | None
+    export_options: dict[str, str]
+    storeys: list[Storey]
+    spaces: list[Space]
+    space_geo: list[Geometry]  # parallel to ``spaces``
+    class_geo: dict[str, list[Geometry]]
+    offset: tuple[float, float, float]
+    elements_failed: int
+    storey_slab_xy: dict[str, list[tuple[float, float]]]  # storey GlobalId → slab vertices (XY)
+    bounds: tuple[float, float, float, float]  # minx, miny, maxx, maxy of everything drawn
+
+    def bounds_ring(self) -> list[tuple[float, float]]:
+        x0, y0, x1, y1 = self.bounds
+        return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
 
 
 @dataclass
@@ -232,8 +261,8 @@ def _storey_of(ifcopenshell: Any, product: Any) -> Any:
     return c if c is not None and c.is_a("IfcBuildingStorey") else None
 
 
-def read_ifc(data: bytes, *, deflection: float = 0.03, budget: int = MAX_GLB_BYTES) -> IfcModel:
-    """Parse, tessellate and pack one IFC file. Raises :class:`IfcError` for unusable input."""
+def parse_ifc(data: bytes, *, deflection: float = 0.03) -> ParsedIfc:
+    """Parse and tessellate one IFC file. Raises :class:`IfcError` for unusable input."""
     try:
         import ifcopenshell
         import ifcopenshell.geom
@@ -276,10 +305,12 @@ def read_ifc(data: bytes, *, deflection: float = 0.03, budget: int = MAX_GLB_BYT
     settings = _settings(ifcopenshell, deflection)
 
     # first pass: tessellate everything we draw, remember raw IFC coordinates
-    space_geo: list[tuple[Any, list[float], list[int]]] = []
-    class_geo: dict[str, list[tuple[list[float], list[int]]]] = {}
+    space_products: list[tuple[Any, list[float], list[int]]] = []
+    class_geo: dict[str, list[Geometry]] = {}
+    storey_slab_xy: dict[str, list[tuple[float, float]]] = {}
     failed = 0
     mins = [float("inf")] * 3
+    maxs = [float("-inf")] * 3
     for product in f.by_type("IfcProduct"):
         if not getattr(product, "Representation", None):
             continue
@@ -295,17 +326,32 @@ def read_ifc(data: bytes, *, deflection: float = 0.03, budget: int = MAX_GLB_BYT
             continue
         for i in range(3):
             mins[i] = min(mins[i], min(verts[i::3]))
+            maxs[i] = max(maxs[i], max(verts[i::3]))
         if cls == "IfcSpace":
-            space_geo.append((product, verts, faces))
+            space_products.append((product, verts, faces))
         else:
             key = cls if cls in CLASS_STYLE else "other"
             class_geo.setdefault(key, []).append((verts, faces))
-    if not space_geo and not class_geo:
+            if cls == "IfcSlab":
+                # the storey's footprint for the plan fit (ADR-0030 Decision 4)
+                st = _storey_of(ifcopenshell, product)
+                if st is not None:
+                    storey_slab_xy.setdefault(st.GlobalId, []).extend(
+                        zip(verts[0::3], verts[1::3], strict=True)
+                    )
+    if not space_products and not class_geo:
         raise IfcError("The IFC file holds no geometry to draw")
     offset = tuple(0.0 if m == float("inf") else m for m in mins)
+    bounds = (
+        offset[0],
+        offset[1],
+        maxs[0] if maxs[0] != float("-inf") else offset[0],
+        maxs[1] if maxs[1] != float("-inf") else offset[1],
+    )
 
     spaces: list[Space] = []
-    for product, verts, faces in space_geo:
+    space_geo: list[Geometry] = []
+    for product, verts, faces in space_products:
         st = _storey_of(ifcopenshell, product)
         spaces.append(
             Space(
@@ -318,13 +364,80 @@ def read_ifc(data: bytes, *, deflection: float = 0.03, budget: int = MAX_GLB_BYT
                 triangles=len(faces) // 3,
             )
         )
+        space_geo.append((verts, faces))
+    return ParsedIfc(
+        schema=f.schema,
+        building_name=building_name,
+        application=application,
+        export_options=export_options,
+        storeys=storeys,
+        spaces=spaces,
+        space_geo=space_geo,
+        class_geo=class_geo,
+        offset=offset,  # type: ignore[arg-type]
+        elements_failed=failed,
+        storey_slab_xy=storey_slab_xy,
+        bounds=bounds,
+    )
 
+
+def storey_footprint(parsed: ParsedIfc, storey_gid: str) -> list[tuple[float, float]] | None:
+    """XY convex hull of the storey's slabs in IFC metres; ``None`` when it has none."""
+    from shapely.geometry import MultiPoint
+
+    pts = parsed.storey_slab_xy.get(storey_gid)
+    if not pts or len(pts) < 3:
+        return None
+    hull = MultiPoint(pts).convex_hull
+    if hull.geom_type != "Polygon":
+        return None
+    return [(float(x), float(y)) for x, y in list(hull.exterior.coords)[:-1]]
+
+
+def prism(ring: list[tuple[float, float]], z0: float, z1: float) -> Geometry:
+    """A flat extrusion of an XY ring between two heights, raw IFC coordinates."""
+    from unitforma.geometry.massing import ear_clip, signed_area
+
+    pts = [(float(x), float(y)) for x, y in ring]
+    if len(pts) > 1 and pts[0] == pts[-1]:
+        pts.pop()
+    if signed_area(pts) < 0:
+        pts.reverse()
+    n = len(pts)
+    verts: list[float] = []
+    for x, y in pts:
+        verts += [x, y, z0]
+    for x, y in pts:
+        verts += [x, y, z1]
+    faces: list[int] = []
+    for i in range(n):
+        j = (i + 1) % n
+        faces += [i, j, n + i, j, n + j, n + i]
+    for a, b, c in ear_clip(pts):
+        faces += [n + a, n + b, n + c, a, c, b]
+    return verts, faces
+
+
+def pack_ifc(
+    parsed: ParsedIfc,
+    *,
+    budget: int = MAX_GLB_BYTES,
+    extra_spaces: list[tuple[Space, list[float], list[int]]] = (),  # type: ignore[assignment]
+) -> IfcModel:
+    """Pack a parsed file (plus spaces the caller derived, ADR-0030) into a GLB within ``budget``,
+    dropping element classes in ``DROP_ORDER`` until it fits; spaces are never dropped."""
+    spaces = list(parsed.spaces) + [sp for sp, _v, _f in extra_spaces]
+    space_geo = list(parsed.space_geo) + [(v, fc) for _sp, v, fc in extra_spaces]
     dropped: list[str] = []
     while True:
-        glb, build_stats = _pack(space_geo, spaces, class_geo, offset, building_name, dropped)
+        glb, build_stats = _pack(
+            space_geo, spaces, parsed.class_geo, parsed.offset, parsed.building_name, dropped
+        )
         if len(glb) <= budget:
             break
-        candidate = next((c for c in DROP_ORDER if c in class_geo and c not in dropped), None)
+        candidate = next(
+            (c for c in DROP_ORDER if c in parsed.class_geo and c not in dropped), None
+        )
         if candidate is None:
             raise IfcError(
                 f"Model is {len(glb) // (1024 * 1024)} MB after dropping finishes; the budget is "
@@ -333,28 +446,34 @@ def read_ifc(data: bytes, *, deflection: float = 0.03, budget: int = MAX_GLB_BYT
         dropped.append(candidate)
     stats = {
         **build_stats,
-        "schema": f.schema,
-        "application": application,
-        "export_options": export_options,
-        "storeys": len(storeys),
+        "schema": parsed.schema,
+        "application": parsed.application,
+        "export_options": parsed.export_options,
+        "storeys": len(parsed.storeys),
         "spaces": len(spaces),
-        "elements_failed": failed,
+        "spaces_plan": sum(1 for sp in spaces if sp.source == "plan"),
+        "elements_failed": parsed.elements_failed,
         "classes_dropped": dropped,
-        "offset_m": [round(o, 3) for o in offset],
+        "offset_m": [round(o, 3) for o in parsed.offset],
         "compression": "none",
     }
     return IfcModel(
-        schema=f.schema,
-        building_name=building_name,
-        storeys=storeys,
+        schema=parsed.schema,
+        building_name=parsed.building_name,
+        storeys=parsed.storeys,
         spaces=spaces,
         glb=glb,
         stats=stats,
     )
 
 
+def read_ifc(data: bytes, *, deflection: float = 0.03, budget: int = MAX_GLB_BYTES) -> IfcModel:
+    """Parse, tessellate and pack one IFC file. Raises :class:`IfcError` for unusable input."""
+    return pack_ifc(parse_ifc(data, deflection=deflection), budget=budget)
+
+
 def _pack(
-    space_geo: list[tuple[Any, list[float], list[int]]],
+    space_geo: list[Geometry],
     spaces: list[Space],
     class_geo: dict[str, list[tuple[list[float], list[int]]]],
     offset: tuple[float, float, float],
@@ -381,15 +500,21 @@ def _pack(
         return b._material_index[name]  # noqa: SLF001
 
     children: list[int] = []
-    for (_product, verts, faces), sp in zip(space_geo, spaces, strict=True):
+    for (verts, faces), sp in zip(space_geo, spaces, strict=True):
         extras = {
             "ifc_global_id": sp.global_id,
             "code": sp.name or sp.global_id,
             "unit_id": f"space:{sp.global_id}",
             "unit_type": "space",
-            "floor_level": sp.storey.index if sp.storey else 0,
+            # the project's floor level when known; the relink fixes the storey index otherwise
+            "floor_level": (
+                sp.floor_level
+                if sp.floor_level is not None
+                else (sp.storey.index if sp.storey else 0)
+            ),
             "storey": sp.storey.name if sp.storey else None,
             "lifecycle_status": "space",
+            "source": sp.source,
         }
         m = b.mesh(
             sp.name or sp.global_id,

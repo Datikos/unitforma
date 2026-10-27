@@ -122,8 +122,11 @@ interface MassingStats {
         <p class="uf-hint">
           Upload an IFC export under a building in Documents; the heavy worker converts it to a model
           with one object per space. Link each space to its unit here: unit ids never change, only
-          the link. Confirming a space copies its IFC floor areas onto the unit as unverified
-          "ifc_quantity" areas. Buyers see the IFC model of a building instead of the massing once it
+          the link. Confirming an IFC space copies its IFC floor areas onto the unit as unverified
+          "ifc_quantity" areas. When the export has no spaces, the approved plan outlines of the
+          building's floors become the spaces, placed in the model by matching the lowest floor to
+          its storey's slab (ADR-0030); confirming one of those says the alignment is right, no
+          areas are copied. Buyers see the IFC model of a building instead of the massing once it
           exists; only confirmed spaces of listed units are clickable for them.
         </p>
         <div class="uf-toolbar">
@@ -174,6 +177,33 @@ interface MassingStats {
               </span>
             </div>
           }
+          @if (im.status === 'ready' && planFit(im); as pf) {
+            @if (pf['reason']) {
+              <div class="uf-alert uf-alert--warning">
+                <ng-icon name="lucideTriangleAlert" />
+                <span>
+                  No spaces from the plans either: {{ pf['reason'] }}. Approve calibrated unit
+                  outlines on this building's floors, then re-run the conversion.
+                </span>
+              </div>
+            } @else {
+              <div class="uf-alert uf-alert--info">
+                <ng-icon name="lucideLayers" />
+                <span>
+                  {{ im.stats['spaces_plan'] }} spaces come from the approved plan outlines, placed
+                  on the model by floor {{ pf['floor_level'] }} against storey
+                  "{{ pf['storey'] ?? '?' }}" ({{ pf['face'] === 'slabs' ? 'slab footprint' : 'model bounds' }}):
+                  rotation {{ pf['rotation_deg'] }}°, overlap {{ pct(pf['iou']) }}. Check the
+                  model, then confirm: confirming says the alignment is right; no areas are copied.
+                </span>
+                @if (suggestedPlan() > 0) {
+                  <button mat-stroked-button [disabled]="busy()" (click)="confirmPlan()">
+                    Confirm all {{ suggestedPlan() }} plan spaces
+                  </button>
+                }
+              </div>
+            }
+          }
           @if (im.status === 'ready' && exportAdvice(im).length) {
             <div class="uf-alert uf-alert--warning">
               <ng-icon name="lucideSettings" />
@@ -194,7 +224,7 @@ interface MassingStats {
             <tr><th>Space</th><th>Storey</th><th>Floor</th><th class="num">Net m²</th><th>Unit</th><th>Status</th><th></th></tr>
             @for (lk of links(); track lk.id) {
               <tr [class.sel]="selectedLink()?.id === lk.id" (click)="selectLink(lk)">
-                <td>{{ lk.name || lk.ifc_global_id }}@if (lk.long_name) { <span class="uf-hint"> · {{ lk.long_name }}</span> }</td>
+                <td>{{ lk.name || lk.ifc_global_id }}@if (lk.long_name) { <span class="uf-hint"> · {{ lk.long_name }}</span> }@if (lk.source === 'plan') { <span class="uf-chip uf-tone-info">from plan</span> }</td>
                 <td>{{ lk.storey_name }}@if (lk.storey_elevation_m != null) { <span class="uf-hint"> {{ lk.storey_elevation_m }}</span> }</td>
                 <td>{{ lk.floor_level ?? '—' }}</td>
                 <td class="num">{{ lk.areas['net_floor_area'] ?? '—' }}</td>
@@ -396,6 +426,32 @@ export class MassingPage {
     return out;
   }
 
+  planFit(m: BuildingModelOut): Record<string, unknown> | null {
+    const pf = m.stats['plan_fit'];
+    return pf && typeof pf === 'object' ? (pf as Record<string, unknown>) : null;
+  }
+
+  readonly suggestedPlan = computed(
+    () => this.links().filter((lk) => lk.source === 'plan' && lk.status === 'suggested').length,
+  );
+
+  /** ADR-0030 C1: one call confirms every suggested plan space; the GLB is relinked once. */
+  async confirmPlan(): Promise<void> {
+    const id = this.buildingId();
+    if (!id) return;
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      const r = await this.api.confirmPlanIfcLinks(this.tenantId(), id);
+      this.toast.ok(`${r.confirmed} plan space(s) confirmed`);
+      await this.selectBuilding(id); // links and the relinked GLB
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
   isArchicad(m: BuildingModelOut): boolean {
     return String(m.stats['application'] ?? '')
       .toLowerCase()
@@ -407,8 +463,8 @@ export class MassingPage {
     return Array.isArray(d) ? (d as string[]) : [];
   }
 
-  pct(v: string | number | null | undefined): string {
-    const n = typeof v === 'string' ? Number(v) : v;
+  pct(v: unknown): string {
+    const n = typeof v === 'string' ? Number(v) : (v as number | null | undefined);
     return typeof n === 'number' && !Number.isNaN(n) ? `${Math.round(n * 100)} %` : '';
   }
 

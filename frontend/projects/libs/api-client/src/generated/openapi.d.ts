@@ -1341,6 +1341,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/ifc-links/confirm-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Plan Ifc Links
+         * @description Confirm every suggested plan space of the building's model as its unit (ADR-0030).
+         */
+        post: operations["confirm_plan_ifc_links_api_v1_admin_tenants__tenant_id__buildings__building_id__ifc_links_confirm_plan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tenants/{tenant_id}/ifc-links/{link_id}": {
         parameters: {
             query?: never;
@@ -8217,6 +8237,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IfcSpaceLinkOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_plan_ifc_links_api_v1_admin_tenants__tenant_id__buildings__building_id__ifc_links_confirm_plan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                building_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

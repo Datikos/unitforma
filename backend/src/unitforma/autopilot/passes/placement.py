@@ -8,16 +8,15 @@ envelope lacks; the first real projects tune the two thresholds (ADR-0025 D3).""
 
 from __future__ import annotations
 
-import math
 import uuid
 from typing import Any
 
-from shapely import affinity
 from shapely.geometry import Polygon
 from sqlalchemy import select
 
 from unitforma.autopilot import rules
 from unitforma.autopilot.service import Context, session
+from unitforma.geometry import plan_fit
 from unitforma.geometry import service as geometry_service
 from unitforma.inventory import geometry
 from unitforma.mapping import service as mapping
@@ -48,53 +47,23 @@ def site_faces(sheet: Sheet) -> list[Polygon]:
     return out
 
 
-def _placed(poly: Polygon, angle_deg: float, tx: float, ty: float) -> Polygon:
-    """``Placement.apply``: p' = (tx, ty) + R(angle) p."""
-    a = math.radians(angle_deg)
-    c, s = math.cos(a), math.sin(a)
-    return affinity.affine_transform(poly, [c, -s, s, c, tx, ty])
-
-
-def _fit_at(foot: Polygon, face: Polygon, angle: float) -> tuple[float, float, float]:
-    """Translation that puts the rotated footprint's centroid on the face's, and the IoU."""
-    a = math.radians(angle)
-    c, s = math.cos(a), math.sin(a)
-    fc, cf = foot.centroid, face.centroid
-    tx = cf.x - (c * fc.x - s * fc.y)
-    ty = cf.y - (s * fc.x + c * fc.y)
-    placed = _placed(foot, angle, tx, ty)
-    union = placed.union(face).area
-    iou = placed.intersection(face).area / union if union > 0 else 0.0
-    return iou, tx, ty
-
-
 def best_fit(foot: Polygon, faces: list[Polygon]) -> dict[str, Any] | None:
+    """The face whose area is within ``PLACEMENT_AREA_TOLERANCE`` of the footprint's and fits it
+    best by rotation and translation (`geometry.plan_fit`)."""
     area = foot.area
     best: dict[str, Any] | None = None
     for face in faces:
         if abs(face.area - area) / max(face.area, area) > rules.PLACEMENT_AREA_TOLERANCE:
             continue
-        coarse = max(
-            (
-                (_fit_at(foot, face, ang), ang)
-                for ang in _angles(0.0, 360.0, rules.PLACEMENT_COARSE_STEP_DEG)
-            ),
-            key=lambda t: t[0][0],
+        fit = plan_fit.best_rotation(
+            foot,
+            face,
+            coarse=rules.PLACEMENT_COARSE_STEP_DEG,
+            fine=rules.PLACEMENT_FINE_STEP_DEG,
         )
-        (iou, tx, ty), ang = coarse
-        lo, hi = ang - rules.PLACEMENT_COARSE_STEP_DEG, ang + rules.PLACEMENT_COARSE_STEP_DEG
-        for fine in _angles(lo, hi, rules.PLACEMENT_FINE_STEP_DEG):
-            f_iou, f_tx, f_ty = _fit_at(foot, face, fine)
-            if f_iou > iou:
-                iou, tx, ty, ang = f_iou, f_tx, f_ty, fine
-        if best is None or iou > best["iou"]:
-            best = {"iou": iou, "tx": tx, "ty": ty, "rotation_deg": ang % 360.0}
+        if best is None or fit["iou"] > best["iou"]:
+            best = fit
     return best
-
-
-def _angles(lo: float, hi: float, step: float) -> list[float]:
-    n = int(round((hi - lo) / step))
-    return [lo + i * step for i in range(n)]
 
 
 async def run(ctx: Context) -> None:

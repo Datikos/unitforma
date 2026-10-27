@@ -304,6 +304,12 @@ export class UnitformaApi {
   listIfcLinks(tenantId: string, buildingId: string): Promise<IfcSpaceLinkOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/ifc-links`);
   }
+  confirmPlanIfcLinks(tenantId: string, buildingId: string): Promise<{ confirmed: number }> {
+    return this.post(
+      `${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/ifc-links/confirm-plan`,
+      {},
+    );
+  }
   decideIfcLink(
     tenantId: string,
     linkId: string,
