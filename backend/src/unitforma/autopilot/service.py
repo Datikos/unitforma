@@ -172,19 +172,29 @@ async def decided_before(
 
 
 async def run_project(tenant_id: uuid.UUID, project_id: uuid.UUID) -> dict[str, Any]:
-    """Worker body of ``setup.autopilot``: the oldest queued run of the project, if any."""
-    async with tenant_session(tenant_id, scope="tenant") as db:
-        row = (
-            await db.execute(
-                select(SetupRun.id)
-                .where(SetupRun.project_id == project_id, SetupRun.status == "queued")
-                .order_by(SetupRun.created_at)
-                .limit(1)
-            )
-        ).first()
-    if row is None:
+    """Worker body of ``setup.autopilot``: every queued run of the project, oldest first.
+
+    Two intake events within seconds create two rows and one job (the queueing lock drops the
+    second deferral); the job must drain both, or the second row stays ``queued`` for ever and
+    ``queue_run`` keeps returning it without a job (seen on 2026-10-27, project ``nn4``: the run
+    that should have followed the plan set's processing never happened)."""
+    results: list[dict[str, Any]] = []
+    for _ in range(20):  # bounded: a pass that queues a run would otherwise loop here
+        async with tenant_session(tenant_id, scope="tenant") as db:
+            row = (
+                await db.execute(
+                    select(SetupRun.id)
+                    .where(SetupRun.project_id == project_id, SetupRun.status == "queued")
+                    .order_by(SetupRun.created_at)
+                    .limit(1)
+                )
+            ).first()
+        if row is None:
+            break
+        results.append(await run_autopilot(tenant_id, row[0]))
+    if not results:
         return {"skipped": "no queued run"}
-    return await run_autopilot(tenant_id, row[0])
+    return results[-1] if len(results) == 1 else {"runs": results}
 
 
 async def run_autopilot(tenant_id: uuid.UUID, run_id: uuid.UUID) -> dict[str, Any]:

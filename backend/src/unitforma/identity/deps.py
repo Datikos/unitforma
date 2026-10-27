@@ -197,6 +197,7 @@ async def tenant_context(
                 user_id=principal.user_id,
                 role=Role.TENANT_ADMIN,
                 all_projects=True,
+                is_member=False,
             )
         yield TenantContext(
             principal=principal,

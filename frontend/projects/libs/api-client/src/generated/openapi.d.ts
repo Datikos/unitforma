@@ -374,7 +374,9 @@ export interface paths {
         put?: never;
         /**
          * Create Api Token
-         * @description A token for the caller; it never does more than the caller's role allows.
+         * @description A token for the caller; it acts through the caller's membership and never does more
+         *     than that role allows. A platform admin holds a token only where they are a member
+         *     (ADR-0015 Decision 3): the MCP side loads the membership on every call.
          */
         post: operations["create_api_token_api_v1_admin_tenants__tenant_id__tokens_post"];
         delete?: never;

@@ -28,6 +28,21 @@ def lock_of(project_id: uuid.UUID) -> str:
     return f"autopilot:{project_id}"
 
 
+async def _defer(tenant_id: uuid.UUID, project_id: uuid.UUID) -> None:
+    """One ``setup.autopilot`` job per project at a time: the queueing lock drops a duplicate
+    while one is waiting, and that job drains every queued row (``service.run_project``)."""
+    from procrastinate.exceptions import AlreadyEnqueued
+
+    from unitforma.jobs.app import app as jobs
+
+    try:
+        await jobs.configure_task(
+            name=TASK, queue=QUEUE, queueing_lock=lock_of(project_id)
+        ).defer_async(tenant_id=str(tenant_id), project_id=str(project_id))
+    except AlreadyEnqueued:
+        pass
+
+
 async def queue_run(
     tenant_id: uuid.UUID,
     project_id: uuid.UUID,
@@ -56,6 +71,13 @@ async def queue_run(
             )
         ).first()
         if waiting is not None:
+            # a row is queued already: make sure a job exists for it (the lock drops a duplicate)
+            try:
+                await _defer(tenant_id, project_id)
+            except Exception as e:  # noqa: BLE001 - the queue may be down; the row stays queued
+                log.warning(
+                    "autopilot.enqueue_failed", project_id=str(project_id), error=str(e)[:200]
+                )
             return waiting[0]
         who = requested_by
         if who is None and auto.get("requested_by"):
@@ -76,16 +98,7 @@ async def queue_run(
         await db.flush()
         run_id = run.id
     try:
-        from procrastinate.exceptions import AlreadyEnqueued
-
-        from unitforma.jobs.app import app as jobs
-
-        try:
-            await jobs.configure_task(
-                name=TASK, queue=QUEUE, queueing_lock=lock_of(project_id)
-            ).defer_async(tenant_id=str(tenant_id), project_id=str(project_id))
-        except AlreadyEnqueued:
-            pass  # a job for this project is waiting; it picks up the row when it starts
+        await _defer(tenant_id, project_id)
     except Exception as e:  # noqa: BLE001 - the queue may be down; the caller's work still lands
         log.warning("autopilot.enqueue_failed", project_id=str(project_id), error=str(e)[:200])
         async with tenant_session(tenant_id, scope="tenant") as db:

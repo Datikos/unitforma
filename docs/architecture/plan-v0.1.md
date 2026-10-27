@@ -999,7 +999,7 @@ Dependency rule: `api` → module services → `core`; modules may depend on `in
 | Portal (public) | `/api/v1/portal/…` | none | `Host` → `portal_domains` |
 | Portal (buyer) | `/api/v1/portal/me/…` | `uf_session` app cookie | `Host` + session host match |
 | Auth BFF | `/auth/email/start`, `/auth/email/verify`, `/auth/email/resend`, `/auth/logout`, `/auth/session`, `/auth/settings/email/*` | none / app cookie | `Host` |
-| MCP (ADR-0015) | `/mcp` (Streamable HTTP, stateless, JSON responses) | `Authorization: Bearer ufm_…` personal API token (`api_tokens`, SHA-256 at rest, scope read/write, expiry, revocation) → the owner's membership and the same policy matrix; known gap: bearer tokens, not the MCP spec's OAuth path | Token |
+| MCP (ADR-0015) | `/mcp` (Streamable HTTP, stateless, JSON responses) | `Authorization: Bearer ufm_…` personal API token (`api_tokens`, SHA-256 at rest, scope read/write, expiry, revocation) → the owner's membership and the same policy matrix (a platform admin needs a membership in the workspace to hold one; the token never carries platform scope); known gap: bearer tokens, not the MCP spec's OAuth path | Token |
 | Internal | `/internal/domains/ask`, `/internal/health/live`, `/internal/health/ready`, `/internal/metrics` | network-only (proxy/Prometheus); `ask` additionally checks a shared header secret | n/a |
 
 Versioning: URL major version; additive changes only within `v1`; breaking changes → `v2` router side by side for one release window (§17.6).

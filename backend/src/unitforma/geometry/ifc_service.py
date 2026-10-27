@@ -44,7 +44,33 @@ Actor = tuple[uuid.UUID, str]
 
 # --------------------------------------------------------------------------- worker body
 async def ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str, Any]:
-    """Convert an uploaded IFC revision into the building's current model and its space list."""
+    """Convert an uploaded IFC revision into the building's current model and its space list,
+    then tell the setup solver (ADR-0025 D6: its guard waited on this revision)."""
+    try:
+        return await _ingest_ifc(tenant_id, revision_id)
+    finally:
+        await _queue_solver(tenant_id, revision_id)
+
+
+async def _queue_solver(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> None:
+    try:
+        from unitforma.autopilot.queue import queue_run
+
+        async with tenant_session(tenant_id, scope="tenant") as db:
+            project_id = (
+                await db.execute(
+                    select(Document.project_id)
+                    .join(DocumentRevision, DocumentRevision.document_id == Document.id)
+                    .where(DocumentRevision.id == revision_id)
+                )
+            ).scalar_one_or_none()
+        if project_id is not None:
+            await queue_run(tenant_id, project_id, "document_processed")
+    except Exception as e:  # noqa: BLE001 - the model is saved; the next trigger queues a run
+        log.warning("ifc.solver_trigger_failed", revision_id=str(revision_id), error=str(e)[:200])
+
+
+async def _ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str, Any]:
     storage = get_storage()
     async with tenant_session(tenant_id, scope="tenant") as db:
         rev = (

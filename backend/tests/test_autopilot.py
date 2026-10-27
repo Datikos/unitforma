@@ -6,6 +6,7 @@ nothing until confirmed; the switches respect the role matrix."""
 
 from __future__ import annotations
 
+import functools
 import io
 import os
 import uuid
@@ -630,6 +631,38 @@ def test_proposed_layout_shares_nothing_until_confirmed(client, world, solved):
     assert r.status_code == 202, r.text
     counts = _run(client, world["tenant"]["id"], r.json()["id"])
     assert counts["accepted"] == 0, counts
+
+
+def test_one_job_drains_every_queued_run(client, world):
+    """Two intake events within seconds leave two queued rows and one job (the queueing lock
+    drops the second deferral); the job must process both, or the second row blocks every later
+    trigger (seen on project nn4, 2026-10-27). ``queue_run`` also re-defers when a row is queued."""
+    from unitforma.autopilot import queue
+    from unitforma.autopilot.service import run_project
+
+    base, adm, tid = world["base"], world["adm"], world["tenant"]["id"]
+    p = client.post(
+        f"{base}/projects",
+        headers=adm,
+        json={"slug": f"drain-{uuid.uuid4().hex[:5]}", "name": "Drain", "building_code": "A"},
+    ).json()
+    pid = uuid.UUID(p["id"])
+    first = client.portal.call(
+        functools.partial(queue.queue_run, uuid.UUID(tid), pid, "run_now", force=True)
+    )
+    second = client.portal.call(
+        functools.partial(queue.queue_run, uuid.UUID(tid), pid, "document_processed", force=True)
+    )
+    assert first is not None and second == first  # the queued row is reused, no second row
+    _admin_sql(
+        "INSERT INTO setup_runs (id, tenant_id, project_id, status, trigger, summary) "
+        "VALUES (:id, :t, :p, 'queued', 'document_processed', '{}')",
+        {"id": uuid.uuid4(), "t": tid, "p": p["id"]},
+    )
+    assert [r["status"] for r in _runs(client, base, adm, p["id"])].count("queued") == 2
+    out = client.portal.call(run_project, uuid.UUID(tid), pid)
+    assert "runs" in out and len(out["runs"]) == 2, out
+    assert "queued" not in [r["status"] for r in _runs(client, base, adm, p["id"])]
 
 
 def test_split_level_blocks_stay_a_proposal(client, world):

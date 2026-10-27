@@ -172,9 +172,48 @@ def test_input_bounds(client: TestClient, world: dict):
     )
 
 
-def test_platform_admin_cannot_hold_a_token(client: TestClient, world: dict, platform_admin: dict):
-    r = client.post(f"{world['base']}/tokens", headers=platform_admin, json={"name": "root"})
-    assert r.status_code == 403
+def test_platform_admin_holds_a_token_only_where_a_member(
+    client: TestClient, world: dict, platform_admin: dict
+):
+    """ADR-0015 Decision 3: a token acts through a membership, so a platform admin without one
+    is refused with the reason, and with one the token carries that membership's role."""
+    base = world["base"]
+    r = client.post(f"{base}/tokens", headers=platform_admin, json={"name": "root"})
+    assert r.status_code == 403, r.text
+    assert r.json()["title"] == "Not a member of this workspace"
+    email = client.get("/api/v1/admin/me", headers=platform_admin).json()["email"]
+    r = client.post(
+        f"{base}/invitations",
+        headers=cookie("admin_a"),
+        json={"email": email, "role": "project_manager", "all_projects": True},
+    )
+    assert r.status_code == 201, r.text
+    token = r.json()["accept_url"].rsplit("/", 1)[1]
+    r = client.post(
+        "/api/v1/admin/invitations/accept", headers=platform_admin, json={"token": token}
+    )
+    assert r.status_code == 200, r.text
+    r = client.post(f"{base}/tokens", headers=platform_admin, json={"name": "root"})
+    assert r.status_code == 201, r.text
+    secret = r.json()["secret"]
+    r = client.post(
+        "/mcp",
+        headers={
+            "Authorization": f"Bearer {secret}",
+            "Accept": "application/json, text/event-stream",
+            "Content-Type": "application/json",
+            "MCP-Protocol-Version": "2025-06-18",
+        },
+        json={
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": "whoami", "arguments": {}},
+        },
+    )
+    assert r.status_code == 200, r.text
+    me = r.json()["result"]["structuredContent"]
+    assert me["role"] == "project_manager" and me["user_email"] == email
 
 
 def test_tokens_are_tenant_scoped(client: TestClient, world: dict, platform_admin: dict, kratos):

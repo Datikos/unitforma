@@ -85,7 +85,12 @@ Third-party facts (checked 2026-10-26; sources in plan §21):
    one (404 as the admin API does), and builds the same `TenantContext`. The role matrix applies
    unchanged; the token scope narrows it: a `read` token cannot call a write tool even when the
    role allows the write. Platform administrators get tenant scope only (a token cannot prove
-   aal2). Tokens are created by the user for themselves; a tenant admin can list and revoke every
+   aal2): a platform admin holds a token only in a workspace where they are an active member, and
+   the token carries that membership's role; without a membership the create call answers 403
+   "Not a member of this workspace" and the tokens page shows the reason instead of the button.
+   *Found while using (2026-10-27):* the first implementation refused every platform admin, also
+   a member; fixed the same day (`test_platform_admin_holds_a_token_only_where_a_member`).
+   Tokens are created by the user for themselves; a tenant admin can list and revoke every
    token of the tenant.
 4. **Auth is our middleware, not the SDK's.** A Starlette middleware around the mounted MCP app
    reads the bearer, verifies it against `api_tokens`, and puts the principal in a `contextvar`;

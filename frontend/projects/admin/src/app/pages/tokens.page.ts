@@ -124,6 +124,14 @@ const EXPIRIES = [30, 90, 180, 365];
         storageKey="tokens-create"
         [open]="tokens().length === 0"
       >
+        @if (!isMember()) {
+          <div class="uf-alert uf-alert--info">
+            <ng-icon name="lucideInfo" />
+            You are signed in as a platform admin and are not a member of this workspace. A token
+            acts through a membership, so none can be created here: have a workspace admin invite
+            {{ me() }}, accept, and come back.
+          </div>
+        }
         <div class="uf-form-row">
           <mat-form-field appearance="outline" subscriptSizing="dynamic"
             ><mat-label>Name</mat-label
@@ -151,7 +159,11 @@ const EXPIRIES = [30, 90, 180, 365];
               }
             </mat-select>
           </mat-form-field>
-          <button mat-flat-button [disabled]="busy() || !name.trim()" (click)="create()">
+          <button
+            mat-flat-button
+            [disabled]="busy() || !name.trim() || !isMember()"
+            (click)="create()"
+          >
             <ng-icon name="lucideKeyRound" /> Create token
           </button>
         </div>
@@ -320,6 +332,14 @@ export class TokensPage {
   readonly scopes = SCOPES;
   readonly expiries = EXPIRIES;
   readonly me = computed(() => this.session.me()?.email ?? 'you');
+  /** A token acts through a membership (ADR-0015 Decision 3); a platform admin may lack one. */
+  readonly isMember = computed(
+    () =>
+      this.session
+        .me()
+        ?.memberships.some((m) => m.tenant_id === this.tenantId() && m.status === 'active') ??
+      false,
+  );
   readonly activeCount = computed(() => this.tokens().filter((t) => t.status === 'active').length);
   readonly facts = computed<HeaderFact[]>(() => [
     { label: 'Tokens', value: this.tokens().length },
@@ -383,7 +403,7 @@ export class TokensPage {
   }
 
   create(): Promise<void> {
-    if (!this.name.trim()) return Promise.resolve();
+    if (!this.name.trim() || !this.isMember()) return Promise.resolve();
     return this.run(async () => {
       const c = await this.api.createApiToken(this.tenantId(), {
         name: this.name.trim(),

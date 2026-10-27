@@ -340,6 +340,16 @@ backend tests, not in a browser).
       `LABEL_SET_WIDE_SHARE`) is dropped from the labels and from the coverage rule; printed twice on
       one sheet it is still listed. Fixture: the axis mark "4" at both ends of both pages of
       `_plan_pdf` (`_axis_marks`); page 1 is still approved, page 2 lists only "7".
+- [x] D6 (2026-10-27, found on project `nn4`) Two defects in the run queue. (a) Two intake events
+      within seconds created two `setup_runs` rows and one job (the queueing lock drops the second
+      deferral); the job processed the oldest row only, the second stayed `queued` for ever, and every
+      later `queue_run` returned it without deferring, so the run that should have followed the plan
+      set's processing never happened. `service.run_project` now drains every queued row of the
+      project (bounded at 20) and `queue_run` re-defers when a queued row exists (the lock still keeps
+      one job). (b) The end of `geometry.ingest_ifc` carried no trigger, and while an IFC converts
+      (2 min on the real file, three re-runs in a row) the guard of Decision 3 reports "waiting" with
+      nothing to re-queue afterwards; `ifc_service.ingest_ifc` now queues `document_processed` on
+      every exit like `documents.ingest_revision`. Test `test_one_job_drains_every_queued_run`.
 - [x] D5 `regulatory/tasge.py`: bound the whole download (a total deadline next to `DOWNLOAD_TIMEOUT_S`),
       so a slow server cannot hold the import worker for an hour; record it in `stats.failed`.
       *Done 2026-10-27:* `DOWNLOAD_TOTAL_TIMEOUT_S = 900` (50 MB at 0.5 Mbit/s) around the whole

@@ -572,6 +572,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
     tips: [
       'Tokens are bearer secrets, not OAuth sign-ins: anyone holding the secret acts as you until it expires or is revoked.',
       'Every change made through a token lands in the audit log with the token prefix as its request id.',
+      'A token acts through your membership in this workspace. A platform admin who is not a member sees the reason instead of the Create button: get invited as a member first; the token then carries that role, never platform rights.',
     ],
   },
   settings: {

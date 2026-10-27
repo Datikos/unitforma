@@ -82,6 +82,7 @@ class MembershipContext:
     all_projects: bool = True
     project_ids: frozenset[uuid.UUID] = field(default_factory=frozenset)
     is_active: bool = True
+    is_member: bool = True  # False for the context a platform admin gets without a membership row
 
 
 def is_allowed(ctx: MembershipContext, resource: str, action: Action) -> bool:

@@ -321,10 +321,15 @@ async def list_api_tokens(ctx: Ctx):
 
 @router.post("/tenants/{tenant_id}/tokens", response_model=ApiTokenCreated, status_code=201)
 async def create_api_token(body: ApiTokenCreate, ctx: Ctx):
-    """A token for the caller; it never does more than the caller's role allows."""
-    if ctx.scope == "platform":
+    """A token for the caller; it acts through the caller's membership and never does more
+    than that role allows. A platform admin holds a token only where they are a member
+    (ADR-0015 Decision 3): the MCP side loads the membership on every call."""
+    m = ctx.membership
+    if not (m.is_member and m.is_active):
         raise ProblemError(
-            403, "Platform scope cannot hold a token", "Tokens belong to tenant members"
+            403,
+            "Not a member of this workspace",
+            "A token acts through a membership; join this workspace as a member first",
         )
     t, secret = await tokens.create_token(
         ctx.session,
