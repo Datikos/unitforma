@@ -448,7 +448,8 @@ export interface paths {
         post?: never;
         /**
          * Delete Project
-         * @description Permanent delete, tenant admin only, typed slug, never while published (ADR-0012).
+         * @description Permanent delete, tenant admin only, typed slug; a live publication is retired first
+         *     (ADR-0012 Decision 4, amended 2026-10-27).
          */
         delete: operations["delete_project_api_v1_admin_tenants__tenant_id__projects__project_id__delete"];
         options?: never;

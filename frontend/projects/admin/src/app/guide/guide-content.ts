@@ -143,7 +143,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
       {
         name: 'Archive / Reactivate',
-        does: 'Archive hides the project from the list and changes nothing else; refused while the portal is published.',
+        does: 'Archive hides the project from the list and changes nothing else; a published portal goes offline first and Reactivate does not publish it again.',
       },
       {
         name: 'Delete (building)',
@@ -155,7 +155,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
       {
         name: 'Delete project permanently',
-        does: 'Tenant admin only, the slug typed in, refused while published. Removes buildings, units, documents, files and publications; the audit log keeps the record. Other roles see the button and get "not allowed".',
+        does: 'Tenant admin only, the slug typed in. A published portal goes offline first, then buildings, units, documents, files and publications are removed; the audit log keeps the record. Other roles see the button and get "not allowed".',
       },
     ],
     roles: STRUCTURE,

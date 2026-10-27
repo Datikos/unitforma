@@ -586,8 +586,9 @@ import { ToastService } from '../ui/toast.service';
           <p class="uf-hint">
             Archive hides the project from the projects list and changes nothing else; Reactivate
             brings it back. Delete removes the project with its buildings, units, documents, files
-            and publications; the audit log keeps who did it. Both are refused while the portal is
-            published: unpublish first. Delete needs the tenant admin role and the slug typed in.
+            and publications; the audit log keeps who did it. Both take a published portal offline
+            first (buyers see "coming soon" within seconds; the audit log keeps the unpublish).
+            Delete needs the tenant admin role and the slug typed in.
           </p>
           <div class="uf-actions">
             <button mat-stroked-button [disabled]="busy()" (click)="toggleArchive(p)">
@@ -1019,14 +1020,15 @@ export class ProjectDetailPage {
     });
   }
 
-  /** Archive keeps every row and file (ADR-0012 Decision 1); the backend refuses it while published. */
+  /** Archive keeps every row and file (ADR-0012 Decision 1); a published portal goes offline first. */
   async toggleArchive(p: ProjectOut): Promise<void> {
     const archive = p.status !== 'archived';
     if (archive) {
       const ok = await this.dialogs.confirm({
         title: `Archive ${p.name}?`,
         message:
-          'The project leaves the projects list; nothing is deleted and Reactivate brings it back.',
+          'The project leaves the projects list; nothing is deleted and Reactivate brings it back. ' +
+          'If the portal is published it goes offline now; Reactivate does not publish it again.',
         confirmLabel: 'Archive',
         icon: 'lucideArchive',
       });
@@ -1059,13 +1061,14 @@ export class ProjectDetailPage {
     });
   }
 
-  /** Tenant admin only, typed slug, never while published (ADR-0012 Decision 4). */
+  /** Tenant admin only, typed slug; a published portal goes offline first (ADR-0012 Decision 4). */
   async deleteProject(p: ProjectOut): Promise<void> {
     const typed = await this.dialogs.prompt({
       title: `Delete ${p.name} permanently?`,
       message:
         `Type the slug "${p.slug}" to confirm. Buildings, units, documents, files and ` +
-        'publications are removed; the audit log keeps a record. This cannot be undone.',
+        'publications are removed and a published portal goes offline; the audit log keeps a ' +
+        'record. This cannot be undone.',
       label: 'Project slug',
       placeholder: p.slug,
       required: true,

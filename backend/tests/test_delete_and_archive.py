@@ -1,5 +1,6 @@
 """ADR-0012: archive a project, delete a document or an empty building, and the tenant admin's
-permanent project delete. Role matrix, refusals (published, mapped, has units, wrong slug), the
+permanent project delete. Role matrix, refusals (mapped, has units, wrong slug), archive and delete
+taking a live portal offline, the
 cascade including units, the kept audit row, and the guarded storage job."""
 
 from __future__ import annotations
@@ -366,12 +367,15 @@ def test_mapped_document_refused_then_detached(client, world):
 def _publish_by_sql(world, status: str):
     _admin_sql(
         "INSERT INTO publications (id, tenant_id, project_id, version_no, status, snapshot_key, "
-        "summary, assets) VALUES (:id, :t, :p, 1, :s, 'x', '{}', '{}')",
+        "summary, assets) VALUES (:id, :t, :p, (SELECT coalesce(max(version_no), 0) + 1 "
+        "FROM publications WHERE project_id = :p), :s, 'x', '{}', '{}')",
         {"id": uuid.uuid4(), "t": world["tenant"]["id"], "p": world["project"]["id"], "s": status},
     )
 
 
-def test_archive_and_delete_refused_while_published(client, world):
+def test_archive_takes_the_portal_offline_and_a_wrong_slug_does_not(client, world):
+    """ADR-0012 amendment of 2026-10-27: archive retires the live publication in the same call
+    (audited as an unpublish); a delete with the wrong slug changes nothing, the portal stays up."""
     base, p = world["base"], world["project"]
     _publish_by_sql(world, "published")
     cur = client.get(f"{base}/projects/{p['id']}", headers=world["adm"]).json()
@@ -380,11 +384,32 @@ def test_archive_and_delete_refused_while_published(client, world):
         headers=world["pm"],
         json={"status": "archived", "version": cur["version"]},
     )
-    assert r.status_code == 409 and r.json()["type"].endswith("project-published"), r.text
-    r = client.delete(
-        f"{base}/projects/{p['id']}", headers=world["adm"], params={"confirm": "doomed"}
+    assert r.status_code == 200 and r.json()["status"] == "archived", r.text
+    assert _admin_sql(
+        "SELECT status, retired_at IS NOT NULL FROM publications WHERE project_id = :p",
+        {"p": p["id"]},
+    ) == [("retired", True)]
+    assert (
+        _count(
+            "audit_log",
+            "entity_type = 'publication' AND action = 'unpublish' AND after->>'project_id' = :p",
+            {"p": str(p["id"])},
+        )
+        == 1
     )
-    assert r.status_code == 409 and r.json()["type"].endswith("project-published"), r.text
+    cur = client.get(f"{base}/projects/{p['id']}", headers=world["adm"]).json()
+    r = client.patch(
+        f"{base}/projects/{p['id']}",
+        headers=world["pm"],
+        json={"status": "active", "version": cur["version"]},
+    )
+    assert r.status_code == 200, r.text
+    _publish_by_sql(world, "published")
+    r = client.delete(
+        f"{base}/projects/{p['id']}", headers=world["adm"], params={"confirm": "wrong"}
+    )
+    assert r.status_code == 400 and r.json()["type"].endswith("confirm-mismatch"), r.text
+    assert _count("publications", "project_id = :p AND status = 'published'", {"p": p["id"]}) == 1
     _admin_sql("UPDATE publications SET status = 'retired' WHERE project_id = :p", {"p": p["id"]})
 
 
@@ -430,10 +455,24 @@ def test_project_delete_cascades_units_and_keeps_audit(client, world):
         },
     )
     assert _count("units", "project_id = :p", {"p": p["id"]}) == 2
+    _publish_by_sql(world, "published")  # the live portal goes offline with the project
+    unpublished_before = _count(
+        "audit_log",
+        "entity_type = 'publication' AND action = 'unpublish' AND after->>'project_id' = :p",
+        {"p": str(p["id"])},
+    )
     r = client.delete(
         f"{base}/projects/{p['id']}", headers=world["adm"], params={"confirm": "doomed"}
     )
     assert r.status_code == 204, r.text
+    assert (
+        _count(
+            "audit_log",
+            "entity_type = 'publication' AND action = 'unpublish' AND after->>'project_id' = :p",
+            {"p": str(p["id"])},
+        )
+        == unpublished_before + 1
+    )
     assert client.get(f"{base}/projects/{p['id']}", headers=world["adm"]).status_code == 404
     for table in (
         "units",

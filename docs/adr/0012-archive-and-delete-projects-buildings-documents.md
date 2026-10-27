@@ -41,10 +41,16 @@ What `main` does today (commit 3e2dde3):
 ## Decision
 
 1. **Archive is the normal way to retire a project; it changes nothing but `projects.status`.**
-   `PATCH /projects/{id}` with `status: "archived"` is refused with 409 `project-published` while a
-   publication with `status = published` exists (unpublish first). Archived projects keep every row and
-   file, stay readable, and the projects list hides them behind a "Show archived" toggle. `status: "active"`
-   reactivates. Role: project `write` (tenant admin, project manager).
+   `PATCH /projects/{id}` with `status: "archived"` was refused with 409 `project-published` while a
+   publication with `status = published` existed. **Amended 2026-10-27:** it retires the live
+   publication in the same transaction instead (`publishing.unpublish`, audited as `unpublish`, portal
+   cache invalidated), and when a publication exists the caller also needs publication `publish`
+   (tenant admin and project manager both have it). Reason: since ADR-0029 the solver publishes a
+   project early, so every archive and delete of a test project met the refusal on 2026-10-27; archiving
+   means taking the project off the market, and the unpublish is part of that intent. Reactivating does
+   not publish again. Archived projects keep every row and file, stay readable, and the projects list
+   hides them behind a "Show archived" toggle. `status: "active"` reactivates. Role: project `write`
+   (tenant admin, project manager). The problem type `project-published` is gone.
 2. **`DELETE /documents/{document_id}` removes a document, its revisions, sheets and files.** Role:
    documents `write`. Rows go by cascade; the storage prefix `t/{t}/p/{p}/documents/{document_id}/` goes
    by the job of Decision 5. When any `unit_boundaries` row lies on one of its sheets the call is refused
@@ -59,9 +65,11 @@ What `main` does today (commit 3e2dde3):
    cleared and `assignment_status = unassigned` (the `SET NULL` alone would leave the status stale and the
    suggestion dangling); IFC space links cascade.
 4. **`DELETE /projects/{project_id}?confirm={slug}` is the tenant admin's permanent delete.** Role:
-   project `manage` (tenant admin only; project managers get 403). Refused with 409 `project-published`
-   while a `published` publication exists, and with 400 `confirm-mismatch` when `confirm` is not the
-   project's slug. On success the project row is deleted and the cascades remove everything under it,
+   project `manage` (tenant admin only; project managers get 403). Refused with 400 `confirm-mismatch`
+   when `confirm` is not the project's slug; that check runs first, so a wrong slug never touches the
+   portal. **Amended 2026-10-27:** a `published` publication no longer refuses the call (it was 409
+   `project-published`); it is retired first, audited as `unpublish`, and the audit row survives the
+   delete. The typed slug and the tenant admin role are the guard. On success the project row is deleted and the cascades remove everything under it,
    including `units` rows: the permanence rule of plan §5.3 holds for the life of a project, and this call
    ends the project. Because `units.building_id` and `units.floor_id` are `RESTRICT`, the service deletes
    the project's `units` rows explicitly before the project row, so the nested cascade from `buildings`
@@ -135,10 +143,12 @@ failed without creating rows. Operations: the `default` queue now carries delete
 job runs (at most 5 attempts over about 2 minutes, then it fails and the prefix waits for retention).
 
 Known gap: published assets are copied under `pub/{tenant}/{project}/…` (`publishing/snapshot.py`
-`Assets.prefix`), outside the project prefix, so the prefix job does not reach them. A project cannot
-be deleted while published, and unpublish owns the `pub/` cleanup (plan §9.3), so only the assets of
-an already retired publication can remain. Closed by ADR-0021 (2026-10-26): the daily sweep lists the
-project, document and `pub/` prefixes against the rows and removes the assets of retired versions.
+`Assets.prefix`), outside the project prefix, so the prefix job does not reach them. Closed by
+ADR-0021 (2026-10-26): the daily sweep lists the project, document and `pub/` prefixes against the rows
+and removes the assets of retired versions. Since 2026-10-27 (A7) a published project can be deleted:
+its publication is retired and then cascades away with the project, so `pub/{t}/{p}/` is left to the
+sweep's orphan walk (`housekeeping._orphan_prefixes`, no publication rows → prefix removed after
+`retention_orphan_days`), not to the retired-version rule.
 When Phase 5 adds leads, `DELETE /projects` must decide what happens to a lead of a deleted project (plan
 §10.3 says anonymise, not delete).
 
@@ -161,7 +171,7 @@ project cannot be archived, so the portal never shows one).
       body; test that the guard refuses while the row exists.
 - [x] A3 `projects/service.py`: `archive` check in `update_project`, `delete_building`, `delete_project`
       (counts, audit, domains, enqueue); `api/admin_projects.py` routes; `ProblemError` types
-      `project-published`, `building-has-units`, `confirm-mismatch`.
+      `project-published` (removed 2026-10-27, A7), `building-has-units`, `confirm-mismatch`.
 - [x] A4 `documents/service.py` `delete_document` (mapped-units check, detach, enqueue, massing rebuild);
       `api/admin_documents.py` route.
 - [x] A5 `tests/test_delete_and_archive.py`: role matrix, archive refused while published, document delete
@@ -172,6 +182,10 @@ project cannot be archived, so the portal never shows one).
       explicit `units` delete before the project row is exercised, not assumed; a sheet assigned by
       `PATCH /sheets/{id}/floor` has `assignment_status = confirmed`, not `assigned`.
 - [x] A6 Regenerate `frontend/projects/libs/api-client/src/generated/openapi.json` and the typings.
+- [x] A7 (2026-10-27) Archive and delete take a published portal offline: `admin_projects._take_offline`
+      (publication `publish` right, `publishing.unpublish`), `projects.check_confirm` before it;
+      `test_archive_takes_the_portal_offline_and_a_wrong_slug_does_not` and the unpublish audit row in
+      `test_project_delete_cascades_units_and_keeps_audit`; project page texts, guide, README, plan §5.3.
 
 ### Phase B: admin app
 

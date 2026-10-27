@@ -104,27 +104,29 @@ async def update_project(project_id: uuid.UUID, body: ProjectUpdate, ctx: Ctx):
     p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
     changes = body.model_dump(exclude={"version"}, exclude_none=True)
     if changes.get("status") == "archived" and p.status != "archived":
-        await _refuse_if_published(ctx, p, "archived")
+        await _take_offline(ctx, p)
     return await projects.update_project(ctx.session, p, changes, body.version, _actor(ctx))
 
 
-async def _refuse_if_published(ctx: TenantContext, p, verb: str) -> None:
-    if await publishing.current_publication(ctx.session, p.id) is not None:
-        raise ProblemError(
-            409,
-            "Project is published",
-            f"Unpublish {p.name} before it can be {verb}",
-            type_=projects.PROJECT_PUBLISHED,
-        )
+async def _take_offline(ctx: TenantContext, p) -> None:
+    """ADR-0012 amendment of 2026-10-27: archiving or deleting a published project retires its
+    live publication in the same transaction (the portal shows "coming soon" within seconds);
+    the caller needs the publish right on top of its own. Nothing happens when it is not live."""
+    if await publishing.current_publication(ctx.session, p.id) is None:
+        return
+    ctx.require("publication", Action.PUBLISH)
+    await publishing.unpublish(ctx.session, p, _actor(ctx))
 
 
 @router.delete("/projects/{project_id}", status_code=204)
 async def delete_project(project_id: uuid.UUID, confirm: str, ctx: Ctx):
-    """Permanent delete, tenant admin only, typed slug, never while published (ADR-0012)."""
+    """Permanent delete, tenant admin only, typed slug; a live publication is retired first
+    (ADR-0012 Decision 4, amended 2026-10-27)."""
     ctx.require("project", Action.MANAGE)
     ctx.require_project(project_id)
     p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
-    await _refuse_if_published(ctx, p, "deleted")
+    projects.check_confirm(p, confirm)  # a wrong slug must not take the portal offline
+    await _take_offline(ctx, p)
     await projects.delete_project(ctx.session, p, confirm, _actor(ctx))
     return Response(status_code=204)
 

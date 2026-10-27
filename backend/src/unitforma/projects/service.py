@@ -27,7 +27,6 @@ from unitforma.tenants.models import (
     Unit,
 )
 
-PROJECT_PUBLISHED = "https://unitforma.com/problems/project-published"
 BUILDING_HAS_UNITS = "https://unitforma.com/problems/building-has-units"
 CONFIRM_MISMATCH = "https://unitforma.com/problems/confirm-mismatch"
 
@@ -546,17 +545,8 @@ async def delete_building(db: AsyncSession, b: Building, actor: tuple[uuid.UUID,
     await db.flush()
 
 
-async def delete_project(
-    db: AsyncSession, project: Project, confirm: str, actor: tuple[uuid.UUID, str]
-) -> dict[str, int]:
-    """The tenant admin's permanent delete (ADR-0012 Decision 4).
-
-    The caller has already refused a published project. ``confirm`` must equal the slug. Units are
-    deleted explicitly before the project row because ``units.building_id`` is RESTRICT and the
-    nested cascade through ``buildings`` must not meet one. Project-scoped portal domains become
-    ``removed``. The audit row is written first and survives (``audit_log`` has no foreign keys);
-    the storage prefix is removed by the guarded job once this transaction has committed.
-    """
+def check_confirm(project: Project, confirm: str) -> None:
+    """The typed slug of the permanent delete (ADR-0012 Decision 4); 400 when it differs."""
     if confirm != project.slug:
         raise ProblemError(
             400,
@@ -564,6 +554,20 @@ async def delete_project(
             f"Type the project slug ({project.slug}) to delete it",
             type_=CONFIRM_MISMATCH,
         )
+
+
+async def delete_project(
+    db: AsyncSession, project: Project, confirm: str, actor: tuple[uuid.UUID, str]
+) -> dict[str, int]:
+    """The tenant admin's permanent delete (ADR-0012 Decision 4).
+
+    The caller has already retired a live publication. ``confirm`` must equal the slug. Units are
+    deleted explicitly before the project row because ``units.building_id`` is RESTRICT and the
+    nested cascade through ``buildings`` must not meet one. Project-scoped portal domains become
+    ``removed``. The audit row is written first and survives (``audit_log`` has no foreign keys);
+    the storage prefix is removed by the guarded job once this transaction has committed.
+    """
+    check_confirm(project, confirm)
     counts = {
         "buildings": (
             await db.execute(
