@@ -56,6 +56,7 @@ export const STATUS_TABLES = {
     manual: v('good', 'Set by you', 'lucideCheck'),
     filename: v('info', 'Guessed from the name', 'lucideSparkles'),
     content: v('info', 'Guessed from the content', 'lucideSparkles'),
+    type: v('good', 'Fixed by the file type', 'lucideBox'),
     pending: v('warning', 'Needs a kind', 'lucideCircleHelp'),
   },
   'document.kind': {

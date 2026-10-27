@@ -42,6 +42,23 @@ def test_kind_from_name(name: str, kind: str | None):
     assert classify.kind_from_name(name) == kind
 
 
+@pytest.mark.parametrize(
+    ("name", "mime", "kind"),
+    [
+        ("P1-M1-V06-2025-10-13 Jan Homeri.ifc", "application/x-step", "model_ifc"),
+        ("MODEL.IFC", "application/octet-stream", "model_ifc"),
+        ("tower.ifczip", None, None),
+        ("building.glb", "model/gltf-binary", "model_glb"),
+        ("export.bin", "application/x-step", "model_ifc"),
+        ("plans.pdf", "application/pdf", None),
+        ("floor plans.dxf", None, None),
+        (None, None, None),
+    ],
+)
+def test_kind_from_type(name: str | None, mime: str | None, kind: str | None):
+    assert classify.kind_from_type(name, mime) == kind
+
+
 def test_kind_from_name_reads_title_and_file_name_together():
     assert classify.kind_from_name("Rev C", "ფასადები.pdf") == "elevation"
     assert classify.kind_from_name(None, None) is None

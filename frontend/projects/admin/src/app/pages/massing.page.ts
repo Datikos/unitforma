@@ -153,6 +153,26 @@ interface MassingStats {
             <span class="uf-hint">No IFC model for this building yet. Upload an .ifc file under it in Documents.</span>
           }
         </div>
+        @if (ifcModel(); as im) {
+          @if (im.status === 'ready' && im.stats['spaces'] === 0) {
+            <div class="uf-alert uf-alert--warning">
+              <ng-icon name="lucideTriangleAlert" />
+              <span>
+                The export holds no spaces (IfcSpace), so there is nothing to link to units; the
+                building still shows as a model. @if (im.stats['application']) {{{ im.stats['application'] }} wrote it.}
+                @if (isArchicad(im)) {
+                  Archicad writes a zone as IfcSpace only when zones are inside the exported scope
+                  (the zone layers visible, or "Entire project", and element type Zone kept in the
+                  IFC translator's Model Filter). Ask the architect to re-export with zones and
+                  upload the file as a new revision of the same document.
+                } @else {
+                  Ask the architect to export rooms or zones as IfcSpace and upload the file as a
+                  new revision of the same document.
+                }
+              </span>
+            </div>
+          }
+        }
         @if (links().length) {
           <table class="plain">
             <tr><th>Space</th><th>Storey</th><th>Floor</th><th class="num">Net m²</th><th>Unit</th><th>Status</th><th></th></tr>
@@ -317,6 +337,12 @@ export class MassingPage {
 
   count(m: BuildingModelOut, key: string): number {
     return m.links?.[key] ?? 0;
+  }
+
+  isArchicad(m: BuildingModelOut): boolean {
+    return String(m.stats['application'] ?? '')
+      .toLowerCase()
+      .includes('archicad');
   }
 
   dropped(m: BuildingModelOut): string[] {

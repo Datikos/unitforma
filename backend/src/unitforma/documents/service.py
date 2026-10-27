@@ -177,6 +177,10 @@ async def create_upload_intent(
         raise ProblemError(415, "Unsupported file type", content_type)
     if byte_size <= 0 or byte_size > MAX_UPLOAD_BYTES:
         raise ProblemError(413, "File too large")
+    # a model is a model by its file type, not a guess; a kind set by a person stays
+    fixed = classify.kind_from_type(file_name, content_type)
+    if fixed and doc.kind_source != "manual" and (doc.kind, doc.kind_source) != (fixed, "type"):
+        doc.kind, doc.kind_source = fixed, "type"
     next_no = (
         await db.execute(
             select(func.coalesce(func.max(DocumentRevision.revision_no), 0) + 1).where(

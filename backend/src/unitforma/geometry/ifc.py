@@ -239,6 +239,9 @@ def read_ifc(data: bytes, *, deflection: float = 0.03, budget: int = MAX_GLB_BYT
     storey_by_gid = {s.global_id: s for s in storeys}
     buildings = f.by_type("IfcBuilding")
     building_name = (buildings[0].Name or buildings[0].LongName) if buildings else None
+    apps = f.by_type("IfcApplication")
+    # the authoring tool, so the reviewer can tell the architect which export setting to change
+    application = (getattr(apps[0], "ApplicationFullName", None) or None) if apps else None
     settings = _settings(ifcopenshell, deflection)
 
     # first pass: tessellate everything we draw, remember raw IFC coordinates
@@ -300,6 +303,7 @@ def read_ifc(data: bytes, *, deflection: float = 0.03, budget: int = MAX_GLB_BYT
     stats = {
         **build_stats,
         "schema": f.schema,
+        "application": application,
         "storeys": len(storeys),
         "spaces": len(spaces),
         "elements_failed": failed,

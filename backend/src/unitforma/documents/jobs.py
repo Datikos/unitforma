@@ -8,16 +8,26 @@ from datetime import UTC, datetime, timedelta
 
 import structlog
 from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from unitforma.core.db import tenant_session
 from unitforma.core.ids import new_id
-from unitforma.documents import assignments, cad_dxf, levels, processing
+from unitforma.documents import assignments, cad_dxf, classify, levels, processing
 from unitforma.documents import service as documents_service
 from unitforma.mapping.jobs import propose_revision_diff
 from unitforma.storage.service import get_storage
 from unitforma.tenants.models import Building, Document, DocumentRevision, Floor, Sheet
 
 log = structlog.get_logger()
+
+
+async def _fix_model_kind(db: AsyncSession, document_id: uuid.UUID, kind: str) -> None:
+    """ADR-0008 amendment: an IFC or GLB upload gets its model kind from the sniffed MIME type;
+    a kind set by a person stays."""
+    doc = (await db.execute(select(Document).where(Document.id == document_id))).scalar_one()
+    if doc.kind_source != "manual" and (doc.kind, doc.kind_source) != (kind, "type"):
+        doc.kind, doc.kind_source = kind, "type"
+        log.info("documents.classified", document_id=str(doc.id), kind=kind, by="type")
 
 
 async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict:
@@ -51,6 +61,9 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
             info.page_count,
             len(data),
         )
+        if fixed := classify.kind_from_type(None, info.mime):
+            # the content says model: the kind is fixed by the type, whatever the name said
+            await _fix_model_kind(db, rev.document_id, fixed)
         if info.mime == "application/x-step":
             # an IFC model has no pages: the heavy worker converts it (ADR-0006 Phase C)
             rev.processing_status = "queued"

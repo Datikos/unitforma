@@ -11,6 +11,12 @@ from __future__ import annotations
 import re
 from typing import Any
 
+# kinds fixed by the file type (ADR-0008 amendment of 2026-10-27): never guessed, never offered
+# in the kind select, set at the upload intent and again from the sniffed MIME type in the worker
+MODEL_KINDS = frozenset({"model_ifc", "model_glb"})
+_TYPE_BY_MIME = {"application/x-step": "model_ifc", "model/gltf-binary": "model_glb"}
+_TYPE_BY_EXT = {".ifc": "model_ifc", ".glb": "model_glb"}  # what the pipeline can convert
+
 # order matters: a "planning permit" is a permit, a "site plan" is not a floor plan
 _NAME_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("permit", ("ნებართვ", "ბრძანებ", r"\bpermit", r"\border\b", "nebartv")),
@@ -72,6 +78,18 @@ _NAME_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ),
 )
 _RULES = tuple((kind, tuple(re.compile(p, re.I) for p in pats)) for kind, pats in _NAME_RULES)
+
+
+def kind_from_type(file_name: str | None, mime: str | None = None) -> str | None:
+    """``model_ifc`` or ``model_glb`` from the declared MIME type or the file extension; ``None``
+    for every other file (those are classified by name and content)."""
+    if mime and mime in _TYPE_BY_MIME:
+        return _TYPE_BY_MIME[mime]
+    if file_name:
+        m = re.search(r"\.[a-z0-9]{2,7}$", file_name.strip(), flags=re.I)
+        if m:
+            return _TYPE_BY_EXT.get(m.group(0).lower())
+    return None
 
 
 def kind_from_name(*names: str | None) -> str | None:

@@ -186,6 +186,11 @@ def client(kratos: FakeKratos, tmp_path_factory):
     reset_storage()
 
 
+def _document(client: TestClient, base: str, project_id: str, doc_id: str, headers: dict) -> dict:
+    docs = client.get(f"{base}/projects/{project_id}/documents", headers=headers).json()
+    return next(d for d in docs if d["id"] == doc_id)
+
+
 @pytestmark_db
 def test_ifc_upload_links_spaces_to_units_and_confirmation_writes_areas(
     kratos: FakeKratos, client: TestClient
@@ -275,12 +280,14 @@ def test_ifc_upload_links_spaces_to_units_and_confirmation_writes_areas(
         assert r.status_code == 201, r.text
         units.append(r.json()["unit"])
 
-    # the IFC upload, filed under the building
+    # the IFC upload, filed under the building, without a kind: the file type fixes it
+    # (ADR-0008 amendment) at the upload intent, and the worker keeps it
     ifc_doc = client.post(
         f"{base}/projects/{p['id']}/documents",
         headers=root,
-        json={"kind": "model_ifc", "title": "Model", "building_id": b["id"]},
+        json={"title": "Model", "building_id": b["id"]},
     ).json()
+    assert (ifc_doc["kind"], ifc_doc["kind_source"]) == ("unclassified", "pending")
     data = make_ifc()
     intent = client.post(
         f"{base}/documents/{ifc_doc['id']}/uploads",
@@ -292,13 +299,62 @@ def test_ifc_upload_links_spaces_to_units_and_confirmation_writes_areas(
             "source_note": None,
         },
     ).json()
+    got = _document(client, base, p["id"], ifc_doc["id"], root)
+    assert (got["kind"], got["kind_source"]) == ("model_ifc", "type")
     client.put(intent["upload_url"], content=data, headers={"Content-Type": "application/x-step"})
     rev2 = client.post(f"{base}/revisions/{intent['revision']['id']}/complete", headers=root).json()
     out = client.portal.call(process_revision, tid, uuid.UUID(rev2["id"]))
     assert out["ifc"] is True
+    got = _document(client, base, p["id"], ifc_doc["id"], root)
+    assert (got["kind"], got["kind_source"]) == ("model_ifc", "type")
     result = client.portal.call(ingest_ifc, tid, uuid.UUID(rev2["id"]))
     assert result["status"] == "ready", result
     assert result["stats"]["spaces"] == 3 and result["stats"]["spaces_suggested"] >= 2
+    assert "application" in result["stats"]
+
+    # the same bytes declared as a generic binary under a misleading name: the worker fixes the
+    # kind from the sniffed content, and a person's kind is never replaced
+    other = client.post(
+        f"{base}/projects/{p['id']}/documents",
+        headers=root,
+        json={"title": "Scan", "building_id": b["id"]},
+    ).json()
+    intent = client.post(
+        f"{base}/documents/{other['id']}/uploads",
+        headers=root,
+        json={
+            "file_name": "scan0001.bin",
+            "content_type": "application/octet-stream",
+            "byte_size": len(data),
+            "source_note": None,
+        },
+    ).json()
+    got = _document(client, base, p["id"], other["id"], root)
+    assert (got["kind"], got["kind_source"]) == ("unclassified", "pending")
+    client.put(
+        intent["upload_url"], content=data, headers={"Content-Type": "application/octet-stream"}
+    )
+    rev3 = client.post(f"{base}/revisions/{intent['revision']['id']}/complete", headers=root).json()
+    assert client.portal.call(process_revision, tid, uuid.UUID(rev3["id"]))["ifc"] is True
+    got = _document(client, base, p["id"], other["id"], root)
+    assert (got["kind"], got["kind_source"]) == ("model_ifc", "type")
+    manual = client.post(
+        f"{base}/projects/{p['id']}/documents",
+        headers=root,
+        json={"kind": "other", "title": "Kept", "building_id": b["id"]},
+    ).json()
+    client.post(
+        f"{base}/documents/{manual['id']}/uploads",
+        headers=root,
+        json={
+            "file_name": "kept.ifc",
+            "content_type": "application/x-step",
+            "byte_size": len(data),
+            "source_note": None,
+        },
+    )
+    got = _document(client, base, p["id"], manual["id"], root)
+    assert (got["kind"], got["kind_source"]) == ("other", "manual")
 
     model = client.get(f"{base}/buildings/{b['id']}/model", headers=root).json()
     assert model["kind"] == "ifc" and model["glb_url"] and model["links"]["suggested"] >= 2

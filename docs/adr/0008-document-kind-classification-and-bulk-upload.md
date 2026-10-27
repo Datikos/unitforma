@@ -34,9 +34,19 @@ What `main` has:
    `floor_plan`, text-only pages with areas → `schedule`, an image without text → `render`).
    A content guess replaces a name guess; nothing replaces a kind a person set.
 2. **The origin of the kind is stored.** `documents.kind_source` ∈ `manual | filename | content |
-   pending` (migration 0010, default `manual` for existing rows); `kind` gains the value
-   `unclassified`, used together with `kind_source = pending`. Permit-imported documents keep
-   `manual`, since their kind comes from the registry's section title.
+   pending | ai | type` (migration 0010, default `manual` for existing rows; `ai` added by
+   migration 0019, ADR-0025; `type` added by migration 0020 on 2026-10-27); `kind` gains the value `unclassified`, used together with
+   `kind_source = pending`. Permit-imported documents keep `manual`, since their kind comes from
+   the registry's section title.
+   **Amendment 2026-10-27.** Model kinds are fixed by the file type, not guessed:
+   `classify.kind_from_type` maps `.ifc`/`application/x-step` to `model_ifc` and
+   `.glb`/`model/gltf-binary` to `model_glb`. The upload intent applies it from the declared file
+   name and content type, the worker applies it again from the sniffed MIME type
+   (`jobs._fix_model_kind`), both with `kind_source = type`; a kind set by a person stays. The
+   admin card shows these kinds as a fixed chip instead of the select, which never offered them.
+   Before this, an IFC uploaded without a kind stayed "Needs a kind" with no option that fit
+   (seen on 2026-10-27 with `P1-M1-V06-2025-10-13 Jan Homeri.ifc`): the UI assumed the backend
+   fixed model kinds and the backend assumed the UI offered them.
 3. **`PATCH /documents/{id}`** sets `kind` (→ `kind_source = manual`), `title` and `building_id`,
    audited as `document update` with before and after. The only write path for a kind after
    creation.
@@ -78,8 +88,9 @@ clients that relied on `kind` being final at creation must read `kind_source`.
 is wanted; re-running floor suggestions when a kind is set by hand on a project-level document
 (today they come with the next revision).
 
-**Out of scope here:** classification of IFC/GLB models (kind is fixed by type), OCR of title
-blocks on scans, moving pages between documents.
+**Out of scope here:** OCR of title blocks on scans, moving pages between documents.
+Classification of IFC/GLB models was listed here as "fixed by type" until 2026-10-27, when it
+turned out nothing fixed it; Decision 2's amendment and action item 6 cover it now.
 
 ## Action items
 
@@ -93,6 +104,13 @@ blocks on scans, moving pages between documents.
       `DocumentUpdate`, `PATCH /documents/{id}`; OpenAPI regenerated.
 - [x] 5 Admin `documents.page.ts`: multi-file upload, kind chips with origin, inline select,
       "Needs a kind" filter, guide line; `UnitformaApi.updateDocument`.
+- [x] 6 (2026-10-27) Model kinds fixed by the file type: migration `0020_document_kind_source_type`
+      (`type` in `ck_document_kind_source`), `classify.kind_from_type`, applied in
+      `documents/service.create_upload_intent` and `documents/jobs._fix_model_kind`; admin card
+      shows a fixed chip for `model_ifc`/`model_glb`, chip label "Fixed by the file type"; tests
+      `test_kind_from_type` and the IFC upload test (no kind given → `model_ifc`/`type` at the
+      intent and after processing; a generic binary that is an IFC → fixed by the worker; a
+      manual kind is kept). Contract step for the release after 0020: none, the value is additive.
 - [x] 6 Docs: plan §13.2 "File intake" row and §13.1 note, README status.
       *Found while implementing (2026-10-25):* the plan-page share for a content guess is one half, not
       60 %, because a two-page set of a plan and its section sheet is the common case. Setting a kind

@@ -39,7 +39,8 @@ type Kind =
   | 'other'
   | 'unclassified';
 
-/** Kinds a person can choose; model kinds are fixed by the file type. */
+/** Kinds a person can choose; model kinds are fixed by the file type (set at upload and by the worker). */
+const MODEL_KINDS = new Set<string>(['model_ifc', 'model_glb']);
 const KINDS: { value: Kind; label: string }[] = [
   { value: 'site_plan', label: 'Site plan' },
   { value: 'floor_plan', label: 'Floor plans' },
@@ -61,6 +62,7 @@ const SOURCE_LABELS: Record<string, string> = {
   manual: 'set by you',
   filename: 'guessed from the name',
   content: 'guessed from the content',
+  type: 'fixed by the file type',
   pending: 'needs a kind',
 };
 
@@ -232,18 +234,26 @@ const SOURCE_LABELS: Record<string, string> = {
             </div>
           }
           <div class="uf-actions">
-            <mat-form-field appearance="outline" class="kind">
-              <mat-label>Kind</mat-label>
-              <mat-select
-                [value]="d.kind === 'unclassified' ? null : d.kind"
-                (selectionChange)="setKind(d, $event.value)"
-                [disabled]="busy()"
+            @if (isModelKind(d.kind)) {
+              <span
+                class="uf-chip"
+                title="A model is a model by its file type; the kind cannot be changed"
+                ><ng-icon name="lucideBox" />{{ kindLabel(d.kind) }}</span
               >
-                @for (k of kinds; track k.value) {
-                  <mat-option [value]="k.value">{{ k.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            } @else {
+              <mat-form-field appearance="outline" class="kind">
+                <mat-label>Kind</mat-label>
+                <mat-select
+                  [value]="d.kind === 'unclassified' ? null : d.kind"
+                  (selectionChange)="setKind(d, $event.value)"
+                  [disabled]="busy()"
+                >
+                  @for (k of kinds; track k.value) {
+                    <mat-option [value]="k.value">{{ k.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
             <mat-form-field appearance="outline" class="building">
               <mat-label>Building</mat-label>
               <mat-select
@@ -580,6 +590,10 @@ export class DocumentsPage {
 
   pageInput: Record<string, string> = {};
   reasonInput: Record<string, string> = {};
+
+  isModelKind(kind: string): boolean {
+    return MODEL_KINDS.has(kind);
+  }
 
   isGuessed(d: DocumentOut): boolean {
     return (
