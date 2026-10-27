@@ -41,6 +41,8 @@ class Context:
     run_id: uuid.UUID
     actor: Actor
     approve_sheets: bool
+    # ADR-0029 Decision 1: the run ends with the ``defaults`` pass and a live portal
+    publish_defaults: bool = False
     decisions: list[dict[str, Any]] = field(default_factory=list)
     passes: list[dict[str, Any]] = field(default_factory=list)
     # entity ids earlier runs decided on, per step: what a person undid afterwards is never
@@ -64,6 +66,7 @@ class Context:
         sheet_id: uuid.UUID | str | None = None,
         link: str | None = None,
         entity_ids: list[uuid.UUID | str] | None = None,
+        todo: str | None = None,
     ) -> None:
         """One line of the run summary: what was decided (``accepted``), what was left for a
         person (``skipped`` with ``needs_you``), what the pass could not do (``error``)."""
@@ -80,6 +83,8 @@ class Context:
                 "sheet_id": str(sheet_id) if sheet_id else None,
                 "entity_ids": [str(x) for x in entity_ids] if entity_ids else None,
                 "link": link or rules.LINK_OF_STEP.get(step, "overview"),
+                # ADR-0029 Decision 5: a "needs you" line says what to do
+                "todo": (todo or rules.TODO_OF_STEP.get(step)) if needs_you else None,
                 "at": datetime.now(UTC).isoformat(timespec="seconds"),
             }
         )
@@ -95,18 +100,26 @@ def auto_settings(project: Project) -> dict[str, Any]:
     return {
         "enabled": bool(auto.get("enabled")),
         "approve_sheets": bool(auto.get("approve_sheets")),
+        "publish_defaults": bool(auto.get("publish_defaults")),
         "requested_by": auto.get("requested_by"),
         "since": auto.get("since"),
     }
 
 
 def set_auto_settings(
-    project: Project, *, enabled: bool, approve_sheets: bool, actor: Actor
+    project: Project,
+    *,
+    enabled: bool,
+    approve_sheets: bool,
+    publish_defaults: bool = False,
+    actor: Actor,
 ) -> dict[str, Any]:
-    """The two switches (Decision 2); who turned them on is who the worker acts as."""
+    """The switches (ADR-0025 Decision 2, ADR-0029 Decision 2); who turned them on is who the
+    worker acts as."""
     project.setup_auto = {
         "enabled": enabled,
         "approve_sheets": approve_sheets,
+        "publish_defaults": publish_defaults,
         "requested_by": str(actor[0]),
         "since": datetime.now(UTC).isoformat(timespec="seconds"),
     }
@@ -215,6 +228,17 @@ async def run_autopilot(tenant_id: uuid.UUID, run_id: uuid.UUID) -> dict[str, An
             approve_sheets=bool(switches.get("approve_sheets", auto["approve_sheets"])),
             history=await decided_before(db, run.project_id, run.id),
         )
+        # ADR-0029 Decision 2: the button's run always publishes; the project switch publishes
+        # the first version only, later versions are the person's
+        if switches.get("publish_defaults"):
+            ctx.publish_defaults = True
+            ctx.approve_sheets = True
+        elif auto["publish_defaults"]:
+            from unitforma.publishing.service import current_publication
+
+            ctx.publish_defaults = await current_publication(db, run.project_id) is None
+            if ctx.publish_defaults:
+                ctx.approve_sheets = True
         pending = await processing_revisions(db, run.project_id)
         if pending:
             ctx.decide(
@@ -230,14 +254,19 @@ async def run_autopilot(tenant_id: uuid.UUID, run_id: uuid.UUID) -> dict[str, An
             run.summary = summary_of(ctx)
             return {"waiting": pending}
 
-    for name, fn in PASSES:
+    from unitforma.autopilot.passes import defaults
+
+    steps = list(PASSES) + ([("defaults", defaults.run)] if ctx.publish_defaults else [])
+    for name, fn in steps:
         started = datetime.now(UTC)
         before = len(ctx.decisions)
         try:
             await fn(ctx)
             outcome = "ok"
         except Exception as e:  # noqa: BLE001 - one pass must not stop the others
-            log.warning("autopilot.pass_failed", run_id=str(run_id), pass_=name, error=str(e))
+            log.warning(
+                "autopilot.pass_failed", run_id=str(run_id), pass_=name, error=str(e), exc_info=True
+            )
             ctx.decide(name, "error", f"{name} failed", str(e)[:300], needs_you=True)
             outcome = "error"
         ctx.passes.append(
@@ -277,6 +306,7 @@ CHECKLIST_STEP = {
     "classify": "documents",
     "calibration": "mapping",
     "sheet_floors": "mapping",
+    "defaults": "publish",
 }
 
 

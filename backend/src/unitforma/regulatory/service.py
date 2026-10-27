@@ -134,6 +134,7 @@ async def start_import(
             project,
             enabled=bool(setup_auto.get("enabled", True)),
             approve_sheets=bool(setup_auto.get("approve_sheets", True)),
+            publish_defaults=bool(setup_auto.get("publish_defaults", False)),
             actor=actor,
         )
     await db.flush()

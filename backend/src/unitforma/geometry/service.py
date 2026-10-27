@@ -348,6 +348,8 @@ async def footprints(db: AsyncSession, project: Project) -> list[dict[str, Any]]
             float(f.height_m) if f.height_m is not None else DEFAULT_FLOOR_HEIGHT_M for f in floors
         )
         for f in floors:
+            # ``polygon_m`` is JSON ``null`` (not SQL NULL) on a sheet calibrated after the
+            # boundary was drawn, so the filter below lets it through: skip it here
             polys = [
                 Polygon(bd.polygon_m["ring"])
                 for (bd,) in await db.execute(
@@ -361,6 +363,7 @@ async def footprints(db: AsyncSession, project: Project) -> list[dict[str, Any]]
                         UnitBoundary.polygon_m.is_not(None),
                     )
                 )
+                if bd.polygon_m and bd.polygon_m.get("ring")
             ]
             polys = [p.buffer(0) for p in polys if not p.is_empty]
             if not polys:

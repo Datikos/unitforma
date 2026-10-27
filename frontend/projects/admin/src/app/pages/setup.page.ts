@@ -67,28 +67,53 @@ const POLL_MS = 5000;
         <div class="switches">
           <mat-slide-toggle
             [ngModel]="s.auto?.enabled ?? false"
-            (ngModelChange)="setAuto($event, s.auto?.approve_sheets ?? false)"
+            (ngModelChange)="
+              setAuto($event, s.auto?.approve_sheets ?? false, s.auto?.publish_defaults ?? false)
+            "
             [disabled]="busy()"
             name="autoEnabled"
             >Apply the confident proposals after every processed document</mat-slide-toggle
           >
           <mat-slide-toggle
             [ngModel]="s.auto?.approve_sheets ?? false"
-            (ngModelChange)="setAuto(s.auto?.enabled ?? false, $event)"
+            (ngModelChange)="
+              setAuto(s.auto?.enabled ?? false, $event, s.auto?.publish_defaults ?? false)
+            "
             [disabled]="busy()"
             name="autoApprove"
             >Approve mapped sheets when every printed label is outlined</mat-slide-toggle
+          >
+          <mat-slide-toggle
+            [ngModel]="s.auto?.publish_defaults ?? false"
+            (ngModelChange)="
+              setAuto(s.auto?.enabled ?? false, s.auto?.approve_sheets ?? false, $event)
+            "
+            [disabled]="busy()"
+            name="autoPublish"
+            >Publish the first version with defaults when the solver is done</mat-slide-toggle
           >
           <span class="uf-spacer"></span>
           <button mat-stroked-button [disabled]="busy() || s.auto?.running" (click)="runNow()">
             <ng-icon name="lucidePlay" /> Run now
           </button>
+          <button
+            mat-flat-button
+            [disabled]="busy() || s.auto?.running"
+            (click)="publishDefaults()"
+            title="Approve the solver's drafts, confirm its plan types, write a first description, list every active unit and publish a version"
+          >
+            <ng-icon name="lucideSparkles" /> Publish with defaults
+          </button>
         </div>
         <p class="uf-hint">
-          Floors from the level markers, sheets to their floors, scale from the printed 1:N, unit
-          outlines the drawing names clearly (0.9 or more), the site plan, the placement, the
-          gallery, the map position and proposed plan types. Nothing a person set is changed;
-          approval needs the mapping approve right.
+          Floors from the level markers, sheets to their floors, scale from the printed 1:N (and
+          your calibration of one page for the other pages of its document), unit outlines the
+          drawing names clearly (0.85 or more), the site plan, the placement, the gallery, the map
+          position and proposed plan types. Nothing a person set is changed; approval needs the
+          mapping approve right. "Publish with defaults" (ADR-0029) ends with a live portal: drafts
+          approved, plan types confirmed, a first description from the project's facts, every active
+          unit listed, prices on request, a new version published. Adjust afterwards and publish
+          again.
         </p>
         @if (s.auto?.running) {
           <div class="uf-alert uf-alert--info" role="status">
@@ -203,9 +228,12 @@ const POLL_MS = 5000;
                     <span class="uf-muted uf-small">{{ stepLabel(d.step) }}</span>
                   </div>
                   <div class="uf-muted">{{ d.detail }}</div>
+                  @if (d.needs_you && d.todo) {
+                    <div class="decision__todo"><strong>To do:</strong> {{ d.todo }}</div>
+                  }
                 </div>
                 <a mat-button [routerLink]="linkOf(d)" class="decision__open">
-                  {{ screenOf(d).label }}
+                  {{ openLabel(d) }}
                 </a>
               </li>
             } @empty {
@@ -286,6 +314,10 @@ const POLL_MS = 5000;
       .decision__body {
         min-width: 0;
       }
+      .decision__todo {
+        margin-top: 0.25rem;
+        color: var(--uf-text);
+      }
       .step__auto {
         margin-top: 0.25rem;
         font-size: 0.9rem;
@@ -356,7 +388,10 @@ export class SetupPage implements OnDestroy {
     const a = this.setup()?.auto;
     if (!a) return 'off';
     if (!a.enabled) return 'off · "Run now" runs it once';
-    return a.approve_sheets ? 'on · sheets approved when complete' : 'on · units stay drafts';
+    const first = a.publish_defaults ? ' · first version published with defaults' : '';
+    return (
+      (a.approve_sheets ? 'on · sheets approved when complete' : 'on · units stay drafts') + first
+    );
   });
   readonly stepKeys = computed(() => {
     const keys: string[] = [];
@@ -401,13 +436,14 @@ export class SetupPage implements OnDestroy {
     this.pollTimer = running ? setTimeout(() => void this.load(), POLL_MS) : null;
   }
 
-  async setAuto(enabled: boolean, approveSheets: boolean): Promise<void> {
+  async setAuto(enabled: boolean, approveSheets: boolean, publishDefaults = false): Promise<void> {
     this.busy.set(true);
     this.error.set(null);
     try {
       await this.api.setSetupAuto(this.tenantId(), this.projectId(), {
         enabled,
         approve_sheets: approveSheets,
+        publish_defaults: publishDefaults,
       });
       this.toast.ok(
         enabled ? 'Set up automatically: on; a run is queued' : 'Set up automatically: off',
@@ -432,6 +468,40 @@ export class SetupPage implements OnDestroy {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  /** ADR-0029 Decision 1: one confirmed click, then the run does the rest and the portal goes live. */
+  async publishDefaults(): Promise<void> {
+    const ok = window.confirm(
+      'Publish with defaults will, in this order:\n' +
+        '• approve every sheet whose outlines the solver drew (drafts become active)\n' +
+        '• confirm the proposed plan types\n' +
+        "• write a first description from the project's facts when there is none\n" +
+        '• list every active unit; prices stay as they are ("price on request" when empty)\n' +
+        '• publish a new version of the portal\n\n' +
+        'Nothing a person set is changed. Continue?',
+    );
+    if (!ok) return;
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      await this.api.publishSetupDefaults(this.tenantId(), this.projectId());
+      this.toast.ok('Publishing queued; the portal goes live when the run finishes');
+      await this.load();
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** The button of a decision names the place: the sheet it is about, else the screen. */
+  openLabel(d: SetupDecisionOut): string {
+    if (d.sheet_id) {
+      const m = /p\.(\d+)/.exec(d.title);
+      return m ? `Open page ${m[1]}` : 'Open the sheet';
+    }
+    return `Open ${this.screenOf(d).label}`;
   }
 
   screen(st: SetupStepOut): { label: string; path: string[] } {

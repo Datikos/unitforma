@@ -8,6 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 
+from unitforma.api import admin_setup
 from unitforma.api.schemas import (
     PermitImportCreate,
     PermitImportResult,
@@ -73,6 +74,8 @@ async def import_permit(body: PermitImportCreate, ctx: Ctx):
     ).scalar_one()
     if body.setup_auto and body.setup_auto.enabled and body.setup_auto.approve_sheets:
         ctx.require("mapping", Action.APPROVE)
+    if body.setup_auto and body.setup_auto.enabled and body.setup_auto.publish_defaults:
+        admin_setup.require_publish_defaults(ctx)
     project, building, row = await regulatory.start_import(
         ctx.session,
         tenant_id=ctx.tenant_id,

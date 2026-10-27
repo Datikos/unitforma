@@ -8483,6 +8483,60 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup/publish-defaults": {
+   "post": {
+    "tags": [
+     "setup"
+    ],
+    "summary": "Publish Defaults",
+    "description": "One action that ends with a live portal (ADR-0029 Decision 1): a run whose last pass\napproves the solver's drafts, confirms the proposed plan types, writes a first description,\nmarks every active unit and publishes. Usable any time; it publishes a new version.",
+    "operationId": "publish_defaults_api_v1_admin_tenants__tenant_id__projects__project_id__setup_publish_defaults_post",
+    "parameters": [
+     {
+      "name": "project_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Project Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SetupRunOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup/runs": {
    "get": {
     "tags": [
@@ -15820,6 +15874,11 @@
       "type": "boolean",
       "title": "Approve Sheets",
       "default": true
+     },
+     "publish_defaults": {
+      "type": "boolean",
+      "title": "Publish Defaults",
+      "default": false
      }
     },
     "type": "object",
@@ -15835,6 +15894,11 @@
      "approve_sheets": {
       "type": "boolean",
       "title": "Approve Sheets"
+     },
+     "publish_defaults": {
+      "type": "boolean",
+      "title": "Publish Defaults",
+      "default": false
      },
      "requested_by": {
       "anyOf": [
@@ -15883,6 +15947,17 @@
    },
    "SetupDecisionOut": {
     "properties": {
+     "todo": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Todo"
+     },
      "step": {
       "type": "string",
       "title": "Step"
