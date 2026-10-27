@@ -23,6 +23,11 @@ export type LayoutUnitOut = Schemas['LayoutUnitOut'];
 export type LayoutRenderRequest = Schemas['LayoutRenderRequest'];
 export type SetupOut = Schemas['SetupOut'];
 export type SetupStepOut = Schemas['SetupStepOut'];
+export type SetupAutoIn = Schemas['SetupAutoIn'];
+export type SetupAutoOut = Schemas['SetupAutoOut'];
+export type SetupRunOut = Schemas['SetupRunOut'];
+export type SetupRunDetailOut = Schemas['SetupRunDetailOut'];
+export type SetupDecisionOut = Schemas['SetupDecisionOut'];
 export type InvitationCreate = Schemas['InvitationCreate'];
 export type InvitationOut = Schemas['InvitationOut'];
 export type ApiTokenCreate = Schemas['ApiTokenCreate'];
@@ -614,6 +619,27 @@ export class UnitformaApi {
   /** The setup checklist: ordered steps with status, detail and the screen that completes each. */
   projectSetup(tenantId: string, projectId: string): Promise<SetupOut> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup`);
+  }
+  /** The setup solver's switches (ADR-0025); switching on queues a run. */
+  setSetupAuto(tenantId: string, projectId: string, body: SetupAutoIn): Promise<SetupAutoOut> {
+    return this.put(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup/auto`, body);
+  }
+  /** Queue one solver run now, whether or not the switch is on. */
+  runSetup(tenantId: string, projectId: string): Promise<SetupRunOut> {
+    return this.post(
+      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup/run`,
+      undefined,
+    );
+  }
+  listSetupRuns(tenantId: string, projectId: string): Promise<SetupRunOut[]> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup/runs`);
+  }
+  getSetupRun(tenantId: string, projectId: string, runId: string): Promise<SetupRunDetailOut> {
+    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup/runs/${runId}`);
+  }
+  /** A proposed layout (from the solver) becomes a confirmed plan type (ADR-0025 Decision 6). */
+  confirmLayout(tenantId: string, layoutId: string): Promise<LayoutOut> {
+    return this.post(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}/confirm`, undefined);
   }
   /** The layout registry of a project (ADR-0022): plan types that own media shared by their units. */
   listLayouts(tenantId: string, projectId: string): Promise<LayoutOut[]> {

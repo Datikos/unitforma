@@ -1,9 +1,20 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
+import { Component, OnDestroy, computed, inject, input, signal } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { RouterLink } from '@angular/router';
-import { SetupOut, SetupStepOut, UnitformaApi, problemMessage } from 'api-client';
-import { HeaderFact, PageHeaderComponent, StatusChipComponent } from 'ui';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { SetupDecisionOut, SetupOut, SetupStepOut, UnitformaApi, problemMessage } from 'api-client';
+import {
+  HeaderFact,
+  PageHeaderComponent,
+  SectionCardComponent,
+  StatusChipComponent,
+  UF_ICONS,
+} from 'ui';
+import { ToastService } from '../ui/toast.service';
 
 /** The admin screen that completes a step, relative to `projects/:projectId/setup`. */
 const SCREEN: Record<string, { label: string; path: string[] }> = {
@@ -12,12 +23,29 @@ const SCREEN: Record<string, { label: string; path: string[] }> = {
   placement: { label: 'Site placement', path: ['..', 'placement'] },
   inventory: { label: 'Inventory & prices', path: ['..', 'inventory'] },
   publish: { label: 'Publish', path: ['..', 'publish'] },
+  layouts: { label: 'Layouts & renders', path: ['..', 'layouts'] },
 };
 
-/** Setup checklist (ADR-0017 Decision 5): the order of work, computed from the project's data. */
+const POLL_MS = 5000;
+
+/**
+ * Setup checklist (ADR-0017 Decision 5) and the review surface of the setup solver (ADR-0025
+ * Decision 7): the switches, "Run now", what the last run decided and what it left for you.
+ */
 @Component({
   selector: 'uf-setup-page',
-  imports: [MatButtonModule, PageHeaderComponent, RouterLink, StatusChipComponent],
+  imports: [
+    DecimalPipe,
+    FormsModule,
+    MatButtonModule,
+    MatSlideToggleModule,
+    NgIcon,
+    PageHeaderComponent,
+    RouterLink,
+    SectionCardComponent,
+    StatusChipComponent,
+  ],
+  viewProviders: [provideIcons(UF_ICONS)],
   template: `
     <uf-page-header
       title="Setup checklist"
@@ -29,6 +57,58 @@ const SCREEN: Record<string, { label: string; path: string[] }> = {
       <div class="uf-alert uf-alert--bad" role="alert">{{ e }}</div>
     }
     @if (setup(); as s) {
+      <uf-section-card
+        title="Set up automatically"
+        icon="lucideSparkles"
+        [summary]="autoSummary()"
+        [tone]="s.auto?.enabled ? 'good' : null"
+        storageKey="setup-auto"
+      >
+        <div class="switches">
+          <mat-slide-toggle
+            [ngModel]="s.auto?.enabled ?? false"
+            (ngModelChange)="setAuto($event, s.auto?.approve_sheets ?? false)"
+            [disabled]="busy()"
+            name="autoEnabled"
+            >Apply the confident proposals after every processed document</mat-slide-toggle
+          >
+          <mat-slide-toggle
+            [ngModel]="s.auto?.approve_sheets ?? false"
+            (ngModelChange)="setAuto(s.auto?.enabled ?? false, $event)"
+            [disabled]="busy()"
+            name="autoApprove"
+            >Approve mapped sheets when every printed label is outlined</mat-slide-toggle
+          >
+          <span class="uf-spacer"></span>
+          <button mat-stroked-button [disabled]="busy() || s.auto?.running" (click)="runNow()">
+            <ng-icon name="lucidePlay" /> Run now
+          </button>
+        </div>
+        <p class="uf-hint">
+          Floors from the level markers, sheets to their floors, scale from the printed 1:N, unit
+          outlines the drawing names clearly (0.9 or more), the site plan, the placement, the
+          gallery, the map position and proposed plan types. Nothing a person set is changed;
+          approval needs the mapping approve right.
+        </p>
+        @if (s.auto?.running) {
+          <div class="uf-alert uf-alert--info" role="status">
+            <ng-icon name="lucideLoaderCircle" /> A run is queued or in progress; this page
+            refreshes every 5 seconds.
+          </div>
+        } @else if (s.auto?.last_run; as r) {
+          <div class="uf-row last-run">
+            <uf-status-chip domain="setup.run" [value]="r.status" />
+            <span class="uf-muted"
+              >Last run ({{ triggerLabel(r.trigger) }}): {{ r.accepted }} decided for you,
+              {{ r.needs_you }} need you{{ r.errors ? ', ' + r.errors + ' failed' : '' }}
+              @if (r.error) {
+                · {{ r.error }}
+              }
+            </span>
+          </div>
+        }
+      </uf-section-card>
+
       <div
         class="progress"
         role="progressbar"
@@ -57,6 +137,9 @@ const SCREEN: Record<string, { label: string; path: string[] }> = {
                 <uf-status-chip domain="setup" [value]="st.status" />
               </div>
               <div class="uf-muted">{{ st.detail }}</div>
+              @if (st.auto_detail) {
+                <div class="step__auto"><ng-icon name="lucideSparkles" /> {{ st.auto_detail }}</div>
+              }
             </div>
             <a mat-stroked-button [routerLink]="screen(st).path" class="step__open">
               Open {{ screen(st).label }}
@@ -64,12 +147,88 @@ const SCREEN: Record<string, { label: string; path: string[] }> = {
           </li>
         }
       </ol>
+
+      @if (s.decisions?.length) {
+        <uf-section-card
+          title="Decided for you"
+          icon="lucideClipboardCheck"
+          [summary]="decisionSummary()"
+          [count]="shownDecisions().length"
+          storageKey="setup-decisions"
+        >
+          <div class="uf-filterbar">
+            <mat-slide-toggle
+              [ngModel]="onlyNeedsMe()"
+              (ngModelChange)="onlyNeedsMe.set($event)"
+              name="onlyNeedsMe"
+              >Only what needs me</mat-slide-toggle
+            >
+            <div class="chips" role="group" aria-label="Filter by step">
+              <button
+                type="button"
+                class="uf-chip"
+                [class.uf-chip--active]="stepFilter() === null"
+                (click)="stepFilter.set(null)"
+              >
+                All steps
+              </button>
+              @for (k of stepKeys(); track k) {
+                <button
+                  type="button"
+                  class="uf-chip"
+                  [class.uf-chip--active]="stepFilter() === k"
+                  (click)="stepFilter.set(k)"
+                >
+                  {{ stepLabel(k) }}
+                </button>
+              }
+            </div>
+          </div>
+          <ul class="decisions">
+            @for (d of shownDecisions(); track $index) {
+              <li class="decision" [class.decision--needs]="d.needs_you">
+                <uf-status-chip domain="setup.decision" [value]="d.kind" />
+                <div class="decision__body">
+                  <div class="uf-row">
+                    <strong>{{ d.title }}</strong>
+                    @if (d.confidence !== null && d.confidence !== undefined) {
+                      <span
+                        class="uf-chip"
+                        [class.uf-tone-good]="d.confidence >= 0.9"
+                        [class.uf-tone-warning]="d.confidence < 0.9"
+                        title="Confidence recorded with the decision"
+                        >{{ d.confidence | number: '1.2-2' }}</span
+                      >
+                    }
+                    <span class="uf-muted uf-small">{{ stepLabel(d.step) }}</span>
+                  </div>
+                  <div class="uf-muted">{{ d.detail }}</div>
+                </div>
+                <a mat-button [routerLink]="linkOf(d)" class="decision__open">
+                  {{ screenOf(d).label }}
+                </a>
+              </li>
+            } @empty {
+              <p class="uf-muted">Nothing matches the filter.</p>
+            }
+          </ul>
+        </uf-section-card>
+      }
     } @else if (!error()) {
       <p class="uf-muted">Loading…</p>
     }
   `,
   styles: [
     `
+      .switches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem 1.5rem;
+        align-items: center;
+      }
+      .last-run {
+        margin-top: 0.5rem;
+      }
       .progress {
         height: 0.5rem;
         border-radius: 999px;
@@ -83,14 +242,16 @@ const SCREEN: Record<string, { label: string; path: string[] }> = {
         background: var(--uf-good, #059669);
         transition: width 0.3s;
       }
-      .steps {
+      .steps,
+      .decisions {
         list-style: none;
         padding: 0;
         margin: 1rem 0 0;
         display: grid;
         gap: 0.5rem;
       }
-      .step {
+      .step,
+      .decision {
         display: grid;
         grid-template-columns: 2rem 1fr auto;
         gap: 0.75rem;
@@ -101,10 +262,15 @@ const SCREEN: Record<string, { label: string; path: string[] }> = {
         border-left: 4px solid var(--uf-border);
         border-radius: var(--uf-radius);
       }
+      .decision {
+        grid-template-columns: auto 1fr auto;
+        padding: 0.5rem 0.75rem;
+      }
       .step--done {
         border-left-color: var(--uf-good, #059669);
       }
-      .step--attention {
+      .step--attention,
+      .decision--needs {
         border-left-color: var(--uf-warning, #d97706);
       }
       .step__no {
@@ -116,14 +282,42 @@ const SCREEN: Record<string, { label: string; path: string[] }> = {
         background: var(--uf-surface-2);
         font-weight: 700;
       }
-      .step__body {
+      .step__body,
+      .decision__body {
         min-width: 0;
       }
+      .step__auto {
+        margin-top: 0.25rem;
+        font-size: 0.9rem;
+        color: var(--uf-primary);
+      }
+      .step__auto ng-icon {
+        vertical-align: -0.15em;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem;
+      }
+      .uf-chip--active {
+        background: var(--uf-primary);
+        color: var(--uf-on-primary, #fff);
+        border-color: var(--uf-primary);
+      }
+      button ng-icon {
+        vertical-align: -0.15em;
+        margin-right: 0.25rem;
+      }
       @media (max-width: 700px) {
-        .step {
+        .step,
+        .decision {
           grid-template-columns: 2rem 1fr;
         }
-        .step__open {
+        .decision {
+          grid-template-columns: auto 1fr;
+        }
+        .step__open,
+        .decision__open {
           grid-column: 2;
           justify-self: start;
         }
@@ -131,39 +325,154 @@ const SCREEN: Record<string, { label: string; path: string[] }> = {
     `,
   ],
 })
-export class SetupPage {
+export class SetupPage implements OnDestroy {
   readonly tenantId = input.required<string>();
   readonly projectId = input.required<string>();
   private readonly api = inject(UnitformaApi);
+  private readonly toast = inject(ToastService);
+  protected readonly SCREEN = SCREEN;
   readonly setup = signal<SetupOut | null>(null);
   readonly error = signal<string | null>(null);
+  readonly busy = signal(false);
+  readonly onlyNeedsMe = signal(false);
+  readonly stepFilter = signal<string | null>(null);
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
+
   readonly facts = computed<HeaderFact[]>(() => {
     const s = this.setup();
     if (!s) return [];
     const attention = s.steps.filter((x) => x.status === 'attention').length;
+    const needs = (s.decisions ?? []).filter((d) => d.needs_you).length;
     return [
       { label: 'Done', value: `${s.done} / ${s.total}` },
       { label: 'Needs attention', value: attention },
+      ...(s.auto?.last_run ? [{ label: 'Need you', value: needs }] : []),
     ];
   });
   readonly optionalLeft = computed(
     () => (this.setup()?.steps ?? []).filter((x) => x.status === 'optional').length,
   );
+  readonly autoSummary = computed(() => {
+    const a = this.setup()?.auto;
+    if (!a) return 'off';
+    if (!a.enabled) return 'off · "Run now" runs it once';
+    return a.approve_sheets ? 'on · sheets approved when complete' : 'on · units stay drafts';
+  });
+  readonly stepKeys = computed(() => {
+    const keys: string[] = [];
+    for (const d of this.setup()?.decisions ?? []) if (!keys.includes(d.step)) keys.push(d.step);
+    return keys;
+  });
+  readonly shownDecisions = computed(() => {
+    const all = this.setup()?.decisions ?? [];
+    return all.filter(
+      (d) =>
+        (!this.onlyNeedsMe() || d.needs_you) &&
+        (this.stepFilter() === null || d.step === this.stepFilter()),
+    );
+  });
+  readonly decisionSummary = computed(() => {
+    const all = this.setup()?.decisions ?? [];
+    const needs = all.filter((d) => d.needs_you).length;
+    return `${all.length - needs} made for you · ${needs} need you · lowest confidence first`;
+  });
 
   constructor() {
     toObservable(this.projectId).subscribe(() => void this.load());
   }
 
+  ngOnDestroy(): void {
+    if (this.pollTimer) clearTimeout(this.pollTimer);
+  }
+
   async load(): Promise<void> {
     this.error.set(null);
     try {
-      this.setup.set(await this.api.projectSetup(this.tenantId(), this.projectId()));
+      const s = await this.api.projectSetup(this.tenantId(), this.projectId());
+      this.setup.set(s);
+      this.schedulePoll(!!s.auto?.running);
     } catch (e) {
       this.error.set(problemMessage(e));
     }
   }
 
+  private schedulePoll(running: boolean): void {
+    if (this.pollTimer) clearTimeout(this.pollTimer);
+    this.pollTimer = running ? setTimeout(() => void this.load(), POLL_MS) : null;
+  }
+
+  async setAuto(enabled: boolean, approveSheets: boolean): Promise<void> {
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      await this.api.setSetupAuto(this.tenantId(), this.projectId(), {
+        enabled,
+        approve_sheets: approveSheets,
+      });
+      this.toast.ok(
+        enabled ? 'Set up automatically: on; a run is queued' : 'Set up automatically: off',
+      );
+      await this.load();
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async runNow(): Promise<void> {
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      await this.api.runSetup(this.tenantId(), this.projectId());
+      this.toast.ok('Run queued; the decisions appear below when it finishes');
+      await this.load();
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
   screen(st: SetupStepOut): { label: string; path: string[] } {
     return SCREEN[st.link] ?? SCREEN['overview'];
+  }
+
+  linkOf(d: SetupDecisionOut): string[] {
+    if (d.sheet_id) return ['..', 'sheets', d.sheet_id];
+    return this.screenOf(d).path;
+  }
+
+  screenOf(d: SetupDecisionOut): { label: string; path: string[] } {
+    return SCREEN[d.link ?? 'overview'] ?? SCREEN['overview'];
+  }
+
+  stepLabel(key: string): string {
+    const labels: Record<string, string> = {
+      documents: 'Documents',
+      classify: 'Document kinds',
+      floors: 'Floors',
+      calibration: 'Scale',
+      sheet_floors: 'Sheets → floors',
+      mapping: 'Unit outlines',
+      site_plan: 'Site plan',
+      placement: 'Placement',
+      facades: 'Facades',
+      gallery: 'Gallery',
+      location: 'Map position',
+      layouts: 'Plan types',
+    };
+    return labels[key] ?? key;
+  }
+
+  triggerLabel(trigger: string): string {
+    const labels: Record<string, string> = {
+      document_processed: 'after a processed document',
+      permit_import: 'after the permit import',
+      floors_saved: 'after floors were saved',
+      switched_on: 'when switched on',
+      run_now: 'run now',
+    };
+    return labels[trigger] ?? trigger;
   }
 }

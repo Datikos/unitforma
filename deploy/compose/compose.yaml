@@ -25,6 +25,10 @@ x-backend-env: &backend-env
   UF_AI_IMAGE_PROVIDER: ${UF_AI_IMAGE_PROVIDER:-none}
   UF_AI_IMAGE_MODEL: ${UF_AI_IMAGE_MODEL:-gemini-nano-banana-2.1}
   UF_AI_IMAGE_DAILY_LIMIT: ${UF_AI_IMAGE_DAILY_LIMIT:-40}
+  # setup solver helpers (ADR-0025): geocoder none | nominatim; page classifier off by default
+  UF_GEOCODER: ${UF_GEOCODER:-none}
+  UF_AI_CLASSIFY: ${UF_AI_CLASSIFY:-false}
+  UF_AI_CLASSIFY_DAILY_LIMIT: ${UF_AI_CLASSIFY_DAILY_LIMIT:-200}
   UF_RETENTION_ENABLED: ${UF_RETENTION_ENABLED:-true}
   UF_RETENTION_RETIRED_ASSET_DAYS: ${UF_RETENTION_RETIRED_ASSET_DAYS:-30}
   UF_AI_IMAGE_API_KEY_FILE: /run/secrets/ai_image_api_key

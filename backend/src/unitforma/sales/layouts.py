@@ -32,6 +32,7 @@ from unitforma.tenants.models import (
 
 Actor = tuple[uuid.UUID, str]
 LAYOUT_IN_USE = "https://unitforma.com/problems/layout-in-use"
+LAYOUT_PROPOSED = "https://unitforma.com/problems/layout-proposed"
 
 
 def clean_code(code: str) -> str:
@@ -146,16 +147,55 @@ async def create(
     code = clean_code(data.get("code", ""))
     if await by_code(db, project.id, code) is not None:
         raise ProblemError(409, "Layout code already exists", f"{code} is taken in this project")
+    status = data.get("status") or "confirmed"
+    source = data.get("source") or "manual"
+    if status not in ("confirmed", "proposed") or source not in ("manual", "autopilot"):
+        raise ProblemError(422, "Invalid layout status or source")
     lay = UnitLayout(
         id=new_id(),
         tenant_id=project.tenant_id,
         project_id=project.id,
         code=code,
         name=_name(data.get("name")),
+        status=status,
+        source=source,
+        match=data.get("match") or None,
     )
     db.add(lay)
     await db.flush()
-    await _audit(db, lay, actor, "create", {"code": lay.code, "name": lay.name})
+    await _audit(
+        db,
+        lay,
+        actor,
+        "create",
+        {"code": lay.code, "name": lay.name, "status": status, "source": source},
+    )
+    return lay
+
+
+def require_confirmed(lay: UnitLayout) -> None:
+    """A layout the setup solver proposed owns nothing until a person confirms it (ADR-0025
+    Decision 6)."""
+    if lay.status != "confirmed":
+        raise ProblemError(
+            409,
+            "Layout is proposed, not confirmed",
+            f"Confirm {lay.code} on the Layouts page before it can own media or renders",
+            type_=LAYOUT_PROPOSED,
+        )
+
+
+async def confirm(db: AsyncSession, lay: UnitLayout, actor: Actor) -> UnitLayout:
+    """The person agrees with a proposed plan type: it becomes a confirmed layout, and its
+    members get the code mirror older readers expect (ADR-0022 Decision 2, expand phase)."""
+    if lay.status == "confirmed":
+        return lay
+    lay.status = "confirmed"
+    lay.version += 1
+    for u in await members(db, lay.id):
+        u.attributes = {**(u.attributes or {}), "layout": lay.code}
+        u.version += 1
+    await _audit(db, lay, actor, "confirm", {"code": lay.code, "match": lay.match})
     return lay
 
 
@@ -174,10 +214,12 @@ async def update(
             )
         if code != lay.code:
             lay.code = code
-            # the mirror of every member follows the rename (ADR-0022 Decision 7)
-            for u in await members(db, lay.id):
-                u.attributes = {**(u.attributes or {}), "layout": code}
-                u.version += 1
+            # the mirror of every member follows the rename (ADR-0022 Decision 7); a proposed
+            # layout has no mirror until it is confirmed (ADR-0025 Decision 6)
+            if lay.status == "confirmed":
+                for u in await members(db, lay.id):
+                    u.attributes = {**(u.attributes or {}), "layout": code}
+                    u.version += 1
     if "name" in data:
         lay.name = _name(data["name"])
     lay.version += 1

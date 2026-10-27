@@ -102,9 +102,11 @@ async def start_import(
     name: str | None,
     building_code: str | None,
     default_currency: str,
+    setup_auto: dict[str, Any] | None = None,
 ) -> tuple[Project, Any, RegulatoryImport]:
     """Project + one building + summary + import row (status ``importing``). The caller enqueues
-    the worker task; floors are left to the user (Decision 5)."""
+    the worker task; floors are left to the user (Decision 5) unless the setup solver is switched
+    on for the project (ADR-0025 Decision 1), which the imported drawings' processing triggers."""
     record = await fetch_normalised(reference)
     permit = record["permit"]
     # the explanatory note stays in the import record: project.description is buyer-visible
@@ -125,6 +127,15 @@ async def start_import(
     row = _new_import(tenant_id, project, record, actor[0])
     db.add(row)
     project.regulatory = tasge.summary(record, row.id)
+    if setup_auto is not None:
+        from unitforma.autopilot.service import set_auto_settings
+
+        set_auto_settings(
+            project,
+            enabled=bool(setup_auto.get("enabled", True)),
+            approve_sheets=bool(setup_auto.get("approve_sheets", True)),
+            actor=actor,
+        )
     await db.flush()
     await _audit(db, row, actor, "create", record)
     # server-side updated_at changed on flush; load it now so the response can be serialised
@@ -312,4 +323,9 @@ async def import_attachments(tenant_id: uuid.UUID, import_id: uuid.UUID) -> dict
         row.status = "done"
         row.stats = stats
         row.finished_at = datetime.now(UTC)
+    # every file's ingestion queues a solver run too; this one covers an import that found
+    # nothing new to download (ADR-0025 Decision 3)
+    from unitforma.autopilot.queue import queue_run
+
+    await queue_run(tenant_id, project_id, "permit_import", requested_by=requested_by)
     return {k: len(v) for k, v in stats.items()}

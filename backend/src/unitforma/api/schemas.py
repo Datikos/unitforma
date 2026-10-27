@@ -142,12 +142,25 @@ class AreaDefinition(BaseModel):
     description: str | None = None
 
 
+class SetupAutoIn(BaseModel):
+    """The setup solver's switches (ADR-0025 Decision 2). ``approve_sheets`` needs the
+    ``mapping`` approve right: the worker approves as the person who switched it on."""
+
+    enabled: bool = True
+    approve_sheets: bool = True
+
+
 class ProjectCreate(BaseModel):
     slug: str = Field(min_length=3, max_length=63)
     name: str = Field(min_length=1, max_length=200)
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     address: dict[str, Any] = Field(default_factory=dict)
     description: str | None = None
+    # the intake form (ADR-0025 Decision 1): one building to file drawings under, and the solver
+    building_code: str | None = Field(
+        default=None, min_length=1, max_length=20, pattern=r"^[A-Za-z0-9][A-Za-z0-9.-]{0,19}$"
+    )
+    setup_auto: SetupAutoIn | None = None
     area_definitions: list[AreaDefinition] = Field(
         default_factory=lambda: [
             AreaDefinition(key="net_internal", label="Net internal area"),
@@ -1067,6 +1080,10 @@ class LayoutOut(ORM):
     project_id: uuid.UUID
     code: str
     name: str | None
+    # proposed layouts come from the setup solver and share nothing until confirmed (ADR-0025)
+    status: Literal["confirmed", "proposed"] = "confirmed"
+    source: Literal["manual", "autopilot"] = "manual"
+    match: dict[str, Any] | None = None
     version: int
     created_at: datetime
     updated_at: datetime
@@ -1241,6 +1258,7 @@ class PermitImportCreate(PermitReference):
     building_code: str | None = Field(
         default=None, min_length=1, max_length=20, pattern=r"^[A-Za-z0-9][A-Za-z0-9.-]{0,19}$"
     )
+    setup_auto: SetupAutoIn | None = None
 
 
 class PermitAttachmentOut(BaseModel):
@@ -1398,9 +1416,62 @@ class SetupStepOut(BaseModel):
     detail: str
     count: int | None = None
     link: str = Field(description="Admin screen that completes the step")
+    auto_detail: str | None = Field(
+        default=None, description="What the setup solver did for this step, or left for you"
+    )
+
+
+class SetupRunOut(BaseModel):
+    """One run of the setup solver (ADR-0025 Decision 3)."""
+
+    id: uuid.UUID
+    status: Literal["queued", "running", "waiting", "done", "failed"]
+    trigger: str
+    requested_by: uuid.UUID | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    created_at: datetime
+    accepted: int = 0
+    needs_you: int = 0
+    errors: int = 0
+    error: str | None = None
+
+
+class SetupDecisionOut(BaseModel):
+    """One decision of a run: made for the person (``accepted``), left to them (``needs_you``) or
+    failed (``error``); ``link`` is the checklist screen that shows it."""
+
+    step: str
+    kind: Literal["accepted", "skipped", "waiting", "error"]
+    title: str
+    detail: str
+    confidence: float | None = None
+    needs_you: bool = False
+    entity_type: str | None = None
+    entity_id: str | None = None
+    entity_ids: list[str] | None = None
+    sheet_id: str | None = None
+    link: str = "overview"
+    at: str
+
+
+class SetupRunDetailOut(SetupRunOut):
+    decisions: list[SetupDecisionOut] = Field(default_factory=list)
+
+
+class SetupAutoOut(BaseModel):
+    enabled: bool
+    approve_sheets: bool
+    requested_by: str | None = None
+    since: str | None = None
+    running: bool = False
+    last_run: SetupRunOut | None = None
 
 
 class SetupOut(BaseModel):
     done: int
     total: int
     steps: list[SetupStepOut]
+    # the solver's state and the latest run's decisions, lowest confidence first (ADR-0025)
+    auto: SetupAutoOut | None = None
+    decisions: list[SetupDecisionOut] = Field(default_factory=list)

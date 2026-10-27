@@ -30,6 +30,10 @@ class ImageProvider(Protocol):
         """One image in (the plan crop), one image out, following ``prompt``."""
         ...
 
+    async def describe(self, image: bytes, mime: str, prompt: str) -> str:
+        """One image in, a short text out (the setup solver's page classifier, ADR-0025)."""
+        ...
+
 
 def get_provider() -> ImageProvider | None:
     from unitforma.core.settings import get_settings

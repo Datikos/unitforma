@@ -84,6 +84,71 @@ class GeminiProvider:
             raise ProviderError("gemini image block is not valid base64") from e
         return GeneratedImage(data, out_mime or "image/jpeg", self.cost_per_image)
 
+    async def describe(self, image: bytes, mime: str, prompt: str) -> str:
+        """Text answer to a question about one image (ADR-0025 Decision 5, "classify"). The raw
+        shape of a text answer is not documented on the pages read for ADR-0017 (plan §21): the
+        parser takes the last text block of the answer and reports the keys when there is none."""
+        body = {
+            "model": self.model,
+            "input": [
+                {"type": "text", "text": prompt},
+                {"type": "image", "mime_type": mime, "data": base64.b64encode(image).decode()},
+            ],
+            "response_format": {"type": "text"},
+        }
+        headers = {"x-goog-api-key": self._api_key, "Content-Type": "application/json"}
+        try:
+            if self._client is not None:
+                r = await self._client.post(self.endpoint, json=body, headers=headers)
+            else:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    r = await client.post(self.endpoint, json=body, headers=headers)
+        except httpx.HTTPError as e:
+            raise ProviderError(f"gemini request failed: {type(e).__name__}") from e
+        if r.status_code >= 400:
+            raise ProviderError(f"gemini answered {r.status_code}: {_safe_text(r)}")
+        try:
+            payload = r.json()
+        except ValueError as e:
+            raise ProviderError("gemini answered with a body that is not JSON") from e
+        text = _find_text(payload)
+        if text is None:
+            keys = (
+                ", ".join(sorted(payload)[:12])
+                if isinstance(payload, dict)
+                else type(payload).__name__
+            )
+            raise ProviderError(f"gemini answered without a text block (top-level keys: {keys})")
+        return text.strip()
+
+
+def _find_text(node: Any) -> str | None:
+    """``output_text`` when present, else the last ``{"type": "text", "text"}`` block or legacy
+    ``parts[].text`` anywhere in the answer, skipping the echoed request."""
+    if isinstance(node, dict):
+        if isinstance(node.get("output_text"), str):
+            return node["output_text"]
+        if node.get("type") == "text" and isinstance(node.get("text"), str):
+            return node["text"]
+        if isinstance(node.get("text"), str) and set(node) <= {"text", "thought"}:
+            return node["text"]
+        last = None
+        for k, v in node.items():
+            if k == "input":
+                continue
+            f = _find_text(v)
+            if f is not None:
+                last = f
+        return last
+    if isinstance(node, list):
+        last = None
+        for v in node:
+            f = _find_text(v)
+            if f is not None:
+                last = f
+        return last
+    return None
+
 
 def _safe_text(r: httpx.Response) -> str:
     """The first 300 characters of an error body; the vendor's message, never the key."""

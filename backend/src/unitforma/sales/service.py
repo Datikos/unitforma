@@ -47,9 +47,15 @@ async def load_lookups(db: AsyncSession, project: Project) -> rules.Lookups:
     promos = list(
         (await db.execute(select(Promotion).where(Promotion.project_id == project.id))).scalars()
     )
-    layouts = list(
-        (await db.execute(select(UnitLayout).where(UnitLayout.project_id == project.id))).scalars()
-    )
+    # a layout the setup solver proposed is not a plan type yet (ADR-0025 Decision 6): the rules
+    # refuse its code, the inventory row and the snapshot show no layout for its members
+    layouts = [
+        lay
+        for lay in (
+            await db.execute(select(UnitLayout).where(UnitLayout.project_id == project.id))
+        ).scalars()
+        if lay.status == "confirmed"
+    ]
     return rules.Lookups(
         area_keys={a.get("key") for a in (project.area_definitions or []) if isinstance(a, dict)},
         plan_ids={p.id for p in plans},

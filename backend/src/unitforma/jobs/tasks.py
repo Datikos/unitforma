@@ -132,3 +132,14 @@ async def render_generate(tenant_id: str, render_id: str) -> dict:
     from unitforma.renders.jobs import generate as run
 
     return await run(uuid.UUID(tenant_id), uuid.UUID(render_id))
+
+
+@app.task(name="setup.autopilot", queue="docs", retry=0)
+async def setup_autopilot(tenant_id: str, project_id: str) -> dict:
+    """The oldest queued solver run of a project (ADR-0025 Decision 3): apply the confident
+    proposals, record every decision. No retry: the next intake event or "Run now" queues anew."""
+    import uuid
+
+    from unitforma.autopilot.service import run_project
+
+    return await run_project(uuid.UUID(tenant_id), uuid.UUID(project_id))

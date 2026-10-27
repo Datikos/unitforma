@@ -38,6 +38,12 @@ export function layoutSummary(l: LayoutOut): string {
   const n = l.units.length;
   const counts = availabilityCounts(l.units);
   const parts = [`${n} ${n === 1 ? 'unit' : 'units'}`];
+  if (l.status === 'proposed') {
+    const iou = l.match?.['iou_min'];
+    parts.push(
+      `proposed by the solver${typeof iou === 'number' ? ` (outlines match ${iou.toFixed(2)})` : ''}`,
+    );
+  }
   for (const k of ['available', 'reserved', 'sold', 'withdrawn']) {
     if (counts[k]) parts.push(`${counts[k]} ${k}`);
   }
@@ -47,15 +53,25 @@ export function layoutSummary(l: LayoutOut): string {
   return parts.join(' · ');
 }
 
-/** Header facts of the page: layouts, linked units, layouts without any public media. */
+/** Header facts of the page: layouts, linked units, layouts without any public media, proposed. */
 export function registryFacts(list: LayoutOut[]): {
   layouts: number;
   linked: number;
   withoutMedia: number;
+  proposed: number;
 } {
   return {
     layouts: list.length,
     linked: list.reduce((a, l) => a + l.units.length, 0),
     withoutMedia: list.filter((l) => l.public_media_count === 0).length,
+    proposed: list.filter((l) => l.status === 'proposed').length,
   };
+}
+
+/** Proposed layouts first (they wait for a decision), then by code. */
+export function orderLayouts(list: LayoutOut[]): LayoutOut[] {
+  return [...list].sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'proposed' ? -1 : 1;
+    return a.code.localeCompare(b.code, undefined, { numeric: true });
+  });
 }

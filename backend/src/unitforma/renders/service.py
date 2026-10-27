@@ -202,6 +202,10 @@ async def request_render(
     s = get_settings()
     if layout is not None and (partner is not None or unit.layout_id != layout.id):
         raise ProblemError(422, "A layout render crops one of its own units, without a partner")
+    if layout is not None:
+        from unitforma.sales.layouts import require_confirmed
+
+        require_confirmed(layout)
     if not enabled():
         raise ProblemError(
             409,

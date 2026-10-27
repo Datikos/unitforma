@@ -110,6 +110,16 @@ class Settings(BaseSettings):
     # page dated 2026-10-22 (plan §21). Null hides the figure.
     ai_image_cost_per_image_usd: float | None = 0.0336
 
+    # Setup solver helpers (ADR-0025 Decision 8): outbound calls behind settings that default to
+    # off. The geocoder puts a project's address on the map (Nominatim: 1 request/s, User-Agent);
+    # the classifier asks the ADR-0017 image provider for the kind of an unclassified drawing page.
+    geocoder: str = Field(default="none", description="none | nominatim")
+    geocoder_endpoint: str = "https://nominatim.openstreetmap.org/search"
+    ai_classify: bool = False
+    ai_classify_daily_limit: int = Field(
+        default=200, description="Drawing pages classified per tenant per UTC day"
+    )
+
     @model_validator(mode="after")
     def _inject_passwords(self) -> Settings:
         """Allow passwords to arrive separately (Docker secrets) and be merged into the URLs."""

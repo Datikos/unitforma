@@ -88,6 +88,15 @@ export class LayoutsStore implements OnDestroy {
     });
   }
 
+  /** A plan type the solver proposed becomes a confirmed layout (ADR-0025 Decision 6). */
+  confirm(l: LayoutOut): Promise<boolean> {
+    return this.run(async () => {
+      await this.api.confirmLayout(this.tenantId, l.id);
+      this.toast.ok(`Layout ${l.code} confirmed: it can own renders now and buyers see it`);
+      await this.load();
+    });
+  }
+
   rename(l: LayoutOut, form: LayoutForm): Promise<boolean> {
     return this.run(async () => {
       await this.api.updateLayout(this.tenantId, l.id, {

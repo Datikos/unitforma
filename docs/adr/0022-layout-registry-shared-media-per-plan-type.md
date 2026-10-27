@@ -1,6 +1,6 @@
 # ADR-0022: A layout registry owns the media shared by units of one plan type
 
-- **Status:** accepted (2026-10-26, the owner's "2" on the options; implemented 2026-10-26; the contract step E1 waits for the next release; Option D realised by ADR-0024 on 2026-10-27)
+- **Status:** accepted (2026-10-26, the owner's "2" on the options; implemented 2026-10-26; the contract step E1 waits for the next release; Option D realised by ADR-0024 on 2026-10-27; ADR-0025 Decision 6 adds `status` (confirmed | proposed), `source` and `match` to the registry: a proposed layout owns nothing until confirmed)
 - **Date:** 2026-10-26
 - **Deciders:** David Sakhelashvili (platform owner)
 - **Plan reference:** §5.3 (unit media, AI disclosure), §6.6 (`public_view`), §7.1 (unit page), §11.2 (admin screens), §11.3 (portal screens), §12.3 (`renders.generate`), ADR-0016 Decision 4 (media shared by layout code, superseded here), ADR-0017 Decision 3 (generated plan renders), ADR-0021 (retention)

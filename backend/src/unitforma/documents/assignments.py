@@ -238,6 +238,37 @@ async def confirm(db: AsyncSession, sheet: Sheet, floor_id: uuid.UUID, source: s
     sync_primary(sheet, assigns)
 
 
+async def confirm_suggestions(
+    db: AsyncSession, sheet: Sheet, source: str, actor: Actor
+) -> list[SheetFloor]:
+    """Confirm every suggested floor of a sheet at once (the setup solver, ADR-0025 Decision 5):
+    the suggestions keep their regions, take ``source`` and become the sheet's floors."""
+    assigns = await list_for_sheet(db, sheet.id)
+    sugg = [a for a in assigns if a.status == "suggested"]
+    if not sugg:
+        return [a for a in assigns if a.status == "confirmed"]
+    for a in sugg:
+        a.status = "confirmed"
+        a.source = source
+    await db.flush()
+    sync_primary(sheet, assigns)
+    sheet.version += 1
+    await write_audit(
+        db,
+        tenant_id=sheet.tenant_id,
+        actor_user_id=actor[0],
+        actor_role=actor[1],
+        entity_type="sheet",
+        entity_id=sheet.id,
+        action="assign_floors",
+        after={
+            "floors": [{"floor_id": str(a.floor_id), "region": a.region} for a in assigns],
+            "source": source,
+        },
+    )
+    return [a for a in assigns if a.status == "confirmed"]
+
+
 async def replace_suggestions(
     db: AsyncSession, sheet: Sheet, suggestions: list[dict[str, Any]], source: str
 ) -> None:

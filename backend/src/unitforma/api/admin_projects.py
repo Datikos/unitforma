@@ -26,6 +26,8 @@ from unitforma.api.schemas import (
     SiteFeatureOut,
     SiteFeatureUpdate,
 )
+from unitforma.autopilot import service as autopilot
+from unitforma.autopilot.queue import queue_run
 from unitforma.core.errors import ProblemError
 from unitforma.documents import floor_proposal as proposal
 from unitforma.identity.authz import Action, is_allowed
@@ -59,13 +61,29 @@ async def create_project(body: ProjectCreate, ctx: Ctx):
     tenant = (
         await ctx.session.execute(select(Tenant).where(Tenant.id == ctx.tenant_id))
     ).scalar_one()
-    return await projects.create_project(
+    if body.setup_auto and body.setup_auto.enabled and body.setup_auto.approve_sheets:
+        ctx.require("mapping", Action.APPROVE)
+    p = await projects.create_project(
         ctx.session,
         tenant_id=ctx.tenant_id,
-        data=body.model_dump(),
+        data=body.model_dump(exclude={"building_code", "setup_auto"}),
         actor=_actor(ctx),
         default_currency=tenant.default_currency,
     )
+    # the intake form (ADR-0025 Decision 1): the building the drawings are filed under, and the
+    # solver's switches; the first processed document queues the first run
+    if body.building_code:
+        await projects.create_building(ctx.session, p, {"code": body.building_code}, _actor(ctx))
+    if body.setup_auto is not None:
+        autopilot.set_auto_settings(
+            p,
+            enabled=body.setup_auto.enabled,
+            approve_sheets=body.setup_auto.approve_sheets,
+            actor=_actor(ctx),
+        )
+    await ctx.session.flush()
+    await ctx.session.refresh(p)
+    return p
 
 
 @router.get("/projects/{project_id}", response_model=ProjectOut)
@@ -199,6 +217,7 @@ async def accept_blocks(building_id: uuid.UUID, body: BlocksAcceptIn, ctx: Ctx):
         actor=_actor(ctx),
     )
     await proposal.queue_resuggest(ctx.tenant_id, project_id)
+    await queue_run(ctx.tenant_id, project_id, "floors_saved", requested_by=ctx.principal.user_id)
     out = [await projects.get_building(ctx.session, ctx.tenant_id, c.id) for c in created]
     return BlocksAcceptOut(buildings=out, source_removed=removed)
 
@@ -213,6 +232,7 @@ async def set_floors(building_id: uuid.UUID, body: FloorsBulkCreate, ctx: Ctx):
     )
     # sheets processed before these floors existed get their page → floor suggestions now
     await proposal.queue_resuggest(ctx.tenant_id, b.project_id)
+    await queue_run(ctx.tenant_id, b.project_id, "floors_saved", requested_by=ctx.principal.user_id)
     return floors
 
 
@@ -266,4 +286,11 @@ async def project_setup(project_id: uuid.UUID, ctx: Ctx):
     ctx.require("project", Action.READ)
     ctx.require_project(project_id)
     p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
-    return await setup_service.setup_status(ctx.session, p)
+    out = await setup_service.setup_status(ctx.session, p)
+    # what the setup solver did and left (ADR-0025 Decision 7)
+    view = await autopilot.checklist_view(ctx.session, p)
+    for st in out["steps"]:
+        st["auto_detail"] = view["auto_detail"].get(st["key"])
+    out["auto"] = view["auto"]
+    out["decisions"] = view["decisions"]
+    return out

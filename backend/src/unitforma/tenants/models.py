@@ -188,6 +188,8 @@ class Project(TimestampMixin, Base):
     sales_settings: Mapped[dict] = mapped_column(JSONB, default=dict)
     # portal presentation: branding overrides, hero text, construction stage (plan §9.3)
     portal_settings: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # the setup solver's switches (ADR-0025 Decision 2): enabled, approve_sheets, requested_by
+    setup_auto: Mapped[dict] = mapped_column(JSONB, default=dict)
     version: Mapped[int] = mapped_column(default=1)
 
 
@@ -277,7 +279,7 @@ class Document(TimestampMixin, Base):
     visibility: Mapped[str] = mapped_column(String(20), default="internal")
     current_revision_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     source: Mapped[dict] = mapped_column(JSONB, default=dict)
-    # who set the kind: manual | filename | content | pending (ADR-0008)
+    # who set the kind: manual | filename | content | pending (ADR-0008) | ai (ADR-0025)
     kind_source: Mapped[str] = mapped_column(String(20), default="manual")
 
 
@@ -371,6 +373,11 @@ class UnitLayout(TimestampMixin, Base):
     )
     code: Mapped[str] = mapped_column(String(40))
     name: Mapped[str | None] = mapped_column(String(120))
+    # confirmed | proposed: a layout the setup solver proposed shares nothing until a person
+    # confirms it (ADR-0025 Decision 6); source manual | autopilot; match: the matcher's figures
+    status: Mapped[str] = mapped_column(String(20), default="confirmed")
+    source: Mapped[str] = mapped_column(String(20), default="manual")
+    match: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
     version: Mapped[int] = mapped_column(default=1)
 
 
@@ -889,3 +896,24 @@ class IfcSpaceLink(TimestampMixin, Base):
     confidence: Mapped[Decimal | None] = mapped_column(Numeric(3, 2))
     footprint_m: Mapped[dict | None] = mapped_column(JSONB)  # {"ring": [[x, y], ...]} IFC metres
     areas: Mapped[dict] = mapped_column(JSONB, default=dict)  # net_floor_area, gross_floor_area
+
+
+class SetupRun(Base):
+    """One run of the setup solver for a project (ADR-0025 Decision 3): when, why, what it
+    decided (``summary.decisions``) and what it left for a person (``needs_you`` items)."""
+
+    __tablename__ = "setup_runs"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_id)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), index=True
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"))
+    # queued | running | waiting | done | failed
+    status: Mapped[str] = mapped_column(String(12), default="queued")
+    trigger: Mapped[str] = mapped_column(String(40))
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    summary: Mapped[dict] = mapped_column(JSONB, default=dict)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

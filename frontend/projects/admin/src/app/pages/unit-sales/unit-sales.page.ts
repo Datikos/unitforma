@@ -348,7 +348,9 @@ import { UnitSalesStore } from './unit-sales.store';
                   />
                   <datalist id="uf-layout-codes">
                     @for (l of store.layouts(); track l.id) {
-                      <option [value]="l.code">{{ l.name ?? '' }}</option>
+                      @if (l.status === 'confirmed') {
+                        <option [value]="l.code">{{ l.name ?? '' }}</option>
+                      }
                     }
                   </datalist>
                   <mat-hint><a routerLink="../../layouts">Layouts</a></mat-hint></mat-form-field
