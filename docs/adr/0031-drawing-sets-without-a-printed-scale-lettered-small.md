@@ -208,17 +208,20 @@ scans.
       (2026-10-27, operator script on the editor's accept path, `source = vector_suggest`, codes
       generated): 34 stalls (the stall rectangle, not the stall grown into the aisle; P 03 and P 22
       were the solver's), 20 ground-floor apartments, 22 on each of storeys 1–3, "04" stored as
-      "ბინა 404"; "№1" by the basement stairs left out; 122 draft units. Open: the owner draws 121,
-      122, 223/224, 323/324, 423/424 and approves the sheets. The basement B2 is 3.0 m high on the
+      "ბინა 404"; "№1" by the basement stairs left out; 122 draft units. Pages 10–14 approved on the
+      owner's "publish" (admin API, his session): 122 units active. Open: the owner draws 121, 122,
+      223/224, 323/324, 423/424. The basement B2 is 3.0 m high on the
       section (−3.00 to ±0.00), recorded as 2.2 m; saving the floors queues a floor re-suggestion that
       can suggest Ground again on page 1 and B1 on page 11, so it is changed on the building card
       together with a look at those two pages. The phantom floor B1 (−0.80, 0.8 m) stays: the app has
       no way to delete a floor (E1); it holds no unit.
 - [ ] D3 IFC conversion of building A re-run (2026-10-27 14:41 UTC): 122 plan spaces, one per unit,
       scope building, rotation 2.5°, mean IoU 0.389 (per level 0.29–0.44), every level 85–98 % inside
-      its slab target. Open: the owner confirms the plan spaces on the 3D massing page after a look,
-      sets prices or "on request", publishes; the conversion is re-run after the remaining units
-      are drawn.
+      its slab target. On the owner's "publish": the 122 plan spaces confirmed and "Publish with
+      defaults" run (22 plan types confirmed, 122 units listed, v2 live at
+      `lisi.unitforma.localhost/projects/nn4`; the public GLB carries 122 unit nodes). Open: prices
+      (all empty, shown as unknown), the conversion re-run and a new version after the remaining
+      units are drawn.
 
 ### Phase E: found on the way (open)
 - [ ] E1 A floor no unit uses can be deleted (API, admin building card, MCP); `projects.set_floors`
