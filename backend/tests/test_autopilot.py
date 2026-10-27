@@ -157,6 +157,7 @@ def _plan_pdf() -> bytes:
         + _rect(100, 200, 400, 400)
         + _rect(400, 200, 700, 400)
         + "100 150 m 700 150 l S\n"
+        + _axis_marks(100, 600)
     )
     p2 = (
         _text(40, 560, "FIRST FLOOR PLAN +3.20 scale 1:100", 14)
@@ -168,9 +169,21 @@ def _plan_pdf() -> bytes:
         + "0.5 0.75 1 rg 100 420 200 100 re f\n"  # zone fill: 200 × 100 pt at 1:100 = 24.9 m²
         + _rect(100, 420, 300, 520)
         + _text(110, 470, "#12 24.9 m2")
+        + _axis_marks(320, 660)
     )
     assert base  # the shared fixture still builds
     return build_pdf([p1, p2])
+
+
+def _axis_marks(x_left: float, x_right: float) -> str:
+    """Two small boxes labelled "4" on one page: an axis mark printed at both ends. Repeated on
+    every page of the set it is not a unit label (D4) and must not be listed as "needs you"."""
+    return (
+        _rect(x_left, 430, x_left + 100, 490)
+        + _text(x_left + 40, 455, "4")
+        + _rect(x_right, 430, x_right + 100, 490)
+        + _text(x_right + 40, 455, "4")
+    )
 
 
 def _site_pdf() -> bytes:
@@ -466,6 +479,7 @@ def test_run_sets_floors_sheets_units_site_placement_gallery_and_map(client, wor
     assert ("mapping", "accepted") in kinds and ("calibration", "accepted") in kinds
     left = [d for d in decisions if d["needs_you"] and d["step"] == "mapping"]
     assert len(left) == 1 and "7 (0.65)" in left[0]["detail"], left
+    assert "printed twice" not in left[0]["detail"]  # the axis mark "4" of every page is not listed
     # needs-you items come first, then by confidence
     assert decisions[0]["needs_you"] is True
     assert "need" in steps["mapping"]["auto_detail"]

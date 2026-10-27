@@ -185,6 +185,28 @@ def test_download_refuses_unknown_hosts_before_any_request():
         assert e.value.status == 422
 
 
+def test_download_has_a_deadline_for_the_whole_file():
+    """ADR-0025 D5: a server that trickles bytes inside the per-read timeout cannot hold the import
+    worker for an hour; the whole transfer has a deadline and the caller records a 504."""
+    import asyncio
+
+    import httpx
+
+    async def slow(request: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(0.3)
+        return httpx.Response(200, content=b"x" * 10)
+
+    client = tasge.TasgeClient(httpx.AsyncClient(transport=httpx.MockTransport(slow)))
+    with pytest.raises(ProblemError) as e:
+        asyncio.run(client._capped("GET", "https://docs.tbilisi.gov.ge/f", 5.0, 1024, total_s=0.05))
+    assert e.value.status == 504
+    # under the deadline the body arrives as before
+    assert (
+        asyncio.run(client._capped("GET", "https://docs.tbilisi.gov.ge/f", 5.0, 1024, total_s=5.0))
+        == b"x" * 10
+    )
+
+
 def test_dwr_reply_parses_and_failure_is_an_error():
     rec = tasge.record_from_dwr(dwr_body())
     assert rec["last_motion"]["documentStatusId"] == 3

@@ -1,6 +1,6 @@
 # ADR-0025: A project sets itself up: one intake form, a solver job that applies the confident proposals, and the setup checklist as the review surface
 
-- **Status:** accepted (2026-10-27, the owner's "start implementing until finish" on the options of 2026-10-26; implemented 2026-10-27 on branch `adr-0025`, merged to `main` the same day; Phase D: D1–D3 done 2026-10-27 on the dev stack, D4–D5 open; this reverses the 2026-10-26 decision that put "automating the setup checklist from a permit import (ADR-0017 proposal 1b)" out of scope: the owner asked for it again, widened to manual intake)
+- **Status:** accepted (2026-10-27, the owner's "start implementing until finish" on the options of 2026-10-26; implemented 2026-10-27 on branch `adr-0025`, merged to `main` the same day; Phase D done 2026-10-27 (D1–D3 on the dev stack, D4–D5 the same day); no open items; this reverses the 2026-10-26 decision that put "automating the setup checklist from a permit import (ADR-0017 proposal 1b)" out of scope: the owner asked for it again, widened to manual intake)
 - **Date:** 2026-10-27
 - **Deciders:** David Sakhelashvili (platform owner). Six picks were asked on 2026-10-26 and not answered before "start"; the defaults taken are named in Decision 9 and are his to change.
 - **Plan reference:** §12.3 (jobs), §13.1 (document → published project), §13.2 (automation classification), §11.2 (admin screens), §21 (sources), ADR-0007 (permit import), ADR-0008 (classification), ADR-0010 (floors proposed), ADR-0011 (massing follows mapping), ADR-0013 (blocks), ADR-0016 Decision 2 (facades), ADR-0017 Decision 5 (checklist) and Option E (no wizard), ADR-0022 (layout registry)
@@ -269,7 +269,7 @@ copy of a layout's render.
       §13.2 (the "auto" column), §21 (Nominatim policy); `frontend/README.md`; `docs/BACKLOG.md`
       header and the replaced "decided out" line.
 
-### Phase D: open
+### Phase D: done 2026-10-27
 
 *Not done on 2026-10-27:* a screenshot pass over the Projects, Setup and Layouts pages (the dev
 stack runs the `main` images; the branch was verified by `ng build admin`, `ng test admin` and the
@@ -314,8 +314,16 @@ backend tests, not in a browser).
       now counts `regulatory_imports.status = importing`, `test_import_creates_project_building_and_documents`);
       one attachment download took about 80 min against `DOWNLOAD_TIMEOUT_S = 300`, which bounds a
       read, not the whole file (D5).
-- [ ] D4 Outlines: the "labels printed twice" list names room numbers and axis marks (0–7, `M2`) on
+- [x] D4 Outlines: the "labels printed twice" list names room numbers and axis marks (0–7, `M2`) on
       every sheet; a label that repeats on most sheets of a set is not a unit label. Tune with a
       fixture that prints the same digit on two zones of two pages.
-- [ ] D5 `regulatory/tasge.py`: bound the whole download (a total deadline next to `DOWNLOAD_TIMEOUT_S`),
+      *Done 2026-10-27:* `outlines.run` reads every sheet's candidates first; a label printed twice
+      on at least 2 sheets and on half the sheets with candidates (`LABEL_SET_WIDE_MIN_SHEETS`,
+      `LABEL_SET_WIDE_SHARE`) is dropped from the labels and from the coverage rule; printed twice on
+      one sheet it is still listed. Fixture: the axis mark "4" at both ends of both pages of
+      `_plan_pdf` (`_axis_marks`); page 1 is still approved, page 2 lists only "7".
+- [x] D5 `regulatory/tasge.py`: bound the whole download (a total deadline next to `DOWNLOAD_TIMEOUT_S`),
       so a slow server cannot hold the import worker for an hour; record it in `stats.failed`.
+      *Done 2026-10-27:* `DOWNLOAD_TOTAL_TIMEOUT_S = 900` (50 MB at 0.5 Mbit/s) around the whole
+      transfer in `TasgeClient._capped`; past it a 504 "Download took too long" that the import loop
+      already records in `stats.failed`; `test_download_has_a_deadline_for_the_whole_file`.

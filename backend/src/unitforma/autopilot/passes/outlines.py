@@ -45,18 +45,45 @@ async def run(ctx: Context) -> None:
         sheets = await current_sheets(db, ctx.project_id, kinds=("floor_plan",))
         by_sheet = await assignments.list_for_sheets(db, [s.id for s, _ in sheets])
         targets = [
-            (sheet.id, page_label(doc, sheet))
+            (sheet, page_label(doc, sheet))
             for sheet, doc in sheets
             if sheet.raster_key and any(a.status == "confirmed" for a in by_sheet.get(sheet.id, []))
         ]
+        # candidates of every sheet first: a label printed twice on half the sheets of the set is
+        # a room number or an axis mark, not a unit label (D4, permit 1127975: 0–7 and "M2" on
+        # every plan); printed twice on one sheet it is a duplicate the person must resolve
+        cands: dict[uuid.UUID, list] = {}
+        ambiguous_on: dict[str, int] = {}
+        for sheet, _label in targets:
+            if sheet.excluded:
+                continue
+            found = await mapping.suggest_for_sheet(db, sheet)
+            cands[sheet.id] = found
+            counts: dict[str, int] = {}
+            for c, _fid in found:
+                key = suggest.normalise_label(c.label)
+                if key:
+                    counts[key] = counts.get(key, 0) + 1
+            for key, n in counts.items():
+                if n > 1:
+                    ambiguous_on[key] = ambiguous_on.get(key, 0) + 1
+    with_candidates = sum(1 for v in cands.values() if v)
+    set_wide = {
+        key
+        for key, n in ambiguous_on.items()
+        if n >= rules.LABEL_SET_WIDE_MIN_SHEETS
+        and n >= rules.LABEL_SET_WIDE_SHARE * with_candidates
+    }
     massing = False
-    for sheet_id, label in targets:
-        outcome = await _one(ctx, sheet_id, label)
+    for sheet, label in targets:
+        if sheet.id not in cands:
+            continue
+        outcome = await _one(ctx, sheet.id, label, cands[sheet.id], set_wide)
         if outcome is None:
             continue
         if outcome.created or outcome.approved:
             massing = True
-        _record(ctx, sheet_id, label, outcome)
+        _record(ctx, sheet.id, label, outcome)
     if massing:
         await geometry_service.queue_massing(ctx.tenant_id, ctx.project_id)
 
@@ -108,7 +135,9 @@ def _record(ctx: Context, sheet_id: uuid.UUID, label: str, o: SheetOutcome) -> N
         )
 
 
-async def _one(ctx: Context, sheet_id: uuid.UUID, label: str) -> SheetOutcome | None:
+async def _one(
+    ctx: Context, sheet_id: uuid.UUID, label: str, cands: list, set_wide: set[str]
+) -> SheetOutcome | None:
     async with session(ctx) as db:
         sheet = (await db.execute(select(Sheet).where(Sheet.id == sheet_id))).scalar_one_or_none()
         if sheet is None or sheet.excluded:
@@ -132,8 +161,11 @@ async def _one(ctx: Context, sheet_id: uuid.UUID, label: str) -> SheetOutcome | 
             return None  # a person removed one of the solver's units here: theirs
         project_id = await _project_id(db, sheet)
         project = await projects.get_project(db, ctx.tenant_id, project_id)
-        cands = await mapping.suggest_for_sheet(db, sheet)
-        keyed = [(c, fid, suggest.normalise_label(c.label)) for c, fid in cands]
+        keyed = [
+            (c, fid, key)
+            for c, fid in cands
+            if (key := suggest.normalise_label(c.label)) not in set_wide
+        ]
         counts: dict[str, int] = {}
         for _c, _fid, key in keyed:
             if key:

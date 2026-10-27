@@ -13,6 +13,7 @@ officials) is dropped while normalising; the raw payload is never stored.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import xml.etree.ElementTree as ET
@@ -44,7 +45,10 @@ USER_AGENT = f"unitforma/{__version__} (+https://unitforma.com)"
 
 RECORD_TIMEOUT_S = 20.0
 RECORD_MAX_BYTES = 5 * 1024 * 1024
-DOWNLOAD_TIMEOUT_S = 300.0
+DOWNLOAD_TIMEOUT_S = 300.0  # per read: a stalled connection
+# the whole file: on 2026-10-27 one attachment trickled for about 80 min inside the per-read timeout
+# and held the import worker (ADR-0025 D5); 50 MB in 15 min is 0.5 Mbit/s
+DOWNLOAD_TOTAL_TIMEOUT_S = 900.0
 DOWNLOAD_MAX_BYTES = 50 * 1024 * 1024
 
 # Observed on the public page: documentStatusId 3 renders as "თანხმობა" (consent / approved).
@@ -280,22 +284,41 @@ class TasgeClient:
         host = (urlsplit(url).hostname or "").lower()
         if host not in DOWNLOAD_HOSTS or not url.startswith("https://"):
             raise ProblemError(422, "Refusing to download from an unknown host", host)
-        return await self._capped("GET", url, DOWNLOAD_TIMEOUT_S, DOWNLOAD_MAX_BYTES)
+        return await self._capped(
+            "GET", url, DOWNLOAD_TIMEOUT_S, DOWNLOAD_MAX_BYTES, total_s=DOWNLOAD_TOTAL_TIMEOUT_S
+        )
 
     async def _capped(
-        self, method: str, url: str, timeout_s: float, max_bytes: int, **kw: Any
+        self,
+        method: str,
+        url: str,
+        timeout_s: float,
+        max_bytes: int,
+        *,
+        total_s: float | None = None,
+        **kw: Any,
     ) -> bytes:
-        async with self._http().stream(method, url, timeout=timeout_s, **kw) as r:
-            r.raise_for_status()
-            chunks: list[bytes] = []
-            size = 0
-            async for chunk in r.aiter_bytes():
-                size += len(chunk)
-                if size > max_bytes:
-                    raise ProblemError(
-                        413, "Response too large", f"more than {max_bytes // (1024 * 1024)} MB"
-                    )
-                chunks.append(chunk)
+        """The response body, or a problem: 413 past ``max_bytes``, 504 past ``total_s`` for the
+        whole transfer (``timeout_s`` bounds one read, not the file)."""
+        try:
+            async with asyncio.timeout(total_s):
+                async with self._http().stream(method, url, timeout=timeout_s, **kw) as r:
+                    r.raise_for_status()
+                    chunks: list[bytes] = []
+                    size = 0
+                    async for chunk in r.aiter_bytes():
+                        size += len(chunk)
+                        if size > max_bytes:
+                            raise ProblemError(
+                                413,
+                                "Response too large",
+                                f"more than {max_bytes // (1024 * 1024)} MB",
+                            )
+                        chunks.append(chunk)
+        except TimeoutError as e:
+            raise ProblemError(
+                504, "Download took too long", f"more than {total_s:.0f} s for the whole file"
+            ) from e
         return b"".join(chunks)
 
 

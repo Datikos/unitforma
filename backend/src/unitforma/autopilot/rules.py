@@ -13,6 +13,10 @@ from __future__ import annotations
 OUTLINE_MIN_CONFIDENCE = 0.85
 # a candidate that overlaps a boundary already drawn by this much is that unit, not a new one
 OUTLINE_EXISTING_OVERLAP = 0.3
+# a label printed twice on this many sheets, and on this share of the sheets with candidates, is a
+# room number or an axis mark (0–7 and "M2" on every plan of permit 1127975, D4), not a unit label
+LABEL_SET_WIDE_MIN_SHEETS = 2
+LABEL_SET_WIDE_SHARE = 0.5
 
 # --- floors
 FLOORS_CONFIDENCE_WITH_ROOF = 0.9

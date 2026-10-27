@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-27: 41 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, 0025, plan Phases 5 to 7 and
+State on 2026-10-27: 40 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Rows that share one code area or one
 outside input are one row with every reference. Sizes: S up to a day, M a few days, L a week or more.
@@ -64,4 +64,3 @@ decided out the same day and reopened, widened to manual intake, on 2026-10-27 (
 | 40 | "Process again" on the document card for a revision queued, processing or failed, with its guide line; the manual escape hatch next to the 10-minute sweep. | ADR-0016 #F5 | — | S |
 | 41 | Long Georgian file names on the `local` storage backend: URL-quoting makes 9 bytes per letter and exceeds the 255-byte path component ("File name too long" on 2 of 16 permit files, 2026-10-26); cap or hash in `storage.object_key`. S3 is unaffected. | ADR-0016 #F6 | — | S |
 | 42 | ADR-0020 (renovation playground): the owner picks how the drawn furniture is cleared (generated blank plan, DXF layers, fade), whether tenants manage the catalogue, whether layouts wait for buyer accounts and whether buyers may spend AI images; the sharing code length (4 symbols or 6 digits) and who opens a live board; then Phase B (blank plan, M), C (catalogue, M), D (after Phase 5, M), E2 to E8 (live board over SSE, M). Phase A and E1 (editor, code catalogue, fade, browser save, share link) done 2026-10-26. | ADR-0020 Decision | owner's picks | S to M per phase |
-| 43 | ADR-0025 open items: D4 outlines: labels that repeat on most sheets of a set (room numbers, axis marks) are not unit labels, tune with a fixture; D5 a total deadline on a permit attachment download (one took 80 min on 2026-10-27); facade sides from axis labels. | ADR-0025 #D4 #D5 | — | S each |
