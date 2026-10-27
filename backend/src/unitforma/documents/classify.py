@@ -86,6 +86,15 @@ def kind_from_name(*names: str | None) -> str | None:
     return None
 
 
+def is_plan_page(h: dict[str, Any]) -> bool:
+    """A plan page: the per-page kind, or typed unit labels on a page that has line work (the
+    worker adds ``vector_lines``); a schedule lists the same labels without lines."""
+    return str(h.get("kind") or "") == "floor_plan" or (
+        any(kk != "numbered" for kk in (h.get("unit_labels") or {}))
+        and int(h.get("vector_lines") or 0) > 0
+    )
+
+
 def kind_from_pages(page_hints: list[dict[str, Any]], mime: str | None = None) -> str | None:
     """A document kind from the processed pages; ``None`` when the pages do not say.
 
@@ -99,17 +108,7 @@ def kind_from_pages(page_hints: list[dict[str, Any]], mime: str | None = None) -
         return None
     kinds = [str(h.get("kind") or "unknown") for h in hints]
     n = len(kinds)
-    # a plan page: the per-page kind, or typed unit labels on a page that has line work
-    # (the worker adds ``vector_lines``); a schedule lists the same labels without lines
-    plans = sum(
-        1
-        for h, k in zip(hints, kinds, strict=True)
-        if k == "floor_plan"
-        or (
-            any(kk != "numbered" for kk in (h.get("unit_labels") or {}))
-            and int(h.get("vector_lines") or 0) > 0
-        )
-    )
+    plans = sum(1 for h in hints if is_plan_page(h))
     if plans / n >= 0.5:
         return "floor_plan"
     if all(k == "text_sheet" for k in kinds) and any(h.get("area_values") for h in hints):

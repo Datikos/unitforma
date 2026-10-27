@@ -272,8 +272,7 @@ import { ToastService } from '../ui/toast.service';
                     storeys. Blocks become separate buildings, as the sheets' regions and the 3D
                     model expect; edit the codes first. The sheets then get one floor suggestion per
                     block.</span
-                  >
-                  <a class="uf-link" (click)="setOneBuilding(b, true)"
+                  >&ngsp;<a class="uf-link" (click)="setOneBuilding(b, true)"
                     >Treat as one building instead</a
                   >
                 </p>
@@ -620,16 +619,25 @@ import { ToastService } from '../ui/toast.service';
     }
     .blocks {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(21rem, 1fr));
       gap: 0.75rem;
     }
     .block {
       display: grid;
+      align-content: start;
       gap: 0.35rem;
       padding: 0.5rem;
       border: 1px solid var(--uf-border, #e5e7eb);
       border-radius: var(--uf-radius, 8px);
       background: #fff;
+      overflow-x: auto;
+    }
+    .block .floors th {
+      white-space: normal;
+      padding: 0.35rem 0.4rem;
+    }
+    .block .floors td {
+      padding: 0.35rem 0.4rem;
     }
     .num {
       width: 10rem;

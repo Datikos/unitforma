@@ -56,7 +56,11 @@ LAYOUT_MIN_IOU = 0.95
 LAYOUT_AREA_TOLERANCE = 0.08
 LAYOUT_MIN_MEMBERS = 2
 
-# --- classify: a kind the vision model names for an unclassified drawing page
+# --- classify: on the host, a set with this many floor-plan pages is a plan set (ADR-0008 reads
+# "half the pages"; a permit's plan set carries sections and details, 6 plan pages in 51)
+HOST_KIND_MIN_PLAN_PAGES = 2
+HOST_KIND_CONFIDENCE = 0.85
+# a kind the vision model names for an unclassified drawing page
 CLASSIFY_CONFIDENCE = 0.8
 CLASSIFY_KINDS = ("floor_plan", "site_plan", "section", "elevation", "render", "schedule")
 CLASSIFY_PROMPT = (

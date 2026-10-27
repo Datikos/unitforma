@@ -25,7 +25,7 @@ from tests.pdf_fixture import (
 )
 from tests.test_phase4_publishing import _admin_sql
 from unitforma.autopilot import rules
-from unitforma.autopilot.passes import classify, facades, geocode, layouts, placement
+from unitforma.autopilot.passes import classify, facades, floors, geocode, layouts, placement
 from unitforma.renders.gemini import _find_text
 
 pytestmark = pytest.mark.skipif(
@@ -121,6 +121,79 @@ def test_geocoder_queries_follow_the_permit_address_form_and_agree_within_a_radi
     assert not geocode.places_agree([], 150.0)
 
 
+def test_storeys_of_split_level_blocks_are_the_main_blocks_storeys():
+    """The five blocks the markers of permit 1127975 give (2026-10-27): three real blocks at
+    offsets of 1 m and two stamp columns; the owner's storey list is B1, Ground, 1, 2, 3."""
+
+    def fl(level, name, elev, h):
+        return {"level": level, "display_name": name, "elevation_m": elev, "height_m": h}
+
+    blocks = [
+        {
+            "code": "A-A",
+            "sheets": 6,
+            "floors": [fl(0, "Ground", 0.0, 13.2), fl(1, "1", 13.2, 3.25), fl(2, "2", 16.45, 8.22)],
+        },
+        {
+            "code": "B",
+            "sheets": 5,
+            "floors": [
+                fl(-1, "B1", -2.55, 2.55),
+                fl(0, "Ground", 0.0, 3.2),
+                fl(1, "1", 3.2, 3.2),
+                fl(2, "2", 6.4, 3.2),
+                fl(3, "3", 9.6, 3.2),
+            ],
+        },
+        {
+            "code": "C",
+            "sheets": 5,
+            "floors": [
+                fl(-1, "B1", -1.55, 2.55),
+                fl(0, "Ground", 1.0, 3.2),
+                fl(1, "1", 4.2, 3.2),
+                fl(2, "2", 7.4, 3.2),
+                fl(3, "3", 10.6, 3.2),
+            ],
+        },
+        {
+            "code": "D",
+            "sheets": 4,
+            "floors": [
+                fl(0, "Ground", 2.0, 3.2),
+                fl(1, "1", 5.2, 3.2),
+                fl(2, "2", 8.4, 3.2),
+                fl(3, "3", 11.6, 3.2),
+            ],
+        },
+        {
+            "code": "E",
+            "sheets": 5,
+            "floors": [fl(-1, "B1", -5.0, 5.0), fl(0, "Ground", 0.0, 3.2), fl(1, "1", 3.2, 4.1)],
+        },
+    ]
+    out = floors.storeys_from_blocks(blocks)
+    assert [(f["level"], f["display_name"], f["elevation_m"], f["height_m"]) for f in out] == [
+        (-1, "B1", -2.55, 2.55),
+        (0, "Ground", 0.0, 3.2),
+        (1, "1", 3.2, 3.2),
+        (2, "2", 6.4, 3.2),
+        (3, "3", 9.6, 3.2),
+    ]
+    # a level only another block has is added from that block
+    blocks[3]["floors"].append(fl(4, "4", 14.8, 3.2))
+    assert [f["level"] for f in floors.storeys_from_blocks(blocks)] == [-1, 0, 1, 2, 3, 4]
+
+
+def test_host_kind_files_a_set_with_floor_plan_pages_as_floor_plans():
+    plan, other = {"kind": "floor_plan"}, {"kind": "drawing"}
+    assert classify.host_kind([plan, plan] + [other] * 49) == "floor_plan"  # 2 in 51, like "4"
+    assert classify.host_kind([plan, other]) == "floor_plan"  # one plan in a short set
+    assert classify.host_kind([plan] + [other] * 5) is None  # one plan page in a longer set
+    assert classify.host_kind([other] * 9) is None  # elevations: a person's call
+    assert classify.host_kind([]) is None
+
+
 def test_classifier_sends_drawings_only():
     # a real elevation sheet (permit 1127975, D2 on 2026-10-27): long text, far more line work
     assert classify.page_is_drawing(64444, 4676)
@@ -144,7 +217,7 @@ def test_classifier_parses_one_word_answers_and_gemini_text_blocks():
 
 
 # --------------------------------------------------------------------------- fixtures
-def _plan_pdf() -> bytes:
+def _plan_pdf(filler: int = 0) -> bytes:
     """Page 1 as make_plan_pdf: apartments 1 and 2 (typed labels, 0.9). Page 2: apartment 3, a
     filled zone "#12" with its printed area (a numbered fill, 0.85: a unit since 2026-10-27) and a
     zone labelled only "7" (a bare number, 0.65): it stays a candidate and blocks the approval."""
@@ -172,7 +245,10 @@ def _plan_pdf() -> bytes:
         + _axis_marks(320, 660)
     )
     assert base  # the shared fixture still builds
-    return build_pdf([p1, p2])
+    # detail pages without labels or markers: with enough of them the plans are under half the
+    # set and ADR-0008's content rule leaves the document pending (the real set: 6 plans in 51)
+    detail = "".join(_rect(60 + 30 * i, 100, 80 + 30 * i, 500) for i in range(24))
+    return build_pdf([p1, p2] + [detail] * filler)
 
 
 def _axis_marks(x_left: float, x_right: float) -> str:
@@ -601,8 +677,56 @@ def test_split_level_blocks_stay_a_proposal(client, world):
         outcomes[slug] = ([f["level"] for f in floors], blocks[0]["detail"])
     assert outcomes["steps-storey"][0] == [0, 1, 2, 3]
     assert "Kept as one building" in outcomes["steps-storey"][1]
-    assert outcomes["steps-metre"][0] == []
-    assert "less than a storey" in outcomes["steps-metre"][1]
+    # steps of a metre: the storeys are the blocks' own (Ground, 1), not one per step
+    assert outcomes["steps-metre"][0] == [0, 1]
+    assert "Kept as one building" in outcomes["steps-metre"][1]
+
+
+def test_an_unclassified_plan_set_is_filed_on_the_host_and_the_rest_is_listed(client, world):
+    """Files named 1 to 4 (2026-10-27): nothing classified them and the solver stopped. A set with
+    floor-plan pages is filed as floor plans on the host; what stays pending is one "needs you"."""
+    base, adm, tid = world["base"], world["adm"], world["tenant"]["id"]
+    p = client.post(
+        f"{base}/projects",
+        headers=adm,
+        json={
+            "slug": "named-1-to-4",
+            "name": "Named",
+            "building_code": "A",
+            "setup_auto": {"enabled": True, "approve_sheets": False},
+        },
+    ).json()
+    b = next(
+        x
+        for x in client.get(f"{base}/projects/{p['id']}/buildings", headers=adm).json()
+        if x["kind"] == "building"
+    )
+    plan, result = _upload(
+        client, base, adm, p["id"], "unclassified", "4", _plan_pdf(filler=3), tid, b["id"]
+    )
+    other, _ = _upload(client, base, adm, p["id"], "unclassified", "2", _document_pdf(), tid)
+    assert plan["kind"] == "unclassified" and plan["kind_source"] == "pending"
+    runs = _runs(client, base, adm, p["id"])
+    _run(client, tid, next(r for r in runs if r["status"] == "queued")["id"])
+    docs = {
+        d["title"]: d
+        for d in client.get(f"{base}/projects/{p['id']}/documents", headers=adm).json()
+    }
+    assert docs["4"]["kind"] == "floor_plan" and docs["4"]["kind_source"] == "content"
+    assert docs["2"]["kind_source"] == "pending"
+    decisions = _setup(client, base, adm, p["id"])["decisions"]
+    kinds = [d for d in decisions if d["step"] == "classify"]
+    assert any(d["kind"] == "accepted" and d["title"] == "4: floor_plan" for d in kinds), kinds
+    left = [d for d in kinds if d["needs_you"]]
+    assert len(left) == 1 and "2" in left[0]["detail"] and "UF_AI_CLASSIFY" in left[0]["detail"]
+    # and the plan set went on to floors and units in the same run
+    floors_ = next(
+        x
+        for x in client.get(f"{base}/projects/{p['id']}/buildings", headers=adm).json()
+        if x["id"] == b["id"]
+    )["floors"]
+    assert [f["level"] for f in floors_] == [0, 1]
+    assert len(_units(client, base, adm, p["id"])) >= 3
 
 
 def test_a_persons_work_is_never_touched_and_the_guard_waits(client, world):

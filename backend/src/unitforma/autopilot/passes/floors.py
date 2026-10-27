@@ -35,6 +35,28 @@ async def run(ctx: Context) -> None:
         await documents_jobs.resuggest_floors(ctx.tenant_id, ctx.project_id)
 
 
+def storeys_from_blocks(blocks: list[dict]) -> list[dict]:
+    """One storey list for blocks drawn side by side: the block with the most floors (then the
+    most sheets) gives the storeys; a level another block has and it lacks is added from that
+    block. Permit 1127975: blocks B1, Ground, 1, 2, 3 at three offsets, plus two stamp columns of
+    two or three "floors" each, give B1, Ground, 1, 2, 3 (the owner's list)."""
+    ordered = sorted(blocks, key=lambda b: (-len(b["floors"]), -int(b.get("sheets") or 0)))
+    out: dict[int, dict] = {}
+    for blk in ordered:
+        for f in blk["floors"]:
+            out.setdefault(int(f["level"]), f)
+    return [
+        {
+            "level": f["level"],
+            "display_name": f["display_name"],
+            "height_m": f.get("height_m"),
+            "elevation_m": f.get("elevation_m"),
+            "status": "new",
+        }
+        for _lvl, f in sorted(out.items())
+    ]
+
+
 async def _one(ctx: Context, building_id: uuid.UUID, code: str) -> bool:
     async with session(ctx) as db:
         b = (
@@ -59,6 +81,17 @@ async def _one(ctx: Context, building_id: uuid.UUID, code: str) -> bool:
             return False
         blocks = prop["blocks"] if prop["split_level"] else []
         floors = [f for f in prop["floors"] if f["status"] in ("new", "update")]
+        if len(blocks) >= 2 and (
+            not floors
+            or any(
+                f.get("height_m") is not None and f["height_m"] < rules.FLOOR_MIN_HEIGHT_M
+                for f in floors
+            )
+        ):
+            # blocks stepping by less than a storey: the merged marker list is one "storey" per
+            # step (17 storeys of 1 m on permit 1127975); the storeys are those of the blocks,
+            # united by level. Blocks stepping by whole storeys merge into a clean list above.
+            floors = storeys_from_blocks(blocks)
         if not floors or prop["unmatched_existing"]:
             ctx.decide(
                 STEP,
@@ -77,6 +110,7 @@ async def _one(ctx: Context, building_id: uuid.UUID, code: str) -> bool:
             # showed five blocks (2026-10-27). The merged storey list is applied when its storeys
             # have a storey's height; the split stays a proposal on the overview.
             steps = ", ".join(f"{blk['code']} ({len(blk['floors'])} floors)" for blk in blocks)
+            names = ", ".join(f["display_name"] for f in floors)
             low = [
                 f
                 for f in floors
@@ -99,8 +133,8 @@ async def _one(ctx: Context, building_id: uuid.UUID, code: str) -> bool:
                 STEP,
                 "skipped",
                 f"Building {code}: {len(blocks)} blocks drawn side by side",
-                f"The level markers step across {steps}. Kept as one building with every level; "
-                "split it on the overview if they are separate buildings",
+                f"The level markers step across {steps}. Kept as one building with the storeys "
+                f"{names}; split it on the overview if they are separate buildings",
                 needs_you=True,
                 entity_type="building",
                 entity_id=b.id,

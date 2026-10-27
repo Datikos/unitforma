@@ -15,6 +15,7 @@ from unitforma.autopilot import rules
 from unitforma.autopilot.passes.common import current_sheets
 from unitforma.autopilot.service import Context, session
 from unitforma.core.settings import get_settings
+from unitforma.documents import classify as documents_classify
 from unitforma.documents import jobs as documents_jobs
 from unitforma.mapping import service as mapping
 from unitforma.renders.provider import ProviderError, get_provider
@@ -73,12 +74,96 @@ def page_is_drawing(n_vectors: int, n_chars: int) -> bool:
     return n_vectors >= rules.CLASSIFY_MIN_VECTORS_PER_CHAR * n_chars
 
 
+def host_kind(page_hints: list[dict]) -> str | None:
+    """A kind the processed pages give on the host, for a document nothing else has classified
+    (ADR-0025, 2026-10-27: four files named 1 to 4 stayed "unclassified" and the solver stopped).
+    A set with at least two floor-plan pages, or one in a set of up to three pages, is a plan set
+    whatever else it carries (sections, details: 6 plan pages in 51 on permit 1127975), the kind
+    that unlocks floors, sheets and outlines. Anything else stays a person's call."""
+    plans = sum(1 for h in page_hints if documents_classify.is_plan_page(h or {}))
+    if plans >= rules.HOST_KIND_MIN_PLAN_PAGES or (plans >= 1 and len(page_hints) <= 3):
+        return "floor_plan"
+    return None
+
+
+async def classify_on_host(ctx: Context) -> tuple[bool, list[str]]:
+    """Pending documents: the on-host kind applied; the titles still pending returned."""
+    changed = False
+    pending: list[str] = []
+    async with session(ctx) as db:
+        hints: dict = {}
+        docs: dict = {}
+        for sheet, doc in await current_sheets(db, ctx.project_id):
+            if doc.kind_source != "pending":
+                continue
+            docs[doc.id] = doc
+            h = dict(sheet.hints or {})
+            if h.get("kind") != "floor_plan" and any(
+                g != "numbered" for g in (h.get("unit_labels") or {})
+            ):
+                # the stored hints carry no line count; the page's extract does (the worker adds
+                # ``vector_lines`` only while it classifies, documents/jobs.py)
+                vectors = mapping.load_extract(sheet).get("vectors") or {}
+                h["vector_lines"] = sum(int(v or 0) for v in vectors.values())
+            hints.setdefault(doc.id, []).append(h)
+        for doc_id, doc in docs.items():
+            kind = host_kind(hints[doc_id])
+            if kind is None:
+                pending.append(doc.title)
+                continue
+            await write_audit(
+                db,
+                tenant_id=ctx.tenant_id,
+                actor_user_id=ctx.actor[0],
+                actor_role=ctx.actor[1],
+                entity_type="document",
+                entity_id=doc.id,
+                action="classify_pages",
+                before={"kind": doc.kind},
+                after={
+                    "kind": kind,
+                    "plan_pages": sum(1 for h in hints[doc_id] if h.get("kind") == "floor_plan"),
+                },
+            )
+            doc.kind, doc.kind_source = kind, "content"
+            changed = True
+            n_plan = sum(1 for h in hints[doc_id] if documents_classify.is_plan_page(h))
+            ctx.decide(
+                STEP,
+                "accepted",
+                f"{doc.title}: {kind}",
+                f"{n_plan} of {len(hints[doc_id])} page(s) are floor plans; the set is filed as "
+                "floor plans so its pages get floors and outlines",
+                confidence=rules.HOST_KIND_CONFIDENCE,
+                entity_type="document",
+                entity_id=doc.id,
+            )
+    return changed, pending
+
+
 async def run(ctx: Context) -> None:
+    changed, pending = await classify_on_host(ctx)
     s = get_settings()
-    if not s.ai_classify:
-        return
-    provider = get_provider()
+    provider = get_provider() if s.ai_classify else None
     if provider is None:
+        if pending:
+            ctx.decide(
+                STEP,
+                "skipped",
+                f"{len(pending)} document(s) have no kind",
+                "Set the kind on the Documents page: "
+                + ", ".join(pending[:6])
+                + (" …" if len(pending) > 6 else "")
+                + (
+                    ""
+                    if s.ai_classify
+                    else ". A vision model can name drawing pages when "
+                    "UF_AI_CLASSIFY is on (ADR-0025 Decision 8)"
+                ),
+                needs_you=True,
+            )
+        if changed:
+            await documents_jobs.resuggest_floors(ctx.tenant_id, ctx.project_id)
         return
     async with session(ctx) as db:
         used = await used_today(db, ctx.tenant_id)
@@ -125,7 +210,6 @@ async def run(ctx: Context) -> None:
             needs_you=True,
         )
         return
-    changed = False
     for doc, raster_key in pages[:budget]:
         try:
             image, mime = shrink(get_storage().get_bytes(raster_key))
