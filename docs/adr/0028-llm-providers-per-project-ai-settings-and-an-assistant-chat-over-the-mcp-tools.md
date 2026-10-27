@@ -108,7 +108,7 @@ itself stays $0.0336 (ADR-0017).
    (default 50.00 across the platform per UTC day), `UF_AI_CHAT_ENABLED` (default `true` when a provider is set).
    Prices per 1M tokens for the configured models live in `ai/prices.py` as constants with the date they were
    read, used for the estimate column only, never for billing.
-3. **A usage ledger, one row per model call.** Table `ai_usage` (migration `0020`): `id, tenant_id,
+3. **A usage ledger, one row per model call.** Table `ai_usage` (migration `0022`): `id, tenant_id,
    project_id (nullable), user_id (nullable), task (chat | residue:<pass> | classify), provider, model,
    input_tokens, cached_input_tokens, output_tokens, est_cost_usd numeric(10,6), request_id, created_at`, RLS
    from `migrations/rls.py`, index `(tenant_id, created_at desc)`. The daily budget check is one indexed `sum`
@@ -117,7 +117,7 @@ itself stays $0.0336 (ADR-0017).
    "what did AI cost this tenant this month". `GET /api/v1/platform/ai-usage?month=` (platform admin, aal2, plan §12.2)
    returns the month per tenant and per task, shown on a platform page "AI usage" next to "Tenants"; a tenant
    admin sees no spend figure and no AI setting on the Settings page.
-4. **Per project: switches and texts only, never the model.** `projects.ai_settings` JSONB (migration `0020`,
+4. **Per project: switches and texts only, never the model.** `projects.ai_settings` JSONB (migration `0022`,
    project write, edited on the setup checklist next to the two ADR-0025 switches) holds `{assistant: bool,
    residue: bool, classify: bool}` (default true when the deployment has a provider), `render_prompt` (1 to 4000
    characters, ADR-0023 Option D: when set it replaces the workspace render prompt for this project's renders;
@@ -157,7 +157,7 @@ itself stays $0.0336 (ADR-0017).
    `set_setup_auto(project_id, enabled, approve_sheets)` (write). No `approve_render` tool: the review of a
    generated image is a person's click (ADR-0017 Decision 3), and the chat shows the image with the existing
    Approve and Reject buttons instead. No delete tools (ADR-0012).
-7. **A chat turn is a job; writes pause for the person.** Tables (migration `0020`, RLS): `chat_conversations`
+7. **A chat turn is a job; writes pause for the person.** Tables (migration `0022`, RLS): `chat_conversations`
    (`id, tenant_id, project_id, user_id, provider, model, title, created_at, last_at`) and `chat_messages` (`id,
    tenant_id, conversation_id, seq, role (user | assistant | tool | system), content JSONB, format (1), pending_action
    JSONB (nullable), usage JSONB, created_at`), append-only; `content` stores the vendor's raw blocks so thinking
@@ -322,7 +322,7 @@ fine-tuning; embeddings or search over documents; a second image provider (ADR-0
 - [ ] A1 `pyproject.toml`: `anthropic>=2,<3` (or the verified 1.x line), `openai>=3,<4`; `uv lock`; record
       the resolved `httpx2`, `httpx` and `mcp` versions here as ADR-0015 #4 did. Import-linter: `unitforma.ai`
       added to `core`'s forbidden list.
-- [ ] A2 Migration `0020_ai_settings_chat_usage.py` (expand): `projects.ai_settings` JSONB default `{}`;
+- [ ] A2 Migration `0022_ai_settings_chat_usage.py` (expand; 0020 and 0021 were taken by ADR-0008 and ADR-0030 on 2026-10-27, renumber again if another lands first): `projects.ai_settings` JSONB default `{}`;
       `ai_usage`, `chat_conversations`, `chat_messages` with `enable_tenant_rls`, indexes
       `ai_usage (tenant_id, created_at desc)`, `chat_messages (conversation_id, seq)` unique. Models in
       `tenants/models.py`.

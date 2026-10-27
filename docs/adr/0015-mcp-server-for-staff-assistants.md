@@ -182,6 +182,13 @@ limit zone on the app host. No new secret, no new container.
 **Revisit.** Option C when a client that only does OAuth is needed (Cursor and VS Code are
 unchecked); tools for documents, mapping and sales; a `delete_*` tool family with
 an explicit confirmation argument; the buyer-side read-only server (Option A).
+*Checked 2026-10-27:* a real confirmation prompt (MCP elicitation) instead of the argument
+works only for clients on the 2026-07-28 revision: there the tool returns an `input_required`
+result and the client retries with the answer and the server's sealed `requestState`; older
+revisions need a back-channel, which the stateless JSON transport of Decision 1 does not have.
+The SDK seals `requestState` with a per-process key unless `MCPServer(request_state_security=
+RequestStateSecurity(keys=[...]))` is given one, so with two `api` replicas behind Caddy it needs
+a key file under `deploy/compose/secrets/` shared by every replica.
 
 **Out of scope here:** Option A, Option C, deletes, uploads through MCP (presigned PUT already
 exists for scripts), tools beyond projects and buildings, the Unitforma backend calling a model
@@ -216,6 +223,10 @@ Phase 2, server
       is 404; a request without bearer is 401; a wrong `Host` is 421. *Checked 2026-10-26* with
       the SDK's own `ClientSession` over `streamable_http_client` against uvicorn: initialize
       (protocol 2025-11-25 negotiated), 13 tools listed, `whoami`, `create_project`, the error path.
+      *Note (2026-10-27):* 2025-11-25 is the newest revision with an `initialize` handshake; the
+      2026-07-28 revision has none and carries the version in each request's `_meta`, so a
+      client on it never "negotiates" (SDK 2.3.0 `mcp_types.version`: handshake revisions
+      2024-11-05 to 2025-11-25, modern revision 2026-07-28; spec changelog in plan §21).
 - [x] 7 Caddy: `handle /mcp*` in the app host block with the rate limit zone and body limit;
       `deploy/validate.sh` passes; `docs/runbooks/deploy.md` gets the line.
 
