@@ -369,10 +369,18 @@ class ElevationCandidateOut(BaseModel):
     thumbnail_url: str | None = None
 
 
+SITE_FEATURE_RING_DOC = (
+    '{"ring": [[x, y], ...]}: a closed outline on the project\'s site plan sheet, each '
+    "coordinate a fraction 0 to 1 of the sheet raster (x across its width, y down its height, "
+    "origin top left). Not GeoJSON and not metres: the publication converts it to site-frame "
+    "metres with the sheet's calibration."
+)
+
+
 class SiteFeatureCreate(BaseModel):
     kind: Literal["garden", "road", "parking_zone", "amenity", "common_area", "entrance", "other"]
     name: str = Field(min_length=1, max_length=200)
-    polygon: dict[str, Any] | None = None
+    polygon: dict[str, Any] | None = Field(default=None, description=SITE_FEATURE_RING_DOC)
     is_public: bool = True
     sort_order: int = 0
 
@@ -383,7 +391,7 @@ class SiteFeatureUpdate(BaseModel):
         | None
     ) = None
     name: str | None = Field(default=None, min_length=1, max_length=200)
-    polygon: dict[str, Any] | None = None
+    polygon: dict[str, Any] | None = Field(default=None, description=SITE_FEATURE_RING_DOC)
     clear_polygon: bool = False
     is_public: bool | None = None
     sort_order: int | None = None
@@ -394,7 +402,7 @@ class SiteFeatureOut(ORM):
     project_id: uuid.UUID
     kind: str
     name: str
-    polygon: dict[str, Any] | None
+    polygon: dict[str, Any] | None = Field(description=SITE_FEATURE_RING_DOC)
     is_public: bool
     sort_order: int
 

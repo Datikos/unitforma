@@ -23,8 +23,16 @@ import { ToastService } from '../ui/toast.service';
 
 type Scope = 'read' | 'write';
 const SCOPES: { value: Scope; label: string; does: string }[] = [
-  { value: 'read', label: 'Read', does: 'lists and reads projects, buildings and floors' },
-  { value: 'write', label: 'Write', does: 'also creates and updates them, within your role' },
+  {
+    value: 'read',
+    label: 'Read',
+    does: 'reads projects, buildings, units, documents, renders, plan types and the setup checklist',
+  },
+  {
+    value: 'write',
+    label: 'Write',
+    does: 'also creates and updates them, requests renders and runs the setup solver, within your role',
+  },
 ];
 const EXPIRIES = [30, 90, 180, 365];
 

@@ -54,9 +54,9 @@ async def _unit(ctx: TenantContext, unit_id: uuid.UUID, action: Action):
     return unit
 
 
-@router.get("/units/{unit_id}/renders", response_model=RendersOut)
-async def list_renders(unit_id: uuid.UUID, ctx: Ctx):
-    unit = await _unit(ctx, unit_id, Action.READ)
+async def unit_renders(ctx: TenantContext, unit: Unit) -> RendersOut:
+    """The renders of a unit with the feature's settings and today's use; shared with the MCP
+    ``list_renders`` tool (ADR-0028 #C2). The caller has checked ``sales`` read on the unit."""
     data = await renders.overview(ctx.session, unit.tenant_id, unit_id=unit.id)
     partner_ids = {r.partner_unit_id for r, _ in data["items"] if r.partner_unit_id}
     codes = (
@@ -71,6 +71,11 @@ async def list_renders(unit_id: uuid.UUID, ctx: Ctx):
     )
     items = [_out(r, m, codes.get(r.partner_unit_id)) for r, m in data["items"]]
     return RendersOut(**{**data, "items": items})
+
+
+@router.get("/units/{unit_id}/renders", response_model=RendersOut)
+async def list_renders(unit_id: uuid.UUID, ctx: Ctx):
+    return await unit_renders(ctx, await _unit(ctx, unit_id, Action.READ))
 
 
 @router.post("/units/{unit_id}/renders", response_model=RenderOut, status_code=202)

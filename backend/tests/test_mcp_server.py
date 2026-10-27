@@ -38,6 +38,19 @@ TOOLS = {
     "accept_floor_proposal_blocks",
     "list_site_features",
     "create_site_feature",
+    # ADR-0028 Decision 6
+    "find_units",
+    "list_units",
+    "get_unit",
+    "list_documents",
+    "request_render",
+    "get_render",
+    "list_renders",
+    "list_layouts",
+    "confirm_layout",
+    "get_setup_checklist",
+    "run_setup",
+    "set_setup_auto",
 }
 
 
