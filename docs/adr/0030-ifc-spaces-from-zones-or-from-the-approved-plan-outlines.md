@@ -183,6 +183,11 @@ spaces (the documented areas of the drawing already exist, ADR-0006 Phase A), DW
 ### Phase B: spaces from the plan outlines
 - [x] B1 `geometry/ifc.py`: `parse_ifc` / `pack_ifc` split, `PlanSpace` input, storey slab hulls,
       `floor_level` from the floor; `read_ifc` unchanged for callers.
+      *Found while implementing:* only plan spaces carry the project's floor level from the start;
+      an `IfcSpace` node still gets the storey index at packing and the floor level from the relink
+      afterwards, because the storey-to-floor match needs the database and runs after packing.
+      Decision 4's "fixed for IFC spaces too" is therefore true after the relink, not in the packed
+      file.
 - [x] B2 `geometry/plan_fit.py`: the fit (shared rotation search with `autopilot/passes/placement.py`,
       moved there from the pass), the (x, −y) mapping; test with a known rotation and translation
       recovered within 1° and 0.1 m.
@@ -201,5 +206,5 @@ spaces (the documented areas of the drawing already exist, ADR-0006 Phase A), DW
 - [x] C1 Admin 3D massing page: source chip per row ("from plan"), the fit line (rotation, IoU, fit
       floor, slab or bounds) or the reason, "Confirm all plan spaces" button, the areas caveat in the
       section text.
-- [ ] C2 README status sentence; BACKLOG rows (#36 updated, new Revisit rows); ADR-0006 Phase C and
+- [x] C2 README status sentence; BACKLOG rows (#36 updated, new Revisit rows); ADR-0006 Phase C and
       ADR-0008 #6 pointers; this ADR's status line.
