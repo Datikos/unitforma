@@ -2157,6 +2157,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup/publish-defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish Defaults
+         * @description One action that ends with a live portal (ADR-0029 Decision 1): a run whose last pass
+         *     approves the solver's drafts, confirms the proposed plan types, writes a first description,
+         *     marks every active unit and publishes. Usable any time; it publishes a new version.
+         */
+        post: operations["publish_defaults_api_v1_admin_tenants__tenant_id__projects__project_id__setup_publish_defaults_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/setup/runs": {
         parameters: {
             query?: never;
@@ -4663,6 +4685,11 @@ export interface components {
              * @default true
              */
             approve_sheets?: boolean;
+            /**
+             * Publish Defaults
+             * @default false
+             */
+            publish_defaults?: boolean;
         };
         /** SetupAutoOut */
         SetupAutoOut: {
@@ -4670,6 +4697,11 @@ export interface components {
             enabled: boolean;
             /** Approve Sheets */
             approve_sheets: boolean;
+            /**
+             * Publish Defaults
+             * @default false
+             */
+            publish_defaults?: boolean;
             /** Requested By */
             requested_by?: string | null;
             /** Since */
@@ -4687,6 +4719,8 @@ export interface components {
          *     failed (``error``); ``link`` is the checklist screen that shows it.
          */
         SetupDecisionOut: {
+            /** Todo */
+            todo?: string | null;
             /** Step */
             step: string;
             /**
@@ -10108,6 +10142,38 @@ export interface operations {
         };
     };
     run_now_api_v1_admin_tenants__tenant_id__projects__project_id__setup_run_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_defaults_api_v1_admin_tenants__tenant_id__projects__project_id__setup_publish_defaults_post: {
         parameters: {
             query?: never;
             header?: never;

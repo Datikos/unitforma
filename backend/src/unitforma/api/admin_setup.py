@@ -26,6 +26,14 @@ def _actor(ctx: TenantContext) -> tuple[uuid.UUID, str]:
     return ctx.principal.user_id, ctx.actor_role
 
 
+def require_publish_defaults(ctx: TenantContext) -> None:
+    """ADR-0029 Decision 2: the worker approves, confirms and publishes as the person, so the
+    person holds all three rights."""
+    ctx.require("mapping", Action.APPROVE)
+    ctx.require("sales", Action.WRITE)
+    ctx.require("publication", Action.PUBLISH)
+
+
 @router.put("/projects/{project_id}/setup/auto", response_model=SetupAutoOut)
 async def set_auto(project_id: uuid.UUID, body: SetupAutoIn, ctx: Ctx):
     """Switch the solver on or off for the project. ``approve_sheets`` needs the mapping approve
@@ -35,9 +43,15 @@ async def set_auto(project_id: uuid.UUID, body: SetupAutoIn, ctx: Ctx):
     ctx.require_project(project_id)
     if body.enabled and body.approve_sheets:
         ctx.require("mapping", Action.APPROVE)
+    if body.enabled and body.publish_defaults:
+        require_publish_defaults(ctx)
     p = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
     autopilot.set_auto_settings(
-        p, enabled=body.enabled, approve_sheets=body.approve_sheets, actor=_actor(ctx)
+        p,
+        enabled=body.enabled,
+        approve_sheets=body.approve_sheets,
+        publish_defaults=body.publish_defaults,
+        actor=_actor(ctx),
     )
     p.version += 1
     await ctx.session.flush()
@@ -66,6 +80,31 @@ async def run_now(project_id: uuid.UUID, ctx: Ctx):
         ctx.require("mapping", Action.APPROVE)
     run_id = await queue_run(
         ctx.tenant_id, project_id, "run_now", requested_by=ctx.principal.user_id, force=True
+    )
+    if run_id is None:
+        raise ProblemError(503, "The job queue is unavailable", "Try again in a minute")
+    run = (await ctx.session.execute(select(SetupRun).where(SetupRun.id == run_id))).scalar_one()
+    return autopilot.run_out(run)
+
+
+@router.post(
+    "/projects/{project_id}/setup/publish-defaults", response_model=SetupRunOut, status_code=202
+)
+async def publish_defaults(project_id: uuid.UUID, ctx: Ctx):
+    """One action that ends with a live portal (ADR-0029 Decision 1): a run whose last pass
+    approves the solver's drafts, confirms the proposed plan types, writes a first description,
+    marks every active unit and publishes. Usable any time; it publishes a new version."""
+    ctx.require("project", Action.WRITE)
+    ctx.require_project(project_id)
+    require_publish_defaults(ctx)
+    await projects.get_project(ctx.session, ctx.tenant_id, project_id)
+    run_id = await queue_run(
+        ctx.tenant_id,
+        project_id,
+        "publish_defaults",
+        requested_by=ctx.principal.user_id,
+        force=True,
+        switches={"approve_sheets": True, "publish_defaults": True},
     )
     if run_id is None:
         raise ProblemError(503, "The job queue is unavailable", "Try again in a minute")

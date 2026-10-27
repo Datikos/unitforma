@@ -106,6 +106,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
         does: 'Only with the mapping approve right. When every apartment label printed on a sheet is outlined, the sheet is approved and its units become active (not yet published). Off: the units stay drafts for you to approve in the sheet editor.',
       },
       {
+        name: 'Publish the first version with defaults',
+        does: 'Needs the mapping approve, sales write and publish rights (ADR-0029). When the solver has nothing left processing and the project has no publication yet, the run ends by approving its drafts, confirming its plan types, writing a first description from the project\'s facts, listing every active unit with prices on request and publishing version 1. Later versions are yours: adjust and publish on the Publish page, or press "Publish with defaults" on the setup checklist.',
+      },
+      {
         name: 'Start from a building permit',
         does: 'Paste a tas.ge permit address. Preview shows the permit facts and which drawings will be imported; Import creates the project, one building and queues the drawings for Documents. With "Set up automatically" the solver runs once the last drawing is processed.',
       },
@@ -176,7 +180,15 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
       {
         name: 'Set up automatically',
-        does: 'The setup solver (ADR-0025) applies the confident proposals after every processed document: floors, sheet floors, calibration, unit outlines at 0.9 or more, the site plan, the placement, the gallery, the map position, proposed plan types. "Approve mapped sheets" needs the mapping approve right. Switching on runs it now; "Run now" runs it once whatever the switch says.',
+        does: 'The setup solver (ADR-0025) applies the confident proposals after every processed document: floors, sheet floors, calibration (a printed scale, or your calibration of one page for the other pages of its document), unit outlines at 0.85 or more, the site plan, the placement, the gallery, the map position, proposed plan types. "Approve mapped sheets" needs the mapping approve right. Switching on runs it now; "Run now" runs it once whatever the switch says.',
+      },
+      {
+        name: 'Publish with defaults',
+        does: 'One confirmed click (ADR-0029): a run that ends with a live portal. It approves every sheet whose outlines the solver drew, confirms the proposed plan types, writes a first description when there is none, lists every active unit (prices stay as they are) and publishes a new version. Nothing a person set is changed. The same as the third switch at intake, which does it once for the first version.',
+      },
+      {
+        name: 'To do',
+        does: 'Under every line that needs you: one sentence saying what to do, and a button that opens the place, the page itself when the line is about one sheet.',
       },
       {
         name: 'Decided for you',

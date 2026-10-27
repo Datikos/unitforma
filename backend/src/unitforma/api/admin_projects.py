@@ -8,6 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy import select
 
+from unitforma.api import admin_setup
 from unitforma.api.schemas import (
     BlocksAcceptIn,
     BlocksAcceptOut,
@@ -63,6 +64,8 @@ async def create_project(body: ProjectCreate, ctx: Ctx):
     ).scalar_one()
     if body.setup_auto and body.setup_auto.enabled and body.setup_auto.approve_sheets:
         ctx.require("mapping", Action.APPROVE)
+    if body.setup_auto and body.setup_auto.enabled and body.setup_auto.publish_defaults:
+        admin_setup.require_publish_defaults(ctx)
     p = await projects.create_project(
         ctx.session,
         tenant_id=ctx.tenant_id,
@@ -79,6 +82,7 @@ async def create_project(body: ProjectCreate, ctx: Ctx):
             p,
             enabled=body.setup_auto.enabled,
             approve_sheets=body.setup_auto.approve_sheets,
+            publish_defaults=body.setup_auto.publish_defaults,
             actor=_actor(ctx),
         )
     await ctx.session.flush()

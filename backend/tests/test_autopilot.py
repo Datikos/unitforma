@@ -217,13 +217,14 @@ def test_classifier_parses_one_word_answers_and_gemini_text_blocks():
 
 
 # --------------------------------------------------------------------------- fixtures
-def _plan_pdf(filler: int = 0) -> bytes:
+def _plan_pdf(filler: int = 0, scale: bool = True) -> bytes:
     """Page 1 as make_plan_pdf: apartments 1 and 2 (typed labels, 0.9). Page 2: apartment 3, a
     filled zone "#12" with its printed area (a numbered fill, 0.85: a unit since 2026-10-27) and a
     zone labelled only "7" (a bare number, 0.65): it stays a candidate and blocks the approval."""
     base = make_plan_pdf()
+    sc = " scale 1:100" if scale else ""
     p1 = (
-        _text(40, 560, "GROUND FLOOR PLAN +0.00 scale 1:100", 14)
+        _text(40, 560, f"GROUND FLOOR PLAN +0.00{sc}", 14)
         + _text(120, 300, "bina #1 42.7 m2")
         + _text(420, 300, "bina #2 61.0 m2")
         + "2 w 100 100 m 700 100 l S\n"
@@ -233,7 +234,7 @@ def _plan_pdf(filler: int = 0) -> bytes:
         + _axis_marks(100, 600)
     )
     p2 = (
-        _text(40, 560, "FIRST FLOOR PLAN +3.20 scale 1:100", 14)
+        _text(40, 560, f"FIRST FLOOR PLAN +3.20{sc}", 14)
         + _text(120, 300, "bina #3 42.7 m2")
         + _text(540, 470, "7")
         + _rect(100, 200, 400, 400)
@@ -727,6 +728,151 @@ def test_an_unclassified_plan_set_is_filed_on_the_host_and_the_rest_is_listed(cl
     )["floors"]
     assert [f["level"] for f in floors_] == [0, 1]
     assert len(_units(client, base, adm, p["id"])) >= 3
+
+
+def _intake(client, base, adm, slug: str, setup_auto: dict) -> tuple[dict, dict]:
+    p = client.post(
+        f"{base}/projects",
+        headers=adm,
+        json={"slug": slug, "name": slug, "building_code": "A", "setup_auto": setup_auto},
+    ).json()
+    b = next(
+        x
+        for x in client.get(f"{base}/projects/{p['id']}/buildings", headers=adm).json()
+        if x["kind"] == "building"
+    )
+    return p, b
+
+
+def test_publish_with_defaults_makes_the_first_version_live(client, world):
+    """ADR-0029 Decision 1: one action approves the solver's drafts, confirms its plan types,
+    writes a first description, marks the units and publishes; the checklist's publish step is
+    done and every needs-you line says what to do (Decision 5)."""
+    base, adm, pm, tid = world["base"], world["adm"], world["pm"], world["tenant"]["id"]
+    p, b = _intake(client, base, adm, "defaults-1", {"enabled": True, "approve_sheets": False})
+    _upload(client, base, adm, p["id"], "floor_plan", "Plans", _plan_pdf(), tid, b["id"])
+    _upload(client, base, adm, p["id"], "site_plan", "Site", _site_pdf(), tid)
+    _upload(client, base, adm, p["id"], "render", "View", _png(), tid, png=True)
+    queued = next(r for r in _runs(client, base, adm, p["id"]) if r["status"] == "queued")
+    _run(client, tid, queued["id"])
+    units = _units(client, base, adm, p["id"])
+    assert all(u["lifecycle_status"] == "draft" for u in units.values())  # approval was off
+    # a project manager without the publish right is refused
+    assert (
+        client.post(f"{base}/projects/{p['id']}/setup/publish-defaults", headers=pm).status_code
+        == 403
+    )
+    r = client.post(f"{base}/projects/{p['id']}/setup/publish-defaults", headers=adm)
+    assert r.status_code == 202, r.text
+    counts = _run(client, tid, r.json()["id"])
+    assert counts["errors"] == 0, counts
+    units = _units(client, base, adm, p["id"])
+    assert len(units) == 4 and all(u["lifecycle_status"] == "active" for u in units.values())
+    assert all(u["publication_status"] == "published" for u in units.values())
+    lays = client.get(f"{base}/projects/{p['id']}/layouts", headers=adm).json()
+    assert lays and all(lay["status"] == "confirmed" for lay in lays)
+    project = client.get(f"{base}/projects/{p['id']}", headers=adm).json()
+    assert (
+        project["description"].startswith("defaults-1")
+        and "1 building(s): A (2 floors)" in (project["description"])
+    )
+    pubs = client.get(f"{base}/projects/{p['id']}/publications", headers=adm).json()
+    assert [x["version_no"] for x in pubs if x["status"] == "published"] == [1]
+    setup = _setup(client, base, adm, p["id"])
+    steps = {s["key"]: s for s in setup["steps"]}
+    assert steps["publish"]["status"] == "done" and "v1" in steps["publish"]["detail"]
+    decisions = setup["decisions"]
+    assert any(d["step"] == "defaults" and d["title"] == "Published v1" for d in decisions)
+    for d in decisions:
+        assert (d["todo"] is not None) == bool(d["needs_you"]), d
+    described = next(d for d in decisions if "Description written" in d["title"])
+    assert described["needs_you"] and "replace" in described["detail"]
+    # pressing it again publishes a new version
+    r = client.post(f"{base}/projects/{p['id']}/setup/publish-defaults", headers=adm)
+    _run(client, tid, r.json()["id"])
+    pubs = client.get(f"{base}/projects/{p['id']}/publications", headers=adm).json()
+    assert [x["version_no"] for x in pubs if x["status"] == "published"] == [2]
+
+
+def test_the_intake_switch_publishes_the_first_version_once(client, world):
+    """ADR-0029 Decision 2: with the intake switch on, the first settled run ends live; later runs
+    leave publishing to the person."""
+    base, adm, tid = world["base"], world["adm"], world["tenant"]["id"]
+    p, b = _intake(
+        client,
+        base,
+        adm,
+        "defaults-2",
+        {"enabled": True, "approve_sheets": False, "publish_defaults": True},
+    )
+    setup = _setup(client, base, adm, p["id"])
+    assert setup["auto"]["publish_defaults"] is True
+    _doc, result = _upload(
+        client, base, adm, p["id"], "floor_plan", "Plans", _plan_pdf(), tid, b["id"]
+    )
+    counts = _run(client, tid, result["autopilot_run_id"])
+    assert counts["errors"] == 0, counts
+    pubs = client.get(f"{base}/projects/{p['id']}/publications", headers=adm).json()
+    assert [x["version_no"] for x in pubs] == [1]
+    units = _units(client, base, adm, p["id"])
+    assert units and all(u["publication_status"] == "published" for u in units.values())
+    # a second run: no second version
+    r = client.post(f"{base}/projects/{p['id']}/setup/run", headers=adm)
+    _run(client, tid, r.json()["id"])
+    pubs = client.get(f"{base}/projects/{p['id']}/publications", headers=adm).json()
+    assert [x["version_no"] for x in pubs] == [1]
+    # the switch needs the publish right
+    assert (
+        client.put(
+            f"{base}/projects/{p['id']}/setup/auto",
+            headers=world["pm"],
+            json={"enabled": True, "approve_sheets": False, "publish_defaults": True},
+        ).status_code
+        == 403
+    )
+
+
+def test_a_persons_calibration_serves_the_sibling_pages(client, world):
+    """ADR-0029 Decision 3: a set without a printed scale (a legacy-font title block) needs two
+    clicks on one page; the solver gives the same calibration to the pages of the same size."""
+    base, adm, tid = world["base"], world["adm"], world["tenant"]["id"]
+    p, b = _intake(client, base, adm, "siblings", {"enabled": True, "approve_sheets": False})
+    doc, result = _upload(
+        client, base, adm, p["id"], "floor_plan", "Plans", _plan_pdf(scale=False), tid, b["id"]
+    )
+    _run(client, tid, result["autopilot_run_id"])
+    rev = next(
+        d["current_revision_id"]
+        for d in client.get(f"{base}/projects/{p['id']}/documents", headers=adm).json()
+        if d["id"] == doc["id"]
+    )
+    sheets = client.get(f"{base}/revisions/{rev}/sheets", headers=adm).json()
+    assert [s["calibration_status"] for s in sheets] == ["none", "none"]  # nothing printed
+    first = sheets[0]
+    # the person: the 600 pt dimension line of page 1 is 21.17 m at 1:100
+    r = client.patch(
+        f"{base}/sheets/{first['id']}/calibration",
+        headers=adm,
+        json={
+            "version": first["version"],
+            "calibration": {"p1": [100 / 842, 0.5], "p2": [700 / 842, 0.5], "distance_m": 21.1667},
+        },
+    )
+    assert r.status_code == 200, r.text
+    r = client.post(f"{base}/projects/{p['id']}/setup/run", headers=adm)
+    _run(client, tid, r.json()["id"])
+    sheets = {
+        s["page_no"]: s for s in client.get(f"{base}/revisions/{rev}/sheets", headers=adm).json()
+    }
+    assert sheets[2]["calibration_status"] == "calibrated"
+    assert sheets[2]["calibration"]["source"] == "sibling"
+    assert sheets[2]["calibration"]["from_sheet_id"] == first["id"]
+    assert abs(sheets[2]["calibration"]["m_per_px"] - sheets[1]["calibration"]["m_per_px"]) < 1e-9
+    assert "source" not in sheets[1]["calibration"]  # the person's stays the person's
+    decisions = _setup(client, base, adm, p["id"])["decisions"]
+    assert any(
+        d["step"] == "calibration" and "calibrated like page 1" in d["title"] for d in decisions
+    )
 
 
 def test_a_persons_work_is_never_touched_and_the_guard_waits(client, world):

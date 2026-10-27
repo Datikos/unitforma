@@ -631,6 +631,14 @@ export class UnitformaApi {
       undefined,
     );
   }
+  /** One action that ends with a live portal (ADR-0029): the run approves the solver's drafts,
+   *  confirms its plan types, writes a first description, marks every active unit and publishes. */
+  publishSetupDefaults(tenantId: string, projectId: string): Promise<SetupRunOut> {
+    return this.post(
+      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup/publish-defaults`,
+      undefined,
+    );
+  }
   listSetupRuns(tenantId: string, projectId: string): Promise<SetupRunOut[]> {
     return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup/runs`);
   }

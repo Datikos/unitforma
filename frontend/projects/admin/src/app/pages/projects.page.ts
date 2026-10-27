@@ -147,6 +147,9 @@ import { ToastService } from '../ui/toast.service';
             <mat-slide-toggle [(ngModel)]="autoApprove" [disabled]="!autoEnabled" name="autoApprove"
               >Approve mapped sheets when every printed label is outlined</mat-slide-toggle
             >
+            <mat-slide-toggle [(ngModel)]="autoPublish" [disabled]="!autoEnabled" name="autoPublish"
+              >Publish the first version with defaults</mat-slide-toggle
+            >
           </div>
           <p class="uf-hint">
             With the switch on, the processed drawings give the project its floors, sheet floors,
@@ -275,6 +278,12 @@ import { ToastService } from '../ui/toast.service';
                   [disabled]="!permitAuto"
                   name="permitAutoApprove"
                   >Approve mapped sheets when every printed label is outlined</mat-slide-toggle
+                >
+                <mat-slide-toggle
+                  [(ngModel)]="permitAutoPublish"
+                  [disabled]="!permitAuto"
+                  name="permitAutoPublish"
+                  >Publish the first version with defaults</mat-slide-toggle
                 >
                 <span class="uf-spacer"></span>
                 <button mat-flat-button [disabled]="permitBusy()" (click)="importPermit()">
@@ -504,6 +513,8 @@ export class ProjectsPage {
   files: File[] = [];
   autoEnabled = true;
   autoApprove = true;
+  /** ADR-0029 Decision 2: the first version goes live with defaults when the solver is done. */
+  autoPublish = false;
 
   // permit import (ADR-0007)
   readonly permitPreview = signal<PermitPreviewOut | null>(null);
@@ -518,6 +529,7 @@ export class ProjectsPage {
   permitBuilding = '';
   permitAuto = true;
   permitAutoApprove = true;
+  permitAutoPublish = false;
 
   constructor() {
     toObservable(this.tenantId).subscribe(() => void this.load());
@@ -555,6 +567,7 @@ export class ProjectsPage {
         setup_auto: {
           enabled: this.autoEnabled,
           approve_sheets: this.autoEnabled && this.autoApprove,
+          publish_defaults: this.autoEnabled && this.autoPublish,
         },
       };
       const p = await this.withoutApprovalOn403(body, (b) =>
@@ -628,9 +641,13 @@ export class ProjectsPage {
       return await call(body);
     } catch (e) {
       const status = (e as { status?: number })?.status;
-      if (status !== 403 || !body.setup_auto?.approve_sheets) throw e;
+      const asked = body.setup_auto?.approve_sheets || body.setup_auto?.publish_defaults;
+      if (status !== 403 || !asked) throw e;
       this.toast.ok('Approving sheets needs the mapping approve right: the units stay drafts');
-      return call({ ...body, setup_auto: { ...body.setup_auto, approve_sheets: false } });
+      return call({
+        ...body,
+        setup_auto: { ...body.setup_auto, approve_sheets: false, publish_defaults: false },
+      });
     }
   }
 
@@ -694,6 +711,7 @@ export class ProjectsPage {
         setup_auto: {
           enabled: this.permitAuto,
           approve_sheets: this.permitAuto && this.permitAutoApprove,
+          publish_defaults: this.permitAuto && this.permitAutoPublish,
         },
       };
       const res = await this.withoutApprovalOn403(body, (b) =>

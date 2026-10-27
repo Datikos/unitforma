@@ -26,6 +26,15 @@ FLOOR_MIN_HEIGHT_M = 2.2
 
 # --- calibration from the single printed scale of a sheet
 CALIBRATION_CONFIDENCE = 0.85
+# a person's calibration given to the sibling pages of the document (ADR-0029 Decision 3)
+CALIBRATION_SIBLING_CONFIDENCE = 0.8
+CALIBRATION_PAGE_SIZE_TOLERANCE_PT = 0.5
+
+# --- publish with defaults (ADR-0029 Decision 1): the end state is a live portal
+DEFAULTS_APPROVE_CONFIDENCE = 0.7  # drafts approved by rule, whatever the coverage
+DEFAULTS_LAYOUTS_CONFIDENCE = 0.8
+DEFAULTS_DESCRIPTION_CONFIDENCE = 0.6  # facts the project knows, in a sentence a person replaces
+DEFAULTS_PUBLISH_CONFIDENCE = 0.9
 
 # --- sheet → floor
 SHEET_FLOOR_SINGLE = 0.9
@@ -79,6 +88,24 @@ CLASSIFY_MIN_VECTORS = 50
 CLASSIFY_MAX_TEXT_CHARS = 800
 CLASSIFY_MIN_VECTORS_PER_CHAR = 2.0
 
+# what a person does about a "needs you" line of each step (ADR-0029 Decision 5): one imperative
+# sentence; a pass gives a more specific one when it knows more
+TODO_OF_STEP = {
+    "documents": "Upload the drawings on the Documents page, then run again",
+    "classify": "Set the kind of the document on the Documents page (the kind menu on its row)",
+    "floors": "On the overview: accept the floor proposal, or type the floors of the building",
+    "calibration": "Open the page and set two points on a known distance (a dimension line)",
+    "sheet_floors": "Open the page and pick its floor at the top of the sheet editor",
+    "mapping": "Open the sheet, accept the listed candidates or draw the units, then approve it",
+    "site_plan": "Choose the site plan under Site placement",
+    "placement": "On Site placement, drag the footprint onto the site plan and confirm",
+    "facades": "On Site placement, pick the facade drawing of each side",
+    "gallery": "Mark a render document public on the Documents page",
+    "location": "Type latitude and longitude on the Publish page, or fix the address and run again",
+    "layouts": "Confirm or delete the plan type on Layouts & renders",
+    "defaults": "Fix the item named above, then press Publish with defaults again",
+}
+
 # the screen of the setup checklist that completes each step (keys of SetupPage.SCREEN)
 LINK_OF_STEP = {
     "documents": "documents",
@@ -93,4 +120,5 @@ LINK_OF_STEP = {
     "gallery": "documents",
     "location": "publish",
     "layouts": "layouts",
+    "defaults": "publish",
 }

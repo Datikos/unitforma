@@ -148,6 +148,8 @@ class SetupAutoIn(BaseModel):
 
     enabled: bool = True
     approve_sheets: bool = True
+    # ADR-0029 Decision 2: the first version goes live with defaults when the solver is done
+    publish_defaults: bool = False
 
 
 class ProjectCreate(BaseModel):
@@ -1441,6 +1443,8 @@ class SetupDecisionOut(BaseModel):
     """One decision of a run: made for the person (``accepted``), left to them (``needs_you``) or
     failed (``error``); ``link`` is the checklist screen that shows it."""
 
+    todo: str | None = None  # what to do about a needs-you line (ADR-0029 Decision 5)
+
     step: str
     kind: Literal["accepted", "skipped", "waiting", "error"]
     title: str
@@ -1462,6 +1466,7 @@ class SetupRunDetailOut(SetupRunOut):
 class SetupAutoOut(BaseModel):
     enabled: bool
     approve_sheets: bool
+    publish_defaults: bool = False
     requested_by: str | None = None
     since: str | None = None
     running: bool = False
