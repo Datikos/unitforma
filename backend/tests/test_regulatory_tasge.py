@@ -392,12 +392,25 @@ def test_import_creates_project_building_and_documents(client: TestClient, world
     r = client.post(
         f"{base}/regulatory/tasge/import",
         headers=cookie("pm"),
-        json={"reference": str(DOC_ID), "slug": f"permit-{world['s']}"},
+        json={
+            "reference": str(DOC_ID),
+            "slug": f"permit-{world['s']}",
+            "setup_auto": {"enabled": True, "approve_sheets": False},
+        },
     )
     assert r.status_code == 201, r.text
     res = r.json()
     project, building, job = res["project"], res["building"], res["job"]
     assert project["name"] == "Residential house B-7"
+    # the setup solver waits while the import still files documents (ADR-0025 Decision 3)
+    from unitforma.autopilot.service import run_autopilot
+
+    run = client.post(f"{base}/projects/{project['id']}/setup/run", headers=cookie("pm"))
+    assert run.status_code == 202, run.text
+    waited = client.portal.call(
+        run_autopilot, uuid.UUID(world["tenant"]["id"]), uuid.UUID(run.json()["id"])
+    )
+    assert waited == {"waiting": 1}
     assert project["address"] == {"line1": "Test city, Example street 7"}
     assert project["regulatory"]["external_id"] == str(DOC_ID)
     assert project["regulatory"]["import_id"] == job["id"]

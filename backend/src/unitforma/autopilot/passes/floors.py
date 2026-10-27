@@ -1,5 +1,6 @@
 """Floors pass (ADR-0025 Decision 5 "floors"): accept the floor proposal of every building that
-has no floors yet; split-level blocks become buildings (ADR-0013 Decision 4)."""
+has no floors yet. Split-level blocks (ADR-0013 Decision 4) stay a proposal for the overview; the
+building gets the merged storey list."""
 
 from __future__ import annotations
 
@@ -56,26 +57,7 @@ async def _one(ctx: Context, building_id: uuid.UUID, code: str) -> bool:
                 entity_id=b.id,
             )
             return False
-        if prop["split_level"] and len(prop["blocks"]) >= 2:
-            blocks = [
-                {"code": blk["code"], "name": None, "floors": blk["floors"]}
-                for blk in prop["blocks"]
-            ]
-            created, removed = await floor_proposal.accept_blocks(
-                db, b, blocks, delete_source=True, actor=ctx.actor
-            )
-            ctx.decide(
-                STEP,
-                "accepted",
-                f"Building {code}: {len(created)} blocks",
-                "Split-level blocks drawn side by side became buildings "
-                + ", ".join(f"{c.code} ({len(c.floors)} floors)" for c in created)
-                + ("; the empty source building was removed" if removed else ""),
-                confidence=rules.BLOCKS_CONFIDENCE,
-                entity_type="building",
-                entity_id=created[0].id if created else b.id,
-            )
-            return True
+        blocks = prop["blocks"] if prop["split_level"] else []
         floors = [f for f in prop["floors"] if f["status"] in ("new", "update")]
         if not floors or prop["unmatched_existing"]:
             ctx.decide(
@@ -89,6 +71,40 @@ async def _one(ctx: Context, building_id: uuid.UUID, code: str) -> bool:
                 entity_id=b.id,
             )
             return False
+        if len(blocks) >= 2:
+            # Stepped blocks drawn side by side (ADR-0013 Decision 4) may be one building on a
+            # slope or several: on permit 1127975 the owner kept one building where the markers
+            # showed five blocks (2026-10-27). The merged storey list is applied when its storeys
+            # have a storey's height; the split stays a proposal on the overview.
+            steps = ", ".join(f"{blk['code']} ({len(blk['floors'])} floors)" for blk in blocks)
+            low = [
+                f
+                for f in floors
+                if f.get("height_m") is not None and f["height_m"] < rules.FLOOR_MIN_HEIGHT_M
+            ]
+            if low:
+                ctx.decide(
+                    STEP,
+                    "skipped",
+                    f"Building {code}: {len(blocks)} blocks drawn side by side",
+                    f"The level markers step across {steps} by less than a storey "
+                    f"({rules.FLOOR_MIN_HEIGHT_M} m); accept the blocks or set the floors on "
+                    "the overview",
+                    needs_you=True,
+                    entity_type="building",
+                    entity_id=b.id,
+                )
+                return False
+            ctx.decide(
+                STEP,
+                "skipped",
+                f"Building {code}: {len(blocks)} blocks drawn side by side",
+                f"The level markers step across {steps}. Kept as one building with every level; "
+                "split it on the overview if they are separate buildings",
+                needs_you=True,
+                entity_type="building",
+                entity_id=b.id,
+            )
         await projects.set_floors(
             db,
             b,

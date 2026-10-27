@@ -6,16 +6,19 @@ solver left for a person. The steps and screens are those of the setup checklist
 
 from __future__ import annotations
 
-# --- outlines: a candidate below this is a proposal for the sheet editor, never a unit. Fills and
-# typed loops score 0.9 or more; grown faces (0.7) traded balcony slivers on the pilot set.
-OUTLINE_MIN_CONFIDENCE = 0.9
+# --- outlines: a candidate below this is a proposal for the sheet editor, never a unit. Typed
+# fills and loops score 0.9 or more; a numbered fill (a zone with a number and its printed area)
+# scores 0.85 and was right 30 times out of 30 on the storage floor of permit 1127975 (2026-10-27);
+# grown faces (0.7) traded balcony slivers on the pilot set; a bare number (0.65) stays a proposal.
+OUTLINE_MIN_CONFIDENCE = 0.85
 # a candidate that overlaps a boundary already drawn by this much is that unit, not a new one
 OUTLINE_EXISTING_OVERLAP = 0.3
 
 # --- floors
 FLOORS_CONFIDENCE_WITH_ROOF = 0.9
 FLOORS_CONFIDENCE_NO_ROOF = 0.8
-BLOCKS_CONFIDENCE = 0.85
+# split-level blocks whose merged storeys are lower than this are not one storey list
+FLOOR_MIN_HEIGHT_M = 2.2
 
 # --- calibration from the single printed scale of a sheet
 CALIBRATION_CONFIDENCE = 0.85
@@ -28,6 +31,9 @@ SHEET_FLOOR_REGIONS = 0.85
 SITE_PLAN_CONFIDENCE = 0.9
 GALLERY_CONFIDENCE = 0.9
 GEOCODE_CONFIDENCE = 0.7
+# several answers within this radius are one address (entrances 19/4 and 19/5 of one street number)
+GEOCODE_AGREE_M = 150.0
+GEOCODE_PAUSE_S = 1.1  # Nominatim: at most one request per second
 
 # --- placement: the footprint against a closed face of the site plan (IoU after the best rotation)
 PLACEMENT_AREA_TOLERANCE = 0.25  # faces within ±25 % of the footprint area are tried
@@ -58,10 +64,12 @@ CLASSIFY_PROMPT = (
     "schedule (a table of areas or rooms), other."
 )
 CLASSIFY_MAX_EDGE_PX = 1024
-# a page leaves the host only when it is a drawing: enough line work and little text (a permit
-# decision or an area schedule with table rules has lines too, and names people, ADR-0007)
+# a page leaves the host only when it is a drawing: enough line work and either little text or many
+# times more line work than text (a permit decision or an area schedule with table rules has lines
+# too, and names people, ADR-0007). A real elevation sheet: 64 444 vectors, 4 676 characters (D2).
 CLASSIFY_MIN_VECTORS = 50
 CLASSIFY_MAX_TEXT_CHARS = 800
+CLASSIFY_MIN_VECTORS_PER_CHAR = 2.0
 
 # the screen of the setup checklist that completes each step (keys of SetupPage.SCREEN)
 LINK_OF_STEP = {

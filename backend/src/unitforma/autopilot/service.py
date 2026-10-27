@@ -20,7 +20,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from unitforma.autopilot import rules
 from unitforma.core.db import tenant_session
-from unitforma.tenants.models import Document, DocumentRevision, Project, SetupRun
+from unitforma.tenants.models import (
+    Document,
+    DocumentRevision,
+    Project,
+    RegulatoryImport,
+    SetupRun,
+)
 
 log = structlog.get_logger()
 
@@ -109,7 +115,8 @@ def set_auto_settings(
 
 # --------------------------------------------------------------------------- the run
 async def processing_revisions(db: AsyncSession, project_id: uuid.UUID) -> int:
-    """Revisions of the project still queued or processing: the guard of Decision 3."""
+    """Revisions of the project still queued or processing, plus permit imports still filing
+    documents (between two downloads nothing is "processing" yet): the guard of Decision 3."""
     rows = await db.execute(
         select(DocumentRevision.id)
         .join(Document, Document.current_revision_id == DocumentRevision.id)
@@ -118,7 +125,12 @@ async def processing_revisions(db: AsyncSession, project_id: uuid.UUID) -> int:
             DocumentRevision.processing_status.in_(("queued", "processing")),
         )
     )
-    return len(rows.all())
+    imports = await db.execute(
+        select(RegulatoryImport.id).where(
+            RegulatoryImport.project_id == project_id, RegulatoryImport.status == "importing"
+        )
+    )
+    return len(rows.all()) + len(imports.all())
 
 
 async def decided_before(
@@ -209,7 +221,8 @@ async def run_autopilot(tenant_id: uuid.UUID, run_id: uuid.UUID) -> dict[str, An
                 "documents",
                 "waiting",
                 "Waiting for processing",
-                f"{pending} document(s) still processing; the run repeats when they finish",
+                f"{pending} document(s) or import(s) still processing; "
+                "the run repeats when they finish",
                 needs_you=False,
             )
             run.status = "waiting"

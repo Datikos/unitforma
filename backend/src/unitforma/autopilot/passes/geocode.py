@@ -7,6 +7,9 @@ is a setting that defaults to ``none``."""
 
 from __future__ import annotations
 
+import asyncio
+import math
+import re
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
@@ -86,13 +89,56 @@ def set_geocoder(g: Geocoder | None, *, override: bool = True) -> None:
     _geocoder, _override = g, override
 
 
-def address_query(address: dict[str, Any]) -> str | None:
+# the Georgian postal form of the permit register: "ქალაქი თბილისი, ლეო კვაჭაძის ქუჩა, N 19გ"
+_CITY_PREFIX = re.compile(r"^(ქალაქი|ქ\.|დაბა|სოფელი|city|town)\s+", re.IGNORECASE)
+_HOUSE_NO = re.compile(r"^(?:N|№|#|No\.?)?\s*(\d+)\s*[/\-]?\s*[ა-ჰA-Za-z]?\d*$")
+
+
+def address_queries(address: dict[str, Any]) -> list[str]:
+    """The queries to try, best first (ADR-0025 Decision 5 "map", D1 of 2026-10-27): the address
+    as written; then the house number without its "N" and letter suffix after the street with the
+    city last; then the street and city alone. Distinct, in that order."""
     parts = [
         str(address.get(k)).strip()
         for k in ("line1", "line2", "city", "region", "postal_code")
         if address.get(k)
     ]
-    return ", ".join(p for p in parts if p) or None
+    raw = ", ".join(p for p in parts if p)
+    if not raw:
+        return []
+    out = [raw]
+    city, street, number = None, [], None
+    for piece in [x.strip() for x in str(address.get("line1") or "").split(",") if x.strip()]:
+        if _CITY_PREFIX.match(piece):
+            city = _CITY_PREFIX.sub("", piece).strip()
+        elif (m := _HOUSE_NO.match(piece)) and number is None:
+            number = m.group(1)
+        else:
+            street.append(piece)
+    city = city or (str(address.get("city")).strip() if address.get("city") else None)
+    if street and (city or number):
+        tail = f", {city}" if city else ""
+        if number:
+            out.append(f"{' '.join(street)} {number}{tail}")
+        if city:
+            out.append(f"{' '.join(street)}{tail}")
+    seen: set[str] = set()
+    return [q for q in out if not (q in seen or seen.add(q))]
+
+
+def places_agree(places: list[dict[str, Any]], radius_m: float) -> bool:
+    """True when every place lies within ``radius_m`` of the first: one address, several entrances
+    or buildings (19/4 and 19/5 of one street number), not two streets of one name."""
+    if not places:
+        return False
+    lat0, lng0 = places[0]["lat"], places[0]["lng"]
+    k = math.cos(math.radians(lat0)) * 111_320.0
+    for p in places[1:]:
+        dy = (p["lat"] - lat0) * 111_320.0
+        dx = (p["lng"] - lng0) * k
+        if math.hypot(dx, dy) > radius_m:
+            return False
+    return True
 
 
 async def run(ctx: Context) -> None:
@@ -106,8 +152,8 @@ async def run(ctx: Context) -> None:
         address = dict(project.address or {})
         if address.get("lat") is not None and address.get("lng") is not None:
             return
-        query = address_query(address)
-        if not query:
+        queries = address_queries(address)
+        if not queries:
             ctx.decide(
                 STEP,
                 "skipped",
@@ -117,35 +163,57 @@ async def run(ctx: Context) -> None:
             )
             return
         country = address.get("country") if isinstance(address.get("country"), str) else None
-        places = await geocoder.search(query, country)
-        if len(places) != 1:
+        tried: list[str] = []
+        for i, query in enumerate(queries):
+            if i:
+                await asyncio.sleep(rules.GEOCODE_PAUSE_S)  # the provider's one request per second
+            places = await geocoder.search(query, country)
+            tried.append(f"'{query}': {len(places)} place(s)")
+            if not places or not places_agree(places, rules.GEOCODE_AGREE_M):
+                continue
+            place = places[0]
+            if i == len(queries) - 1 and len(queries) > 1:
+                # the street alone was found, the house number was not: a street is no pin
+                ctx.decide(
+                    STEP,
+                    "skipped",
+                    "Map position needs you",
+                    f"{geocoder.name} knows the street ({place['display_name']}) but not the "
+                    f"number; " + "; ".join(tried) + ". Set the pin on the Publish page",
+                    needs_you=True,
+                )
+                return
+            address["lat"], address["lng"] = place["lat"], place["lng"]
+            address["geocoded"] = {
+                "provider": geocoder.name,
+                "display_name": place["display_name"],
+                "query": query[:200],
+                "places": len(places),
+            }
+            await projects.update_project(
+                db, project, {"address": address}, project.version, ctx.actor
+            )
             ctx.decide(
                 STEP,
-                "skipped",
-                "Map position needs you",
-                (
-                    f"{geocoder.name} found no place for '{query}'"
-                    if not places
-                    else f"{geocoder.name} found {len(places)} places for '{query}': "
-                    + " | ".join(p["display_name"] for p in places[:3])
+                "accepted",
+                "Map position set",
+                f"{place['display_name']} ({place['lat']:.5f}, {place['lng']:.5f}) from "
+                f"{geocoder.name}"
+                + (
+                    f", {len(places)} places within {rules.GEOCODE_AGREE_M:.0f} m"
+                    if len(places) > 1
+                    else ""
                 )
-                + ". Set latitude and longitude on the Publish page",
-                needs_you=True,
+                + "; check the pin on the portal",
+                confidence=rules.GEOCODE_CONFIDENCE,
             )
             return
-        place = places[0]
-        address["lat"], address["lng"] = place["lat"], place["lng"]
-        address["geocoded"] = {
-            "provider": geocoder.name,
-            "display_name": place["display_name"],
-            "query": query[:200],
-        }
-        await projects.update_project(db, project, {"address": address}, project.version, ctx.actor)
         ctx.decide(
             STEP,
-            "accepted",
-            "Map position set",
-            f"{place['display_name']} ({place['lat']:.5f}, {place['lng']:.5f}) from "
-            f"{geocoder.name}; check the pin on the portal",
-            confidence=rules.GEOCODE_CONFIDENCE,
+            "skipped",
+            "Map position needs you",
+            f"{geocoder.name} found no single place: "
+            + "; ".join(tried)
+            + ". Set latitude and longitude on the Publish page",
+            needs_you=True,
         )

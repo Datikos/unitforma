@@ -200,7 +200,13 @@ def split_apartment_rects(page_index: int) -> list[tuple[str, str, float, float,
     return out
 
 
-def make_split_level_pdf() -> bytes:
+SPLIT_LEVELS_STOREY = [  # the same blocks stepping by a whole storey (permit 1127975's pattern)
+    [("+0.00", "649.0"), ("+3.20", "652.2"), ("+6.40", "655.4")],
+    [("+3.20", "652.2"), ("+6.40", "655.4"), ("+9.60", "658.6")],
+]
+
+
+def make_split_level_pdf(levels: list[list[tuple[str, str]]] | None = None) -> bytes:
     """Three blocks per sheet at stepped levels, ArchiCAD-style zone fills and stamps.
 
     Page 1: +0.00 / +1.00 / +2.00; page 2: +3.20 / +4.20 / +5.20; page 3: a section with
@@ -209,7 +215,7 @@ def make_split_level_pdf() -> bytes:
     """
     area = split_apartment_area()
     pages = []
-    for pi, page_levels in enumerate(SPLIT_LEVELS):
+    for pi, page_levels in enumerate(levels or SPLIT_LEVELS):
         s = _text(40, 560, "TYPICAL PLAN scale 1:100", 12)
         s += _text(60, 30, "plan at " + ", ".join(m for m, _ in page_levels), 9)
         s += _text(600, 30, "levels -2.55 to +9.60", 9)

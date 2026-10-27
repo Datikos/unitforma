@@ -15,7 +15,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.fake_kratos import FakeKratos, cookie
-from tests.pdf_fixture import _rect, _text, build_pdf, make_plan_pdf
+from tests.pdf_fixture import (
+    SPLIT_LEVELS_STOREY,
+    _rect,
+    _text,
+    build_pdf,
+    make_plan_pdf,
+    make_split_level_pdf,
+)
 from tests.test_phase4_publishing import _admin_sql
 from unitforma.autopilot import rules
 from unitforma.autopilot.passes import classify, facades, geocode, layouts, placement
@@ -95,6 +102,34 @@ def test_facade_assignment_needs_distinct_widths_and_one_drawing_per_width():
     assert facades.assign(square, [(s1, 1, 20.0)]) is None  # sides cannot be told apart
 
 
+def test_geocoder_queries_follow_the_permit_address_form_and_agree_within_a_radius():
+    # the tas.ge form (D1, 2026-10-27): the city first with its word, "N" and a letter on the number
+    assert geocode.address_queries({"line1": "ქალაქი თბილისი, ლეო კვაჭაძის ქუჩა, N 19გ"}) == [
+        "ქალაქი თბილისი, ლეო კვაჭაძის ქუჩა, N 19გ",
+        "ლეო კვაჭაძის ქუჩა 19, თბილისი",
+        "ლეო კვაჭაძის ქუჩა, თბილისი",
+    ]
+    # a plain line has one query; nothing is repeated
+    assert geocode.address_queries({"line1": "19 Chavchavadze Avenue", "city": "Tbilisi"}) == [
+        "19 Chavchavadze Avenue, Tbilisi"
+    ]
+    assert geocode.address_queries({}) == []
+    # entrances 19/4 and 19/5 of one number are one address; two streets of one name are not
+    near = [{"lat": 41.7433757, "lng": 44.7223641}, {"lat": 41.7436963, "lng": 44.7227069}]
+    far = [{"lat": 41.7491125, "lng": 44.7026684}, {"lat": 41.7475218, "lng": 44.7083756}]
+    assert geocode.places_agree(near, 150.0) and not geocode.places_agree(far, 150.0)
+    assert not geocode.places_agree([], 150.0)
+
+
+def test_classifier_sends_drawings_only():
+    # a real elevation sheet (permit 1127975, D2 on 2026-10-27): long text, far more line work
+    assert classify.page_is_drawing(64444, 4676)
+    assert classify.page_is_drawing(60, 100)  # a small plan page
+    assert not classify.page_is_drawing(20, 2300)  # table rules and a paragraph
+    assert not classify.page_is_drawing(300, 3000)  # an area schedule: rules, but text-heavy
+    assert not classify.page_is_drawing(0, 10)  # a scan without a vector layer
+
+
 def test_classifier_parses_one_word_answers_and_gemini_text_blocks():
     assert classify.parse_kind(" Floor_plan. ") == "floor_plan"
     assert classify.parse_kind("site plan") == "site_plan"
@@ -110,7 +145,8 @@ def test_classifier_parses_one_word_answers_and_gemini_text_blocks():
 
 # --------------------------------------------------------------------------- fixtures
 def _plan_pdf() -> bytes:
-    """Page 1 as make_plan_pdf: apartments 1 and 2 (typed labels, 0.9). Page 2: apartment 3 and a
+    """Page 1 as make_plan_pdf: apartments 1 and 2 (typed labels, 0.9). Page 2: apartment 3, a
+    filled zone "#12" with its printed area (a numbered fill, 0.85: a unit since 2026-10-27) and a
     zone labelled only "7" (a bare number, 0.65): it stays a candidate and blocks the approval."""
     base = make_plan_pdf()
     p1 = (
@@ -129,6 +165,9 @@ def _plan_pdf() -> bytes:
         + _rect(100, 200, 400, 400)
         + _rect(400, 200, 700, 400)
         + _rect(450, 420, 650, 520)
+        + "0.5 0.75 1 rg 100 420 200 100 re f\n"  # zone fill: 200 × 100 pt at 1:100 = 24.9 m²
+        + _rect(100, 420, 300, 520)
+        + _text(110, 470, "#12 24.9 m2")
     )
     assert base  # the shared fixture still builds
     return build_pdf([p1, p2])
@@ -412,12 +451,14 @@ def test_run_sets_floors_sheets_units_site_placement_gallery_and_map(client, wor
     a = next(x for x in buildings if x["id"] == b["id"])
     assert [(f["level"], float(f["elevation_m"])) for f in a["floors"]] == [(0, 0.0), (1, 3.2)]
     assert steps["floors"]["status"] == "done" and "made for you" in steps["floors"]["auto_detail"]
-    # units: 1 and 2 approved (every label on page 1 covered), 3 a draft (page 2 has the bare "7")
+    # units: 1 and 2 approved (every label on page 1 covered); 3 and the numbered fill #12 drafts
+    # (page 2 keeps the bare "7")
     units = _units(client, base, adm, p["id"])
-    assert sorted(units) == ["A-00-01", "A-00-02", "A-01-01"]
+    assert sorted(units) == ["A-00-01", "A-00-02", "A-01-01", "A-01-02"]
     assert units["A-00-01"]["lifecycle_status"] == "active"
     assert units["A-00-02"]["lifecycle_status"] == "active"
     assert units["A-01-01"]["lifecycle_status"] == "draft"
+    assert units["A-01-02"]["lifecycle_status"] == "draft"  # the numbered fill "#12"
     assert all(bd["source"] == "autopilot" for u in units.values() for bd in u["boundaries"])
     assert all(bd["polygon_m"] for u in units.values() for bd in u["boundaries"])  # calibrated
     decisions = setup["decisions"]
@@ -497,6 +538,57 @@ def test_proposed_layout_shares_nothing_until_confirmed(client, world, solved):
     assert r.status_code == 202, r.text
     counts = _run(client, world["tenant"]["id"], r.json()["id"])
     assert counts["accepted"] == 0, counts
+
+
+def test_split_level_blocks_stay_a_proposal(client, world):
+    """Blocks drawn side by side (ADR-0013 Decision 4) are the owner's call since 2026-10-27: on
+    permit 1127975 the markers showed five blocks where the owner kept one building. Steps of a
+    whole storey give the one building its merged storey list; smaller steps set nothing."""
+    base, adm, tid = world["base"], world["adm"], world["tenant"]["id"]
+    outcomes = {}
+    for slug, levels in (("steps-storey", SPLIT_LEVELS_STOREY), ("steps-metre", None)):
+        p = client.post(
+            f"{base}/projects",
+            headers=adm,
+            json={
+                "slug": slug,
+                "name": slug,
+                "building_code": "A",
+                "setup_auto": {"enabled": True, "approve_sheets": False},
+            },
+        ).json()
+        b = next(
+            x
+            for x in client.get(f"{base}/projects/{p['id']}/buildings", headers=adm).json()
+            if x["kind"] == "building"
+        )
+        _doc, result = _upload(
+            client,
+            base,
+            adm,
+            p["id"],
+            "floor_plan",
+            "Blocks",
+            make_split_level_pdf(levels),
+            tid,
+            b["id"],
+        )
+        _run(client, tid, result["autopilot_run_id"])
+        buildings = client.get(f"{base}/projects/{p['id']}/buildings", headers=adm).json()
+        codes = sorted(x["code"] for x in buildings if x["kind"] == "building")
+        assert codes == ["A"], codes  # never split by the solver
+        floors = next(x for x in buildings if x["id"] == b["id"])["floors"]
+        blocks = [
+            d
+            for d in _setup(client, base, adm, p["id"])["decisions"]
+            if d["step"] == "floors" and "blocks drawn side by side" in d["title"]
+        ]
+        assert len(blocks) == 1 and blocks[0]["needs_you"], blocks
+        outcomes[slug] = ([f["level"] for f in floors], blocks[0]["detail"])
+    assert outcomes["steps-storey"][0] == [0, 1, 2, 3]
+    assert "Kept as one building" in outcomes["steps-storey"][1]
+    assert outcomes["steps-metre"][0] == []
+    assert "less than a storey" in outcomes["steps-metre"][1]
 
 
 def test_a_persons_work_is_never_touched_and_the_guard_waits(client, world):

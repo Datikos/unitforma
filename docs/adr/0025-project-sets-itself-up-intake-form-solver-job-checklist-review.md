@@ -1,6 +1,6 @@
 # ADR-0025: A project sets itself up: one intake form, a solver job that applies the confident proposals, and the setup checklist as the review surface
 
-- **Status:** accepted (2026-10-27, the owner's "start implementing until finish" on the options of 2026-10-26; implemented 2026-10-27 on branch `adr-0025`, Phase D open; this reverses the 2026-10-26 decision that put "automating the setup checklist from a permit import (ADR-0017 proposal 1b)" out of scope: the owner asked for it again, widened to manual intake)
+- **Status:** accepted (2026-10-27, the owner's "start implementing until finish" on the options of 2026-10-26; implemented 2026-10-27 on branch `adr-0025`, merged to `main` the same day; Phase D: D1–D3 done 2026-10-27 on the dev stack, D4–D5 open; this reverses the 2026-10-26 decision that put "automating the setup checklist from a permit import (ADR-0017 proposal 1b)" out of scope: the owner asked for it again, widened to manual intake)
 - **Date:** 2026-10-27
 - **Deciders:** David Sakhelashvili (platform owner). Six picks were asked on 2026-10-26 and not answered before "start"; the defaults taken are named in Decision 9 and are his to change.
 - **Plan reference:** §12.3 (jobs), §13.1 (document → published project), §13.2 (automation classification), §11.2 (admin screens), §21 (sources), ADR-0007 (permit import), ADR-0008 (classification), ADR-0010 (floors proposed), ADR-0011 (massing follows mapping), ADR-0013 (blocks), ADR-0016 Decision 2 (facades), ADR-0017 Decision 5 (checklist) and Option E (no wizard), ADR-0022 (layout registry)
@@ -99,18 +99,18 @@ Third-party facts (plan §21 holds the sources):
 
    | Pass | Acts when | Writes through | Confidence recorded |
    |---|---|---|---|
-   | floors | `floor_proposal` returns storeys, none `unmatched_existing`; with `split_level` and ≥ 2 blocks: one building per block (`accept_blocks`, source re-filed to project level and deleted when it has no units, ADR-0013 Decision 4) | `projects.set_floors`, `floor_proposal.accept_blocks`, then `resuggest_floors` | 0.9; 0.8 when the roof is not found |
+   | floors | `floor_proposal` returns storeys, none `unmatched_existing`; with `split_level` and ≥ 2 blocks (ADR-0013 Decision 4) the one building gets the merged storey list when every storey is at least `FLOOR_MIN_HEIGHT_M` (2.2 m) and the split is listed as "needs you"; smaller steps set nothing. Never `accept_blocks`: on permit 1127975 the markers showed five blocks where the owner kept one building (changed 2026-10-27, D3) | `projects.set_floors`, then `resuggest_floors` | 0.9; 0.8 when the roof is not found |
    | calibration | exactly one printed scale in `hints.scales`, page size known, status `none` | `inventory.recalibrate_sheet` with `calibration.source = "printed_scale"` (a 1 m error on a 42 m sheet is 2.4 %) | 0.85 |
    | sheet floors | one suggested floor; or several, each with a region | `assignments.confirm_suggestions(source = "autopilot")` | 0.9 single, 0.85 regions |
-   | outlines | candidate `confidence ≥ 0.9` (fills and typed loops), its label key not seen twice on the sheet, overlap with an existing boundary < 0.3 | `inventory.create_unit_from_boundary(source = "autopilot")`, drafts, printed area kept, type from the label | the candidate's |
+   | outlines | candidate `confidence ≥ 0.85` (typed fills and loops; numbered fills, a zone with a number and its printed area, since 2026-10-27: 30 of 30 right on the storage floor of permit 1127975, D3), its label key not seen twice on the sheet, overlap with an existing boundary < 0.3 | `inventory.create_unit_from_boundary(source = "autopilot")`, drafts, printed area kept, type from the label | the candidate's |
    | approve | `approve_sheets` on, every current boundary of the sheet has `source = autopilot`, every labelled candidate of the sheet is covered by a boundary | `inventory.approve_sheet`, then `queue_massing` | min of the sheet's candidates |
    | site plan | exactly one processed `site_plan` document and no site frame | `projects.update_project(site_frame.sheet_id = page 1)` | 0.9 |
    | placement | site sheet calibrated, footprint known; a face of the site sheet within 25 % of the footprint area; best IoU after rotation search ≥ 0.9 → `confirmed`, 0.8 to 0.9 → `draft` (needs you) | `projects.update_building(site_transform, placement_status)` | the IoU |
    | facades | stacked-marker sheets of the building (`elevation_candidates`), each with a drawn width in metres from its line work; widths match the two side lengths of the footprint rectangle within 5 % and the match is unique | `projects.update_building(facades)` with `flip = false` | 0.6, flagged "verify which of the two parallel sides" |
    | gallery | processed `render` documents `internal` | `documents.update_document(visibility = public)` | 0.9 |
-   | map | `UF_GEOCODER != none`, address line present, no `lat`; exactly one result | `projects.update_project(address.lat/lng, address.geocoded = {provider, display_name, at})` | 0.7 |
+   | map | `UF_GEOCODER != none`, address line present, no `lat`; three forms of the address in turn, 1.1 s apart (as written; street, number, city; street and city): the answers of a form within 150 m of each other are one place, the street alone is no pin (D1, 2026-10-27) | `projects.update_project(address.lat/lng, address.geocoded = {provider, display_name, query, places})` | 0.7 |
    | layouts | apartments with `polygon_m` and no `layout_id`; outlines in metres, centred, aligned on the minimum-area rectangle, four orientations and the mirror; IoU ≥ 0.95 and printed areas within 8 % join a cluster; clusters of ≥ 2 | `sales.layouts.create(status = proposed, source = autopilot, match)` and `units.layout_id`; a mirror cluster gets code `<code>m`, name "Mirror of <code>", `match.mirror_of` | the cluster's minimum IoU |
-   | classify | `UF_AI_CLASSIFY` on, document `kind_source = pending` after processing, first page has line work (text-only pages never leave the host: a permit decision names people, ADR-0007 Decision 3) | `documents.update_document(kind)` with `kind_source = "ai"` | 0.8 |
+   | classify | `UF_AI_CLASSIFY` on, document `kind_source = pending` after processing, first page is a drawing: ≥ 50 vectors and either ≤ 800 characters or ≥ 2 vectors per character (text-only pages never leave the host: a permit decision names people, ADR-0007 Decision 3) | `documents.update_document(kind)` with `kind_source = "ai"` | 0.8 |
 
 6. **A proposed layout shares nothing until confirmed.** `unit_layouts` gains `status` (`confirmed` |
    `proposed`, default confirmed), `source` (`manual` | `autopilot`) and `match` JSONB. Media upload
@@ -275,9 +275,47 @@ copy of a layout's render.
 stack runs the `main` images; the branch was verified by `ng build admin`, `ng test admin` and the
 backend tests, not in a browser).
 
-- [ ] D1 First live geocoding of the sample project's address with `UF_GEOCODER=nominatim`: judge the
+- [x] D1 First live geocoding of the sample project's address with `UF_GEOCODER=nominatim`: judge the
       pin; if Georgian addresses resolve poorly, try the cadastral code route (napr.gov.ge) in a
       follow-up.
-- [ ] D2 First live classification call: verify the text-answer parser against the live response.
-- [ ] D3 Run the solver on `permit-1127975` (a fresh import in the dev stack) and record per pass what
+      *Found on 2026-10-27:* Nominatim has no answer for the register's form "ქალაქი თბილისი, ლეო
+      კვაჭაძის ქუჩა, N 19გ" and three answers (19/4, 19/5, 19/6, within 40 m) for "ლეო კვაჭაძის ქუჩა 19,
+      თბილისი"; the street alone resolves to two segments 600 m apart. `geocode.address_queries` now
+      tries the three forms and `places_agree` (150 m) replaces "exactly one result"; the pin landed at
+      41.74338, 44.72236, 40 m from the owner's hand-set pin on `permit-1127975` (41.7437, 44.7224).
+      No cadastral route needed for this address.
+- [x] D2 First live classification call: verify the text-answer parser against the live response.
+      *Found on 2026-10-27:* the real elevation sheet of permit 1127975 (uploaded as "scan 0001", no
+      kind) never left the host: its first page has 4 676 characters of dimensions, notes and title
+      block against the 800-character cap, and the pass said nothing. The guard is now
+      `classify.page_is_drawing`: at least 50 vectors and either ≤ 800 characters or ≥ 2 vectors per
+      character (`CLASSIFY_MIN_VECTORS_PER_CHAR`; the sheet has 64 444), and the documents kept on
+      the host are one "needs you" line. The live call then returned the one word `elevation`
+      (`gemini-nano-banana-2.1`, one request, 200 OK); `parse_kind` took it, the document became
+      `elevation` with `kind_source = ai`, the audit row holds the answer.
+- [x] D3 Run the solver on `permit-1127975` (a fresh import in the dev stack) and record per pass what
       it decided and what it left; tune the thresholds only with a fixture that reproduces the case.
+      *Record of 2026-10-27 (project `adr-0025-d3-1127975`, deleted afterwards; the owner's hand-made
+      `permit-1127975` as the reference):* classify 0 (every import is classified by its fieldset);
+      floors: five split-level blocks A–E accepted as buildings where the owner has one building A
+      with B1, Ground, 1, 2, 3 → **changed**: blocks stay a proposal, the merged storey list (which
+      equals the owner's) is applied when every storey is ≥ 2.2 m (`test_split_level_blocks_stay_a_proposal`);
+      calibration: 30 plan pages and the site plan from the printed scale; sheet floors: 8 pages,
+      16 assignments; outlines: pages 2–5 gave 34, 9, 11, 10 drafts (owner: 37, 11, 11, 10), page 1
+      gave 0 because its 30 storage zones are numbered fills at 0.85 (owner: 30 units) → **changed**:
+      threshold 0.85, page 1 then gave 27 (`#12` zone in `_plan_pdf`); "needs you" lists on every
+      sheet repeat the digits 0–7 and `M2` as "labels printed twice" (room numbers and axis marks,
+      not units: open as D4); site plan: the one site plan, 0.9; placement: no match for the split
+      blocks (0.44, 0.66), the owner placed the one building by hand; facades 0 (needs the placed
+      building); gallery 0 (renders arrive as `permit` kind from the fieldset); location: see D1;
+      layouts: 10 proposed plan types from 64 apartments, L1 (6 units) to L7, three mirror types,
+      IoU ≥ 0.96 (the owner has no layouts yet to compare). Two gaps fixed on the way: the run that
+      follows one processed document ran while the import was still downloading the next (the guard
+      now counts `regulatory_imports.status = importing`, `test_import_creates_project_building_and_documents`);
+      one attachment download took about 80 min against `DOWNLOAD_TIMEOUT_S = 300`, which bounds a
+      read, not the whole file (D5).
+- [ ] D4 Outlines: the "labels printed twice" list names room numbers and axis marks (0–7, `M2`) on
+      every sheet; a label that repeats on most sheets of a set is not a unit label. Tune with a
+      fixture that prints the same digit on two zones of two pages.
+- [ ] D5 `regulatory/tasge.py`: bound the whole download (a total deadline next to `DOWNLOAD_TIMEOUT_S`),
+      so a slow server cannot hold the import worker for an hour; record it in `stats.failed`.

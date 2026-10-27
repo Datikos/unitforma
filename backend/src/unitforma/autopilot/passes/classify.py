@@ -61,6 +61,18 @@ def parse_kind(answer: str) -> str | None:
     return None
 
 
+def page_is_drawing(n_vectors: int, n_chars: int) -> bool:
+    """A page leaves the host only when it is a drawing (ADR-0007 Decision 3): enough line work,
+    and, when its text is long (dimension strings, notes, the title block of a real elevation
+    sheet run to 4 700 characters), many times more line work than text. A permit decision has no
+    line work; an area schedule has table rules, a few hundred, under thousands of characters."""
+    if n_vectors < rules.CLASSIFY_MIN_VECTORS:
+        return False
+    if n_chars <= rules.CLASSIFY_MAX_TEXT_CHARS:
+        return True
+    return n_vectors >= rules.CLASSIFY_MIN_VECTORS_PER_CHAR * n_chars
+
+
 async def run(ctx: Context) -> None:
     s = get_settings()
     if not s.ai_classify:
@@ -72,19 +84,34 @@ async def run(ctx: Context) -> None:
         used = await used_today(db, ctx.tenant_id)
         pages: list[tuple[Document, str]] = []
         seen: set = set()
+        kept: list[str] = []
         for sheet, doc in await current_sheets(db, ctx.project_id):
             if doc.kind_source != "pending" or doc.id in seen or not sheet.raster_key:
                 continue
+            seen.add(doc.id)
             if (sheet.hints or {}).get("kind") == "text_sheet":
-                continue  # a text sheet: never sent out
+                kept.append(doc.title)  # a text sheet: never sent out
+                continue
             extract = mapping.load_extract(sheet)
             vectors = extract.get("vectors") or {}
-            if sum(int(v or 0) for v in vectors.values()) < rules.CLASSIFY_MIN_VECTORS:
-                continue  # no line work (a scan, a text page): never sent out
-            if len((extract.get("text") or "").strip()) > rules.CLASSIFY_MAX_TEXT_CHARS:
-                continue  # a page that reads like a document (a decision, a schedule): never sent
-            seen.add(doc.id)
+            n_vectors = sum(int(v or 0) for v in vectors.values())
+            n_chars = len((extract.get("text") or "").strip())
+            if not page_is_drawing(n_vectors, n_chars):
+                kept.append(doc.title)
+                continue
             pages.append((doc, sheet.raster_key))
+    if kept:
+        ctx.decide(
+            STEP,
+            "skipped",
+            f"{len(kept)} document(s) kept on the host",
+            "Their first page reads like a document, not a drawing (little line work for its "
+            "text), so it was not sent for classification: "
+            + ", ".join(kept[:6])
+            + (" …" if len(kept) > 6 else "")
+            + ". Set the kind on the Documents page",
+            needs_you=True,
+        )
     if not pages:
         return
     budget = max(0, s.ai_classify_daily_limit - used)

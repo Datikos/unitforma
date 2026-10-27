@@ -88,7 +88,7 @@ def _record(ctx: Context, sheet_id: uuid.UUID, label: str, o: SheetOutcome) -> N
     left = []
     if o.skipped_low:
         left.append(
-            f"{len(o.skipped_low)} candidate(s) below {rules.OUTLINE_MIN_CONFIDENCE:.1f}: "
+            f"{len(o.skipped_low)} candidate(s) below {rules.OUTLINE_MIN_CONFIDENCE:.2f}: "
             + ", ".join(o.skipped_low[:8])
         )
     if o.ambiguous:
