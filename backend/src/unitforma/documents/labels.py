@@ -17,7 +17,9 @@ A label names one unit: a unit word and a number on the same line ("ბინა
 "სათავსო 4"), a parking code next to a P mark ("A9/10-1"), or a bare numbered zone with a
 printed area ("№30 12.5 m²"). Labels never span lines, so a legend line ending in "… ბინა"
 followed by the next item's "6." is not apartment 6, and a number written with "№" wins over
-a stray callout digit between the word and it ("ბინა ⑤ №3" is apartment 3).
+a stray callout digit between the word and it ("ბინა ⑤ №3" is apartment 3). The one exception
+is a boxed label lettered in rows (ADR-0031): the unit word alone on its line and the number
+alone on the next ("ბინა" / "221" / "43.9 მ2"); a line holding anything else is not a label row.
 """
 
 from __future__ import annotations
@@ -72,6 +74,12 @@ _LOOSE = {
     kind: re.compile(rf"(?<!\w)(?:{words})(?!\w){_H}*[:.]?{_H}*(?P<num>{NUM})(?![\w.,/])", re.I)
     for kind, words in UNIT_WORDS.items()
 }
+_STACKED = {
+    kind: re.compile(
+        rf"(?m)^{_H}*(?:{words}){_H}*{SIGN}?{_H}*\n{_H}*{SIGN}?{_H}*(?P<num>{NUM}){_H}*$", re.I
+    )
+    for kind, words in {**UNIT_WORDS, "parking": rf"P|Ⓟ|{UNIT_WORDS['parking']}"}.items()
+}
 _NUMBERED = re.compile(rf"(?<![\w№#])(?:№|#){_H}*(?P<num>{NUM})(?![\w.,/])")
 _PARKING_CODE = re.compile(
     r"(?<![\w/.\-])(?P<num>[A-Za-z]{1,3}\d{0,3}(?:/\d{1,3})?-\d{1,4})(?![\w/.\-])"
@@ -116,6 +124,9 @@ def find_labels(text: str, families: frozenset[str] = frozenset()) -> list[UnitL
     for kind, rx in _LOOSE.items():
         for m in rx.finditer(text):
             found.append(_label(kind, m, 2))
+    for kind, rx in _STACKED.items():
+        for m in rx.finditer(text):
+            found.append(_label(kind, m, 2))
     cue = _PARKING_CUE.search(text) is not None
     for m in _PARKING_CODE.finditer(text):
         if cue or m.group("num").rsplit("-", 1)[0] + "-" in families:
@@ -145,7 +156,7 @@ def _label(kind: str | None, m: re.Match[str], strength: int) -> UnitLabel:
     return UnitLabel(
         kind=kind,
         key=m.group("num").upper(),
-        text=m.group(0).strip(),
+        text=" ".join(m.group(0).split()) if "\n" in m.group(0) else m.group(0).strip(),
         start=m.start(),
         end=m.end(),
         strength=strength,

@@ -293,3 +293,35 @@ def make_bundle_pdf() -> bytes:
         s += _text(x0 + 10, y0 + 35, f"{bundle_area(BUNDLE_STORE)} m2", 8)
         p4 += s
     return build_pdf([p1, p2, p3, p4])
+
+
+# --- an "NTS" set lettered small (ADR-0031, the N4 drawings of 2026-10-27) ---------------------
+NTS_CM_PER_PT = 2.0  # the dimensions say 1 pt on the sheet is 2 cm: 842 pt = 16.84 m
+NTS_APTS = [("101", 100.0, 0.0), ("102", 320.0, 1.75)]  # code, left edge (pt), label row offset
+
+
+def make_nts_stacked_pdf() -> bytes:
+    """One page without a printed scale: two apartments of two rooms each (200 × 200 pt =
+    4 × 4 m), labelled in three tiny rows ("bina" / "101" / "16.0 m2", 2.5 pt type on 3.5 pt
+    rows; the second label sits 1.75 pt lower, so clustering every character's top chains the
+    six rows into one line), a yellow hatch and a blue grid axis across the rooms, and red
+    dimension chains in centimetres above and below."""
+    s = ""
+    for code, x0, dy in NTS_APTS:
+        s += _rect(x0, 200, x0 + 200, 400) + f"{x0 + 100} 200 m {x0 + 100} 400 l S\n"
+        s += _geo(x0 + 30, 330 - dy, "bina", 2.5)  # type: ignore[arg-type]
+        s += _geo(x0 + 31, 326.5 - dy, code, 2.5)  # type: ignore[arg-type]
+        s += _geo(x0 + 29, 323 - dy, "16.0 m2", 2.5)  # type: ignore[arg-type]
+        s += "q 1 0.98 0.55 RG 0.4 w " + "".join(
+            f"{x0 + i * 50} 200 m {x0 + i * 50 + 200} 400 l S " for i in range(-3, 1)
+        )
+        s += "Q\n"
+    s += "q 0.5 0.76 1 RG 50 300 m 700 300 l S Q\n"
+    dims = [(100, 300, 170), (320, 520, 170), (100, 520, 160)]
+    dims += [(x, x + 100, 420) for x in (100, 200, 320, 420)]
+    for xa, xb, y in dims:
+        value = round((xb - xa) * NTS_CM_PER_PT)
+        s += f"q 1 0 0 RG {xa} {y} m {xb} {y} l S Q\n" + _text(
+            (xa + xb) / 2 - 5, y + 2, str(value), 6
+        )
+    return build_pdf([s])

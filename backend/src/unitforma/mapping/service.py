@@ -51,7 +51,8 @@ def load_extract(sheet: Sheet) -> dict[str, Any]:
 
 
 def sheet_metres(sheet: Sheet, extract: dict[str, Any]) -> tuple[float, float] | None:
-    """Sheet size in metres: the calibration if there is one, else the single printed scale."""
+    """Sheet size in metres: the calibration if there is one, else the single printed scale the
+    dimensions do not contradict, else the page width the dimensions give (ADR-0031 Decision 3)."""
     cal = sheet.calibration or {}
     if (
         sheet.calibration_status in ("calibrated", "inherited")
@@ -61,12 +62,11 @@ def sheet_metres(sheet: Sheet, extract: dict[str, Any]) -> tuple[float, float] |
     ):
         m = float(cal["m_per_px"])
         return (m * sheet.raster_width, m * sheet.raster_height)
-    scales = (sheet.hints or {}).get("scales") or []
-    if len(scales) != 1:
-        return None
     if not extract.get("page_pt") and sheet.width_pt and sheet.height_pt:
         extract = {**extract, "page_pt": [float(sheet.width_pt), float(sheet.height_pt)]}
-    return suggest.page_metres(extract, int(scales[0]))
+    hints = sheet.hints or {}
+    found = suggest.scale_metres(extract, hints.get("scales") or [], hints.get("dimension_scale"))
+    return found[0] if found else None
 
 
 def candidates_for_sheet(sheet: Sheet) -> list[suggest.Candidate]:

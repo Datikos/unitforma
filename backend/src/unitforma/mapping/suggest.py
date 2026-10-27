@@ -42,6 +42,8 @@ BARE_LABEL_RE = re.compile(r"^(?:[A-Za-z]?\d{1,4}[A-Za-z]?)$")
 AREA_MATCH = 0.08
 # a labelled face this far below the printed area is only part of the unit
 AREA_PARTIAL = 0.15
+# a printed scale and the dimensions' page width this far apart: the dimensions win (ADR-0031)
+SCALE_AGREE = 0.05
 
 # confidence by source and label (plan §13.2): a CAD zone with a typed label is the unit
 FILL_CONFIDENCE = {"typed": 0.95, "parking": 0.9, "numbered": 0.85, "bare": 0.65, None: 0.45}
@@ -85,6 +87,30 @@ def page_metres(extract: dict[str, Any], scale: int | None) -> tuple[float, floa
         return None
     k = 0.0254 / 72 * scale
     return (float(pt[0]) * k, float(pt[1]) * k)
+
+
+def dimension_metres(
+    extract: dict[str, Any], dimension_scale: dict[str, Any] | None
+) -> tuple[float, float] | None:
+    """Sheet size in real metres from the page width the dimensions give (ADR-0031)."""
+    pt = extract.get("page_pt")
+    width = (dimension_scale or {}).get("page_width_m")
+    if not pt or not width or not float(pt[0]):
+        return None
+    return (float(width), float(width) * float(pt[1]) / float(pt[0]))
+
+
+def scale_metres(
+    extract: dict[str, Any], scales: list[int], dimension_scale: dict[str, Any] | None
+) -> tuple[tuple[float, float], str] | None:
+    """Sheet size in metres and its source without a calibration: the single printed scale,
+    unless the page's own dimensions disagree with it by more than ``SCALE_AGREE`` (a ramp's
+    "1:12" read as the scale, N4 page 11), then the dimensions (ADR-0031 Decision 3)."""
+    printed = page_metres(extract, int(scales[0])) if len(scales) == 1 else None
+    dims = dimension_metres(extract, dimension_scale)
+    if printed and (dims is None or abs(printed[0] - dims[0]) <= SCALE_AGREE * dims[0]):
+        return printed, "printed_scale"
+    return (dims, "dimensions") if dims else None
 
 
 @dataclass
@@ -173,8 +199,15 @@ def closed_loops(
             continue
         measured = round(face.area * m2_per_unit, 1) if m2_per_unit else None
         confidence = LOOP_CONFIDENCE[rd.grade]
-        if rd.unit and rd.printed and measured and measured < rd.printed * (1 - AREA_PARTIAL):
+        if (
+            rd.unit
+            and rd.printed
+            and measured is not None
+            and measured < rd.printed * (1 - AREA_PARTIAL)
+        ):
             confidence = 0.5  # a room of the unit, not the unit
+        elif rd.unit and len(_unit_keys(rd.text, families)) > 1:
+            confidence = 0.5  # two units without a drawn wall between them (ADR-0031)
         loops.append(
             Candidate(
                 ring=ring,
@@ -197,6 +230,8 @@ def closed_loops(
 def _faces(extract: dict[str, Any], min_segment: float) -> list[Polygon]:
     lines: list[LineString] = []
     for seg in extract.get("segments") or []:
+        if len(seg) > 4 and seg[4] == 1:
+            continue  # annotation crosses rooms (ADR-0031 Decision 2)
         x0, y0, x1, y1 = seg[:4]
         if abs(x1 - x0) + abs(y1 - y0) < min_segment:
             continue
@@ -269,7 +304,7 @@ def _fill_candidates(
         if (
             rd.grade in ("typed", "parking", "numbered")
             and rd.printed
-            and measured
+            and measured is not None
             and abs(measured - rd.printed) > rd.printed * AREA_MATCH
         ):
             confidence = 0.6
@@ -277,6 +312,10 @@ def _fill_candidates(
         ring = _ring(simple if isinstance(simple, Polygon) else poly)
         if len(ring) < 3:
             continue
+        if rd.unit and any(
+            o.label == rd.label and Polygon(o.ring).buffer(1e-4).contains(poly) for o in out
+        ):
+            continue  # a car or a furniture symbol drawn over the zone, inside it (ADR-0031)
         kept.append(poly)
         out.append(
             Candidate(

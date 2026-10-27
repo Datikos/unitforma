@@ -29,6 +29,8 @@ CALIBRATION_CONFIDENCE = 0.85
 # a person's calibration given to the sibling pages of the document (ADR-0029 Decision 3)
 CALIBRATION_SIBLING_CONFIDENCE = 0.8
 CALIBRATION_PAGE_SIZE_TOLERANCE_PT = 0.5
+# the page's own dimension strings agreeing on its width (ADR-0031 Decision 3)
+CALIBRATION_DIMENSIONS_CONFIDENCE = 0.8
 
 # --- publish with defaults (ADR-0029 Decision 1): the end state is a live portal
 DEFAULTS_APPROVE_CONFIDENCE = 0.7  # drafts approved by rule, whatever the coverage

@@ -12,6 +12,7 @@ the same extract shape, a raster drawn from the vectors.
 
 from __future__ import annotations
 
+import bisect
 import hashlib
 import io
 import re
@@ -27,6 +28,16 @@ AREA_RE = re.compile(r"(\d{1,4}[.,]\d{1,2})\s*(?:m\s*[²2]|მ\s*[²2]|კვ\.?
 FLOOR_WORD_RE = re.compile(
     r"\b(?:level|floor|storey|etage|этаж|სართული|sarTuli)\b\s*([+-]?\d{1,2})?", re.I
 )
+# a dimension in centimetres or millimetres: "620", "6,475", "6 475" (not "43.9", not "+3.20")
+DIMENSION_RE = re.compile(r"^(?:\d{2,5}|\d{1,3}[, ]\d{3})$")
+DIMENSION_AGREE = 0.005  # ±0.5 % around the agreeing ratio
+DIMENSION_MIN_AGREE = 5
+DIMENSION_MIN_SHARE = 0.3
+DIMENSION_PAGE_WIDTH_M = (5.0, 2000.0)
+# stroke colours that count as line work for room faces (ADR-0031 Decision 2)
+LINE_WORK_MAX_CHROMA = 0.25
+LINE_WORK_MAX_LIGHTNESS = 0.6
+MAX_SEGMENTS = 20_000
 
 
 @dataclass
@@ -140,7 +151,10 @@ def extract_page(data: bytes, mime: str, page_no: int) -> dict[str, Any]:
             if labels.is_legacy_font(ch.get("fontname")):
                 ch["text"] = labels.decode_legacy(ch["text"])
                 legacy += 1
-        text = page.extract_text() or ""
+        # lines in the order the file draws them (ADR-0031 Decision 1): clustering the tops of
+        # every character on the page chains the rows of small stacked labels into one line
+        text = page.extract_text(use_text_flow=True) or ""
+        raw_words = page.extract_words(use_text_flow=True)
         words = [
             {
                 "t": w["text"],
@@ -149,19 +163,23 @@ def extract_page(data: bytes, mime: str, page_no: int) -> dict[str, Any]:
                 "x1": round(w["x1"] / page.width, 5),
                 "y1": round(w["bottom"] / page.height, 5),
             }
-            for w in page.extract_words()
+            for w in raw_words
         ]
         vectors = {"lines": len(page.lines), "rects": len(page.rects), "curves": len(page.curves)}
-        # keep the raw line segments (normalised) for snapping in the boundary editor, capped
+        # the raw line segments (normalised), line work first so the cap drops annotation; a
+        # fifth element 1 marks annotation (hatching, grid axes, dimension and boundary lines)
+        drawn = sorted(page.lines, key=lambda ln: not is_line_work(ln))[:MAX_SEGMENTS]
         segments = [
             [
                 round(ln["x0"] / page.width, 5),
                 round(ln["top"] / page.height, 5),
                 round(ln["x1"] / page.width, 5),
                 round(ln["bottom"] / page.height, 5),
+                *(() if is_line_work(ln) else (1,)),
             ]
-            for ln in page.lines[:20000]
+            for ln in drawn
         ]
+        dimension_scale = dimension_page_width(raw_words, page.lines, float(page.width))
         fills = _fills(page)
         # rectangles are closed loops already; the suggestion engine turns them into faces
         rects = [
@@ -171,8 +189,11 @@ def extract_page(data: bytes, mime: str, page_no: int) -> dict[str, Any]:
                 round(r["x1"] / page.width, 5),
                 round(r["bottom"] / page.height, 5),
             ]
-            for r in page.rects[:20000]
+            for r in page.rects[:MAX_SEGMENTS]
         ]
+    hints = {**hints_from_text(text, vectors), "legacy_font_chars": legacy}
+    if dimension_scale:
+        hints["dimension_scale"] = dimension_scale
     return {
         "text": text,
         "words": words,
@@ -181,7 +202,80 @@ def extract_page(data: bytes, mime: str, page_no: int) -> dict[str, Any]:
         "rects": rects,
         "fills": fills,
         "page_pt": [round(float(page_w), 3), round(float(page_h), 3)],
-        "hints": {**hints_from_text(text, vectors), "legacy_font_chars": legacy},
+        "hints": hints,
+    }
+
+
+def is_line_work(obj: dict[str, Any]) -> bool:
+    """Walls, partitions and furniture are drawn dark and grey; coloured or light strokes are
+    annotation that crosses rooms (hatch lines, grid axes, dimension and boundary lines)."""
+    rgb = _rgb(obj.get("stroking_color"))
+    if rgb is None:
+        return True
+    return max(rgb) - min(rgb) <= LINE_WORK_MAX_CHROMA and sum(rgb) / 3 <= LINE_WORK_MAX_LIGHTNESS
+
+
+def dimension_page_width(
+    words: list[dict[str, Any]], lines: list[dict[str, Any]], page_width: float
+) -> dict[str, Any] | None:
+    """The page width in metres read from the drawing's own dimensions (ADR-0031 Decision 3).
+
+    A dimension is an upright whole number ("620", "6,475") with a horizontal line just above or
+    below it whose span covers the number; value ÷ span is the page width in the drawing's
+    length unit. Numbers that are not dimensions (unit labels, axis bubbles, label boxes) give
+    scattered ratios, dimensions give one: the densest ratio window is taken when it holds at
+    least ``DIMENSION_MIN_AGREE`` pairs and ``DIMENSION_MIN_SHARE`` of all of them. Centimetres
+    or millimetres are told apart by the agreeing values (a room is 300–900 cm, 3000–9000 mm).
+    """
+    rows = sorted(
+        (ln["top"], ln["x0"], ln["x1"])
+        for ln in lines
+        if abs(ln["bottom"] - ln["top"]) < 0.05 and ln["x1"] - ln["x0"] > 1.0
+    )
+    tops = [r[0] for r in rows]
+    pairs: list[tuple[float, float]] = []
+    for w in words:
+        if not w.get("upright", True) or not DIMENSION_RE.match(w["text"]):
+            continue
+        value = float(re.sub(r"[, ]", "", w["text"]))
+        h = max(float(w["bottom"]) - float(w["top"]), 0.1)
+        cx = (float(w["x0"]) + float(w["x1"])) / 2
+        best: tuple[float, float] | None = None
+        lo = bisect.bisect_left(tops, float(w["top"]) - 1.2 * h)
+        hi = bisect.bisect_right(tops, float(w["bottom"]) + 1.2 * h)
+        for top, x0, x1 in rows[lo:hi]:
+            if not x0 <= cx <= x1 or x1 - x0 < float(w["x1"]) - float(w["x0"]):
+                continue
+            gap = min(abs(top - float(w["top"])), abs(top - float(w["bottom"])))
+            if best is None or gap < best[0]:
+                best = (gap, x1 - x0)
+        if best is not None:
+            pairs.append((value * page_width / best[1], value))
+    if len(pairs) < DIMENSION_MIN_AGREE:
+        return None
+    pairs.sort()
+    best_window: list[tuple[float, float]] = []
+    j = 0
+    for i in range(len(pairs)):
+        while pairs[i][0] > pairs[j][0] * (1 + 2 * DIMENSION_AGREE):
+            j += 1
+        if i + 1 - j > len(best_window):
+            best_window = pairs[j : i + 1]
+    if len(best_window) < DIMENSION_MIN_AGREE or len(best_window) < DIMENSION_MIN_SHARE * len(
+        pairs
+    ):
+        return None
+    per_page = sorted(r for r, _ in best_window)[len(best_window) // 2]
+    typical = sorted(v for _, v in best_window)[len(best_window) // 2]
+    unit, per_m = ("mm", 1000.0) if typical >= 1000 else ("cm", 100.0)
+    width_m = per_page / per_m
+    if not DIMENSION_PAGE_WIDTH_M[0] <= width_m <= DIMENSION_PAGE_WIDTH_M[1]:
+        return None
+    return {
+        "page_width_m": round(width_m, 3),
+        "unit": unit,
+        "agree": len(best_window),
+        "pairs": len(pairs),
     }
 
 
