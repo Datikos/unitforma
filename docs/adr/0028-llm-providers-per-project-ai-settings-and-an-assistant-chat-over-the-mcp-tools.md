@@ -1,9 +1,9 @@
 # ADR-0028: Language models (Claude, OpenAI) behind one text provider, AI settings per project, and an assistant chat in the admin app that works through the Unitforma MCP tools
 
-- **Status:** proposed (2026-10-27). Widens two earlier scope lines: ADR-0015 put "the Unitforma backend calling a model itself" out of scope, and ADR-0025 put "an agent over MCP" out of scope and rejected its Option B (a model drives the setup pipeline). ADR-0025 Option A stands: the deterministic solver stays the pipeline; a language model gets only the residue the solver hands to the person, and a chat that works through the same tools a person's assistant already has (ADR-0015). Picks up ADR-0025 Revisit ("an MCP tool that reports the checklist and runs the solver", facade sides from title text, layout facts on the proposed layout), ADR-0023 Revisit (a per-project prompt override, its Option D) and backlog #31 (MCP tools beyond projects and buildings).
+- **Status:** proposed (2026-10-27; the owner decided the same day that the LLM configuration is platform-wide, not per tenant: provider, models, key and budgets are deployment settings, no workspace layer, usage shown to the platform admin). Widens two earlier scope lines: ADR-0015 put "the Unitforma backend calling a model itself" out of scope, and ADR-0025 put "an agent over MCP" out of scope and rejected its Option B (a model drives the setup pipeline). ADR-0025 Option A stands: the deterministic solver stays the pipeline; a language model gets only the residue the solver hands to the person, and a chat that works through the same tools a person's assistant already has (ADR-0015). Picks up ADR-0025 Revisit ("an MCP tool that reports the checklist and runs the solver", facade sides from title text, layout facts on the proposed layout), ADR-0023 Revisit (a per-project prompt override, its Option D) and backlog #31 (MCP tools beyond projects and buildings).
 - **Date:** 2026-10-27
-- **Deciders:** David Sakhelashvili (platform owner). Three picks are his before "start": who pays for the model calls (Decision 9 takes platform keys with caps as the default), which OpenAI model tier is the default (Decision 2 lists prices, not capability), and whether the chat may run write tools at all in phase 1 (Decision 6 takes "yes, each write approved in the chat").
-- **Plan reference:** §8.6 (abuse protection), §11.2 (Setup and Settings screens), §12.2 (API boundaries), §12.3 (jobs), §13.2 (automation classification), §21 (sources), ADR-0015 (MCP server, tokens, `request_id = mcp:<prefix>`), ADR-0017 Decision 4 (image provider interface), ADR-0021 (retention sweep), ADR-0023 (workspace settings), ADR-0025 Decisions 3 to 5, 8 and 9 (solver, passes, settings with `none` defaults)
+- **Deciders:** David Sakhelashvili (platform owner). Decided 2026-10-27: the platform pays and configures (Decision 2); a tenant's own key is not an option. Two picks are his before "start": which OpenAI model tier is the default (Decision 2 lists prices, not capability), and whether the chat may run write tools at all in phase 1 (Decision 6 takes "yes, each write approved in the chat").
+- **Plan reference:** §8.6 (abuse protection), §11.2 (Setup screen, platform screens), §12.2 (API boundaries), §12.3 (jobs), §13.2 (automation classification), §21 (sources), ADR-0015 (MCP server, tokens, `request_id = mcp:<prefix>`), ADR-0017 Decision 4 (image provider interface), ADR-0021 (retention sweep), ADR-0023 (workspace settings), ADR-0025 Decisions 3 to 5, 8 and 9 (solver, passes, settings with `none` defaults)
 
 ## Context
 
@@ -97,14 +97,15 @@ itself stays $0.0336 (ADR-0017).
    tools. Each adapter owns its tool loop because the wire shapes differ; the interface is at the level of
    "run one assistant turn with these tools and this executor". The image provider of ADR-0017 is unchanged;
    `ai/` imports `renders/provider.py` only to reuse `ProviderError`. `core` never imports `ai` (import-linter).
-2. **Settings, deployment level, all off by default.** `UF_AI_TEXT_PROVIDER` (`none | anthropic | openai`,
+2. **The LLM configuration is platform-wide: deployment settings, all off by default, one key per installation, no tenant-level choice of provider, model, key or budget (the owner's decision of 2026-10-27).** `UF_AI_TEXT_PROVIDER` (`none | anthropic | openai`,
    default `none`: the chat and the residue passes are hidden), `UF_AI_TEXT_MODEL` (the assistant's model;
    default `claude-opus-5-5` for Anthropic, for OpenAI the owner's pick from the price table, no default taken),
    `UF_AI_TEXT_MODEL_SMALL` (the solver's residue model; default `claude-haiku-5-5` for Anthropic, OpenAI the
    owner's pick), `UF_AI_TEXT_ENDPOINT` (the vendor's https base URL, one fixed host per provider, TLS verified),
    `UF_AI_TEXT_API_KEY_FILE` (`/run/secrets/ai_text_api_key`, one key for the configured provider, created empty
    by `init-secrets.sh`), `UF_AI_TEXT_TIMEOUT_S` (default 120), `UF_AI_DAILY_BUDGET_USD` (default 5.00 per
-   tenant per UTC day across every text call), `UF_AI_CHAT_ENABLED` (default `true` when a provider is set).
+   tenant per UTC day across every text call, the same number for every tenant), `UF_AI_DAILY_BUDGET_TOTAL_USD`
+   (default 50.00 across the platform per UTC day), `UF_AI_CHAT_ENABLED` (default `true` when a provider is set).
    Prices per 1M tokens for the configured models live in `ai/prices.py` as constants with the date they were
    read, used for the estimate column only, never for billing.
 3. **A usage ledger, one row per model call.** Table `ai_usage` (migration `0020`): `id, tenant_id,
@@ -113,19 +114,20 @@ itself stays $0.0336 (ADR-0017).
    from `migrations/rls.py`, index `(tenant_id, created_at desc)`. The daily budget check is one indexed `sum`
    before every call; past the budget the call is refused with 429 `ai-budget` (chat) or recorded as "budget
    reached" in the run summary (solver). The classify pass of ADR-0025 writes a row too, so one table answers
-   "what did AI cost this tenant this month". The Settings page shows the month to date per task.
-4. **AI settings per project, layered, each key with one home.** `tenants.settings.ai` (tenant admin, Settings
-   page, merged by `PATCH /tenants/{id}` as `render_prompt` is) holds the workspace defaults: `{assistant:
-   bool, residue: bool, classify: bool, daily_budget_usd (≤ the deployment budget)}`. `projects.ai_settings`
-   JSONB (migration `0020`, project write, edited on the setup checklist next to the two ADR-0025 switches)
-   holds overrides for the same four keys plus `render_prompt` (1 to 4000 characters, ADR-0023 Option D: when
-   set it replaces the workspace prompt for this project's renders; the joined sentence, the wall colour and the
-   note are still appended by the code) and `instructions` (up to 2000 characters of project facts the
-   assistant and the residue passes read, for example "building A is the tower, B the townhouses; codes are
-   A-<floor><unit>"). Resolution is deployment allows → workspace default → project override, computed by one
-   function `ai/settings.resolve(tenant, project) -> AiSettings`; `GET /projects/{id}/setup` returns the
-   resolved values with their source (`deployment | workspace | project`) so the card can show where a value
-   comes from. The thresholds of ADR-0025 Decision 5 are not per project: they stay constants in
+   "what did AI cost this tenant this month". `GET /api/v1/platform/ai-usage?month=` (platform admin, aal2, plan §12.2)
+   returns the month per tenant and per task, shown on a platform page "AI usage" next to "Tenants"; a tenant
+   admin sees no spend figure and no AI setting on the Settings page.
+4. **Per project: switches and texts only, never the model.** `projects.ai_settings` JSONB (migration `0020`,
+   project write, edited on the setup checklist next to the two ADR-0025 switches) holds `{assistant: bool,
+   residue: bool, classify: bool}` (default true when the deployment has a provider), `render_prompt` (1 to 4000
+   characters, ADR-0023 Option D: when set it replaces the workspace render prompt for this project's renders;
+   the joined sentence, the wall colour and the note are still appended by the code) and `instructions` (up to
+   2000 characters of project facts the assistant and the residue passes read, for example "building A is the
+   tower, B the townhouses; codes are A-<floor><unit>"). There is no `tenants.settings.ai`: a tenant admin
+   cannot pick a provider or a model, set a budget or turn the assistant off for the workspace; the deployment
+   settings do that for every tenant. Resolution is deployment allows → project switch, computed by one
+   function `ai/settings.resolve(project) -> AiSettings`; `GET /projects/{id}/setup` returns the resolved values
+   with their source (`deployment | project`) so the card can show why a switch is disabled. The thresholds of ADR-0025 Decision 5 are not per project: they stay constants in
    `autopilot/rules.py`, changed only with a fixture.
 5. **The solver's residue passes read words, never geometry.** Three new passes at the end of the ADR-0025
    order, each behind `residue` and the daily budget, each with `kind = "llm"`, the model name and a confidence
@@ -181,12 +183,14 @@ itself stays $0.0336 (ADR-0017).
    model. The chat panel carries the sentence "Answers are generated by <provider> <model>; it acts with your
    permissions and asks before changing anything", which also covers EU AI Act Article 50 (plan §21). Logs carry
    the conversation id, the model and the token counts, never the text.
-9. **Defaults taken for the owner's three picks** (each one setting or one line to change): (1) the platform
-   pays: one key per installation in the file secret, per-tenant and per-project daily budgets, the ledger shows
-   the spend; per-tenant keys stored encrypted in the database are Option C of "who pays" and not built; (2) no
+9. **Defaults taken for the owner's picks** (each one setting or one line to change): (1) decided by the
+   owner on 2026-10-27, no longer a pick: the platform pays and configures, one key per installation in the file
+   secret, the per-tenant and platform daily budgets are deployment settings, the ledger shows the spend to the
+   platform admin; (2) no
    OpenAI default model: `UF_AI_TEXT_PROVIDER=openai` without `UF_AI_TEXT_MODEL` fails at startup with the price
    table's names in the message; (3) write tools are allowed in the chat with the per-call approval of
-   Decision 7; a workspace can turn the assistant off for everyone (`tenants.settings.ai.assistant = false`).
+   Decision 7; the deployment turns the chat off for every tenant with `UF_AI_CHAT_ENABLED=false`, a project
+   with its `assistant` switch.
 
 ## Options considered
 
@@ -241,15 +245,18 @@ not deterministic, not testable on fixtures, minutes and tokens per project, dra
 **C. Do nothing more.** Pros: no cost, nothing leaves the host. Cons: on the pilot permit the person still
 reads every facade title, names ten plan types and classifies the text-heavy sheets by hand.
 
-### Who pays
+### Who configures and pays (decided by the owner on 2026-10-27: platform-wide)
 
-**A. Platform key per installation, per-tenant and per-project budgets, the ledger shows the spend (default
-taken).** Pros: one secret, one bill, caps protect the owner. Cons: the owner carries the cost until pricing
-passes it on.
+**A. Platform key per installation, deployment settings for provider, models and budgets, the ledger shown to
+the platform admin (chosen).** Pros: one secret, one bill, one price list, caps protect the owner, nothing a
+tenant can misconfigure. Cons: the owner carries the cost until pricing passes it on; every tenant gets the same
+model.
 
-**B. Tenant's own key stored encrypted in `tenants.settings`.** Pros: the tenant pays the vendor directly.
-Cons: a credential kind stored in the database, key encryption and rotation to build, support when a tenant's
-key is out of credit. Not built; Revisit.
+**B. A workspace layer: tenant admin picks model and budget, or brings an own key stored encrypted in
+`tenants.settings`.** Pros: a tenant pays the vendor directly or tunes cost against quality. Cons: a credential
+kind stored in the database, key encryption and rotation to build, support when a tenant's key is out of
+credit, a second place to look for every setting. Rejected on 2026-10-27 by the owner ("platform wide LLM
+configuration, not each tenant"); not a Revisit.
 
 ## Trade-off analysis
 
@@ -279,8 +286,8 @@ as recorded decisions for a few cents per run instead of ten screens. A sales pe
 A 21 and A22" and gets the image to approve in the same panel, with the same 422 texts a wrong pair gets on the
 unit page. A tool written once serves the chat, Claude Code and claude.ai. Every model call has a row with its
 cost, so the owner sees what AI costs per tenant and per project, and a runaway loop stops at 12 calls, 180 s or
-the daily budget. A project can have its own render style and its own facts for the assistant without a
-workspace-wide change.
+the daily budget. A project can have its own render style and its own facts for the assistant; the model and the
+budget are one deployment setting the operator changes in one place.
 
 **Harder.** Reviewers hold four rules: a tool is added to the registry, never to the chat or the MCP server
 alone; a tool result never carries permit page text, buyer data or file bytes; a write tool is tagged `write`
@@ -290,17 +297,16 @@ to `httpx` and `mcp`: `uv lock` is the proof, as in ADR-0015 #4, and the three a
 (`stop_reason = refusal`) or a vendor 5xx ends the turn with a message, never a retry of a write. A conversation
 pinned to a model that the vendor retires fails on its next turn with a clear message and a "start a new
 conversation" button; the retirement dates in plan §21 are watched at each release. Data leaves the host for
-the first time in text form: the list in Decision 8 is written on the Settings page and in plan §13.2, and the
+the first time in text form: the list in Decision 8 is written in the chat panel's guide entry and in plan §13.2, and the
 vendor's training and retention terms are quoted in §21 with their dates.
 
 **Operations.** Two optional outbound hosts more, each a setting that defaults to off, one new file secret
 (`ai_text_api_key`), one new queue task on `default`, three new tables with RLS and one JSONB column on `projects`, a sweep rule
 (`retention_chat_days`, default 180) in the ADR-0021 sweep. Cost: estimated in Context, measured in E1 and
-shown on the Settings page.
+shown on the platform "AI usage" page.
 
 **Revisit.** Streaming turns (SSE from the API, or the worker publishing partial text); the vendor MCP
-connector (chat Option B) for people who live in Claude or ChatGPT, with a per-vendor rate-limit zone; a
-tenant's own key (who pays, Option B); residue passes for the "labels printed twice" list and for level markers
+connector (chat Option B) for people who live in Claude or ChatGPT, with a per-vendor rate-limit zone; residue passes for the "labels printed twice" list and for level markers
 read as text; the Batch API for the residue passes if their volume ever matters (50 % off, minutes of latency);
 `UF_AI_TEXT_MODEL` per task once the first measured turns show what Sonnet 5.5 or the OpenAI mid tier
 gets wrong.
@@ -329,11 +335,11 @@ fine-tuning; embeddings or search over documents; a second image provider (ADR-0
       `ai/settings.py` (`resolve`). Unit tests with stub HTTP clients: a tool loop of two calls, a write tool
       pauses, `max_tool_calls` stops the loop, a refusal ends the turn with text, a 5xx becomes `ProviderError`
       without a retry of a write, the ledger row has the estimate, the budget refusal.
-- [ ] A5 `api/admin.py`: `tenants.settings.ai` merged like `render_prompt`; `api/admin_setup.py`: `PUT
-      /projects/{id}/ai-settings` (project write; `render_prompt` and `instructions` length checks; audit row
-      `entity_type = project, action = ai_settings`); `GET /projects/{id}/setup` returns resolved AI settings
-      with sources; `GET /tenants/{id}/ai-usage?month=` (tenant admin). Schemas; `openapi.json`;
-      `npm run api:generate`.
+- [ ] A5 `api/admin_setup.py`: `PUT /projects/{id}/ai-settings` (project write; `render_prompt` and
+      `instructions` length checks; audit row `entity_type = project, action = ai_settings`); `GET
+      /projects/{id}/setup` returns resolved AI settings with sources; `api/platform.py`: `GET
+      /api/v1/platform/ai-usage?month=` (platform admin, aal2) per tenant and task. No change to
+      `PATCH /tenants/{id}`. Schemas; `openapi.json`; `npm run api:generate`.
 - [ ] A6 `renders/service.base_prompt` reads `projects.ai_settings.render_prompt` before the workspace prompt;
       tests in `test_unit_renders.py` (project override wins, cleared falls back, 422 above 4000 characters).
 
@@ -393,9 +399,11 @@ fine-tuning; embeddings or search over documents; a second image provider (ADR-0
       running, the pending-action card with Allow and Deny, a render card that shows the image with the existing
       Approve and Reject calls, the disclosure sentence of Decision 8, token and estimated cost per turn in a
       small line; guide entry. `api-client`: the new endpoints.
-- [ ] D5 Setup page: the "AI" card (assistant, residue, classify switches with their source chip, daily budget,
-      the project render prompt with "use workspace prompt", the instructions textarea); Settings page: the
-      workspace AI card and the month-to-date usage table per task. Guide entries.
+- [ ] D5 Setup page: the "AI" card (assistant, residue, classify switches, disabled with the reason when the
+      deployment has no provider; the project render prompt with "use workspace prompt"; the instructions
+      textarea); platform page `platform/ai-usage` (route behind `platformAdminGuard` next to
+      `platform/tenants`): month-to-date tokens and estimated USD per tenant and task, the configured provider
+      and models read-only. No AI card on the tenant Settings page. Guide entries.
 - [ ] D6 ADR-0021 sweep: `chat_messages` and `chat_conversations` older than `retention_chat_days`, count-only
       switch honoured; test in `test_retention.py`.
 
