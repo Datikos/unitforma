@@ -467,6 +467,7 @@ class RevisionOut(ORM):
     source_note: str | None
     processing_status: str
     processing_error: str | None
+    processing_note: str | None = None
     created_at: datetime
 
 
@@ -1325,6 +1326,7 @@ class IfcSpaceLinkOut(ORM):
     status: str
     confidence: Decimal | None
     areas: dict[str, Any]
+    source: str = "ifc"
     unit_code: str | None = None
     floor_level: int | None = None
 

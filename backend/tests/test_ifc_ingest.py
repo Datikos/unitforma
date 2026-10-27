@@ -121,6 +121,30 @@ def test_read_ifc_storeys_spaces_footprints_and_glb():
     assert round(acc["min"][1], 2) >= -0.31 and round(acc["max"][1], 1) in (3.2, 3.5)
 
 
+ARCHICAD_HEADER = (
+    "ViewDefinition [CoordinationView_V2.0, SurfaceGeometryAddOnView]",
+    "Option [Elements to export: Visible elements (on all stories)]",
+    "Option [Partial Structure Display: Entire Model]",
+    "Option [IFC Domain: All]",
+    "Option [Material Preservation: Explode all]",
+    "Option [Space containment: Off]",
+    "Option [IFC Base Quantities: Off]",
+    "Option [IFC Space boundaries: Off]",
+)
+
+
+def test_header_options_reads_the_archicad_translator_settings():
+    """ADR-0030 Decision 1: the FILE_DESCRIPTION of the 2026-10-27 export, whitelisted keys only."""
+    assert ifc.header_options(list(ARCHICAD_HEADER)) == {
+        "elements_to_export": "Visible elements (on all stories)",
+        "material_preservation": "Explode all",
+        "space_containment": "Off",
+        "base_quantities": "Off",
+    }
+    assert ifc.header_options(["ViewDefinition [CoordinationView]"]) == {}
+    assert ifc.header_options([]) == {}
+
+
 def test_compress_glb_without_the_cli_returns_the_input(monkeypatch):
     monkeypatch.setattr(ifc.shutil, "which", lambda _name: None)
     glb = ifc.read_ifc(make_ifc()).glb
@@ -310,7 +334,38 @@ def test_ifc_upload_links_spaces_to_units_and_confirmation_writes_areas(
     result = client.portal.call(ingest_ifc, tid, uuid.UUID(rev2["id"]))
     assert result["status"] == "ready", result
     assert result["stats"]["spaces"] == 3 and result["stats"]["spaces_suggested"] >= 2
-    assert "application" in result["stats"]
+    assert "application" in result["stats"] and "export_options" in result["stats"]
+
+    # ADR-0030 Decision 2: the same bytes again under another document of the project: noted,
+    # and not converted again because the building already shows this very file
+    again = client.post(
+        f"{base}/projects/{p['id']}/documents",
+        headers=root,
+        json={"title": "Model again", "building_id": b["id"]},
+    ).json()
+    intent = client.post(
+        f"{base}/documents/{again['id']}/uploads",
+        headers=root,
+        json={
+            "file_name": "a-copy.ifc",
+            "content_type": "application/x-step",
+            "byte_size": len(data),
+            "source_note": None,
+        },
+    ).json()
+    client.put(intent["upload_url"], content=data, headers={"Content-Type": "application/x-step"})
+    rev_again = client.post(
+        f"{base}/revisions/{intent['revision']['id']}/complete", headers=root
+    ).json()
+    out = client.portal.call(process_revision, tid, uuid.UUID(rev_again["id"]))
+    assert out == {"ifc": True, "status": "done", "duplicate": True}
+    revs = client.get(f"{base}/documents/{again['id']}/revisions", headers=root).json()
+    assert revs[0]["processing_status"] == "done"
+    assert revs[0]["processing_note"] == "Same file as Model rev 1"
+    assert (
+        client.get(f"{base}/buildings/{b['id']}/model", headers=root).json()["id"]
+        == result["model_id"]
+    )
 
     # the same bytes declared as a generic binary under a misleading name: the worker fixes the
     # kind from the sniffed content, and a person's kind is never replaced

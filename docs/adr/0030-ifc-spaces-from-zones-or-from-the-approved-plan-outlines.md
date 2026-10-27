@@ -1,0 +1,200 @@
+# ADR-0030: IFC spaces from the architect's zones or from the approved plan outlines; export diagnostics; duplicate uploads
+
+- **Status:** accepted (2026-10-27, "let start")
+- **Date:** 2026-10-27
+- **Deciders:** David Sakhelashvili (platform owner)
+- **Plan reference:** §7.3 (building model budget), §13.1 (document → published project), ADR-0006 Phase C (IFC intake, space links), ADR-0008 (document kinds), ADR-0011 (massing from outlines), ADR-0025 Decision 5 (placement by footprint fit)
+
+## Context
+
+The owner's request on 2026-10-27, after the first real IFC: "in different cases there may be zones
+sometimes; you should support both". What happened that day, with the numbers:
+
+- The architect's export `P1-M1-V06-2025-10-13 Jan Homeri.ifc` (Archicad 29.0.1, IFC2X3, 63,305,642
+  bytes, 9,111 drawable products, 6 storeys) holds **no `IfcSpace` and no `IfcZone`**. The heavy worker
+  converted it in 121 s to a 0.3 MB Draco GLB (234,185 triangles, 7 merged class nodes, 79 elements that
+  failed to tessellate, class "other" dropped to fit the 15 MB raw budget: 4,701
+  `IfcBuildingElementPart` skins plus the MEP classes). The 3D massing page showed "0 spaces" and
+  nothing to link; the warning added under ADR-0008 #6 names the authoring tool.
+- The file's STEP header says why. `FILE_DESCRIPTION` carries the translator options as strings of
+  the form `Option [Name: Value]`; the ones that matter here, as written in that file:
+  `Elements to export: Visible elements (on all stories)` (hidden zone layers are not exported),
+  `IFC Base Quantities: Off` (no floor areas even with zones), `Material Preservation: Explode all`
+  (composite skins as separate parts, the reason for the dropped class),
+  `Space containment: Off`, `IFC Domain: All`, `Structural Function: All Elements`. `FILE_NAME`
+  carries `originating_system = 'Graphisoft - Archicad - 29.0.1'`. ifcopenshell exposes both through
+  `file.header.file_description.description` and `file.header.file_name.originating_system` (checked
+  on 0.8.x, 2026-10-27). Graphisoft's help states that zones export as `IfcSpace` when they are inside
+  the export scope (visible or selected elements, or the entire project) and that the Model Filter
+  picks element types (<https://help.graphisoft.com/AC/24/INT/_AC24_Help/115_IFC/115_IFC-34.htm>);
+  the Archicad 29 menu path is unverified.
+- The same bytes were uploaded three times under three documents (sha256 `69618fd9…`, 06:38, 07:57
+  and 08:37 UTC) and converted five times (two "Re-run conversion" clicks). Nothing told the uploader
+  that revision 3 was revision 1 again; `document_revisions.sha256` is written by the worker and read
+  by nobody.
+- What the platform already has for the building: the mapping pipeline produces approved unit
+  outlines per floor in building-local metres (`unit_boundaries.polygon_m`, sheet frame: x right, y
+  down), floors with elevations and heights (`floors.elevation_m`, `height_m`,
+  `geometry_service.floor_elevations`), and the massing extrudes exactly those outlines
+  (`massing.UnitSolid`, `massing.extrude`: sheet y → glTF +Z). The IFC reader maps IFC (x, y, z) to
+  glTF (x, z, −y) (`ifc._to_gltf`), so a plan ring enters the IFC frame as (x, −y) and the two frames
+  differ by a rotation and a translation only (a placement never mirrors, `massing.building_rectangle`).
+  `autopilot/passes/placement.py` already fits a footprint polygon to a candidate face by rotation
+  search (3° coarse, 0.5° fine) and centroid translation with IoU as the score, with
+  `rules.PLACEMENT_AREA_TOLERANCE = 0.25` and confirm/draft thresholds 0.9/0.8.
+- The viewer contract is the node `extras` (`unit_id`, `code`, `floor_level`, `unit_type`,
+  `ifc_global_id`), read by `viewer-3d/massing-viewer.ts`; `ifc.relink_glb` rewrites them by
+  `ifc_global_id`, and `ifc_service.public_glb` hides unconfirmed or unlisted spaces in the published
+  copy. `ifc_space_links.ifc_global_id` is `String(22)`, the IFC GUID width;
+  `ifcopenshell.guid.compress(uuid.hex)` returns 22 characters and `guid.expand` reverses it (checked
+  2026-10-27), so a unit id has a valid, deterministic GlobalId.
+- Found on the way: `ifc._pack` writes `floor_level` as the storey index and relies on the relink
+  to replace it with the project's floor level; `ifc.read_ifc` parses, tessellates and packs in one
+  call, so nothing can be added between parsing and packing.
+
+## Decision
+
+1. **The IFC reader reports the export settings that decide whether the file can serve.**
+   `ifc.read_ifc` parses `FILE_DESCRIPTION` strings of the form `Option [Name: Value]` into
+   `stats.export_options`, keeping only `elements_to_export`, `base_quantities`,
+   `material_preservation`, `space_containment` (names normalised to snake case, values as written);
+   `stats.application` falls back to `FILE_NAME.originating_system` when no `IfcApplication` exists.
+   The 3D massing page turns flagged values into one advice line each: visible-elements export when
+   the model has no spaces ("zones on a hidden layer are not exported; ask for Entire project"),
+   base quantities off ("no floor areas will be copied on confirm"), explode all ("skins as separate
+   parts; the model is larger than it needs to be"). These lines replace the generic Archicad paragraph
+   of ADR-0008 #6 when options are present. Option names are evidence from one Archicad 29 file; other
+   tools write other strings and simply produce no lines.
+2. **A revision that repeats a file already processed in the project says so and, for an IFC that
+   already is the building's model, is not converted again.** In `documents.jobs.process_revision`,
+   after `inspect`, a `done` revision of any document of the same project with the same `sha256`
+   sets `document_revisions.processing_note` (new, `String(300)`, migration 0021, expand only):
+   "Same file as <document title> rev <n>". Sheets, proposals and `supersedes_revision_id` hang off
+   revisions, so every other kind is processed as usual. For `application/x-step`, when the building's
+   current `ifc` model is `ready` and its revision carries that checksum, the revision ends `done`
+   with the note and `geometry.ingest_ifc` is not queued; "Re-run conversion" stays an explicit re-run
+   (`POST /buildings/{id}/model/rebuild` queues the task directly). The document card shows the note
+   as a neutral line, not the red error alert.
+3. **A building's spaces come from `IfcSpace` when the file has any, otherwise from the approved
+   outlines of its floors.** Both sources produce the same thing: space nodes in the building's GLB
+   and `ifc_space_links` rows, so the reviewer's table, the confirm flow, the relink and the published
+   copy do not change. `ifc_space_links.source` (new, `ifc | plan`, default `ifc`, migration 0021)
+   tells them apart. Mixing per storey (a partial export) is Revisit, not this decision.
+4. **A plan space is the unit's outline placed in the IFC frame between its storey's elevations.**
+   `ifc.read_ifc` is split into `parse_ifc` (storeys, spaces, class geometry, offset, raw IFC
+   coordinates, header stats) and `pack_ifc` (the budget loop of ADR-0006 C3); `read_ifc` stays as
+   the wrapper. When `parse_ifc` returns no spaces, `ifc_service.ingest_ifc` loads the building's
+   floors, non-removed units and their current calibrated boundaries, and:
+   - matches storeys to floors with `ifc_match.match_floors` (elevation within 0.3 m, else order when
+     counts agree); a floor without a storey takes base and height from `floor_elevations`;
+   - takes the lowest floor that has outlines and a matched storey as the **fit floor**; its plan
+     footprint is the union of that floor's rings mapped to (x, −y); the **IFC footprint** is the XY
+     convex hull of the `IfcSlab` elements contained in the matched storey (`_storey_of`), else of
+     every drawn element of that storey, else the whole model;
+   - fits the plan footprint onto the IFC footprint with the placement search (rotation 0–360° at
+     3°, refined at 0.5°, centroid translation, IoU score) without the area pre-check (an IFC slab
+     includes corridors, cores and balconies that the apartment union excludes); the result is
+     `stats.plan_fit = {rotation_deg, tx, ty, iou, floor_level, storey}`;
+   - when the IoU is below `rules.IFC_PLAN_FIT_MIN_IOU = 0.30`, or there is no slab, floor or
+     calibrated outline, writes `stats.plan_fit = {"reason": …}` and produces no spaces; the page
+     says which;
+   - otherwise applies the same transform to every outline of every floor that has a storey or an
+     elevation, extrudes it from the storey elevation (or the floor's base) to the next storey's
+     elevation (or the floor's height), and hands the solids to `pack_ifc` as spaces with
+     `GlobalId = ifcopenshell.guid.compress(unit_id.hex)`, `name = unit code`, `floor_level` = the
+     floor's level (fixed for IFC spaces too), material `SPACE_COLOUR`, the same extras as an
+     `IfcSpace` node plus `source: "plan"`.
+   Each plan space becomes an `IfcSpaceLink` with `source = plan`, `unit_id` and `floor_id` set,
+   `footprint_m` the placed ring, `areas = {}`, `status = suggested` and `confidence = iou` (the unit
+   is certain by construction; the alignment is what the reviewer confirms). Confirming writes no
+   areas, because a plan space has no IFC quantities; the page says so. `stats.spaces` counts both
+   sources, `stats.spaces_plan` the plan ones.
+5. **Thresholds and budget.** `IFC_PLAN_FIT_MIN_IOU = 0.30` is a start; the first real building with
+   outlines and a zoneless IFC sets it (Revisit). Plan spaces are flat extrusions (two caps and the
+   walls, `massing.extrude`), a few hundred triangles each; the 15 MB raw budget applies to the whole
+   GLB as before, and plan spaces are never dropped (they are the point of the model).
+
+## Options considered
+
+### Option A (chosen): derive the spaces from the approved outlines, in the IFC frame
+Pros: works with today's file, the reviewer's flow and the viewer contract stay the same, the IoU
+fit is the placement code already in the repository, and the resulting transform is most of
+BACKLOG 24 (IFC on the site). Cons: one more frame transform to hold in the head; the fit can be
+wrong on an L-shaped building whose apartments cover one wing only (the IoU and the review step
+catch it).
+
+### Option B: require the re-export (do nothing)
+Pros: no code, the architect's zones carry the names and areas the matcher wants. Cons: the owner
+saw that the first real export had no zones, and many offices never draw them; a project then has
+an IFC model buyers cannot click, with no fallback.
+
+### Option C: show the massing instead of the IFC when the file has no spaces
+Pros: trivial. Cons: throws away the architect's geometry for exactly the case the owner brought;
+the massing is what the IFC was meant to replace.
+
+### Option D: detect rooms from the walls and slabs geometrically
+Pros: no dependency on the plans. Cons: a research task (wall graph closure on exploded skins,
+79 failed elements in the first file), with no unit identity at the end; rejected.
+
+## Trade-off analysis
+
+| | A: plan outlines | B: re-export | C: massing | D: room detection |
+|---|---|---|---|---|
+| Works on the 2026-10-27 file | yes, after the fit | no | no (loses the model) | unknown |
+| Unit identity of a space | certain | from names, matched | n/a | none |
+| Reviewer step | confirm the alignment | confirm names | none | n/a |
+| Areas on confirm | none (plan has none) | yes, if quantities on | n/a | none |
+| Code | fit + pack split, migration 0021 | none | small | large |
+
+## Consequences
+
+**Easier.** A zoneless IFC still gives a clickable 3D building. The uploader learns at once that a
+file is the same one, and the page tells the architect which export switch to flip, in their own
+tool's words. `stats.plan_fit` composed with `site_transform` is the IFC-on-site placement of
+BACKLOG 24.
+
+**Harder.** Three frames on every review of the 3D code: sheet (y down), IFC (y up, metres, offset),
+glTF (Y up, Z = −IFC y). Two sources of space links with different meanings of "confirm" (names
+versus alignment). `read_ifc` callers must know whether they want the parse or the pack step.
+
+**Operations.** Migration 0021 is expand only (two nullable or defaulted columns), compatible with
+the previous release; the heavy worker image is unchanged. No new container, queue or job.
+
+**Revisit.** After the first real building with outlines and a zoneless IFC: `IFC_PLAN_FIT_MIN_IOU`,
+mixing per storey (a partial export with zones on some floors), and whether a confirmed plan space
+should feed back a `site_transform` for the IFC (BACKLOG 24).
+
+**Out of scope here:** rooms inside a unit, IFC on the site (BACKLOG 24), unit areas from plan
+spaces (the documented areas of the drawing already exist, ADR-0006 Phase A), DWG/DXF-derived IFC.
+
+## Action items
+
+### Phase A: diagnostics and duplicates
+- [x] A1 `geometry/ifc.py`: `export_options` from the header, `application` fallback; unit test on the
+      pasted `FILE_DESCRIPTION` of 2026-10-27
+      (`test_ifc_ingest.py::test_header_options_reads_the_archicad_translator_settings`).
+- [x] A2 Migration `0021_ifc_plan_spaces`: `document_revisions.processing_note String(300)`,
+      `ifc_space_links.source String(10) NOT NULL DEFAULT 'ifc'`; models; `RevisionOut.processing_note`,
+      `IfcSpaceLinkOut.source`; OpenAPI regenerated.
+- [x] A3 `documents/jobs.py`: same-checksum note; IFC not re-queued when the building's current ready
+      model came from that checksum; test `test_duplicate_ifc_upload_is_noted_and_not_converted_again`.
+- [x] A4 Admin: the note on the document card (neutral line), the advice lines on the 3D massing page.
+
+### Phase B: spaces from the plan outlines
+- [ ] B1 `geometry/ifc.py`: `parse_ifc` / `pack_ifc` split, `PlanSpace` input, storey slab hulls,
+      `floor_level` from the floor; `read_ifc` unchanged for callers.
+- [ ] B2 `geometry/plan_fit.py`: the fit (shared rotation search with `autopilot/passes/placement.py`,
+      moved there from the pass), the (x, −y) mapping; test with a known rotation and translation
+      recovered within 1° and 0.1 m.
+- [ ] B3 `geometry/ifc_service.py`: load floors, units and boundaries; decide the source; plan
+      spaces → links with `source = plan`; `stats.plan_fit`, `stats.spaces_plan`;
+      `rules.IFC_PLAN_FIT_MIN_IOU`.
+- [ ] B4 Tests: `make_ifc(spaces=False)`; end to end: IFC without spaces plus two calibrated outlines →
+      two `plan` links suggested with the IoU, two space nodes carrying the units' ids, `public_glb`
+      keeps them pickable only when listed; the reason path when no outline is calibrated.
+
+### Phase C: screen and docs
+- [ ] C1 Admin 3D massing page: source chip per row ("from plan" / "IFC"), the fit line (rotation,
+      IoU, fit floor) or the reason, "confirm all plan spaces" button, the areas caveat; guide entry.
+- [ ] C2 README status sentence; BACKLOG rows (#36 updated, new Revisit rows); ADR-0006 Phase C and
+      ADR-0008 #6 pointers; this ADR's status line.

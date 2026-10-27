@@ -3052,6 +3052,11 @@ export interface components {
             areas: {
                 [key: string]: unknown;
             };
+            /**
+             * Source
+             * @default ifc
+             */
+            source?: string;
             /** Unit Code */
             unit_code?: string | null;
             /** Floor Level */
@@ -4517,6 +4522,8 @@ export interface components {
             processing_status: string;
             /** Processing Error */
             processing_error: string | null;
+            /** Processing Note */
+            processing_note?: string | null;
             /**
              * Created At
              * Format: date-time

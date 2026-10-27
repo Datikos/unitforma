@@ -13,6 +13,7 @@ origin; placement on the site is the reviewer's step and is out of scope here.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import struct
 import subprocess
@@ -70,6 +71,28 @@ SKIP_CLASSES = frozenset(
 )
 # dropped first, in this order, when the GLB exceeds the budget
 DROP_ORDER = ("IfcCovering", "IfcRailing", "IfcMember", "other", "IfcPlate", "IfcDoor", "IfcWindow")
+
+
+# translator options the reviewer needs to know about (ADR-0030 Decision 1); the names are the
+# strings Archicad 29 writes into FILE_DESCRIPTION as "Option [Name: Value]"
+EXPORT_OPTION_KEYS = {
+    "elements to export": "elements_to_export",
+    "ifc base quantities": "base_quantities",
+    "material preservation": "material_preservation",
+    "space containment": "space_containment",
+}
+_OPTION_RE = re.compile(r"Option \[([^:\]]+):\s*([^\]]*)\]")
+
+
+def header_options(descriptions: list[str] | tuple[str, ...]) -> dict[str, str]:
+    """``FILE_DESCRIPTION`` strings → the whitelisted translator options, values as written."""
+    out: dict[str, str] = {}
+    for text in descriptions:
+        for name, value in _OPTION_RE.findall(str(text or "")):
+            key = EXPORT_OPTION_KEYS.get(name.strip().lower())
+            if key and key not in out:
+                out[key] = value.strip()
+    return out
 
 
 class IfcError(ValueError):
@@ -242,6 +265,14 @@ def read_ifc(data: bytes, *, deflection: float = 0.03, budget: int = MAX_GLB_BYT
     apps = f.by_type("IfcApplication")
     # the authoring tool, so the reviewer can tell the architect which export setting to change
     application = (getattr(apps[0], "ApplicationFullName", None) or None) if apps else None
+    export_options: dict[str, str] = {}
+    try:
+        header = f.header
+        export_options = header_options(list(header.file_description.description))
+        if not application:
+            application = str(header.file_name.originating_system or "") or None
+    except Exception:  # noqa: BLE001 - a header is optional information
+        export_options = {}
     settings = _settings(ifcopenshell, deflection)
 
     # first pass: tessellate everything we draw, remember raw IFC coordinates
@@ -304,6 +335,7 @@ def read_ifc(data: bytes, *, deflection: float = 0.03, budget: int = MAX_GLB_BYT
         **build_stats,
         "schema": f.schema,
         "application": application,
+        "export_options": export_options,
         "storeys": len(storeys),
         "spaces": len(spaces),
         "elements_failed": failed,

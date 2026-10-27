@@ -304,6 +304,7 @@ class DocumentRevision(TimestampMixin, Base):
     source_note: Mapped[str | None] = mapped_column(Text)
     processing_status: Mapped[str] = mapped_column(String(20), default="pending")
     processing_error: Mapped[str | None] = mapped_column(Text)
+    processing_note: Mapped[str | None] = mapped_column(String(300))  # ADR-0030 Decision 2
     supersedes_revision_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
 
@@ -896,6 +897,7 @@ class IfcSpaceLink(TimestampMixin, Base):
     confidence: Mapped[Decimal | None] = mapped_column(Numeric(3, 2))
     footprint_m: Mapped[dict | None] = mapped_column(JSONB)  # {"ring": [[x, y], ...]} IFC metres
     areas: Mapped[dict] = mapped_column(JSONB, default=dict)  # net_floor_area, gross_floor_area
+    source: Mapped[str] = mapped_column(String(10), default="ifc")  # ifc | plan (ADR-0030)
 
 
 class SetupRun(Base):

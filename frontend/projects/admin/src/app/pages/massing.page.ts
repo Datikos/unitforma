@@ -160,16 +160,32 @@ interface MassingStats {
               <span>
                 The export holds no spaces (IfcSpace), so there is nothing to link to units; the
                 building still shows as a model. @if (im.stats['application']) {{{ im.stats['application'] }} wrote it.}
-                @if (isArchicad(im)) {
-                  Archicad writes a zone as IfcSpace only when zones are inside the exported scope
-                  (the zone layers visible, or "Entire project", and element type Zone kept in the
-                  IFC translator's Model Filter). Ask the architect to re-export with zones and
-                  upload the file as a new revision of the same document.
-                } @else {
-                  Ask the architect to export rooms or zones as IfcSpace and upload the file as a
-                  new revision of the same document.
+                @if (exportAdvice(im).length === 0) {
+                  @if (isArchicad(im)) {
+                    Archicad writes a zone as IfcSpace only when zones are inside the exported scope
+                    (the zone layers visible, or "Entire project", and element type Zone kept in the
+                    IFC translator's Model Filter). Ask the architect to re-export with zones and
+                    upload the file as a new revision of the same document.
+                  } @else {
+                    Ask the architect to export rooms or zones as IfcSpace and upload the file as a
+                    new revision of the same document.
+                  }
                 }
               </span>
+            </div>
+          }
+          @if (im.status === 'ready' && exportAdvice(im).length) {
+            <div class="uf-alert uf-alert--warning">
+              <ng-icon name="lucideSettings" />
+              <div>
+                <strong>Export settings read from the file</strong> (ADR-0030): what to ask the
+                architect to change before the next revision.
+                <ul class="uf-advice">
+                  @for (a of exportAdvice(im); track a.key) {
+                    <li><code>{{ a.name }}: {{ a.value }}</code> — {{ a.advice }}</li>
+                  }
+                </ul>
+              </div>
             </div>
           }
         }
@@ -221,6 +237,8 @@ interface MassingStats {
   styles: `
     .ifc { margin-top: 1.25rem; display: grid; gap: 0.5rem; }
     .ifc h3 { margin: 0; font-size: 1.05rem; display: flex; align-items: center; gap: 0.35rem; }
+    .uf-advice { margin: 6px 0 0; padding-left: 18px; }
+    .uf-advice li { margin: 2px 0; }
     .plain { border-collapse: collapse; width: 100%; }
     .plain th, .plain td { padding: 0.25rem 0.5rem; text-align: left; border-bottom: 1px solid var(--uf-border); vertical-align: middle; }
     .plain tr.sel td { background: var(--uf-surface); }
@@ -337,6 +355,45 @@ export class MassingPage {
 
   count(m: BuildingModelOut, key: string): number {
     return m.links?.[key] ?? 0;
+  }
+
+  /**
+   * ADR-0030 Decision 1: one line per translator option that limits what the model can do. The
+   * option names are what Archicad 29 writes; other tools produce no lines.
+   */
+  exportAdvice(m: BuildingModelOut): { key: string; name: string; value: string; advice: string }[] {
+    const opts = (m.stats['export_options'] ?? {}) as Record<string, string>;
+    const out: { key: string; name: string; value: string; advice: string }[] = [];
+    const spaces = Number(m.stats['spaces'] ?? 0);
+    const v = (k: string) => (opts[k] ?? '').toLowerCase();
+    if (spaces === 0 && v('elements_to_export').startsWith('visible')) {
+      out.push({
+        key: 'elements_to_export',
+        name: 'Elements to export',
+        value: opts['elements_to_export'],
+        advice:
+          'zones on a hidden layer are not exported; ask for "Entire project", or for the zone layers visible in the exported view, with element type Zone kept in the Model Filter.',
+      });
+    }
+    if (v('base_quantities') === 'off') {
+      out.push({
+        key: 'base_quantities',
+        name: 'IFC Base Quantities',
+        value: opts['base_quantities'],
+        advice:
+          'no floor areas in the file, so confirming a space copies nothing onto the unit; ask for On.',
+      });
+    }
+    if (v('material_preservation').startsWith('explode')) {
+      out.push({
+        key: 'material_preservation',
+        name: 'Material Preservation',
+        value: opts['material_preservation'],
+        advice:
+          'every composite wall and slab arrives as separate skins; the model is larger than it needs to be and the skins are the first class dropped to fit 15 MB; ask for Off.',
+      });
+    }
+    return out;
   }
 
   isArchicad(m: BuildingModelOut): boolean {

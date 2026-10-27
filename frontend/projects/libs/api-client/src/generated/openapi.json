@@ -10938,6 +10938,11 @@
       "type": "object",
       "title": "Areas"
      },
+     "source": {
+      "type": "string",
+      "title": "Source",
+      "default": "ifc"
+     },
      "unit_code": {
       "anyOf": [
        {
@@ -15181,6 +15186,17 @@
        }
       ],
       "title": "Processing Error"
+     },
+     "processing_note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Processing Note"
      },
      "created_at": {
       "type": "string",

@@ -16,7 +16,14 @@ from unitforma.documents import assignments, cad_dxf, classify, levels, processi
 from unitforma.documents import service as documents_service
 from unitforma.mapping.jobs import propose_revision_diff
 from unitforma.storage.service import get_storage
-from unitforma.tenants.models import Building, Document, DocumentRevision, Floor, Sheet
+from unitforma.tenants.models import (
+    Building,
+    Document,
+    DocumentRevision,
+    Floor,
+    GeometryModel,
+    Sheet,
+)
 
 log = structlog.get_logger()
 
@@ -28,6 +35,55 @@ async def _fix_model_kind(db: AsyncSession, document_id: uuid.UUID, kind: str) -
     if doc.kind_source != "manual" and (doc.kind, doc.kind_source) != (kind, "type"):
         doc.kind, doc.kind_source = kind, "type"
         log.info("documents.classified", document_id=str(doc.id), kind=kind, by="type")
+
+
+async def _same_file_before(db: AsyncSession, rev: DocumentRevision) -> tuple[str, int] | None:
+    """(document title, revision no) of an earlier processed revision in the same project with
+    this revision's checksum (ADR-0030 Decision 2); ``None`` when the file is new."""
+    if not rev.sha256:
+        return None
+    project_id = (
+        await db.execute(select(Document.project_id).where(Document.id == rev.document_id))
+    ).scalar_one()
+    row = (
+        await db.execute(
+            select(Document.title, DocumentRevision.revision_no)
+            .join(Document, Document.id == DocumentRevision.document_id)
+            .where(
+                Document.project_id == project_id,
+                DocumentRevision.sha256 == rev.sha256,
+                DocumentRevision.processing_status == "done",
+                DocumentRevision.id != rev.id,
+            )
+            .order_by(DocumentRevision.created_at)
+            .limit(1)
+        )
+    ).first()
+    return (row[0], row[1]) if row else None
+
+
+async def _model_from_checksum(db: AsyncSession, rev: DocumentRevision) -> bool:
+    """Whether the document's building already has a ready current IFC model built from a
+    revision with this checksum; then the heavy conversion would only repeat itself."""
+    building_id = (
+        await db.execute(select(Document.building_id).where(Document.id == rev.document_id))
+    ).scalar_one()
+    if building_id is None:
+        return False
+    return (
+        await db.execute(
+            select(GeometryModel.id)
+            .join(DocumentRevision, DocumentRevision.id == GeometryModel.revision_id)
+            .where(
+                GeometryModel.building_id == building_id,
+                GeometryModel.kind == "ifc",
+                GeometryModel.is_current.is_(True),
+                GeometryModel.status == "ready",
+                DocumentRevision.sha256 == rev.sha256,
+            )
+            .limit(1)
+        )
+    ).first() is not None
 
 
 async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict:
@@ -64,8 +120,16 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
         if fixed := classify.kind_from_type(None, info.mime):
             # the content says model: the kind is fixed by the type, whatever the name said
             await _fix_model_kind(db, rev.document_id, fixed)
+        twin = await _same_file_before(db, rev)
+        if twin is not None:
+            rev.processing_note = f"Same file as {twin[0]} rev {twin[1]}"[:300]
         if info.mime == "application/x-step":
             # an IFC model has no pages: the heavy worker converts it (ADR-0006 Phase C)
+            if twin is not None and await _model_from_checksum(db, rev):
+                # ADR-0030 Decision 2: the building already shows this very file
+                rev.processing_status = "done"
+                rev.page_count = 0
+                return {"ifc": True, "status": "done", "duplicate": True}
             rev.processing_status = "queued"
             try:
                 from unitforma.jobs.app import app as jobs

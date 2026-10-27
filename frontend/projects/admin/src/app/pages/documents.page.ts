@@ -233,6 +233,9 @@ const SOURCE_LABELS: Record<string, string> = {
               <ng-icon name="lucideCircleX" />{{ d.current_revision?.processing_error }}
             </div>
           }
+          @if (d.current_revision?.processing_note; as note) {
+            <p class="uf-hint"><ng-icon name="lucideCopy" /> {{ note }}</p>
+          }
           <div class="uf-actions">
             @if (isModelKind(d.kind)) {
               <span
