@@ -239,16 +239,24 @@ async def current_publication(db: AsyncSession, project_id: uuid.UUID) -> Public
 
 
 async def publish(
-    db: AsyncSession, project: Project, *, mode: str, actor: Actor
+    db: AsyncSession,
+    project: Project,
+    *,
+    mode: str,
+    actor: Actor,
+    allow_no_units: bool = False,
 ) -> tuple[Publication, str | None]:
     """Build a snapshot; ``publish`` retires the live one in the same transaction (atomic
-    switch), ``preview`` returns a signed 1 h token instead."""
+    switch), ``preview`` returns a signed 1 h token instead. ``allow_no_units`` (ADR-0029
+    Decision 1, "publish with defaults") waives the one blocking item: the portal then shows
+    the project, its buildings, gallery and model with an empty chooser until units exist."""
     check = await readiness(db, project)
-    if not check["ok"]:
+    errors = [i for i in check["items"] if i["level"] == "error"]
+    if allow_no_units:
+        errors = [i for i in errors if i["key"] != "units"]
+    if errors:
         raise ProblemError(
-            422,
-            "Project is not ready to publish",
-            "; ".join(i["message"] for i in check["items"] if i["level"] == "error"),
+            422, "Project is not ready to publish", "; ".join(i["message"] for i in errors)
         )
     if mode == "publish":
         # serialise concurrent publishes of one project

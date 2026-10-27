@@ -794,6 +794,35 @@ def test_publish_with_defaults_makes_the_first_version_live(client, world):
     assert [x["version_no"] for x in pubs if x["status"] == "published"] == [2]
 
 
+def test_publish_with_defaults_goes_live_even_without_units(client, world):
+    """A set without apartment labels outlines nothing (the Jan Homeri set, 2026-10-27): the
+    portal still goes live with the project, and the run says how the units come."""
+    base, adm, tid = world["base"], world["adm"], world["tenant"]["id"]
+    p, _b = _intake(client, base, adm, "defaults-empty", {"enabled": True})
+    _upload(client, base, adm, p["id"], "render", "View", _png(), tid, png=True)
+    queued = next(r for r in _runs(client, base, adm, p["id"]) if r["status"] == "queued")
+    _run(client, tid, queued["id"])
+    r = client.post(f"{base}/projects/{p['id']}/setup/publish-defaults", headers=adm)
+    assert r.status_code == 202, r.text
+    counts = _run(client, tid, r.json()["id"])
+    assert counts["errors"] == 0, counts
+    pubs = client.get(f"{base}/projects/{p['id']}/publications", headers=adm).json()
+    assert [x["version_no"] for x in pubs] == [1]
+    setup = _setup(client, base, adm, p["id"])
+    steps = {s["key"]: s for s in setup["steps"]}
+    assert steps["publish"]["status"] == "done"
+    assert steps["mapping"]["detail"].startswith("No units yet")
+    titles = [d["title"] for d in setup["decisions"]]
+    assert "Published v1 without units" in titles
+    left = next(d for d in setup["decisions"] if d["title"] == "No units in the portal yet")
+    assert left["needs_you"] and left["todo"].startswith("No units yet")
+    # a person's own publish keeps the gate
+    r = client.post(
+        f"{base}/projects/{p['id']}/publications", headers=adm, json={"mode": "publish"}
+    )
+    assert r.status_code == 422, r.text
+
+
 def test_the_intake_switch_publishes_the_first_version_once(client, world):
     """ADR-0029 Decision 2: with the intake switch on, the first settled run ends live; later runs
     leave publishing to the person."""

@@ -142,6 +142,18 @@ async def _describe(ctx: Context) -> None:
         )
 
 
+async def _unit_counts(db, project_id) -> tuple[int, int]:
+    n_units, n_active = (
+        await db.execute(
+            select(
+                func.count(),
+                func.count().filter(Unit.lifecycle_status == "active"),
+            ).where(Unit.project_id == project_id, Unit.lifecycle_status != "removed")
+        )
+    ).one()
+    return int(n_units), int(n_active)
+
+
 async def _mark_and_publish(ctx: Context) -> None:
     async with session(ctx) as db:
         project = (
@@ -164,17 +176,12 @@ async def _mark_and_publish(ctx: Context) -> None:
         project = (
             await db.execute(select(Project).where(Project.id == ctx.project_id))
         ).scalar_one()
+        n_units, n_active = await _unit_counts(db, project.id)
         try:
-            pub, _token = await publishing.publish(db, project, mode="publish", actor=ctx.actor)
+            pub, _token = await publishing.publish(
+                db, project, mode="publish", actor=ctx.actor, allow_no_units=True
+            )
         except ProblemError as e:
-            n_units, n_active = (
-                await db.execute(
-                    select(
-                        func.count(),
-                        func.count().filter(Unit.lifecycle_status == "active"),
-                    ).where(Unit.project_id == project.id, Unit.lifecycle_status != "removed")
-                )
-            ).one()
             ctx.decide(
                 STEP,
                 "skipped",
@@ -192,14 +199,38 @@ async def _mark_and_publish(ctx: Context) -> None:
             return
         base = await publishing.portal_base_url(db, project)
         summary: dict[str, Any] = pub.summary or {}
-        ctx.decide(
-            STEP,
-            "accepted",
-            f"Published v{pub.version_no}",
-            f"{base or 'The portal'} shows version {pub.version_no} with "
-            f"{summary.get('units', summary.get('listed', '')) or ''} unit(s); adjust and publish "
-            "again when you are done",
-            confidence=rules.DEFAULTS_PUBLISH_CONFIDENCE,
-            entity_type="publication",
-            entity_id=pub.id,
-        )
+        if n_active:
+            ctx.decide(
+                STEP,
+                "accepted",
+                f"Published v{pub.version_no}",
+                f"{base or 'The portal'} shows version {pub.version_no} with "
+                f"{summary.get('units', summary.get('listed', '')) or n_active} unit(s); adjust "
+                "and publish again when you are done",
+                confidence=rules.DEFAULTS_PUBLISH_CONFIDENCE,
+                entity_type="publication",
+                entity_id=pub.id,
+            )
+        else:
+            ctx.decide(
+                STEP,
+                "accepted",
+                f"Published v{pub.version_no} without units",
+                f"{base or 'The portal'} shows the project, its buildings, gallery and model with "
+                "an empty chooser; the units follow once they are outlined and you publish again",
+                confidence=rules.DEFAULTS_PUBLISH_CONFIDENCE,
+                entity_type="publication",
+                entity_id=pub.id,
+            )
+            ctx.decide(
+                STEP,
+                "skipped",
+                "No units in the portal yet",
+                "Nothing was outlined, so the chooser is empty",
+                needs_you=True,
+                entity_type="project",
+                entity_id=project.id,
+                todo=setup_checklist.units_todo(n_units, n_active)
+                + "; then press Publish with defaults again",
+                link="documents",
+            )

@@ -166,8 +166,8 @@ const POLL_MS = 5000;
                 <div class="step__auto"><ng-icon name="lucideSparkles" /> {{ st.auto_detail }}</div>
               }
             </div>
-            <a mat-stroked-button [routerLink]="screen(st).path" class="step__open">
-              Open {{ screen(st).label }}
+            <a mat-stroked-button [routerLink]="stepLink(st).path" class="step__open">
+              {{ stepLink(st).label }}
             </a>
           </li>
         }
@@ -506,6 +506,18 @@ export class SetupPage implements OnDestroy {
 
   screen(st: SetupStepOut): { label: string; path: string[] } {
     return SCREEN[st.link] ?? SCREEN['overview'];
+  }
+
+  /** ADR-0029 Decision 5: a step with a page that needs you opens that page, not the list. */
+  stepLink(st: SetupStepOut): { label: string; path: string[] } {
+    const mine = (step: string) =>
+      step === st.key || (st.key === 'mapping' && ['calibration', 'sheet_floors'].includes(step));
+    const d = (this.setup()?.decisions ?? []).find(
+      (x) => x.needs_you && x.sheet_id && mine(x.step),
+    );
+    if (d?.sheet_id) return { label: this.openLabel(d), path: ['..', 'sheets', d.sheet_id] };
+    const s = this.screen(st);
+    return { label: `Open ${s.label}`, path: s.path };
   }
 
   linkOf(d: SetupDecisionOut): string[] {

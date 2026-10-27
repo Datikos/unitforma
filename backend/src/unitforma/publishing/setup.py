@@ -144,7 +144,13 @@ async def setup_status(db: AsyncSession, project: Project) -> dict[str, Any]:
     if sheet is not None and calibrated:
         site_status, site_detail = "done", "Site plan chosen and calibrated"
     elif sheet is not None:
-        site_status, site_detail = "attention", "Site plan chosen but not calibrated: set its scale"
+        site_status, site_detail = (
+            "attention",
+            (
+                "Site plan chosen but not calibrated: on Site placement set two points on a known "
+                "distance (a dimension or a plot side)"
+            ),
+        )
     elif site_docs:
         site_status = "attention"
         site_detail = (
@@ -208,6 +214,7 @@ async def setup_status(db: AsyncSession, project: Project) -> dict[str, Any]:
         )
     )
 
+    render_docs = sum(1 for d, _ in docs if d.kind == "render")
     public_renders = sum(1 for d, _ in docs if d.kind == "render" and d.visibility == "public")
     steps.append(
         _step(
@@ -216,7 +223,12 @@ async def setup_status(db: AsyncSession, project: Project) -> dict[str, Any]:
             "done" if "gallery" not in items else "todo",
             f"{public_renders} public render document(s)"
             if public_renders
-            else _msg(items.get("gallery")) or "Mark a render document public under Documents",
+            else (
+                "No render documents: upload the renders (images or a PDF) under Documents; the "
+                "solver makes them public"
+                if not render_docs
+                else _msg(items.get("gallery")) or "Mark a render document public under Documents"
+            ),
             "documents",
             public_renders,
         )

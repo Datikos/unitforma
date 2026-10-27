@@ -57,6 +57,12 @@ when every printed label is outlined, and never publishes. What the code does to
    "publish")`). Prices are not touched (ADR-0025 Decision 9: "price on request"). Each step is a
    decision with its confidence; the publication is `accepted` with the version and the portal
    address, or `skipped` "needs you" with the blocking messages when readiness refuses.
+   *Found on 2026-10-27, the owner's first try:* on a set whose pages carry no apartment labels the
+   solver outlines nothing, the readiness item "No units are marked for publication" blocked the
+   action and the owner saw "still same". "Publish with defaults" now waives that one item
+   (`publishing.publish(allow_no_units=True)`): the portal goes live with the project, its
+   buildings, gallery and model and an empty chooser, the decision says "Published v1 without
+   units" and a "needs you" line says how the units come; a person's own publish keeps the gate.
 2. **Two doors, one right set.** `POST /projects/{id}/setup/publish-defaults` (202, the run) is the
    checklist's button, usable any time (it publishes a new version). The project switch
    `setup_auto.publish_defaults` (ADR-0025 Decision 2's JSONB, no migration) is the intake form's
