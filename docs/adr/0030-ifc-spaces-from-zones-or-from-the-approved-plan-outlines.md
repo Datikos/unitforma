@@ -109,6 +109,31 @@ sometimes; you should support both". What happened that day, with the numbers:
    is certain by construction; the alignment is what the reviewer confirms). Confirming writes no
    areas, because a plan space has no IFC quantities; the page says so. `stats.spaces` counts both
    sources, `stats.spaces_plan` the plan ones.
+   **Amended 2026-10-27, after the first real file** (the Archicad export of a three-block
+   complex; blocks B, C and D are separate buildings in the platform, 88 outlines on levels −1 to
+   3; composite slabs exploded into parts):
+   - storey elevations are multiplied by the file's length unit scale
+     (`ifcopenshell.util.unit.calculate_unit_scale`); the export said millimetres and no storey
+     had matched a floor;
+   - the storey target is the union of its slab footprints, or their convex hull when the union is
+     under half of the hull's area (exploded composites leave balconies and landings as `IfcSlab`:
+     203 m² of slab union under a 1,937 m² hull on the ground storey; the basement slab was whole,
+     1,466 m² under 1,866 m²); the model's bounds remain the last resort;
+   - the fit runs in two scopes, the filed building's outlines alone and the outlines of every
+     building of the project on the same floor levels (blocks mapped on one sheet share the
+     frame), and the scope with the higher mean IoU wins; spaces are built for the filed building
+     only. One block alone fitted at IoU 0.07–0.12 (a 300 m² row inside a 1,937 m² envelope has
+     no anchor); the project union fitted at 0.30–0.32 with 0.85–1.0 of every level inside;
+   - one transform is scored jointly over every level with outlines and a storey
+     (`plan_fit.joint_fit`: candidates from the fit level, winner by the summed IoU), which broke
+     the 180° ambiguity of the long rectangular complex (355° and 176° scored alike on one level);
+   - for the XY target a storey within 1.6 m of the floor's elevation also serves when none is
+     within 0.3 m (blocks C and D sit at +1.0 m and +2.0 m against the complex's storeys);
+     the heights of the spaces still come from the strict match or the floor;
+   - acceptance: mean IoU ≥ 0.30, or ≥ 0.20 with every level at least 85 % inside a slab or hull
+     target (never the bounds, inside which anything covers fully).
+   `stats.plan_fit` carries `scope`, `per_level` (IoU and coverage), `min_coverage`, `face`
+   (`slabs | hull | bounds`) and the fit level's storey.
 5. **Thresholds and budget.** `IFC_PLAN_FIT_MIN_IOU = 0.30` is a start; the first real building with
    outlines and a zoneless IFC sets it (Revisit). Plan spaces are flat extrusions (two caps and the
    walls, `massing.extrude`), a few hundred triangles each; the 15 MB raw budget applies to the whole
@@ -160,9 +185,12 @@ versus alignment). `read_ifc` callers must know whether they want the parse or t
 **Operations.** Migration 0021 is expand only (two nullable or defaulted columns), compatible with
 the previous release; the heavy worker image is unchanged. No new container, queue or job.
 
-**Revisit.** After the first real building with outlines and a zoneless IFC: `IFC_PLAN_FIT_MIN_IOU`,
-mixing per storey (a partial export with zones on some floors), and whether a confirmed plan space
-should feed back a `site_transform` for the IFC (BACKLOG 24).
+**Revisit.** After the first real building with outlines and a zoneless IFC: `IFC_PLAN_FIT_MIN_IOU`
+(the real file passed at 0.30–0.32, a thin margin; the candidates 349° and 355° differed by 6° and
+8 m, so the reviewer's 3D check is part of the flow), mixing per storey (a partial export with zones
+on some floors), a project-level IFC (one file covering several blocks is filed once per block
+today, three conversions of the same 63 MB), and whether a confirmed plan space should feed back a
+`site_transform` for the IFC (BACKLOG 24).
 
 **Out of scope here:** rooms inside a unit, IFC on the site (BACKLOG 24), unit areas from plan
 spaces (the documented areas of the drawing already exist, ADR-0006 Phase A), DWG/DXF-derived IFC.
@@ -198,6 +226,14 @@ spaces (the documented areas of the drawing already exist, ADR-0006 Phase A), DW
       `geometry/plan_spaces.py`; `confirm_plan_links` and
       `POST /buildings/{id}/ifc-links/confirm-plan` confirm every suggested plan space with one
       relink, since one `decide` per space rewrites the GLB each time (ADR-0006 E3).
+- [x] B5 (amendment, 2026-10-27) `parse_ifc` unit scale and slab footprint rings per storey;
+      `plan_spaces.storey_target`, two scopes, loose storey for the target, acceptance rule;
+      `plan_fit.joint_fit`; `_plan_inputs` loads the project's outlines with building and level.
+      Tests: `test_parse_ifc_scales_storey_elevations_by_the_file_unit` (millimetre fixture),
+      `test_plan_spaces_fit_the_project_when_the_block_alone_does_not`,
+      `test_plan_spaces_use_the_hull_when_the_slabs_are_exploded`. Measured on the real file in the
+      heavy worker (2026-10-27): B 31 spaces, C 36, D 21, scope project, rotation 349–352°, mean IoU
+      0.30–0.31, every level 85–100 % inside.
 - [x] B4 Tests: `make_ifc(spaces=False)`; end to end: IFC without spaces plus two calibrated outlines →
       two `plan` links suggested with the IoU, two space nodes carrying the units' ids, `public_glb`
       keeps them pickable only when listed; the reason path when no outline is calibrated.

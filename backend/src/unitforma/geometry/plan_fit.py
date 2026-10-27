@@ -81,3 +81,60 @@ def best_rotation(
 
 def polygon(ring: list[Point]) -> Polygon:
     return Polygon(ring).buffer(0)
+
+
+def joint_fit(
+    feet: dict[Any, BaseGeometry],
+    faces: dict[Any, BaseGeometry],
+    fit_key: Any,
+    *,
+    coarse: float = COARSE_STEP_DEG,
+    fine: float = FINE_STEP_DEG,
+) -> dict[str, Any]:
+    """One transform for several levels (ADR-0030 Decision 4, amended 2026-10-27).
+
+    Candidates are the rotations of the ``fit_key`` level with their centroid translations; the
+    winner has the highest IoU summed over every level present in both ``feet`` and ``faces``,
+    which breaks the 180° ambiguity of a near-rectangular building that a single level leaves.
+    Returns ``rotation_deg, tx, ty, iou`` (the fit level's), ``mean_iou``, ``min_coverage`` and
+    ``per_level`` = {level: {"iou", "coverage"}}.
+    """
+    foot0, face0 = feet[fit_key], faces[fit_key]
+    levels = [k for k in feet if k in faces]
+
+    def total(angle: float, tx: float, ty: float) -> tuple[float, dict[Any, dict[str, float]]]:
+        per: dict[Any, dict[str, float]] = {}
+        tot = 0.0
+        for k in levels:
+            moved = placed(feet[k], angle, tx, ty)
+            inter = moved.intersection(faces[k]).area
+            union = moved.union(faces[k]).area
+            iou = inter / union if union > 0 else 0.0
+            cov = inter / feet[k].area if feet[k].area > 0 else 0.0
+            per[k] = {"iou": round(iou, 3), "coverage": round(cov, 3)}
+            tot += iou
+        return tot, per
+
+    best: tuple[float, float, float, float, dict[Any, dict[str, float]]] | None = None
+    for a in angles(0.0, 360.0, coarse):
+        _iou, tx, ty = fit_at(foot0, face0, a)
+        tot, per = total(a, tx, ty)
+        if best is None or tot > best[0]:
+            best = (tot, a, tx, ty, per)
+    assert best is not None
+    _tot, ang, _tx, _ty, _per = best
+    for f in angles(ang - coarse, ang + coarse, fine):
+        _iou, tx, ty = fit_at(foot0, face0, f)
+        tot, per = total(f, tx, ty)
+        if tot > best[0]:
+            best = (tot, f, tx, ty, per)
+    tot, ang, tx, ty, per = best
+    return {
+        "rotation_deg": ang % 360.0,
+        "tx": tx,
+        "ty": ty,
+        "iou": per[fit_key]["iou"],
+        "mean_iou": tot / len(levels) if levels else 0.0,
+        "min_coverage": min((v["coverage"] for v in per.values()), default=0.0),
+        "per_level": per,
+    }

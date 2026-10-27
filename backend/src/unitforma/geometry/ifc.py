@@ -139,8 +139,9 @@ class ParsedIfc:
     class_geo: dict[str, list[Geometry]]
     offset: tuple[float, float, float]
     elements_failed: int
-    storey_slab_xy: dict[str, list[tuple[float, float]]]  # storey GlobalId → slab vertices (XY)
+    storey_slabs: dict[str, list[list[list[float]]]]  # storey GlobalId → slab footprint rings
     bounds: tuple[float, float, float, float]  # minx, miny, maxx, maxy of everything drawn
+    unit_scale: float = 1.0  # file length unit → metres (attributes such as Elevation are raw)
 
     def bounds_ring(self) -> list[tuple[float, float]]:
         x0, y0, x1, y1 = self.bounds
@@ -275,6 +276,14 @@ def parse_ifc(data: bytes, *, deflection: float = 0.03) -> ParsedIfc:
         f = ifcopenshell.file.from_string(text)
     except Exception as e:  # noqa: BLE001
         raise IfcError(f"IFC could not be read: {e}"[:300]) from e
+    # geometry comes back in metres from the tessellator; attributes such as Elevation are in
+    # the file's own length unit (an Archicad export says millimetres: -3000, 3200, ...)
+    try:
+        from ifcopenshell.util import unit as ifc_unit
+
+        unit_scale = float(ifc_unit.calculate_unit_scale(f)) or 1.0
+    except Exception:  # noqa: BLE001 - no unit assignment: assume metres (ADR-0006 E7)
+        unit_scale = 1.0
     storeys_raw = sorted(
         f.by_type("IfcBuildingStorey"),
         key=lambda s: (s.Elevation is None, float(s.Elevation or 0.0)),
@@ -283,7 +292,9 @@ def parse_ifc(data: bytes, *, deflection: float = 0.03) -> ParsedIfc:
         Storey(
             global_id=s.GlobalId,
             name=s.Name or f"Storey {i + 1}",
-            elevation_m=float(s.Elevation) if s.Elevation is not None else None,
+            elevation_m=(
+                round(float(s.Elevation) * unit_scale, 3) if s.Elevation is not None else None
+            ),
             index=i,
         )
         for i, s in enumerate(storeys_raw)
@@ -307,7 +318,7 @@ def parse_ifc(data: bytes, *, deflection: float = 0.03) -> ParsedIfc:
     # first pass: tessellate everything we draw, remember raw IFC coordinates
     space_products: list[tuple[Any, list[float], list[int]]] = []
     class_geo: dict[str, list[Geometry]] = {}
-    storey_slab_xy: dict[str, list[tuple[float, float]]] = {}
+    storey_slabs: dict[str, list[list[list[float]]]] = {}
     failed = 0
     mins = [float("inf")] * 3
     maxs = [float("-inf")] * 3
@@ -335,10 +346,9 @@ def parse_ifc(data: bytes, *, deflection: float = 0.03) -> ParsedIfc:
             if cls == "IfcSlab":
                 # the storey's footprint for the plan fit (ADR-0030 Decision 4)
                 st = _storey_of(ifcopenshell, product)
-                if st is not None:
-                    storey_slab_xy.setdefault(st.GlobalId, []).extend(
-                        zip(verts[0::3], verts[1::3], strict=True)
-                    )
+                ring = _footprint(verts, faces) if st is not None else None
+                if st is not None and ring:
+                    storey_slabs.setdefault(st.GlobalId, []).append(ring)
     if not space_products and not class_geo:
         raise IfcError("The IFC file holds no geometry to draw")
     offset = tuple(0.0 if m == float("inf") else m for m in mins)
@@ -376,22 +386,10 @@ def parse_ifc(data: bytes, *, deflection: float = 0.03) -> ParsedIfc:
         class_geo=class_geo,
         offset=offset,  # type: ignore[arg-type]
         elements_failed=failed,
-        storey_slab_xy=storey_slab_xy,
+        storey_slabs=storey_slabs,
         bounds=bounds,
+        unit_scale=unit_scale,
     )
-
-
-def storey_footprint(parsed: ParsedIfc, storey_gid: str) -> list[tuple[float, float]] | None:
-    """XY convex hull of the storey's slabs in IFC metres; ``None`` when it has none."""
-    from shapely.geometry import MultiPoint
-
-    pts = parsed.storey_slab_xy.get(storey_gid)
-    if not pts or len(pts) < 3:
-        return None
-    hull = MultiPoint(pts).convex_hull
-    if hull.geom_type != "Polygon":
-        return None
-    return [(float(x), float(y)) for x, y in list(hull.exterior.coords)[:-1]]
 
 
 def prism(ring: list[tuple[float, float]], z0: float, z1: float) -> Geometry:

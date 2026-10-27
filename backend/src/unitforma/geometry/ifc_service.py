@@ -72,7 +72,9 @@ async def ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str, 
             # building, placed in the IFC frame
             async with tenant_session(tenant_id, scope="tenant") as db:
                 plan_floors, outlines = await _plan_inputs(db, project_id, building_id)
-            extra, plan_fit = plan_spaces.build(parsed, plan_floors, outlines)
+            extra, plan_fit = plan_spaces.build(
+                parsed, plan_floors, outlines, building_id=building_id
+            )
         model_in = ifc.pack_ifc(parsed, extra_spaces=extra)
         if plan_fit is not None:
             model_in = replace(model_in, stats={**model_in.stats, "plan_fit": plan_fit})
@@ -232,11 +234,20 @@ def _f(v: Any) -> float | None:
 async def _plan_inputs(
     db: AsyncSession, project_id: uuid.UUID, building_id: uuid.UUID
 ) -> tuple[list[plan_spaces.PlanFloor], list[plan_spaces.Outline]]:
-    """The building's floors with stacked elevations and one current calibrated outline per
-    non-removed unit (ADR-0030 Decision 4 inputs)."""
-    floors = list(
-        (await db.execute(select(Floor).where(Floor.building_id == building_id))).scalars()
+    """The building's floors with stacked elevations, and one current calibrated outline per
+    non-removed unit of every building of the project (the other buildings' outlines carry
+    their building and floor level, for the project-scope fit; ADR-0030 Decision 4 inputs)."""
+    all_floors = list(
+        (
+            await db.execute(
+                select(Floor)
+                .join(Building, Building.id == Floor.building_id)
+                .where(Building.project_id == project_id)
+            )
+        ).scalars()
     )
+    floors = [f for f in all_floors if f.building_id == building_id]
+    level_of = {f.id: f.level for f in all_floors}
     elev = floor_elevations(floors)
     plan_floors = [
         plan_spaces.PlanFloor(
@@ -253,7 +264,6 @@ async def _plan_inputs(
         .join(UnitBoundary, UnitBoundary.unit_id == Unit.id)
         .where(
             Unit.project_id == project_id,
-            Unit.building_id == building_id,
             Unit.lifecycle_status != "removed",
             UnitBoundary.is_current.is_(True),
         )
@@ -266,7 +276,16 @@ async def _plan_inputs(
         if unit.id in seen or not ring or unit.floor_id is None:
             continue
         seen.add(unit.id)
-        outlines.append(plan_spaces.Outline(unit.id, unit.code, unit.floor_id, ring))
+        outlines.append(
+            plan_spaces.Outline(
+                unit.id,
+                unit.code,
+                unit.floor_id,
+                ring,
+                building_id=unit.building_id,
+                level=level_of.get(unit.floor_id),
+            )
+        )
     return plan_floors, outlines
 
 

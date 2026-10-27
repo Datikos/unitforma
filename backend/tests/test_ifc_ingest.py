@@ -16,11 +16,11 @@ from tests.fake_kratos import FakeKratos, cookie
 
 ifcopenshell = pytest.importorskip("ifcopenshell", reason="IFC extra not installed")
 
-from unitforma.geometry import ifc  # noqa: E402
+from unitforma.geometry import ifc, plan_spaces  # noqa: E402
 from unitforma.geometry.massing import parse_glb  # noqa: E402
 
 
-def make_ifc(*, long_names: bool = True, spaces: bool = True) -> bytes:
+def make_ifc(*, long_names: bool = True, spaces: bool = True, millimetres: bool = False) -> bytes:
     """IFC4: building A, storeys at 0.00 and 3.20, spaces 1 and 2 on the ground floor and 3 above,
     one wall and one slab; space 1 carries base quantities. ``spaces=False`` is the zoneless
     export of ADR-0030: storeys, wall and slab only."""
@@ -30,8 +30,14 @@ def make_ifc(*, long_names: bool = True, spaces: bool = True) -> bytes:
 
     f = ifcopenshell.api.run("project.create_file", version="IFC4")
     proj = ifcopenshell.api.run("root.create_entity", f, ifc_class="IfcProject", name="Test")
-    # metres, like the exports we expect (the api default is millimetres)
-    ifcopenshell.api.run("unit.assign_unit", f, length={"is_metric": True, "raw": "METERS"})
+    # metres, like the exports we expect (the api default is millimetres); ``millimetres`` is
+    # the Archicad export of 2026-10-27, whose Elevation attributes read 3200 for 3.2 m
+    k = 1000.0 if millimetres else 1.0
+    ifcopenshell.api.run(
+        "unit.assign_unit",
+        f,
+        length={"is_metric": True, "raw": "MILLIMETERS" if millimetres else "METERS"},
+    )
     ctx = ifcopenshell.api.run("context.add_context", f, context_type="Model")
     body = ifcopenshell.api.run(
         "context.add_context",
@@ -46,11 +52,11 @@ def make_ifc(*, long_names: bool = True, spaces: bool = True) -> bytes:
     st0 = ifcopenshell.api.run(
         "root.create_entity", f, ifc_class="IfcBuildingStorey", name="Ground"
     )
-    st0.Elevation = 0.0
+    st0.Elevation = 0.0 * k
     st1 = ifcopenshell.api.run(
         "root.create_entity", f, ifc_class="IfcBuildingStorey", name="Level 1"
     )
-    st1.Elevation = 3.2
+    st1.Elevation = 3.2 * k
     ifcopenshell.api.run("aggregate.assign_object", f, products=[site], relating_object=proj)
     ifcopenshell.api.run("aggregate.assign_object", f, products=[bld], relating_object=site)
     ifcopenshell.api.run("aggregate.assign_object", f, products=[st0, st1], relating_object=bld)
@@ -58,12 +64,12 @@ def make_ifc(*, long_names: bool = True, spaces: bool = True) -> bytes:
 
     def box(cls, name, x, y, z, dx, dy, dz, storey):
         e = ifcopenshell.api.run("root.create_entity", f, ifc_class=cls, name=name)
-        rect = builder.rectangle(size=np.array([dx, dy]))
-        solid = builder.extrude(rect, magnitude=dz)
+        rect = builder.rectangle(size=np.array([dx * k, dy * k]))
+        solid = builder.extrude(rect, magnitude=dz * k)
         rep = builder.get_representation(body, [solid])
         ifcopenshell.api.run("geometry.assign_representation", f, product=e, representation=rep)
         mat = np.eye(4)
-        mat[:3, 3] = [x, y, z]
+        mat[:3, 3] = [x * k, y * k, z * k]
         ifcopenshell.api.run("geometry.edit_object_placement", f, product=e, matrix=mat)
         if cls == "IfcSpace":
             # spaces are spatial elements: aggregated under the storey, not "contained" like walls
@@ -134,6 +140,87 @@ ARCHICAD_HEADER = (
     "Option [IFC Base Quantities: Off]",
     "Option [IFC Space boundaries: Off]",
 )
+
+
+def test_parse_ifc_scales_storey_elevations_by_the_file_unit():
+    """ADR-0030 amendment: a millimetre file says Elevation 3200; the storey is at 3.2 m and the
+    geometry still spans 16 m (the tessellator already converts it)."""
+    parsed = ifc.parse_ifc(make_ifc(millimetres=True, spaces=False))
+    assert parsed.unit_scale == pytest.approx(0.001)
+    assert [s.elevation_m for s in parsed.storeys] == [0.0, 3.2]
+    x0, _y0, x1, _y1 = parsed.bounds
+    assert x1 - x0 == pytest.approx(16.0, abs=0.01)
+    target = plan_spaces.storey_target(parsed, parsed.storeys[0].global_id)
+    assert (
+        target is not None and target[1] == "slabs" and target[0].area == pytest.approx(96, abs=1)
+    )
+
+
+def _parsed_with_slabs(slabs: dict[str, list[list[list[float]]]], elevations: list[float]):
+    """A hand-made ParsedIfc: storeys at the given elevations, slab rings per storey name."""
+    storeys = [
+        ifc.Storey(global_id=f"S{i}", name=f"st{i}", elevation_m=e, index=i)
+        for i, e in enumerate(elevations)
+    ]
+    rings = {f"S{i}": slabs.get(f"st{i}", []) for i in range(len(elevations))}
+    pts = [pt for rs in rings.values() for r in rs for pt in r]
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    return ifc.ParsedIfc(
+        schema="IFC4",
+        building_name="T",
+        application=None,
+        export_options={},
+        storeys=storeys,
+        spaces=[],
+        space_geo=[],
+        class_geo={},
+        offset=(min(xs), min(ys), 0.0),
+        elements_failed=0,
+        storey_slabs=rings,
+        bounds=(min(xs), min(ys), max(xs), max(ys)),
+    )
+
+
+def _rect(x0, y0, x1, y1):
+    return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
+
+
+def test_plan_spaces_fit_the_project_when_the_block_alone_does_not():
+    """ADR-0030 amendment: block B holds the left half of a 40 × 10 slab, block C the right half.
+    B's outlines alone fit anywhere inside the slab; with C's outlines on the same level the fit
+    is pinned (scope project), B's spaces land on the left, and C gets no spaces here."""
+    parsed = _parsed_with_slabs({"st0": [_rect(0, 0, 40, 10)]}, [0.0, 3.0])
+    floors = [plan_spaces.PlanFloor(id="fB0", level=0, elevation_m=0.0, base_m=0.0, height_m=3.0)]
+    # sheet frame (y down): B at x 0–20, C at x 20–40; the IFC frame flips y
+    outlines = [
+        plan_spaces.Outline(uuid.uuid4(), "B-1", "fB0", _rect(0, 0, 10, 10), "B", 0),
+        plan_spaces.Outline(uuid.uuid4(), "B-2", "fB0", _rect(10, 0, 20, 10), "B", 0),
+        plan_spaces.Outline(uuid.uuid4(), "C-1", "fC0", _rect(20, 0, 40, 10), "C", 0),
+    ]
+    spaces, info = plan_spaces.build(parsed, floors, outlines, building_id="B")
+    assert "reason" not in info, info
+    assert info["scope"] == "project" and info["face"] == "slabs" and info["iou"] > 0.95, info
+    assert [sp.name for sp, _v, _f in spaces] == ["B-1", "B-2"]
+    xs = [x for sp, _v, _f in spaces for x, _y in sp.footprint_m]
+    assert max(xs) <= 20.5 and min(xs) >= -0.5, xs  # the left half of the slab
+    assert all(sp.source == "plan" and sp.floor_level == 0 for sp, _v, _f in spaces)
+    # the same building alone: accepted too (a 20 × 10 rectangle inside 40 × 10 is IoU 0.5)
+    spaces_alone, info_alone = plan_spaces.build(parsed, floors, outlines[:2], building_id="B")
+    assert len(spaces_alone) == 2 and info_alone["scope"] == "building"
+
+
+def test_plan_spaces_use_the_hull_when_the_slabs_are_exploded():
+    """Four small landings in the corners are all that is left as IfcSlab: the hull is the target
+    and the reason names the overlap when the outlines are far too small for it."""
+    corners = [_rect(0, 0, 1, 1), _rect(39, 0, 40, 1), _rect(0, 9, 1, 10), _rect(39, 9, 40, 10)]
+    parsed = _parsed_with_slabs({"st0": corners}, [0.0])
+    floors = [plan_spaces.PlanFloor(id="f0", level=0, elevation_m=0.0, base_m=0.0, height_m=3.0)]
+    one = [plan_spaces.Outline(uuid.uuid4(), "A-1", "f0", _rect(0, 0, 4, 4), "A", 0)]
+    spaces, info = plan_spaces.build(parsed, floors, one, building_id="A")
+    assert info["face"] == "hull" and spaces == [] and "overlap" in info["reason"], info
+    whole = [plan_spaces.Outline(uuid.uuid4(), "A-1", "f0", _rect(0, 0, 40, 10), "A", 0)]
+    spaces, info = plan_spaces.build(parsed, floors, whole, building_id="A")
+    assert len(spaces) == 1 and info["face"] == "hull" and info["iou"] > 0.95, info
 
 
 def test_header_options_reads_the_archicad_translator_settings():

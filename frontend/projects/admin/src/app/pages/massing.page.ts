@@ -192,9 +192,11 @@ interface MassingStats {
                 <span>
                   {{ im.stats['spaces_plan'] }} spaces come from the approved plan outlines, placed
                   on the model by floor {{ pf['floor_level'] }} against storey
-                  "{{ pf['storey'] ?? '?' }}" ({{ pf['face'] === 'slabs' ? 'slab footprint' : 'model bounds' }}):
-                  rotation {{ pf['rotation_deg'] }}°, overlap {{ pct(pf['iou']) }}. Check the
-                  model, then confirm: confirming says the alignment is right; no areas are copied.
+                  "{{ pf['storey'] ?? '?' }}" ({{ faceLabel(pf) }}@if (pf['scope'] === 'project') {, fitted together with the other blocks' outlines}):
+                  rotation {{ pf['rotation_deg'] }}°, overlap {{ pct(pf['iou']) }} on average,
+                  the worst level {{ pct(pf['min_coverage']) }} inside. Check the model (Show IFC
+                  model, select a row), then confirm: confirming says the alignment is right; no
+                  areas are copied.
                 </span>
                 @if (suggestedPlan() > 0) {
                   <button mat-stroked-button [disabled]="busy()" (click)="confirmPlan()">
@@ -424,6 +426,11 @@ export class MassingPage {
       });
     }
     return out;
+  }
+
+  faceLabel(pf: Record<string, unknown>): string {
+    const f = pf['face'];
+    return f === 'slabs' ? 'slab footprint' : f === 'hull' ? 'slab hull' : 'model bounds';
   }
 
   planFit(m: BuildingModelOut): Record<string, unknown> | null {
