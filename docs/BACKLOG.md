@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-27: 40 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, plan Phases 5 to 7 and
+State on 2026-10-27: 42 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, 0026, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Rows that share one code area or one
 outside input are one row with every reference. Sizes: S up to a day, M a few days, L a week or more.
@@ -32,6 +32,8 @@ decided out the same day and reopened, widened to manual intake, on 2026-10-27 (
 | 13 | Document kind set by hand on a project-level file: queue the floor re-suggestion so the sheets are usable without a new revision. | ADR-0008 #7 | — | S |
 | 14 | IFC exports without a declared length unit: refuse or warn; show the unit in the model stats. | ADR-0006 #E7 | — | S |
 | 15 | Request-path hygiene: the IFC link confirmation rewrites the GLB inside the request, and permit preview and import hold a database connection across the registry call; move both into jobs. | ADR-0006 #E3, ADR-0007 #8 | — | S |
+| 43 | ADR-0026 (link previews and share buttons, proposed): share JPEGs at publish time and `share_image` in the documents, the crawler shell endpoint and the share-image stream, the Caddy `(link_previews)` snippet with the dated user-agent list and rate limit, WhatsApp / Telegram / Copy-link / Share… buttons on the unit and building pages, plan and README. | ADR-0026 #A1 #A2 #B1 #B2 #C1 #C2 #C3 #D1 | owner's acceptance | M |
+| 44 | Verify the previews on the production host in WhatsApp, Telegram, Facebook (Sharing Debugger), Viber and Messenger; record each crawler's user agent from the Caddy log and the largest JPEG WhatsApp still shows as a large card; adjust the list and the 300 kB cap. | ADR-0026 #D2 | production host, the owner's phone | S |
 
 ## P2 — after
 
