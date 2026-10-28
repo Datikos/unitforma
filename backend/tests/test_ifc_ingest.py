@@ -20,10 +20,17 @@ from unitforma.geometry import ifc, plan_spaces  # noqa: E402
 from unitforma.geometry.massing import parse_glb  # noqa: E402
 
 
-def make_ifc(*, long_names: bool = True, spaces: bool = True, millimetres: bool = False) -> bytes:
+def make_ifc(
+    *,
+    long_names: bool = True,
+    spaces: bool = True,
+    millimetres: bool = False,
+    styled: bool = False,
+) -> bytes:
     """IFC4: building A, storeys at 0.00 and 3.20, spaces 1 and 2 on the ground floor and 3 above,
     one wall and one slab; space 1 carries base quantities. ``spaces=False`` is the zoneless
-    export of ADR-0030: storeys, wall and slab only."""
+    export of ADR-0030: storeys, wall and slab only. ``styled`` is N4's export (ADR-0032): an
+    orange surface style on the slab, a glass window, a pipe segment and a proxy object."""
     import ifcopenshell.api
     import ifcopenshell.util.shape_builder as sb
     import numpy as np
@@ -81,7 +88,33 @@ def make_ifc(*, long_names: bool = True, spaces: bool = True, millimetres: bool 
         return e
 
     box("IfcWall", "W1", 0, -0.3, 0, 16, 0.3, 6.4, st0)
-    box("IfcSlab", "S1", 0, 0, -0.3, 16, 6, 0.3, st0)
+    slab = box("IfcSlab", "S1", 0, 0, -0.3, 16, 6, 0.3, st0)
+    if styled:
+
+        def paint(e, rgb, transparency=0.0):
+            style = ifcopenshell.api.run("style.add_style", f, name=f"S{rgb}")
+            ifcopenshell.api.run(
+                "style.add_surface_style",
+                f,
+                style=style,
+                ifc_class="IfcSurfaceStyleRendering",
+                attributes={
+                    "SurfaceColour": {"Name": None, "Red": rgb[0], "Green": rgb[1], "Blue": rgb[2]},
+                    "Transparency": transparency,
+                    # Archicad's factor: the tessellator's diffuse is darker than the colour
+                    "DiffuseColour": 0.4,
+                    "ReflectanceMethod": "NOTDEFINED",
+                },
+            )
+            rep_ = e.Representation.Representations[0]
+            ifcopenshell.api.run(
+                "style.assign_representation_styles", f, shape_representation=rep_, styles=[style]
+            )
+
+        paint(slab, (0.93, 0.31, 0.07))
+        paint(box("IfcWindow", "G1", 2, -0.3, 1, 2, 0.1, 1.5, st0), (0.94, 0.97, 0.95), 0.69)
+        box("IfcPipeSegment", "P1", 1, 1, 0, 0.1, 0.1, 3, st0)
+        box("IfcBuildingElementProxy", "FU - 027", 3, 3, 0, 1, 1, 1, st0)
     if not spaces:
         return f.to_string().encode("utf-8")
     sp1 = box("IfcSpace", "1", 0, 0, 0, 8, 6, 3.2, st0)
@@ -276,6 +309,58 @@ def test_compress_glb_draco_keeps_extras_and_relinks():
     assert "KHR_draco_mesh_compression" in relinked["extensionsRequired"]
     node = next(n for n in relinked["nodes"] if n["extras"].get("ifc_global_id") == gid)
     assert node["extras"]["unit_id"] == "unit-1"
+
+
+def test_the_architects_colours_are_kept_and_services_are_dropped_first():
+    """ADR-0032: the file's surface colour (not the darker diffuse) per face, one node per group
+    and colour, unstyled elements in their class colour, services and proxies in their own groups
+    and dropped first."""
+    parsed = ifc.parse_ifc(make_ifc(styled=True))
+    assert set(parsed.class_geo) == {"IfcWall", "IfcSlab", "IfcWindow", "services", "proxies"}
+    model = ifc.pack_ifc(parsed)
+    gltf, _blob = parse_glb(model.glb)
+    nodes = {n["name"]: n for n in gltf["nodes"]}
+    assert {"IfcSlab #ED4F12", "IfcWindow #F0F7F2@0.31", "IfcWall", "services", "proxies"} <= set(
+        nodes
+    )
+    assert nodes["IfcSlab #ED4F12"]["extras"] == {
+        "ifc_class": "IfcSlab",
+        "elements": 1,
+        "colour": "#ED4F12",
+    }
+
+    def material(name):
+        mesh = gltf["meshes"][nodes[name]["mesh"]]
+        return gltf["materials"][mesh["primitives"][0]["material"]]
+
+    assert material("IfcSlab #ED4F12")["pbrMetallicRoughness"]["baseColorFactor"] == [
+        0.93,
+        0.31,
+        0.07,
+        1.0,
+    ]
+    glass = material("IfcWindow #F0F7F2@0.31")
+    assert glass["alphaMode"] == "BLEND"
+    assert glass["pbrMetallicRoughness"]["baseColorFactor"][3] == 0.31
+    assert (
+        material("IfcWall")["pbrMetallicRoughness"]["baseColorFactor"] == ifc.CLASS_STYLE["IfcWall"]
+    )
+    assert model.stats["ifc_colours"] == 2
+    tight = ifc.pack_ifc(parsed, budget=model.stats["bytes"] - 1)
+    assert tight.stats["classes_dropped"] == ["services"]
+    tighter = ifc.pack_ifc(parsed, budget=tight.stats["bytes"] - 1)
+    assert tighter.stats["classes_dropped"] == ["services", "proxies"]
+
+
+def test_only_the_most_drawn_colours_become_materials(monkeypatch):
+    monkeypatch.setattr(ifc, "MAX_IFC_COLOURS", 1)
+    model = ifc.pack_ifc(ifc.parse_ifc(make_ifc(styled=True)))
+    gltf, _blob = parse_glb(model.glb)
+    names = {n["name"] for n in gltf["nodes"]}
+    # the slab has more triangles drawn in its colour than the window: the window's glass falls
+    # back to the class colour
+    assert "IfcSlab #ED4F12" in names and "IfcWindow" in names
+    assert model.stats["ifc_colours"] == 1
 
 
 def test_read_ifc_refuses_other_files_and_respects_the_budget():

@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { LookChain, buildLookChain, deviceFacts, renderTier } from './architectural-look';
 
 export interface MassingUnitInfo {
   unit_id: string;
@@ -53,6 +54,10 @@ const NEUTRAL_WALL = new THREE.Color(0xd3d6dc);
 const FADE_OTHER_FLOOR = 0.18;
 const FADE_OTHER_BUILDING = 0.08;
 
+/** Lights for the architectural look (ADR-0033 Decision 5): a bright sky, a soft sun. */
+const SKY_LIGHT = 1.5;
+const SUN_LIGHT = 1.0;
+
 /**
  * Schematic massing viewer (plan §11.3 MVP 3D): orbit/zoom, floor isolation, unit hover and
  * pick, highlight of the selected unit. Expects the GLB produced by the worker: one mesh per
@@ -62,6 +67,9 @@ const FADE_OTHER_BUILDING = 0.08;
  * focused building stay visible but faded, so a buyer sees where the floor sits in the building
  * and can tap another floor to move there (`floorPicked`). With `buildingCode` set the other
  * buildings are faded further and cannot be picked, and the camera frames that building.
+ *
+ * The look (ADR-0033): on WebGL2 the frame goes through `architectural-look.ts` (edges on every
+ * element, ambient occlusion on desktops); the tier is decided once from the device.
  */
 @Component({
   selector: 'uf-massing-viewer',
@@ -187,6 +195,10 @@ export class MassingViewerComponent implements OnDestroy {
    *  angular.json from three's examples into `assets/draco/` of both apps. */
   private readonly draco = new DRACOLoader().setDecoderPath('assets/draco/');
   private readonly loader = new GLTFLoader().setDRACOLoader(this.draco);
+  /** The pass chain of the architectural look; null on the plain tier (ADR-0033 Decision 4). */
+  private look: LookChain | null = null;
+  /** The loaded GLB is an IFC conversion (nodes carry `ifc_class`, ADR-0032): no line geometry. */
+  private ifcModel = false;
 
   constructor() {
     effect(() => {
@@ -230,8 +242,8 @@ export class MassingViewerComponent implements OnDestroy {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.scene.background = null; // the host paints the sky gradient behind the transparent canvas
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0xb7c4a8, 1.1));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0xb7c4a8, SKY_LIGHT));
+    const sun = new THREE.DirectionalLight(0xffffff, SUN_LIGHT);
     sun.position.set(80, 120, 60);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -245,10 +257,24 @@ export class MassingViewerComponent implements OnDestroy {
     this.resizeObs = new ResizeObserver(() => this.resize());
     this.resizeObs.observe(this.host().nativeElement);
     this.resize();
+    const tier = renderTier(deviceFacts());
+    if (tier !== 'plain') {
+      const el = this.host().nativeElement;
+      this.look = buildLookChain(
+        this.renderer,
+        this.scene,
+        this.camera,
+        tier,
+        el.clientWidth || 1,
+        el.clientHeight || 1,
+      );
+    }
     const loop = () => {
       this.frame = requestAnimationFrame(loop);
       this.controls?.update();
-      this.renderer?.render(this.scene, this.camera);
+      if (!this.renderer) return;
+      if (this.look) this.look.composer.render();
+      else this.renderer.render(this.scene, this.camera);
     };
     loop();
   }
@@ -259,6 +285,7 @@ export class MassingViewerComponent implements OnDestroy {
     const w = el.clientWidth || 1;
     const h = el.clientHeight || 1;
     this.renderer.setSize(w, h, false);
+    this.look?.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
@@ -279,12 +306,14 @@ export class MassingViewerComponent implements OnDestroy {
       this.baseColours.clear();
       this.glbColours.clear();
     }
+    this.ifcModel = false;
     try {
       const gltf = await this.loader.loadAsync(url);
       this.model = gltf.scene;
       const infos: MassingUnitInfo[] = [];
       const seen = new Set<string>();
       this.model.traverse((o) => {
+        if (o.userData['ifc_class']) this.ifcModel = true;
         if (o instanceof THREE.Mesh) {
           // materials are shared per unit type in the GLB; clone so highlights stay per unit
           const mat = (o.material as THREE.MeshStandardMaterial).clone();
@@ -314,7 +343,10 @@ export class MassingViewerComponent implements OnDestroy {
         }
       });
       this.scene.add(this.model);
-      this.addEdges();
+      // a massing unit's lines separate it from its neighbours on a flat facade; the IFC model's
+      // lines come from the screen-space pass (ADR-0033 Decision 5)
+      if (!this.ifcModel) this.addEdges();
+      this.look?.setSceneBox(new THREE.Box3().setFromObject(this.model).expandByScalar(1));
       this.buildEnvironment();
       this.applyFocus();
       this.frameAll();
@@ -470,6 +502,7 @@ export class MassingViewerComponent implements OnDestroy {
       mat.transparent = opacity < 1;
       mat.opacity = opacity;
       mat.depthWrite = opacity === 1;
+      m.userData['ghost'] = opacity < 1; // out of the edge and occlusion buffers (ADR-0033)
       m.userData['pickable'] = own.has(m);
       for (const child of m.children) if (child.userData['edges']) child.visible = opacity === 1;
     }
@@ -557,6 +590,7 @@ export class MassingViewerComponent implements OnDestroy {
     cancelAnimationFrame(this.frame);
     this.resizeObs?.disconnect();
     this.controls?.dispose();
+    this.look?.dispose();
     this.renderer?.dispose();
     this.draco.dispose();
   }

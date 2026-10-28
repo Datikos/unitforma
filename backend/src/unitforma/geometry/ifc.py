@@ -1,5 +1,6 @@
 """IFC ingestion (ADR-0006 Decision 4): storeys, spaces with footprints and quantities, and one
-GLB per building with a node per ``IfcSpace`` and a merged node per element class.
+GLB per building with a node per ``IfcSpace`` and a merged node per element group and colour
+(the architect's surface colours, ADR-0032).
 
 Pure functions over bytes; IfcOpenShell (LGPL-3.0) is imported unmodified and only here, so the
 api and light-worker images stay without it (the ``ifc`` extra lives in the heavy worker image).
@@ -32,7 +33,8 @@ MAX_GLB_BYTES = 15 * 1024 * 1024  # plan §7.3 budget for a detailed building mo
 DISCLAIMER = "Model from the architect's IFC export"
 GENERATOR = "unitforma-ifc"
 
-# element classes → draw order and colour (0–1 RGBA); classes not listed are drawn as "other"
+# element groups → colour (0–1 RGBA) for faces the file gives no colour; a class not listed is
+# drawn as "other", building services and proxies as their own groups (see ``_group``)
 CLASS_STYLE: dict[str, list[float]] = {
     "IfcSlab": [0.80, 0.80, 0.82, 1.0],
     "IfcWall": [0.93, 0.93, 0.90, 1.0],
@@ -50,8 +52,15 @@ CLASS_STYLE: dict[str, list[float]] = {
     "IfcCovering": [0.90, 0.90, 0.88, 1.0],
     "IfcFooting": [0.65, 0.65, 0.65, 1.0],
     "IfcMember": [0.72, 0.72, 0.74, 1.0],
+    # the skins and pieces of exploded composites: cladding, railings (Archicad "Explode all")
+    "IfcBuildingElementPart": [0.80, 0.80, 0.80, 1.0],
+    "services": [0.71, 0.71, 0.76, 1.0],  # pipes, ducts, fittings, sanitary and electrical items
+    "proxies": [0.82, 0.82, 0.84, 1.0],  # IfcBuildingElementProxy: furniture, cars, anything
     "other": [0.82, 0.82, 0.84, 1.0],
 }
+# at most this many of the file's own colours become materials (the most-drawn ones); faces in
+# the others take their group's colour, so a file with a colour per element stays a small GLB
+MAX_IFC_COLOURS = 48
 SPACE_COLOUR = [0.86, 0.88, 0.92, 0.9]
 # never drawn: openings cut the walls already; furniture and fittings do not describe the building
 SKIP_CLASSES = frozenset(
@@ -69,8 +78,20 @@ SKIP_CLASSES = frozenset(
         "IfcProject",
     }
 )
-# dropped first, in this order, when the GLB exceeds the budget
-DROP_ORDER = ("IfcCovering", "IfcRailing", "IfcMember", "other", "IfcPlate", "IfcDoor", "IfcWindow")
+# dropped first, in this order, when the GLB exceeds the budget: what a buyer never sees outside
+# first, the envelope and its openings last (ADR-0032 Decision 3)
+DROP_ORDER = (
+    "services",
+    "proxies",
+    "IfcCovering",
+    "other",
+    "IfcMember",
+    "IfcBuildingElementPart",
+    "IfcRailing",
+    "IfcPlate",
+    "IfcDoor",
+    "IfcWindow",
+)
 
 
 # translator options the reviewer needs to know about (ADR-0030 Decision 1); the names are the
@@ -123,6 +144,7 @@ class Space:
 
 
 Geometry = tuple[list[float], list[int]]  # raw IFC coordinates (metres, Z up), triangle indices
+Colour = tuple[float, float, float, float]  # RGBA 0–1 from the file's surface style
 
 
 @dataclass
@@ -136,7 +158,8 @@ class ParsedIfc:
     storeys: list[Storey]
     spaces: list[Space]
     space_geo: list[Geometry]  # parallel to ``spaces``
-    class_geo: dict[str, list[Geometry]]
+    # element group → the file's colour (None: none given) → geometry drawn in it
+    class_geo: dict[str, dict[Colour | None, list[Geometry]]]
     offset: tuple[float, float, float]
     elements_failed: int
     storey_slabs: dict[str, list[list[list[float]]]]  # storey GlobalId → slab footprint rings
@@ -177,11 +200,80 @@ def _settings(ifcopenshell: Any, deflection: float) -> Any:
     return settings
 
 
-def _shape(ifcopenshell: Any, settings: Any, product: Any) -> tuple[list[float], list[int]]:
+def _shape(
+    ifcopenshell: Any, settings: Any, product: Any
+) -> tuple[list[float], list[int], list[Colour | None]]:
+    """Vertices, triangle indices and each triangle's surface colour (None when unstyled)."""
     shape = ifcopenshell.geom.create_shape(settings, product)
     verts = list(shape.geometry.verts)
     faces = list(shape.geometry.faces)
-    return verts, faces
+    styles = [_rgba(m) for m in getattr(shape.geometry, "materials", None) or []]
+    ids = list(getattr(shape.geometry, "material_ids", None) or [])
+    colours = [
+        styles[ids[t]] if t < len(ids) and 0 <= ids[t] < len(styles) else None
+        for t in range(len(faces) // 3)
+    ]
+    return verts, faces, colours
+
+
+def _rgba(style: Any) -> Colour | None:
+    """The surface colour of a tessellator style: ``IfcSurfaceStyleRendering.SurfaceColour`` and
+    1 − its transparency. The style's ``diffuse`` is that colour times the file's diffuse factor
+    (Archicad writes 0.4: the orange 0.93/0.31/0.07 becomes 0.38/0.13/0.03), so it is not used.
+    An unstyled element gets the tessellator's default style, named after its class with instance
+    id 0: that is no colour of the file's (None)."""
+    iid = getattr(style, "instance_id", None)
+    try:
+        iid = iid() if callable(iid) else iid
+    except Exception:  # noqa: BLE001 - an older binding without the accessor: trust the colour
+        iid = 1
+    if not iid:
+        return None
+    c = getattr(style, "surface", None)
+    if c is None:
+        return None
+    try:
+        rgb = [float(c.r()), float(c.g()), float(c.b())]
+    except (AttributeError, TypeError, ValueError):
+        try:
+            rgb = [float(v) for v in c][:3]
+        except (TypeError, ValueError):
+            return None
+    if len(rgb) != 3 or any(v != v for v in rgb):  # NaN: a style without a colour
+        return None
+    t = getattr(style, "transparency", 0.0)
+    t = float(t) if isinstance(t, (int, float)) and t == t else 0.0
+    return (*(round(min(max(v, 0.0), 1.0), 2) for v in rgb), round(1.0 - min(max(t, 0.0), 1.0), 2))
+
+
+def _group(product: Any) -> str:
+    """The draw group of an element: its class when styled in ``CLASS_STYLE``, building services
+    (``IfcDistributionElement`` and below, IFC2X3 and IFC4) and proxies apart, else "other"."""
+    cls = product.is_a()
+    if cls in CLASS_STYLE:
+        return cls
+    if product.is_a("IfcDistributionElement"):
+        return "services"
+    if product.is_a("IfcBuildingElementProxy"):
+        return "proxies"
+    return "other"
+
+
+def _by_colour(
+    verts: list[float], faces: list[int], colours: list[Colour | None]
+) -> list[tuple[Colour | None, Geometry]]:
+    """One element's triangles split by colour, each part with only the vertices it uses."""
+    if len(set(colours)) <= 1:
+        return [(colours[0] if colours else None, (verts, faces))]
+    parts: dict[Colour | None, tuple[list[float], list[int], dict[int, int]]] = {}
+    for t, colour in enumerate(colours):
+        pv, pf, index = parts.setdefault(colour, ([], [], {}))
+        for v in faces[3 * t : 3 * t + 3]:
+            if v not in index:
+                index[v] = len(pv) // 3
+                pv.extend(verts[3 * v : 3 * v + 3])
+            pf.append(index[v])
+    return [(colour, (pv, pf)) for colour, (pv, pf, _i) in parts.items()]
 
 
 def _to_gltf(verts: list[float], offset: tuple[float, float, float]) -> list[float]:
@@ -317,7 +409,7 @@ def parse_ifc(data: bytes, *, deflection: float = 0.03) -> ParsedIfc:
 
     # first pass: tessellate everything we draw, remember raw IFC coordinates
     space_products: list[tuple[Any, list[float], list[int]]] = []
-    class_geo: dict[str, list[Geometry]] = {}
+    class_geo: dict[str, dict[Colour | None, list[Geometry]]] = {}
     storey_slabs: dict[str, list[list[list[float]]]] = {}
     failed = 0
     mins = [float("inf")] * 3
@@ -329,7 +421,7 @@ def parse_ifc(data: bytes, *, deflection: float = 0.03) -> ParsedIfc:
         if cls in SKIP_CLASSES and cls != "IfcSpace":
             continue
         try:
-            verts, faces = _shape(ifcopenshell, settings, product)
+            verts, faces, colours = _shape(ifcopenshell, settings, product)
         except Exception:  # noqa: BLE001 - one bad element must not stop the model
             failed += 1
             continue
@@ -341,8 +433,9 @@ def parse_ifc(data: bytes, *, deflection: float = 0.03) -> ParsedIfc:
         if cls == "IfcSpace":
             space_products.append((product, verts, faces))
         else:
-            key = cls if cls in CLASS_STYLE else "other"
-            class_geo.setdefault(key, []).append((verts, faces))
+            by_colour = class_geo.setdefault(_group(product), {})
+            for colour, part in _by_colour(verts, faces, colours):
+                by_colour.setdefault(colour, []).append(part)
             if cls == "IfcSlab":
                 # the storey's footprint for the plan fit (ADR-0030 Decision 4)
                 st = _storey_of(ifcopenshell, product)
@@ -473,7 +566,7 @@ def read_ifc(data: bytes, *, deflection: float = 0.03, budget: int = MAX_GLB_BYT
 def _pack(
     space_geo: list[Geometry],
     spaces: list[Space],
-    class_geo: dict[str, list[tuple[list[float], list[int]]]],
+    class_geo: dict[str, dict[Colour | None, list[Geometry]]],
     offset: tuple[float, float, float],
     building_name: str | None,
     dropped: list[str],
@@ -522,20 +615,33 @@ def _pack(
             extras,
         )
         children.append(b.node(sp.name or sp.global_id, m, [], extras))
-    for cls, parts in sorted(class_geo.items()):
+    kept = _kept_colours(class_geo, dropped)
+    for cls, by_colour in sorted(class_geo.items()):
         if cls in dropped:
             continue
-        positions: list[float] = []
-        indices: list[int] = []
-        for verts, faces in parts:
-            base = len(positions) // 3
-            positions.extend(_to_gltf(verts, offset))
-            indices.extend(i + base for i in faces)
-        if not indices:
-            continue
-        extras = {"ifc_class": cls, "elements": len(parts)}
-        m = b.mesh(cls, positions, indices, material(cls, CLASS_STYLE[cls]), extras)
-        children.append(b.node(cls, m, [], extras))
+        groups: dict[Colour | None, list[Geometry]] = {}
+        for colour, parts in by_colour.items():
+            groups.setdefault(colour if colour in kept else None, []).extend(parts)
+        order = sorted(groups.items(), key=lambda kv: (kv[0] is not None, kv[0] or ()))
+        for colour, parts in order:
+            positions: list[float] = []
+            indices: list[int] = []
+            for verts, faces in parts:
+                base = len(positions) // 3
+                positions.extend(_to_gltf(verts, offset))
+                indices.extend(i + base for i in faces)
+            if not indices:
+                continue
+            if colour is None:
+                name, mat = cls, material(cls, CLASS_STYLE[cls])
+            else:
+                hexa = _hex(colour)
+                name, mat = f"{cls} {hexa}", material(hexa, list(colour))
+            extras: dict[str, Any] = {"ifc_class": cls, "elements": len(parts)}
+            if colour is not None:
+                extras["colour"] = _hex(colour)
+            m = b.mesh(name, positions, indices, mat, extras)
+            children.append(b.node(name, m, [], extras))
     root = b.node(building_name or "Building", None, children, {"building_name": building_name})
     glb = b.glb(
         [root],
@@ -548,7 +654,34 @@ def _pack(
             }
         },
     )
-    return glb, {"bytes": len(glb), "triangles": b.triangles, "meshes": len(b.meshes)}
+    return glb, {
+        "bytes": len(glb),
+        "triangles": b.triangles,
+        "meshes": len(b.meshes),
+        "ifc_colours": len(kept),
+    }
+
+
+def _kept_colours(
+    class_geo: dict[str, dict[Colour | None, list[Geometry]]], dropped: list[str]
+) -> set[Colour]:
+    """The file's colours drawn as their own materials: the ``MAX_IFC_COLOURS`` most-drawn."""
+    triangles: dict[Colour, int] = {}
+    for cls, by_colour in class_geo.items():
+        if cls in dropped:
+            continue
+        for colour, parts in by_colour.items():
+            if colour is not None:
+                triangles[colour] = triangles.get(colour, 0) + sum(len(f) for _v, f in parts)
+    ranked = sorted(triangles, key=lambda c: -triangles[c])
+    return set(ranked[:MAX_IFC_COLOURS])
+
+
+def _hex(colour: Colour) -> str:
+    """#RRGGBB, with the opacity appended for glass (#F0F7F2@0.31)."""
+    r, g, b, a = colour
+    text = "#" + "".join(f"{round(v * 255):02X}" for v in (r, g, b))
+    return text if a >= 1.0 else f"{text}@{a:.2f}"
 
 
 def relink_glb(data: bytes, spaces: dict[str, dict[str, Any] | str | None]) -> bytes:
