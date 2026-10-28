@@ -70,14 +70,18 @@ export function deviceFacts(): DeviceFacts {
 /**
  * Renders the scene flat-shaded into a normal + depth target. Meshes flagged `userData.ghost`
  * (units faded by the floor focus, drafts) and line objects are left out (ADR-0033 Decision 3).
+ * Each mesh draws with a normal material of its own material's side: the massing and the plan
+ * spaces are double-sided with walls wound inwards, and a front-sided override dropped them from
+ * the buffer, so the edges of the units behind showed through the facade (2026-10-28, A-9/10).
  */
 export class GBufferPass extends Pass {
   readonly target: THREE.WebGLRenderTarget;
-  private readonly material = new THREE.MeshNormalMaterial({
-    flatShading: true,
-    blending: THREE.NoBlending,
-  });
+  /** One normal material per `THREE.Side` (front, back, double). */
+  private readonly materials = [THREE.FrontSide, THREE.BackSide, THREE.DoubleSide].map(
+    (side) => new THREE.MeshNormalMaterial({ flatShading: true, blending: THREE.NoBlending, side }),
+  );
   private readonly hidden: THREE.Object3D[] = [];
+  private readonly swapped: [THREE.Mesh, THREE.Material | THREE.Material[]][] = [];
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -108,24 +112,30 @@ export class GBufferPass extends Pass {
 
   override render(renderer: THREE.WebGLRenderer): void {
     this.hidden.length = 0;
+    this.swapped.length = 0;
     this.scene.traverse((o) => {
       if (!o.visible) return;
       if (o.userData['ghost'] || (o as THREE.Line).isLine) {
         o.visible = false;
         this.hidden.push(o);
+        return;
       }
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      this.swapped.push([mesh, mesh.material]);
+      mesh.material = Array.isArray(mesh.material)
+        ? mesh.material.map((m) => this.materials[m.side])
+        : this.materials[mesh.material.side];
     });
     const background = this.scene.background;
-    const override = this.scene.overrideMaterial;
     this.scene.background = null;
-    this.scene.overrideMaterial = this.material;
     renderer.setRenderTarget(this.target);
     renderer.setClearColor(0x7777ff, 1); // "straight at the camera", what GTAO expects of empty sky
     renderer.clear();
     renderer.render(this.scene, this.camera);
     renderer.setClearColor(0x000000, 0);
-    this.scene.overrideMaterial = override;
     this.scene.background = background;
+    for (const [mesh, material] of this.swapped) mesh.material = material;
     for (const o of this.hidden) o.visible = true;
   }
 
@@ -135,7 +145,7 @@ export class GBufferPass extends Pass {
 
   override dispose(): void {
     this.target.dispose();
-    this.material.dispose();
+    for (const m of this.materials) m.dispose();
   }
 }
 

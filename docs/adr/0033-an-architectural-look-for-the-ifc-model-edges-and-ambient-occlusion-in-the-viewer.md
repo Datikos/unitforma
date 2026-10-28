@@ -154,8 +154,11 @@ JS heap; `edges` tier at 600 × 700 and a ratio of 2, 60 fps, 118 MB. The chain 
 cost at that size on that GPU; a frame-time budget below the vsync needs a slower device. Phone
 numbers stay "not measured" until a device is in hand (plan rule: facts with a source). The picture:
 a line on every panel, railing and step, darker under the balconies and in the stair core, the
-file's colours; the sky gradient of the host shows through. The massing path of the chain (Decision 5)
-was not looked at: the dev stack had no project with a ready massing model on 2026-10-28 (C2).
+file's colours; the sky gradient of the host shows through. The massing path (Decision 5), measured the
+same day on A-9/10 (99 units, 1440 × 700 at 1.5): 60 fps with the chain off, 60 on the `edges` tier,
+52–55 on `full` (the machine's load average was about 6, so the GTAO share is approximate); the
+facade drawings, availability colours and unit lines read as before, with lines and a light
+darkening added at the unit joints.
 N4's conversion dropped only `services`, so the closed grey panels in front of the openings are the
 file's `IfcBuildingElementPart` skins as converted (ADR-0032), not the look.
 
@@ -192,5 +195,11 @@ a phone tier disappoints.
       the pass with its own buffers, hands it ours and disposes its own; `PCFSoftShadowMap` is gone
       in r186 (a console warning), the PCF map stays. The dev server does not pick up a type error
       in the library as a rebuild: it exits, and the page answers "connection refused".
+      *Found on the massing model (2026-10-28, A-9/10):* the first G-buffer drew every mesh with one
+      front-sided override material; the massing and the IFC plan spaces are written double-sided
+      (`geometry/massing.py`, `geometry/ifc.py` `"doubleSided": True`) with walls wound inwards, so
+      their outer walls were missing from the buffer and the edge pass drew the units behind
+      through the facade. `GBufferPass` now gives each mesh a normal material of its own
+      material's side; N4 holds 60 fps with either version (A/B, two runs each).
 - [ ] C2 The owner looks at the model on the 3D massing page and on the portal and keeps or tunes
       the constants of Decision 2 and 5.

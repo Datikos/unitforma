@@ -12,9 +12,10 @@ it on destroy.
 model: a thin dark line on every edge of every element and a darkening where surfaces meet. Each
 frame runs the chain
 
-1. `GBufferPass`: the scene flat-shaded with a `MeshNormalMaterial` into a half-float normal target
-   with a depth texture; meshes flagged `userData.ghost` (units faded by the floor focus, drafts)
-   and line objects are left out;
+1. `GBufferPass`: the scene flat-shaded with a `MeshNormalMaterial` of each mesh's own side (the
+   massing and the plan spaces are double-sided) into a half-float normal target with a depth
+   texture; meshes flagged `userData.ghost` (units faded by the floor focus, drafts) and line objects
+   are left out;
 2. `RenderPass`: the colours, into a 4× multisampled target;
 3. `GTAOPass` (full tier only): ambient occlusion from the same depth and normal textures,
    `AO_RADIUS_M` = 2 m, 16 samples, denoised;
@@ -40,7 +41,8 @@ a converter change (BACKLOG).
 **Measured** (2026-10-28, headless Chrome 156 on an Apple M2, N4 building A: 614,805 triangles,
 158 meshes, 0.83 MB Draco): 60 fps, vsync-bound, on both tiers, at 1440 × 700 CSS px and a
 device pixel ratio of 1.5 (full) and 600 × 700 at 2 (edges); about 100 MB of JS heap with the model
-loaded. Phones: not measured.
+loaded. The massing of A-9/10 (99 units) at the same size: 60 fps on `edges`, 52–55 on `full`
+under a load average of about 6. Phones: not measured.
 
 ## Tests
 
