@@ -24,6 +24,7 @@ const SCREEN: Record<string, { label: string; path: string[] }> = {
   inventory: { label: 'Inventory & prices', path: ['..', 'inventory'] },
   publish: { label: 'Publish', path: ['..', 'publish'] },
   layouts: { label: 'Layouts & renders', path: ['..', 'layouts'] },
+  massing: { label: '3D massing', path: ['..', 'massing'] },
 };
 
 const POLL_MS = 5000;
@@ -511,7 +512,8 @@ export class SetupPage implements OnDestroy {
   /** ADR-0029 Decision 5: a step with a page that needs you opens that page, not the list. */
   stepLink(st: SetupStepOut): { label: string; path: string[] } {
     const mine = (step: string) =>
-      step === st.key || (st.key === 'mapping' && ['calibration', 'sheet_floors'].includes(step));
+      step === st.key ||
+      (st.key === 'mapping' && ['calibration', 'sheet_floors', 'registration'].includes(step));
     const d = (this.setup()?.decisions ?? []).find(
       (x) => x.needs_you && x.sheet_id && mine(x.step),
     );
@@ -537,6 +539,7 @@ export class SetupPage implements OnDestroy {
       calibration: 'Scale',
       sheet_floors: 'Sheets → floors',
       mapping: 'Unit outlines',
+      registration: 'Floor alignment',
       site_plan: 'Site plan',
       placement: 'Placement',
       facades: 'Facades',

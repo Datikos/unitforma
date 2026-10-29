@@ -1,6 +1,7 @@
 """The passes of a solver run, in data-flow order (ADR-0025 Decision 5): what a later pass needs
 is produced by an earlier one (floors before sheet floors, calibration before outlines, outlines
-before layouts and placement, the site frame before placement and facades)."""
+before the floor registration, layouts and placement, the site frame before placement and
+facades)."""
 
 from __future__ import annotations
 
@@ -16,6 +17,7 @@ from unitforma.autopilot.passes import (
     layouts,
     outlines,
     placement,
+    registration,
     sheets,
     site,
 )
@@ -27,6 +29,7 @@ PASSES: list[tuple[str, Callable[[Context], Awaitable[None]]]] = [
     ("calibration", calibration.run),
     ("sheet_floors", sheets.run),
     ("mapping", outlines.run),
+    ("registration", registration.run),
     ("site_plan", site.run),
     ("placement", placement.run),
     ("facades", facades.run),

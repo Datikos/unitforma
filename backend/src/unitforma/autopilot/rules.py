@@ -116,6 +116,7 @@ LINK_OF_STEP = {
     "calibration": "documents",
     "sheet_floors": "documents",
     "mapping": "documents",
+    "registration": "massing",
     "site_plan": "placement",
     "placement": "placement",
     "facades": "placement",

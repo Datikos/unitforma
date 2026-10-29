@@ -28,6 +28,7 @@ from unitforma.tenants.models import (
     GeometryModel,
     Project,
     Sheet,
+    SheetFloor,
     Unit,
     UnitBoundary,
 )
@@ -57,6 +58,37 @@ def floor_elevations(floors: list[Floor]) -> dict[uuid.UUID, tuple[float, float]
         base -= heights[f.id]
         out[f.id] = (float(f.elevation_m) if f.elevation_m is not None else base, heights[f.id])
     return out
+
+
+Offset = tuple[float, float]
+
+
+async def floor_offsets(
+    db: AsyncSession, floor_ids: list[uuid.UUID]
+) -> dict[tuple[uuid.UUID, uuid.UUID], Offset]:
+    """The registration of each (sheet, floor) onto its building's reference floor (ADR-0030 #D2);
+    a pair that is not registered is absent and its outlines stay as drawn."""
+    if not floor_ids:
+        return {}
+    rows = await db.execute(
+        select(SheetFloor.sheet_id, SheetFloor.floor_id, SheetFloor.registration).where(
+            SheetFloor.floor_id.in_(floor_ids)
+        )
+    )
+    return {
+        (sheet_id, floor_id): (float(reg["dx_m"]), float(reg["dy_m"]))
+        for sheet_id, floor_id, reg in rows
+        if isinstance(reg, dict) and reg.get("method") == "grid_axes"
+    }
+
+
+def shifted(ring: list[list[float]], offset: Offset | None) -> list[list[float]]:
+    """A ring in sheet metres moved into building metres (every reader of ``polygon_m`` that
+    stacks floors goes through here)."""
+    if not offset:
+        return ring
+    dx, dy = offset
+    return [[x + dx, y + dy] for x, y in ring]
 
 
 async def collect(
@@ -96,6 +128,7 @@ async def collect(
         )
         .order_by(Unit.code)
     )
+    offsets = await floor_offsets(db, [f.id for f in floors])
     solids_by_building: dict[uuid.UUID, list[massing.UnitSolid]] = {}
     seen: set[uuid.UUID] = set()
     units_total = 0
@@ -121,7 +154,12 @@ async def collect(
                 unit_type=unit.unit_type,
                 building_code=bld.code,
                 floor_level=floor.level,
-                ring_m=[(float(x), float(y)) for x, y in boundary.polygon_m["ring"]],
+                ring_m=[
+                    (float(x), float(y))
+                    for x, y in shifted(
+                        boundary.polygon_m["ring"], offsets.get((boundary.sheet_id, floor.id))
+                    )
+                ],
                 base_m=base,
                 height_m=height,
                 extras={
@@ -325,11 +363,12 @@ async def lowest_floor_union(db: AsyncSession, floors: list[Floor]) -> tuple[Any
     """The union of the lowest mapped floor's current calibrated unit outlines (parking left
     out) in building-local metres, and that floor's level; ``(None, None)`` without outlines.
     The union may be several polygons (a stair core holds no unit)."""
+    offsets = await floor_offsets(db, [f.id for f in floors])
     for f in sorted(floors, key=lambda x: x.level):
         # ``polygon_m`` is JSON ``null`` (not SQL NULL) on a sheet calibrated after the
         # boundary was drawn, so the filter below lets it through: skip it here
         polys = [
-            Polygon(bd.polygon_m["ring"])
+            Polygon(shifted(bd.polygon_m["ring"], offsets.get((bd.sheet_id, f.id))))
             for (bd,) in await db.execute(
                 select(UnitBoundary)
                 .join(Unit, Unit.id == UnitBoundary.unit_id)

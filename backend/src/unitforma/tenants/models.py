@@ -360,6 +360,9 @@ class SheetFloor(TimestampMixin, Base):
     region: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
     marker: Mapped[str | None] = mapped_column(String(20))
     sort_order: Mapped[int] = mapped_column(default=0)
+    # the shift onto the building's reference floor from the grid axes, applied when outlines
+    # are read in building metres (ADR-0030 #D2); null = not registered yet
+    registration: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
 
 
 class UnitLayout(TimestampMixin, Base):

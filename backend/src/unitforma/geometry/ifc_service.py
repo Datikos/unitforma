@@ -22,7 +22,7 @@ from unitforma.core.db import tenant_session
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
 from unitforma.geometry import ifc, ifc_match, plan_spaces
-from unitforma.geometry.service import floor_elevations
+from unitforma.geometry.service import floor_elevations, floor_offsets, shifted
 from unitforma.storage.service import get_storage, object_key
 from unitforma.tenants.models import (
     Building,
@@ -382,10 +382,13 @@ async def _plan_inputs(
     )
     seen: set[uuid.UUID] = set()
     outlines: list[plan_spaces.Outline] = []
+    # every floor in its building's metres, so one fit translation suits them all (#D2)
+    offsets = await floor_offsets(db, [f.id for f in all_floors])
     for unit, bd in rows:
         ring = (bd.polygon_m or {}).get("ring") if isinstance(bd.polygon_m, dict) else None
         if unit.id in seen or not ring or unit.floor_id is None:
             continue
+        ring = shifted(ring, offsets.get((bd.sheet_id, unit.floor_id)))
         seen.add(unit.id)
         outlines.append(
             plan_spaces.Outline(
