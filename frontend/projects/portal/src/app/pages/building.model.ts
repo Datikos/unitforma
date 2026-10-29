@@ -1,4 +1,4 @@
-import { Availability, FloorUnit } from '../core/portal-api';
+import { Availability, FloorDoc, FloorUnit } from '../core/portal-api';
 import { typeLabel } from '../core/format';
 
 /** Units of one kind on a floor, in natural code order (A-2 before A-17). */
@@ -51,4 +51,21 @@ export function floorChosen(floor: string | undefined, unit: string | undefined)
  */
 export function tapOnModel(chosen: boolean, level: number, unitLevel: number): 'select' | 'go' {
   return chosen && unitLevel === level ? 'select' : 'go';
+}
+
+/** What a buyer most likely came for, first: flats, then shops, then any floor with units. */
+const FIRST_FLOOR_TYPES = ['apartment', 'commercial'];
+
+/**
+ * The floor the plan shows before the buyer chose one (ADR-0036 #D5): the lowest floor with an
+ * apartment, else with a commercial unit, else with any unit, else the lowest floor. A parking
+ * level under the building is not where a buyer starts.
+ */
+export function defaultFloor(floors: readonly Pick<FloorDoc, 'level' | 'units'>[]): number | null {
+  const byLevel = [...floors].sort((a, b) => a.level - b.level);
+  for (const type of FIRST_FLOOR_TYPES) {
+    const f = byLevel.find((x) => x.units.some((u) => u.unit_type === type));
+    if (f) return f.level;
+  }
+  return (byLevel.find((x) => x.units.length) ?? byLevel[0])?.level ?? null;
 }
