@@ -316,6 +316,7 @@ CHECKLIST_STEP = {
     "classify": "documents",
     "calibration": "mapping",
     "sheet_floors": "mapping",
+    "registration": "mapping",
     "defaults": "publish",
 }
 

@@ -1,6 +1,6 @@
 # ADR-0030: IFC spaces from the architect's zones or from the approved plan outlines; export diagnostics; duplicate uploads
 
-- **Status:** accepted (2026-10-27, "let start"; implemented 2026-10-27, C2 docs in the same change); Decision 4 amended 2026-10-29 by D1 (a level may refine the shared translation), D2 open
+- **Status:** accepted (2026-10-27, "let start"; implemented 2026-10-27, C2 docs in the same change); Decision 4 amended 2026-10-29 by D1 (a level may refine the shared translation); D2 (floor sheets registered on the grid axes) implemented 2026-10-30
 - **Date:** 2026-10-27
 - **Deciders:** David Sakhelashvili (platform owner)
 - **Plan reference:** §7.3 (building model budget), §13.1 (document → published project), ADR-0006 Phase C (IFC intake, space links), ADR-0008 (document kinds), ADR-0011 (massing from outlines), ADR-0025 Decision 5 (placement by footprint fit)
@@ -279,8 +279,81 @@ so the best IoU or coverage alone does not pin a level.
       (footprint IoU 0.98 or more) sends those levels' confirmed plan spaces back to suggested, since
       they did move; "Confirm all plan spaces" confirms them again in one click. N4 is not re-run here:
       that is the owner's "Re-run conversion".
-- [ ] D2 The schematic massing (`geometry/service.py`) and the site outline stack each unit's
-      `polygon_m` from its own sheet with no registration between the floor sheets, so N4's massing
-      has the same 3 m stagger between level -2 and levels 1 to 3. Register each floor sheet to the
-      building (from the outer walls, the grid axes or a confirmed IFC fit) once, where `polygon_m`
-      is made, so every consumer reads aligned floors. BACKLOG 59.
+- [x] D2 **Each floor sheet is registered to the building on the drawing's grid axes.** The
+      schematic massing (`geometry/service.py`) stacks each unit's `polygon_m` from its own sheet,
+      and `polygon_m` is the sheet's page frame times its scale (`inventory/geometry.ring_to_metres`),
+      so every floor sits where the architect put it on the page.
+      *Evidence, measured 2026-10-30 on N4 in a dry run (nothing written).* The floor sheets print a
+      structural grid: letters A to J and numbers 1 to 20, each in a bubble at both ends of its
+      axis. Pairing the two bubbles of a label gives a vertical axis (same x) or a horizontal one
+      (same y), in sheet metres:
+      | Level (page) | Axes shared with level 0 (vertical / horizontal) | Shift onto level 0, m | Spread over the axes | Scale fit |
+      |---|---|---|---|---|
+      | -2 (10) | 13 / 6 | x +0.03, y +1.79 | 0.00 m | 1.0000 |
+      | -1, 0 (11) | reference | 0 | — | — |
+      | 1 (12) | 13 / 5 | x +0.10, y -2.31 | 0.00 m | 1.0000 |
+      | 2 (13) | 13 / 5 | x +0.08, y -2.79 | 0.00 m | 1.0000 |
+      | 3 (14) | 13 / 6 | x +0.12, y -1.94 | 0.00 m | 1.0000 |
+      With rule 2's ambiguity drop (most digits also occur in dimension text) 4 vertical axes
+      survive on each sheet; the shifts stay the same to 0.001 m, spread 0.001 m.
+      The scale fit of 1.0000 shows the sheets' calibrations (0.02690 to 0.02799 m per pixel, the
+      pages print at different scales) already agree; only the origin differs. Phase correlation of
+      the line work agrees where it is sure (level 0 onto -2: 1.80 m; levels 2 and 3 onto 1: 0.40 m,
+      peak ratios 32 and 111) but cannot relate the parking level to the flats (peak ratio 1.5 to 3,
+      one answer 8 m off). D1's per-level IFC shifts are about 1.3 m short of the axes, as D1 takes
+      the nearest end of a flat coverage plateau.
+      Options weighed on 2026-10-30:
+      | | Grid axes (chosen) | Line-work correlation | The IFC fit (D1) | Do nothing |
+      |---|---|---|---|---|
+      | Needs | the axis bubbles printed with labels, twice per axis | wall drawing shared between floors | an IFC export | — |
+      | On N4 | exact: spread 0.00 m, 5 to 6 floors | right on similar floors, wrong between parking and flats | 1.3 m short, IFC buildings only | 1.8 to 2.8 m stagger |
+      | Check of its own answer | the spread over the shared axes | the peak ratio | coverage, flat over 2 m | — |
+      | Cost | the words already in the sheet's extract | an FFT of a raster per floor pair | already paid | — |
+      Chosen: the grid axes, the architect's own reference between floors. Rules:
+      1. The reference is the building's footprint floor, the floor `lowest_floor_union` returns
+         (on N4 level 0, since level -2 holds only parking), so the site placement and the site
+         outline, made from that floor, do not move.
+      2. An axis is a label of at most 2 characters (digits, or one upper-case letter, Latin or
+         Georgian) whose two bubbles share x (vertical) or y (horizontal) within
+         `AXIS_ALIGN_M` = 0.3 m and lie at least `AXIS_MIN_LENGTH_M` = 15 m apart; a label with
+         more than one such pair on a page is ambiguous and dropped. Only bubbles within
+         `AXIS_NEAR_M` = 15 m of the floor's outlines count, so a title block or a second block
+         on the page does not pose as an axis.
+      3. A sheet floor is registered when it shares at least `AXIS_MIN_SHARED` = 2 vertical and 2
+         horizontal axes with the reference sheet and the shifts over them spread by at most
+         `AXIS_MAX_SPREAD_M` = 0.3 m; the shift is their median. Otherwise it stays as drawn and
+         the setup checklist says why (an informational line, see Known gaps).
+      4. The result lives on `sheet_floors.registration` (`{"v": 1, "dx_m", "dy_m", "method":
+         "grid_axes" | "none", "axes": [vertical, horizontal], "spread_m", "ref_sheet_id",
+         "reason"}`), written by a solver pass `registration` after `mapping`, which queues a
+         massing rebuild when a shift changed.
+      5. It is applied at read time by one helper (`geometry.service.floor_offsets` and
+         `shifted`): the massing, the footprint and the IFC plan outlines read it. `polygon_m`
+         keeps its meaning (sheet metres), so areas, layouts and the API are untouched and no
+         outline is rewritten when a registration changes.
+      `geometry/registration.py` (`grid_axes`, `register`), migration `0023` (`sheet_floors.registration`),
+      `autopilot/passes/registration.py`, `geometry/service.py` (`floor_offsets`, `shifted` in
+      `collect` and `lowest_floor_union`), `ifc_service._plan_inputs`; the setup checklist files
+      the pass under "Unit outlines" as "Floor alignment". Tests: `test_floor_registration.py`
+      (the axis rules; the pass on the publishing world: the shift written, the massing, the
+      footprint and the IFC plan outlines moved by it, a second run deciding and queueing nothing).
+      *Done 2026-10-30.* The module's own dry run on N4's extracts gives the table above to
+      0.001 m. N4 on the dev stack gets it from the owner's next "Run now" on the setup checklist:
+      the massing then stacks levels -2 and 1 to 3 on level 0, and the next "Re-run conversion"
+      fits the IFC plan spaces from aligned floors. Dry run of `plan_spaces.build` in the heavy
+      worker on N4's file with the outlines moved by the table (nothing written):
+      | | Rotation | Levels D1 moves | Coverage per level |
+      |---|---|---|---|
+      | As drawn | 2.5° | 1, 2, 3 by 2.5 to 3.25 m | 0.978 to 0.996 after the shifts |
+      | Registered | 0.0° | none | 0.989 to 1.000 |
+      The stagger also skewed the shared rotation by 2.5°. ADR-0035's carry rule sends the levels
+      whose spaces moved back to suggested on that re-run; "Confirm all plan spaces" restores them.
+      *Cost:* the pass reads every floor sheet's extract once per solver run (N4: 6 files, 0.6 to
+      1.1 MB each) and writes only when a shift changed.
+      *Known gaps:* the ambiguity drop of rule 2 kept 4 of N4's 13 vertical axes, since single
+      digits recur in dimension text; a set numbering its axes 1 to 9 only could lose them all and
+      stay as drawn (a refinement: prefer the pair whose bubbles lie outside the outlines). A floor
+      left as drawn is an informational line on the setup checklist, not a "needs you": there is no
+      screen to correct it yet.
+      *Revisit:* line-work correlation for sets without labelled axes; a registration the person
+      can set or correct on the sheet editor; the shift shown on the sheet.

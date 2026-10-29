@@ -99,7 +99,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
       {
         name: 'Set up automatically',
-        does: 'On by default. When the drawings are processed, the setup solver accepts the floors read from the level markers, assigns the sheets to their floors, calibrates them from the printed scale, outlines the units the drawing names clearly (confidence 0.9 or more), picks the site plan, places the building, publishes render documents to the gallery, puts the address on the map and proposes plan types. Everything it did and everything it left for you is listed on the setup checklist.',
+        does: 'On by default. When the drawings are processed, the setup solver accepts the floors read from the level markers, assigns the sheets to their floors, calibrates them from the printed scale, outlines the units the drawing names clearly (confidence 0.9 or more), aligns the floor sheets of each building on the drawing’s grid axes (the bubbles A, B, 1, 2 … at both ends of each axis), picks the site plan, places the building, publishes render documents to the gallery, puts the address on the map and proposes plan types. Everything it did and everything it left for you is listed on the setup checklist.',
       },
       {
         name: 'Approve mapped sheets',
@@ -184,7 +184,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
       {
         name: 'Set up automatically',
-        does: 'The setup solver (ADR-0025) applies the confident proposals after every processed document: floors, sheet floors, calibration (a printed scale, or your calibration of one page for the other pages of its document), unit outlines at 0.85 or more, the site plan, the placement, the gallery, the map position, proposed plan types. "Approve mapped sheets" needs the mapping approve right. Switching on runs it now; "Run now" runs it once whatever the switch says.',
+        does: 'The setup solver (ADR-0025) applies the confident proposals after every processed document: floors, sheet floors, calibration (a printed scale, or your calibration of one page for the other pages of its document), unit outlines at 0.85 or more, the floor alignment on the grid axes, the site plan, the placement, the gallery, the map position, proposed plan types. "Approve mapped sheets" needs the mapping approve right. Switching on runs it now; "Run now" runs it once whatever the switch says.',
       },
       {
         name: 'Publish with defaults',
