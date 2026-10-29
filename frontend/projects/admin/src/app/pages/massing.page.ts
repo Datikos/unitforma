@@ -18,6 +18,14 @@ import {
 } from 'ui';
 import { ToastService } from '../ui/toast.service';
 
+/** The converter's element groups in words (ADR-0032); IFC class names are shown as they are. */
+const DROPPED_LABEL: Record<string, string> = {
+  services: 'building services (pipes, ducts, fittings)',
+  proxies: 'generic objects (IfcBuildingElementProxy)',
+  other: 'other elements',
+  IfcBuildingElementPart: 'element skins and parts',
+};
+
 interface MassingStats {
   units?: number;
   triangles?: number;
@@ -422,7 +430,7 @@ export class MassingPage {
         name: 'Material Preservation',
         value: opts['material_preservation'],
         advice:
-          'every composite wall and slab arrives as separate skins; the model is larger than it needs to be and the skins are the first class dropped to fit 15 MB; ask for Off.',
+          'every composite wall and slab arrives as separate skins; the model is larger than it needs to be (the skins are kept: they carry the facade colours and the railings); ask for Off.',
       });
     }
     return out;
@@ -467,7 +475,7 @@ export class MassingPage {
 
   dropped(m: BuildingModelOut): string[] {
     const d = m.stats['classes_dropped'];
-    return Array.isArray(d) ? (d as string[]) : [];
+    return Array.isArray(d) ? (d as string[]).map((g) => DROPPED_LABEL[g] ?? g) : [];
   }
 
   pct(v: unknown): string {

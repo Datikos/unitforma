@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
@@ -11,6 +11,7 @@ import { AVAILABILITY, area, money, typeLabel } from '../core/format';
 import { PortalApi, ProjectDoc, UnitDoc, problemOf } from '../core/portal-api';
 import { SiteStore } from '../core/site.store';
 import { layoutKey, loadLayout, swatch } from './playground.model';
+import { planViews, stepIndex, swipeDirection } from './unit.model';
 
 /** Unit page: plan, labelled media, areas with definitions, price and terms (plan §7.1, §7.4). */
 @Component({
@@ -73,13 +74,60 @@ import { layoutKey, loadLayout, swatch } from './playground.model';
       <div class="layout">
         <section class="main">
           @if (hero(); as h) {
-            <figure class="hero3d">
-              <div class="media">
-                <img [src]="api.asset(h.url)" [alt]="h.alt_text || '3D view of ' + u.code" />
+            <figure
+              class="hero3d"
+              [attr.tabindex]="views().length > 1 ? 0 : null"
+              [attr.aria-roledescription]="views().length > 1 ? 'carousel' : null"
+              [attr.aria-label]="'3D views of ' + u.code"
+              (keydown.arrowleft)="step(-1)"
+              (keydown.arrowright)="step(1)"
+            >
+              <div class="media" (pointerdown)="swipeStart($event)" (pointerup)="swipeEnd($event)">
+                <img
+                  [src]="api.asset(h.url)"
+                  [alt]="h.alt_text || '3D view of ' + u.code"
+                  draggable="false"
+                />
                 @if (h.is_ai_generated) {
                   <span class="uf-ai-label">Illustrative — AI generated</span>
                 }
+                @if (views().length > 1) {
+                  <button
+                    type="button"
+                    class="pager__btn pager__btn--prev"
+                    aria-label="Previous 3D view"
+                    (click)="step(-1)"
+                  >
+                    <ng-icon name="lucideChevronLeft" />
+                  </button>
+                  <button
+                    type="button"
+                    class="pager__btn pager__btn--next"
+                    aria-label="Next 3D view"
+                    (click)="step(1)"
+                  >
+                    <ng-icon name="lucideChevronRight" />
+                  </button>
+                  <span class="pager__count" aria-live="polite"
+                    >{{ viewIndex() + 1 }} / {{ views().length }}</span
+                  >
+                }
               </div>
+              @if (views().length > 1) {
+                <div class="pager__dots" role="tablist" aria-label="Choose a 3D view">
+                  @for (v of views(); track v.url; let i = $index) {
+                    <button
+                      type="button"
+                      role="tab"
+                      class="pager__dot"
+                      [class.pager__dot--on]="i === viewIndex()"
+                      [attr.aria-selected]="i === viewIndex()"
+                      [attr.aria-label]="'3D view ' + (i + 1) + ' of ' + views().length"
+                      (click)="viewIndex.set(i)"
+                    ></button>
+                  }
+                </div>
+              }
               <figcaption class="uf-muted small">
                 3D view of {{ u.code }} from its floor plan.
                 @if (h.is_ai_generated && h.ai_disclosure_text) {
@@ -591,17 +639,33 @@ export class UnitPage {
       },
     ];
   });
-  /** The 3D plan view (generated or uploaded `plan_render`) leads the page (ADR-0017). */
-  readonly hero = computed(
-    () =>
-      (this.unit()?.media ?? []).find(
-        (m) => m.kind === 'plan_render' && m.mime.startsWith('image/'),
-      ) ?? null,
-  );
+  /** The 3D plan views (generated or uploaded `plan_render`) lead the page (ADR-0017); with
+   * more than one they page: arrows, dots, the arrow keys and a swipe. */
+  readonly views = computed(() => planViews(this.unit()?.media ?? []));
+  /** Back to the first view whenever another unit opens. */
+  readonly viewIndex = linkedSignal({ source: this.views, computation: () => 0 });
+  readonly hero = computed(() => this.views()[this.viewIndex()] ?? null);
   readonly otherMedia = computed(() => {
-    const h = this.hero();
-    return (this.unit()?.media ?? []).filter((m) => m !== h);
+    const views = new Set(this.views());
+    return (this.unit()?.media ?? []).filter((m) => !views.has(m));
   });
+  private swipeFrom: { x: number; y: number } | null = null;
+
+  step(delta: number): void {
+    this.viewIndex.set(stepIndex(this.viewIndex(), this.views().length, delta));
+  }
+
+  swipeStart(ev: PointerEvent): void {
+    this.swipeFrom = { x: ev.clientX, y: ev.clientY };
+  }
+
+  swipeEnd(ev: PointerEvent): void {
+    const from = this.swipeFrom;
+    this.swipeFrom = null;
+    if (!from || this.views().length < 2) return;
+    const dir = swipeDirection(ev.clientX - from.x, ev.clientY - from.y);
+    if (dir) this.step(dir);
+  }
   /** Some gallery items belong to the unit's layout (or, in older publications, to a twin). */
   readonly sharesLayoutMedia = computed(() =>
     this.otherMedia().some((m) => m.from_layout || m.shared_from),

@@ -13,6 +13,7 @@ from unitforma.audit.service import write_audit
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
 from unitforma.core.slugs import SlugError, validate_slug
+from unitforma.documents import assignments
 from unitforma.storage.jobs import queue_delete_prefix
 from unitforma.storage.service import get_storage, project_prefix
 from unitforma.tenants.models import (
@@ -23,11 +24,13 @@ from unitforma.tenants.models import (
     PortalDomain,
     Project,
     Sheet,
+    SheetFloor,
     SiteFeature,
     Unit,
 )
 
 BUILDING_HAS_UNITS = "https://unitforma.com/problems/building-has-units"
+FLOOR_HAS_UNITS = "https://unitforma.com/problems/floor-has-units"
 CONFIRM_MISMATCH = "https://unitforma.com/problems/confirm-mismatch"
 
 
@@ -409,6 +412,73 @@ async def set_floors(
     )
     await db.refresh(b, attribute_names=["floors"])
     return sorted(b.floors, key=lambda f: f.level)
+
+
+async def delete_floor(
+    db: AsyncSession, b: Building, floor_id: uuid.UUID, actor: tuple[uuid.UUID, str]
+) -> Floor:
+    """Delete a floor no unit uses (ADR-0031 #E1), such as a level read off an outside ground
+    mark. Refused while any unit row points to it, in any lifecycle state (``units.floor_id`` is
+    RESTRICT, unit identity is permanent). Its page → floor assignments go; a sheet's mirror
+    columns then follow the floors it still shows, or it becomes unassigned; IFC space links
+    keep their space without the floor (FK SET NULL). The caller refreshes the suggestions and
+    the massing."""
+    floor = next((f for f in b.floors if f.id == floor_id), None)
+    if floor is None:
+        raise ProblemError(404, "Floor not found in this building")
+    n_units = (
+        await db.execute(select(func.count(Unit.id)).where(Unit.floor_id == floor.id))
+    ).scalar_one()
+    if n_units:
+        raise ProblemError(
+            409,
+            "Floor has units",
+            f"{n_units} unit(s) are on floor {floor.display_name} of building {b.code}, "
+            "removed ones included; a floor with units cannot be deleted",
+            type_=FLOOR_HAS_UNITS,
+            extra={"units": n_units},
+        )
+    # a sheet can show several floors: its mirror columns follow the assignments that remain
+    sheet_ids = set(
+        (
+            await db.execute(select(SheetFloor.sheet_id).where(SheetFloor.floor_id == floor.id))
+        ).scalars()
+    ) | set(
+        (
+            await db.execute(
+                select(Sheet.id).where(
+                    (Sheet.floor_id == floor.id) | (Sheet.suggested_floor_id == floor.id)
+                )
+            )
+        ).scalars()
+    )
+    await db.execute(delete(SheetFloor).where(SheetFloor.floor_id == floor.id))
+    for sheet in (await db.execute(select(Sheet).where(Sheet.id.in_(sheet_ids)))).scalars():
+        rest = list(
+            (await db.execute(select(SheetFloor).where(SheetFloor.sheet_id == sheet.id))).scalars()
+        )
+        assignments.sync_primary(sheet, rest)
+    before = {
+        "floor_id": str(floor.id),
+        "level": floor.level,
+        "display_name": floor.display_name,
+        "height_m": None if floor.height_m is None else str(floor.height_m),
+        "elevation_m": None if floor.elevation_m is None else str(floor.elevation_m),
+    }
+    await db.delete(floor)
+    await db.flush()
+    await write_audit(
+        db,
+        tenant_id=b.tenant_id,
+        actor_user_id=actor[0],
+        actor_role=actor[1],
+        entity_type="building",
+        entity_id=b.id,
+        action="delete_floor",
+        before=before,
+    )
+    await db.refresh(b, attribute_names=["floors"])
+    return floor
 
 
 async def create_site_feature(

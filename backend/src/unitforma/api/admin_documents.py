@@ -24,7 +24,9 @@ from unitforma.api.schemas import (
     UploadIntentOut,
 )
 from unitforma.core.errors import ProblemError
-from unitforma.documents import assignments
+from unitforma.documents import assignments, classify
+from unitforma.documents import floor_proposal as proposal
+from unitforma.documents import jobs as documents_jobs
 from unitforma.documents import service as documents
 from unitforma.geometry import service as geometry_service
 from unitforma.identity.authz import Action
@@ -99,12 +101,17 @@ async def update_document(document_id: uuid.UUID, body: DocumentUpdate, ctx: Ctx
     """Confirm or change the kind, rename, re-file under a building (ADR-0008)."""
     ctx.require("documents", Action.WRITE)
     d = await _project_of_document(ctx, document_id)
+    before = (d.kind, d.building_id)
     d = await documents.update_document(ctx.session, d, body.model_dump(), _actor(ctx))
     r = (
         await documents.get_revision(ctx.session, ctx.tenant_id, d.current_revision_id)
         if d.current_revision_id
         else None
     )
+    if documents.needs_floor_resuggest(before, d, r):
+        # ADR-0008 #7: a processed file that became a floor plan, or was filed under a building,
+        # gets its page → floor suggestions now instead of after a new revision
+        await proposal.queue_resuggest(ctx.tenant_id, d.project_id)
     return _doc_out(d, r)
 
 
@@ -155,6 +162,35 @@ async def complete_upload(revision_id: uuid.UUID, ctx: Ctx):
             )
         except Exception as e:  # noqa: BLE001 - the worker schema may be absent in minimal setups
             rev.processing_error = f"could not enqueue: {e}"[:500]
+    return rev
+
+
+@router.post("/revisions/{revision_id}/reprocess", response_model=RevisionOut, status_code=202)
+async def reprocess_revision(revision_id: uuid.UUID, ctx: Ctx):
+    """Process the document's current revision again (ADR-0016 #F5): a revision stuck queued or
+    processing with no live job, a failed one, or a processed one that should take the newer
+    drawing reader (ADR-0031 Decision 6). Sheets, floors, calibrations and units are kept."""
+    ctx.require("documents", Action.WRITE)
+    rev = await documents.get_revision(ctx.session, ctx.tenant_id, revision_id)
+    d = await _project_of_document(ctx, rev.document_id)
+    if d.current_revision_id != rev.id:
+        raise ProblemError(409, "Only the current revision can be processed again")
+    if d.kind in classify.MODEL_KINDS:
+        # the conversion is re-run on the 3D massing page; here it would send every confirmed
+        # plan space back to suggested (ADR-0032 #C1)
+        raise ProblemError(
+            409, "A model is converted again on the 3D massing page", "Use Re-run conversion there"
+        )
+    if rev.processing_status not in documents_jobs.REPROCESSABLE:
+        raise ProblemError(409, "The upload of this revision is not complete")
+    outcome = await documents_jobs.reprocess_revision(ctx.tenant_id, rev.id)
+    if outcome == "running":
+        raise ProblemError(
+            409, "Processing is under way", "A worker has this revision; wait for it to finish"
+        )
+    if outcome == "enqueue_failed":
+        raise ProblemError(503, "The job queue is unavailable", "Try again in a minute")
+    await ctx.session.refresh(rev)
     return rev
 
 

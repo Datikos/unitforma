@@ -55,6 +55,13 @@ def units_todo(n_units: int, n_active: int) -> str:
     )
 
 
+def prices_status(n_active: int, missing_prices: bool) -> Status:
+    """No active unit means no price is set yet, not that every price is set (ADR-0031 #E2)."""
+    if not n_active:
+        return "todo"
+    return "attention" if missing_prices else "done"
+
+
 def _msg(item: dict[str, Any] | None) -> str:
     if not item:
         return ""
@@ -252,21 +259,25 @@ async def setup_status(db: AsyncSession, project: Project) -> dict[str, Any]:
         _step(
             "prices",
             "Prices, or 'price on request'",
-            "done" if "no_price" not in items else "attention",
-            _msg(items.get("no_price"))
+            prices_status(int(n_active), "no_price" in items),
+            "Prices come after the units: approve the units first, then set a price or "
+            "'on request' in the inventory grid"
+            if not n_active
+            else _msg(items.get("no_price"))
             or "Every available unit has a price or is marked on request",
             "inventory",
         )
     )
 
-    ifc = (
+    # one building has many conversions (every re-run); only the current ready one counts
+    with_ifc = (
         await db.execute(
-            select(func.count())
-            .select_from(GeometryModel)
-            .where(
+            select(func.count(func.distinct(GeometryModel.building_id))).where(
                 GeometryModel.project_id == project.id,
                 GeometryModel.kind == "ifc",
+                GeometryModel.is_current.is_(True),
                 GeometryModel.status == "ready",
+                GeometryModel.building_id.in_([b.id for b in buildings] or [uuid.uuid4()]),
             )
         )
     ).scalar_one()
@@ -274,13 +285,14 @@ async def setup_status(db: AsyncSession, project: Project) -> dict[str, Any]:
         _step(
             "architect_model",
             "Architect's 3D model (IFC)",
-            "done" if ifc else "optional",
-            f"{ifc} model(s) linked; the portal shows the model instead of the massing"
-            if ifc
+            "done" if with_ifc else "optional",
+            f"{with_ifc} of {len(buildings)} building(s) shown from the architect's model instead "
+            "of the massing"
+            if with_ifc
             else "Ask the architect for an IFC export (ArchiCAD: File → Save as → IFC, zones as "
             "spaces) and upload it under the building; the portal then shows the real building",
             "documents",
-            ifc,
+            with_ifc,
         )
     )
 

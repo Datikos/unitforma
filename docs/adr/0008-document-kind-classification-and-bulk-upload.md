@@ -118,6 +118,11 @@ turned out nothing fixed it; Decision 2's amendment and action item 6 cover it n
       "set by you" because the import passes the registry's kind explicitly. The 0010 downgrade needs
       the platform RLS scope to rewrite rows, as 0007 did.
 
-- [ ] 7 When a kind set by hand turns a project-level document into `floor_plan`, queue
+- [x] 7 When a kind set by hand turns a project-level document into `floor_plan`, queue
       `documents.resuggest_floors` (it exists since ADR-0010) so its sheets get floor suggestions
       without a new revision.
+      *Done 2026-10-29:* `PATCH /documents/{id}` queues it when the kind or the building changed
+      and the current revision is processed (`documents.service.needs_floor_resuggest`: the job
+      reads building documents and project-level floor plans); a rename or a visibility change
+      queues nothing. Tests: `test_a_hand_set_kind_refreshes_floor_suggestions_only_when_it_adds_pages`
+      and the tail of `test_files_left_queued_by_a_lost_worker_are_queued_again`.

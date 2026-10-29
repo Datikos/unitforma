@@ -712,4 +712,75 @@ def test_files_left_queued_by_a_lost_worker_are_queued_again(client: TestClient,
     assert out["failed"] >= 1, out
     assert jobs_of(revs[902]) == ["failed", "failed"]
     assert status_of(revs[902]) == ("failed", "worker lost 3 times; upload the file again")
+
+    # "Process again" (ADR-0016 #F5): a person may retry past the sweep's three-run stop
+    reprocess = f"{base}/revisions/{revs[902]}/reprocess"
+    r = client.post(reprocess, headers=cookie("pm"))
+    assert r.status_code == 202, r.text
+    assert r.json()["processing_status"] == "queued" and r.json()["processing_error"] is None
+    assert jobs_of(revs[902]) == ["failed", "failed", "todo"]
+    r = client.post(reprocess, headers=cookie("pm"))  # a job waits: nothing to do twice
+    assert r.status_code == 409 and r.json()["title"] == "Processing is under way", r.text
+
+    # a model is converted again on the 3D massing page, never from the document card
+    def set_kind_of_revision(rev_id: str, kind: str) -> str:
+        with eng.begin() as conn:
+            conn.execute(text("SELECT set_config('app.scope', 'platform', true)"))
+            return conn.execute(
+                text(
+                    "UPDATE documents d SET kind = :k FROM documents old"
+                    " WHERE d.id = old.id AND d.current_revision_id = :r RETURNING old.kind"
+                ),
+                {"k": kind, "r": rev_id},
+            ).scalar_one()
+
+    kind_901 = set_kind_of_revision(revs[901], "model_ifc")
+    r = client.post(f"{base}/revisions/{revs[901]}/reprocess", headers=cookie("pm"))
+    assert r.status_code == 409 and "3D massing page" in r.json()["title"], r.text
+    set_kind_of_revision(revs[901], kind_901)
+
+    # a processed revision runs again with its sheets kept (ADR-0031 Decision 6)
+    from unitforma.documents.jobs import process_revision
+
+    with eng.begin() as conn:
+        conn.execute(
+            text("DELETE FROM procrastinate_jobs WHERE args->>'revision_id' = :r"),
+            {"r": revs[901]},
+        )
+    client.portal.call(process_revision, tenant_id, uuid.UUID(revs[901]))
+    assert status_of(revs[901])[0] == "done"
+    sheets_url = f"{base}/revisions/{revs[901]}/sheets"
+    before = [s["id"] for s in client.get(sheets_url, headers=cookie("pm")).json()]
+    r = client.post(f"{base}/revisions/{revs[901]}/reprocess", headers=cookie("pm"))
+    assert r.status_code == 202 and jobs_of(revs[901]) == ["todo"], r.text
+    client.portal.call(process_revision, tenant_id, uuid.UUID(revs[901]))
+    assert status_of(revs[901])[0] == "done"
+    assert [s["id"] for s in client.get(sheets_url, headers=cookie("pm")).json()] == before
+    assert before
+
+    # a kind set by hand that makes the processed file a floor plan refreshes the page → floor
+    # suggestions without a new revision (ADR-0008 #7); a rename does not
+    def resuggest_jobs() -> int:
+        with eng.begin() as conn:
+            return conn.execute(
+                text(
+                    "SELECT count(*) FROM procrastinate_jobs"
+                    " WHERE task_name = 'documents.resuggest_floors'"
+                    " AND args->>'project_id' = :p"
+                ),
+                {"p": project["id"]},
+            ).scalar_one()
+
+    doc = next(
+        d
+        for d in client.get(docs_url, headers=cookie("pm")).json()
+        if d["current_revision"]["id"] == revs[901]
+    )
+    n = resuggest_jobs()
+    r = client.patch(f"{base}/documents/{doc['id']}", headers=cookie("pm"), json={"title": "x"})
+    assert r.status_code == 200 and resuggest_jobs() == n, r.text
+    kind = "section" if doc["kind"] == "floor_plan" else "floor_plan"
+    r = client.patch(f"{base}/documents/{doc['id']}", headers=cookie("pm"), json={"kind": kind})
+    assert r.status_code == 200, r.text
+    assert resuggest_jobs() == n + (1 if doc["building_id"] or kind == "floor_plan" else 0)
     eng.dispose()

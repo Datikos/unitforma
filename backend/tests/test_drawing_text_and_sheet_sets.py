@@ -61,6 +61,12 @@ def test_legacy_georgian_fonts_decode_by_font_name():
         ("A9/10-1\n12.5 m2", []),  # a code alone is not a stall
         ("№30\n12.5 m2", [(None, "30")]),
         ("6.90 2.50 0.40", []),  # dimensions
+        # ADR-0031: a boxed label lettered in rows, the word and the number each alone
+        ("ბინა\n221\n43.9 მ2", [("apartment", "221")]),
+        ("P\n01\n13.3 m2", [("parking", "01")]),
+        ("ბინა\n№7", [("apartment", "7")]),
+        ("ბინა\n6. აივანი", []),  # the next row holds more than a number
+        ("საცხოვრებელი ბინა\n6", []),  # the word is not alone on its row
     ],
 )
 def test_unit_labels(text, expected):

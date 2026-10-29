@@ -19,23 +19,49 @@ from unitforma.tenants.models import Sheet
 STEP = "calibration"
 
 
-def from_printed_scale(sheet: Sheet) -> dict | None:
-    """Metres per raster pixel from the single printed scale and the page size in points."""
-    scales = (sheet.hints or {}).get("scales") or []
-    if len(scales) != 1 or not sheet.width_pt or not sheet.height_pt:
+def _scale(sheet: Sheet) -> tuple[tuple[float, float], str] | None:
+    if not sheet.width_pt or not sheet.height_pt or not sheet.raster_width:
         return None
-    if not sheet.raster_width or not sheet.raster_height:
+    if not sheet.raster_height:
         return None
-    size = suggest.page_metres(
-        {"page_pt": [float(sheet.width_pt), float(sheet.height_pt)]}, int(scales[0])
+    hints = sheet.hints or {}
+    return suggest.scale_metres(
+        {"page_pt": [float(sheet.width_pt), float(sheet.height_pt)]},
+        hints.get("scales") or [],
+        hints.get("dimension_scale"),
     )
-    if not size or size[0] <= 0:
+
+
+def from_printed_scale(sheet: Sheet) -> dict | None:
+    """Metres per raster pixel from the single printed scale and the page size in points, when
+    the page's dimensions do not contradict it (ADR-0031 Decision 3)."""
+    found = _scale(sheet)
+    if found is None or found[1] != "printed_scale" or found[0][0] <= 0:
         return None
     cal = geometry.calibration_from_points(
-        [0.0, 0.5], [1.0, 0.5], size[0], sheet.raster_width, sheet.raster_height
+        [0.0, 0.5], [1.0, 0.5], found[0][0], sheet.raster_width, sheet.raster_height
     )
     cal["source"] = "printed_scale"
-    cal["scale"] = int(scales[0])
+    cal["scale"] = int((sheet.hints or {})["scales"][0])
+    return cal
+
+
+def from_dimensions(sheet: Sheet) -> dict | None:
+    """Metres per raster pixel from the page width the drawing's dimensions give (ADR-0031
+    Decision 3), for a sheet that prints no scale, several, or one its dimensions contradict
+    (N4 page 11: a ramp's "1:12")."""
+    found = _scale(sheet)
+    if found is None or found[1] != "dimensions":
+        return None
+    dim = (sheet.hints or {}).get("dimension_scale") or {}
+    cal = geometry.calibration_from_points(
+        [0.0, 0.5], [1.0, 0.5], found[0][0], sheet.raster_width, sheet.raster_height
+    )
+    cal["source"] = "dimensions"
+    cal["dimension_unit"] = dim.get("unit")
+    cal["dimensions_agreeing"] = dim.get("agree")
+    if len((sheet.hints or {}).get("scales") or []) == 1:
+        cal["printed_scale_ignored"] = int(sheet.hints["scales"][0])
     return cal
 
 
@@ -44,7 +70,7 @@ def is_a_persons(sheet: Sheet) -> bool:
     the sibling pages of the document take (ADR-0029 Decision 3)."""
     return sheet.calibration_status == "calibrated" and (sheet.calibration or {}).get(
         "source"
-    ) not in ("printed_scale", "sibling")
+    ) not in ("printed_scale", "sibling", "dimensions")
 
 
 def same_page_size(a: Sheet, b: Sheet) -> bool:
@@ -77,7 +103,40 @@ def from_sibling(sheet: Sheet, source: Sheet) -> dict | None:
 
 async def run(ctx: Context) -> None:
     await _from_printed_scales(ctx)
+    await _from_dimensions(ctx)
     await _from_siblings(ctx)
+
+
+async def _from_dimensions(ctx: Context) -> None:
+    """Pages without a printed scale, each from its own dimensions, before a person's sibling
+    calibration is copied: an "NTS" set is scaled per page (N4: 107.6 to 112.0 m across five
+    pages of one size), so a sibling's scale would be a few per cent off."""
+    async with session(ctx) as db:
+        by_doc: dict[uuid.UUID, tuple[str, list[tuple[int, float]]]] = {}
+        for sheet, doc in await current_sheets(db, ctx.project_id):
+            if sheet.calibration_status != "none" or doc.kind not in ("floor_plan", "site_plan"):
+                continue
+            cal = from_dimensions(sheet)
+            if cal is None:
+                continue
+            await inventory.recalibrate_sheet(db, sheet, cal)
+            by_doc.setdefault(doc.id, (doc.title, []))[1].append(
+                (sheet.page_no, cal["dimensions_agreeing"] or 0)
+            )
+    for doc_id, (title, pages) in by_doc.items():
+        ctx.decide(
+            STEP,
+            "accepted",
+            f"{title}: {len(pages)} page(s) calibrated from their dimensions",
+            "No printed scale, or one the dimensions contradict; each page's dimension strings "
+            "agree on its width (at least "
+            f"{min(n for _, n in pages)} dimensions per page); pages "
+            + ", ".join(str(p) for p, _ in pages[:12])
+            + (" …" if len(pages) > 12 else ""),
+            confidence=rules.CALIBRATION_DIMENSIONS_CONFIDENCE,
+            entity_type="document",
+            entity_id=doc_id,
+        )
 
 
 async def _from_siblings(ctx: Context) -> None:

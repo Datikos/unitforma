@@ -1,6 +1,6 @@
 # ADR-0029: Publish with defaults: one click on the checklist or a switch at intake makes the first portal version live; one calibration serves a whole document
 
-- **Status:** accepted (2026-10-27, the owner's "3" on the options of the same day, then "also make it an option while creating the project"; implemented 2026-10-27 on branch `adr-0029`)
+- **Status:** accepted (2026-10-27, the owner's "3" on the options of the same day, then "also make it an option while creating the project"; implemented 2026-10-27 on branch `adr-0029`); Decision 3's sibling calibration now yields to a page's own dimension scale (ADR-0031 Decision 3)
 - **Date:** 2026-10-27
 - **Deciders:** David Sakhelashvili (platform owner)
 - **Plan reference:** §11.2 (Projects, Setup screens), §12.3 (`setup.autopilot`), §13.1 (document → published project), §13.2 (automation classification), ADR-0012 (publication flags, permanent delete), ADR-0016 (gallery), ADR-0017 (setup checklist), ADR-0022 (layouts), ADR-0025 (the setup solver), ADR-0028 (the vision route for what the rules cannot read)

@@ -17,10 +17,12 @@ from fastapi.testclient import TestClient
 
 from tests.fake_kratos import FakeKratos, cookie
 from tests.pdf_fixture import (
+    NTS_CM_PER_PT,
     SPLIT_LEVELS_STOREY,
     _rect,
     _text,
     build_pdf,
+    make_nts_stacked_pdf,
     make_plan_pdf,
     make_split_level_pdf,
 )
@@ -936,6 +938,35 @@ def test_a_persons_calibration_serves_the_sibling_pages(client, world):
     assert any(
         d["step"] == "calibration" and "calibrated like page 1" in d["title"] for d in decisions
     )
+
+
+def test_a_page_without_a_printed_scale_is_calibrated_from_its_dimensions(client, world):
+    """ADR-0031 Decision 3: the N4 set prints "NTS"; each page's dimension chain gives its width,
+    and the apartments come out as candidates measured in metres."""
+    base, adm, tid = world["base"], world["adm"], world["tenant"]["id"]
+    p, b = _intake(client, base, adm, "nts", {"enabled": True, "approve_sheets": False})
+    doc, result = _upload(
+        client, base, adm, p["id"], "floor_plan", "NTS", make_nts_stacked_pdf(), tid, b["id"]
+    )
+    _run(client, tid, result["autopilot_run_id"])
+    rev = next(
+        d["current_revision_id"]
+        for d in client.get(f"{base}/projects/{p['id']}/documents", headers=adm).json()
+        if d["id"] == doc["id"]
+    )
+    (sheet,) = client.get(f"{base}/revisions/{rev}/sheets", headers=adm).json()
+    cal = sheet["calibration"]
+    assert sheet["calibration_status"] == "calibrated" and cal["source"] == "dimensions"
+    assert abs(cal["m_per_px"] * sheet["raster_width"] - 842 * NTS_CM_PER_PT / 100) < 0.01
+    decisions = _setup(client, base, adm, p["id"])["decisions"]
+    assert any(
+        d["step"] == "calibration" and "calibrated from their dimensions" in d["title"]
+        for d in decisions
+    )
+    found = client.post(f"{base}/sheets/{sheet['id']}/suggestions", headers=adm).json()
+    grown = [c for c in found if c["method"] == "grown"]
+    assert sorted(c["label"] for c in grown) == ["ბინა 101", "ბინა 102"]
+    assert all(abs(c["measured_area_m2"] - 16.0) < 0.2 for c in grown)
 
 
 def test_a_persons_work_is_never_touched_and_the_guard_waits(client, world):

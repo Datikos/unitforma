@@ -69,8 +69,9 @@ async def update_building(building_id: uuid.UUID, changes: BuildingUpdate) -> Bu
 
 
 async def set_floors(building_id: uuid.UUID, floors: list[FloorIn]) -> list[FloorOut]:
-    """Replace the building's floor list: level (integer, 0 = ground, negative below),
-    display name, height and elevation in metres (null when unknown)."""
+    """Create or update the building's floors by level (integer, 0 = ground, negative below):
+    display name, height and elevation in metres (null when unknown). Floors not listed are
+    kept, not deleted: a floor no unit uses is deleted on the building card in the admin app."""
     async with tenant_ctx(write=True) as ctx:
         ctx.require("project", Action.WRITE)
         b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)

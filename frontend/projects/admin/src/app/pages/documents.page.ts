@@ -292,6 +292,16 @@ const SOURCE_LABELS: Record<string, string> = {
             <button mat-button (click)="newRevision(d)">
               <ng-icon name="lucideFileUp" /> Upload new revision
             </button>
+            @if (canReprocess(d)) {
+              <button
+                mat-button
+                [disabled]="busy()"
+                (click)="reprocess(d)"
+                title="Read the file again with the current drawing reader; sheets, floors, calibrations and units stay"
+              >
+                <ng-icon name="lucideRefreshCw" /> Process again
+              </button>
+            }
             <button mat-button (click)="download(d)">
               <ng-icon name="lucideDownload" /> Download
             </button>
@@ -308,9 +318,9 @@ const SOURCE_LABELS: Record<string, string> = {
           }
           @if (d.kind === 'unclassified') {
             <p class="uf-hint">
-              The name and the content did not say what this file is. Pick a kind. A project-level
-              file set to Floor plans gets its floor suggestions with the next revision; a file
-              filed under a building already has them.
+              The name and the content did not say what this file is. Pick a kind. A file set to
+              Floor plans, or filed under a building, gets its page → floor suggestions a moment
+              later.
             </p>
           }
           @if (sheets()[d.id]; as list) {
@@ -663,6 +673,32 @@ export class DocumentsPage {
       const updated = await this.api.updateDocument(this.tenantId(), d.id, { kind: kind as Kind });
       this.docs.update((list) => list.map((x) => (x.id === d.id ? updated : x)));
       this.toast.ok(`${d.title}: ${this.kindLabel(kind)}`);
+    } catch (e) {
+      this.error.set(problemMessage(e));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** Every finished or stuck state can run again; an upload still in progress cannot, and a
+   *  model is converted again on the 3D massing page ("Re-run conversion"). */
+  canReprocess(d: DocumentOut): boolean {
+    const st = d.current_revision?.processing_status;
+    return !!st && st !== 'uploading' && !this.isModelKind(d.kind);
+  }
+
+  /** "Process again" (ADR-0016 #F5): a stuck or failed revision, or one processed before the
+   *  current drawing reader (ADR-0031 Decision 6). A revision a worker still has answers 409. */
+  async reprocess(d: DocumentOut): Promise<void> {
+    if (!d.current_revision_id) return;
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      const rev = await this.api.reprocessRevision(this.tenantId(), d.current_revision_id);
+      this.docs.update((list) =>
+        list.map((x) => (x.id === d.id ? { ...x, current_revision: rev } : x)),
+      );
+      this.toast.ok(`${d.title}: queued to be processed again`);
     } catch (e) {
       this.error.set(problemMessage(e));
     } finally {
