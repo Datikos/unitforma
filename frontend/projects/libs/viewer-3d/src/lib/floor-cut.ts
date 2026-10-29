@@ -10,7 +10,6 @@ export const PLAN_CUT_M = 1.2;
 export const SPACE_GLASS_OPACITY = 0.4;
 export const HOVER_GLASS_OPACITY = 0.55;
 export const SELECTED_GLASS_OPACITY = 0.75;
-export const OTHER_FLOOR_HOVER_OPACITY = 0.3;
 /** How steeply the camera looks down into a cut floor (Decision 5). */
 export const CUT_VIEW_ELEVATION_DEG = 55;
 /** Where the plane sits when nothing is cut: far above any model, so no shader recompiles. */
@@ -32,13 +31,13 @@ export function cutHeight(spaces: SpanY[]): number | null {
 
 /**
  * Opacity of a plan space in an IFC model. `onFloor` is null with no floor picked, else whether the
- * space is on the picked floor; spaces of other floors are not drawn unless hovered.
+ * space is on the picked floor; spaces of other floors are not drawn and cannot be tapped (#D6).
  */
 export function ifcSpaceOpacity(
   onFloor: boolean | null,
   state: 'hover' | 'selected' | null,
 ): number {
-  if (onFloor === false) return state === 'hover' ? OTHER_FLOOR_HOVER_OPACITY : 0;
+  if (onFloor === false) return 0;
   if (state === 'selected') return SELECTED_GLASS_OPACITY;
   if (state === 'hover') return HOVER_GLASS_OPACITY;
   return SPACE_GLASS_OPACITY;
@@ -90,13 +89,13 @@ export interface SpaceHit {
 }
 
 /**
- * Index of the tapped space among ray hits sorted by distance, or -1 (Decision 4, D4). Above the
- * cut nothing is drawn, so nothing there counts. Below it the picked floor's space wins over a
- * nearer other floor: adjacent storeys' spaces share a face (one's ceiling is the next one's
- * floor), so the two tie at the same distance and only the picked floor's is drawn.
+ * Index of the tapped space among ray hits sorted by distance, or -1 (Decision 4, D4, D6). With
+ * the model cut open only the picked floor's spaces count, below the cut: above it nothing is
+ * drawn, and the other floors' spaces are not drawn either, so a tap on a wall or the corridor
+ * must not fall through to a flat of a floor below. Adjacent storeys' spaces share a face (one's
+ * ceiling is the next one's floor), so the picked floor's hit may tie with a nearer other one.
  */
 export function pickedHit(hits: SpaceHit[], cut: number | null, floor: number | null): number {
   if (cut === null) return hits.length ? 0 : -1;
-  const below = hits.map((h, i) => ({ ...h, i })).filter((h) => h.y <= cut + 1e-3);
-  return (below.find((h) => h.level === floor) ?? below[0])?.i ?? -1;
+  return hits.findIndex((h) => h.y <= cut + 1e-3 && h.level === floor);
 }

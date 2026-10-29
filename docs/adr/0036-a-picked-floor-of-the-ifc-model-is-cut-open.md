@@ -1,6 +1,6 @@
 # ADR-0036: A picked floor of the IFC model is cut open
 
-- **Status:** accepted (2026-10-29, the owner's pick of option 2 after his screenshot of N4 level 0); implemented 2026-10-29 on branch `adr-0036`, verified on N4 the same day; D1 (the admin tint by link status) added and done 2026-10-29; D2 (the section fill of cut elements) added and done 2026-10-29; D3 (the building page opens on the whole building) and D4 (a tap takes the picked floor on a tie) added 2026-10-30 after the owner's screenshot of N4 level 2; D5 (the plan starts on the lowest floor with flats) added and done 2026-10-30
+- **Status:** accepted (2026-10-29, the owner's pick of option 2 after his screenshot of N4 level 0); implemented 2026-10-29 on branch `adr-0036`, verified on N4 the same day; D1 (the admin tint by link status) added and done 2026-10-29; D2 (the section fill of cut elements) added and done 2026-10-29; D3 (the building page opens on the whole building) and D4 (a tap takes the picked floor on a tie) added 2026-10-30 after the owner's screenshot of N4 level 2; D5 (the plan starts on the lowest floor with flats) added and done 2026-10-30; Decision 4 amended 2026-10-30 by D6 (on the cut model only the picked floor is tappable)
 - **Date:** 2026-10-29
 - **Deciders:** David Sakhelashvili (platform owner)
 - **Plan reference:** §7.3 (floor isolation, interior view), §11.3 (MVP 3D); ADR-0006 Decision 6 and #E4, ADR-0030 (plan spaces), ADR-0033 (the architectural look)
@@ -221,3 +221,14 @@ Phase D: follow-up
       `portal/.../building.model.ts` (`defaultFloor`), `building.page.ts` (`level`).
       *Done 2026-10-30*: `building.model.spec.ts` proves N4's order (parking -2, empty -1, flats
       from 0) and the fallbacks.
+- [x] D6 On the cut IFC model a tap counts only the picked floor's spaces below the cut; the other
+      floors' spaces are neither drawn nor tappable, and no longer show at 30 % on hover
+      (`OTHER_FLOOR_HOVER_OPACITY` removed). Amends Decision 4. D4's 200-tap grid on N4 level 2
+      left 13 taps that met no level 2 space (walls, the corridor, stairs) and moved to a flat of
+      a floor below the buyer could not see; on a phone nothing warned first (owner's pick of the
+      follow-up, 2026-10-30). Such a tap now does nothing; the other floors are reached from the
+      floor list, the facade or "Whole building". The schematic massing keeps ADR-0006 Decision
+      6: a tap on a faded floor moves there. `floor-cut.ts` (`pickedHit`, `ifcSpaceOpacity`),
+      `massing-viewer.ts`, the viewer-3d README.
+      *Done 2026-10-30*: `floor-cut.spec.ts` proves a miss of the picked floor (a lower flat
+      under the ray, the tie face of the flat below) selects nothing.

@@ -1,6 +1,5 @@
 import {
   CUT_VIEW_ELEVATION_DEG,
-  OTHER_FLOOR_HOVER_OPACITY,
   PLAN_CUT_M,
   SELECTED_GLASS_OPACITY,
   SECTION_BELOW_BASE_M,
@@ -43,10 +42,10 @@ describe('ifcSpaceOpacity (ADR-0036 Decisions 3 and 4)', () => {
     expect(ifcSpaceOpacity(true, 'hover')).toBeGreaterThan(SPACE_GLASS_OPACITY);
   });
 
-  it('hides the other floors until one is hovered', () => {
+  it('never draws the other floors (#D6)', () => {
     expect(ifcSpaceOpacity(false, null)).toBe(0);
     expect(ifcSpaceOpacity(false, 'selected')).toBe(0);
-    expect(ifcSpaceOpacity(false, 'hover')).toBe(OTHER_FLOOR_HOVER_OPACITY);
+    expect(ifcSpaceOpacity(false, 'hover')).toBe(0);
   });
 });
 
@@ -89,7 +88,7 @@ describe('section fill of cut elements (ADR-0036 #D2)', () => {
   });
 });
 
-describe('pickedHit (ADR-0036 Decision 4, #D4)', () => {
+describe('pickedHit (ADR-0036 Decision 4, #D4, #D6)', () => {
   // N4: level 1's spaces end at 11.6 m where level 2's begin, so a tap on a level 2 flat hits
   // both faces at the same distance, in either order
   it('takes the picked floor on a tie with the floor below', () => {
@@ -101,8 +100,10 @@ describe('pickedHit (ADR-0036 Decision 4, #D4)', () => {
     expect(pickedHit(hits, 12.8, 2)).toBe(2);
   });
 
-  it('takes another floor below the cut when the ray misses the picked one', () => {
-    expect(pickedHit([{ y: 8.4, level: 0 }], 12.8, 2)).toBe(0);
+  it('takes nothing when the ray misses the picked floor (a wall, the corridor)', () => {
+    // the deployed portal moved 13 of 200 taps on N4 level 2 to a floor below this way
+    expect(pickedHit([{ y: 8.4, level: 0 }], 12.8, 2)).toBe(-1);
+    expect(pickedHit([{ y: 11.6, level: 1 }], 12.8, 2)).toBe(-1);
   });
 
   it('counts nothing above the cut', () => {

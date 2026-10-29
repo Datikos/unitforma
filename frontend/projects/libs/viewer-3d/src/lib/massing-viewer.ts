@@ -80,8 +80,8 @@ const SUN_LIGHT = 1.0;
  *
  * An IFC model is cut open instead (ADR-0036, `floor-cut.ts`): its elements are merged across
  * storeys, so one clipping plane removes everything above the picked floor; the spaces are tinted
- * glass, the other floors' spaces are drawn only when hovered, and the camera looks down into the
- * floor.
+ * glass, the other floors' spaces are neither drawn nor tappable (other floors are reached from the
+ * floor picker), and the camera looks down into the floor.
  *
  * The look (ADR-0033): on WebGL2 the frame goes through `architectural-look.ts` (edges on every
  * element, ambient occlusion on desktops); the tier is decided once from the device.
@@ -614,7 +614,7 @@ export class MassingViewerComponent implements OnDestroy {
     mat.transparent = opacity < 1;
     mat.opacity = opacity;
     mat.depthWrite = opacity === 1;
-    mat.colorWrite = opacity > 0; // an undrawn space of another floor stays tappable (ADR-0036)
+    mat.colorWrite = opacity > 0;
     m.userData['ghost'] = opacity < 1; // out of the edge and occlusion buffers (ADR-0033)
     for (const child of m.children) if (child.userData['edges']) child.visible = opacity === 1;
   }
