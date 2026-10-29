@@ -82,3 +82,21 @@ export function aimOverFloor(camera: Vec3, target: Vec3, centre: Vec3, distance:
     centre[2] + flat * Math.cos(azimuth),
   ];
 }
+
+/** One ray hit on a space mesh: its height and the floor the space belongs to. */
+export interface SpaceHit {
+  y: number;
+  level: number | null;
+}
+
+/**
+ * Index of the tapped space among ray hits sorted by distance, or -1 (Decision 4, D4). Above the
+ * cut nothing is drawn, so nothing there counts. Below it the picked floor's space wins over a
+ * nearer other floor: adjacent storeys' spaces share a face (one's ceiling is the next one's
+ * floor), so the two tie at the same distance and only the picked floor's is drawn.
+ */
+export function pickedHit(hits: SpaceHit[], cut: number | null, floor: number | null): number {
+  if (cut === null) return hits.length ? 0 : -1;
+  const below = hits.map((h, i) => ({ ...h, i })).filter((h) => h.y <= cut + 1e-3);
+  return (below.find((h) => h.level === floor) ?? below[0])?.i ?? -1;
+}

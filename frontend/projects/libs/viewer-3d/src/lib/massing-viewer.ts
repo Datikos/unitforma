@@ -19,6 +19,7 @@ import {
   aimOverFloor,
   cutHeight,
   ifcSpaceOpacity,
+  pickedHit,
   sectionBand,
   takesSectionFill,
 } from './floor-cut';
@@ -455,7 +456,7 @@ export class MassingViewerComponent implements OnDestroy {
         mat.clipShadows = true;
         if (takesSectionFill(mat, space)) mat.onBeforeCompile = this.sectionFill;
         if (space) {
-          mat.polygonOffset = true;
+          // on for the cut floor only (applyFocus): uncut, it pulled the top floor through the roof
           mat.polygonOffsetFactor = -1;
           mat.polygonOffsetUnits = -4;
         }
@@ -588,6 +589,8 @@ export class MassingViewerComponent implements OnDestroy {
       for (const m of this.meshes) {
         m.visible = true;
         m.userData['onFloor'] = lvl === null ? null : m.userData['floor_level'] === lvl;
+        (m.material as THREE.MeshStandardMaterial).polygonOffset =
+          this.cutY !== null && m.userData['onFloor'] === true;
         m.userData['pickable'] = own.has(m);
         this.paint(m, m.userData['unit_id'] === sel ? 'selected' : null);
       }
@@ -682,10 +685,13 @@ export class MassingViewerComponent implements OnDestroy {
       this.meshes.filter((m) => m.visible && m.userData['pickable'] !== false),
       false,
     );
-    // above the cut nothing is drawn, so nothing there can be tapped (ADR-0036 Decision 4)
-    const cut = this.cutY;
-    const hit = cut === null ? hits[0] : hits.find((h) => h.point.y <= cut + 1e-3);
-    return (hit?.object as THREE.Mesh) ?? null;
+    // nothing above the cut counts, and the picked floor wins a tie (ADR-0036 Decision 4, D4)
+    const spaces = hits.map((h) => ({
+      y: h.point.y,
+      level: (h.object.userData['floor_level'] ?? null) as number | null,
+    }));
+    const i = pickedHit(spaces, this.cutY, this.cutY === null ? null : this.floorLevel());
+    return i < 0 ? null : (hits[i].object as THREE.Mesh);
   }
 
   /** Base colour per mesh from the GLB colour, the tint mode and `unitColors`; then repaint. */

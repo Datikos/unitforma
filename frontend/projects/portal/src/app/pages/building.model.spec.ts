@@ -1,5 +1,5 @@
 import { FloorUnit } from '../core/portal-api';
-import { countByAvailability, groupUnitsByType } from './building.model';
+import { countByAvailability, floorChosen, groupUnitsByType, tapOnModel } from './building.model';
 
 function unit(code: string, unit_type: string, availability: FloorUnit['availability']): FloorUnit {
   return { id: code, code, unit_type, availability, ring: null };
@@ -40,5 +40,21 @@ describe('countByAvailability (building page legend)', () => {
         unit('P-1', 'parking', 'reserved'),
       ]),
     ).toEqual({ available: 1, reserved: 1, sold: 0, withdrawn: 0 });
+  });
+});
+
+describe('whole building until a floor is chosen (ADR-0036 #D3)', () => {
+  it('opens whole without a floor or unit in the link', () => {
+    expect(floorChosen(undefined, undefined)).toBe(false);
+    expect(floorChosen('', undefined)).toBe(false);
+    expect(floorChosen('2', undefined)).toBe(true);
+    expect(floorChosen(undefined, 'A-02-11')).toBe(true);
+  });
+
+  it('selects a tapped unit in place only on the floor already cut open', () => {
+    expect(tapOnModel(true, 2, 2)).toBe('select');
+    expect(tapOnModel(true, 2, 1)).toBe('go');
+    // the whole building shows the first floor's plan, but a tap there still cuts the model
+    expect(tapOnModel(false, -2, -2)).toBe('go');
   });
 });

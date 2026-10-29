@@ -35,3 +35,20 @@ export function countByAvailability(units: readonly FloorUnit[]): Record<Availab
   for (const u of units) out[u.availability] += 1;
   return out;
 }
+
+/**
+ * The building opens whole and is cut open at a floor only once the buyer chose one: a `?floor=`
+ * or `?unit=` in the link, a floor on the left, a band on the facade or a unit on the 3D model
+ * (ADR-0036 #D3). Without that choice the plan below still shows the first floor.
+ */
+export function floorChosen(floor: string | undefined, unit: string | undefined): boolean {
+  return !!floor || !!unit;
+}
+
+/**
+ * A unit tapped on the 3D model: selected in place when the model is already cut open at its
+ * floor, else the page moves to its floor with it preselected (which cuts the model there).
+ */
+export function tapOnModel(chosen: boolean, level: number, unitLevel: number): 'select' | 'go' {
+  return chosen && unitLevel === level ? 'select' : 'go';
+}
