@@ -257,6 +257,50 @@ def test_plan_spaces_use_the_hull_when_the_slabs_are_exploded():
     assert len(spaces) == 1 and info["face"] == "hull" and info["iou"] > 0.95, info
 
 
+def _two_levels(offset_m: float):
+    """A 40 × 10 slab on two storeys; level 0 drawn on it, level 1 drawn ``offset_m`` lower on its
+    own sheet (each sheet has its own origin)."""
+    parsed = _parsed_with_slabs(
+        {"st0": [_rect(0, 0, 40, 10)], "st1": [_rect(0, 0, 40, 10)]}, [0.0, 3.0]
+    )
+    floors = [
+        plan_spaces.PlanFloor(id="f0", level=0, elevation_m=0.0, base_m=0.0, height_m=3.0),
+        plan_spaces.PlanFloor(id="f1", level=1, elevation_m=3.0, base_m=3.0, height_m=3.0),
+    ]
+    outlines = [
+        plan_spaces.Outline(uuid.uuid4(), "A-0", "f0", _rect(0, 0, 40, 10), "A", 0),
+        plan_spaces.Outline(
+            uuid.uuid4(), "A-1", "f1", _rect(0, offset_m, 40, 10 + offset_m), "A", 1
+        ),
+    ]
+    return plan_spaces.build(parsed, floors, outlines, building_id="A")
+
+
+def test_a_level_drawn_on_another_sheet_origin_moves_onto_its_slab():
+    """ADR-0030 #D1 (N4, 2026-10-29: levels 1-3 sat 3.1-3.9 m off their slabs under the parking
+    level's fit): level 1 drawn 3 m off moves 3 m onto its slab, the rotation stays shared."""
+    spaces, info = _two_levels(3.0)
+    assert "reason" not in info, info
+    lvl1 = info["per_level"][1]
+    assert lvl1["coverage"] == pytest.approx(0.7, abs=0.01)
+    assert lvl1["coverage_shifted"] >= 0.99 and abs(lvl1["shift_m"][1]) == pytest.approx(3.0)
+    assert "shift_m" not in info["per_level"][0]
+    ys = [y for sp, _v, _f in spaces if sp.floor_level == 1 for _x, y in sp.footprint_m]
+    lo, hi = min(ys), max(ys)
+    ys0 = [y for sp, _v, _f in spaces if sp.floor_level == 0 for _x, y in sp.footprint_m]
+    assert lo == pytest.approx(min(ys0), abs=0.01) and hi == pytest.approx(max(ys0), abs=0.01)
+
+
+def test_a_level_already_on_its_slab_or_too_far_off_keeps_the_shared_fit():
+    """ADR-0030 #D1: a gain under 0.05 moves nothing; an offset past the 5 m cap is refused, since
+    the real offset may be larger than any shift the search may try."""
+    _spaces, info = _two_levels(0.2)
+    assert "shift_m" not in info["per_level"][1] and "shift_refused" not in info["per_level"][1]
+    _spaces, info = _two_levels(8.0)
+    assert info["per_level"][1].get("shift_refused") is True, info["per_level"]
+    assert "shift_m" not in info["per_level"][1]
+
+
 def test_header_options_reads_the_archicad_translator_settings():
     """ADR-0030 Decision 1: the FILE_DESCRIPTION of the 2026-10-27 export, whitelisted keys only."""
     assert ifc.header_options(list(ARCHICAD_HEADER)) == {

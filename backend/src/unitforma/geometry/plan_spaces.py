@@ -2,7 +2,8 @@
 
 Pure: the service loads floors and outlines, this module decides the fit and builds the solids.
 A plan space is the unit's outline mapped from the sheet frame to the IFC frame
-(:func:`plan_fit.sheet_to_ifc`, then one rotation and translation for the whole building),
+(:func:`plan_fit.sheet_to_ifc`, then one rotation for the whole building and a translation that
+a level may refine),
 extruded between the storey's elevation and the next storey's. Its GlobalId is the unit id
 compressed the IFC way, so the viewer contract, the relink and the published copy do not change.
 
@@ -16,6 +17,10 @@ B, C and D separate buildings in the platform, composite slabs exploded into par
   the scope with the higher mean IoU wins, and spaces are built for the filed building only;
 * one transform is scored jointly over every level that has outlines and a storey
   (:func:`plan_fit.joint_fit`), which breaks the 180° ambiguity of a long rectangular block.
+
+Amended 2026-10-29 (ADR-0030 #D1): each floor plan sheet has its own origin, so after the shared
+fit every other level searches its own translation onto its storey's target
+(:func:`plan_fit.level_shift`, at most 5 m, only when its coverage gains 0.05 or more).
 """
 
 from __future__ import annotations
@@ -167,14 +172,14 @@ def build(
             if items:
                 project[lvl] = _foot(items)
         scopes["project"] = project
-    best_scope, best_fit = None, None
+    best_scope, best_fit, best_feet = None, None, {}
     for scope, feet in scopes.items():
         feet = {k: v for k, v in feet.items() if not v.is_empty}
         if fit_level not in feet:
             continue
         fit = plan_fit.joint_fit(feet, faces, fit_level)
         if best_fit is None or fit["mean_iou"] > best_fit["mean_iou"]:
-            best_scope, best_fit = scope, fit
+            best_scope, best_fit, best_feet = scope, fit, feet
     if best_fit is None:
         return [], {"reason": "the fit floor has no usable outline or the IFC storey no slab"}
     info: dict[str, Any] = {
@@ -206,6 +211,22 @@ def build(
         )
         return [], info
 
+    # each floor plan sheet has its own origin: a level that the shared fit leaves outside its own
+    # storey's slab moves onto it (ADR-0030 #D1); the rotation stays shared
+    shift: dict[int, tuple[float, float]] = {}
+    for lvl, foot in best_feet.items():
+        if lvl == fit_level or lvl not in faces:
+            continue
+        moved = plan_fit.placed(foot, best_fit["rotation_deg"], best_fit["tx"], best_fit["ty"])
+        s = plan_fit.level_shift(moved, faces[lvl])
+        entry = best_fit["per_level"].setdefault(lvl, {})
+        if s["refused"]:
+            entry["shift_refused"] = True
+        elif s["dx"] or s["dy"]:
+            shift[lvl] = (s["dx"], s["dy"])
+            entry["shift_m"] = [round(s["dx"], 2), round(s["dy"], 2)]
+            entry["coverage_shifted"] = round(s["coverage"], 3)
+
     out: list[tuple[ifc.Space, list[float], list[int]]] = []
     for fid, items in by_floor.items():
         f = floors_by_id[fid]
@@ -219,11 +240,12 @@ def build(
             base, height = f.base_m, f.height_m
         height = height if height and height > 0 else DEFAULT_HEIGHT_M
         for o in items:
+            dx, dy = shift.get(f.level, (0.0, 0.0))
             ring = plan_fit.apply(
                 plan_fit.sheet_to_ifc(o.ring_m),
                 best_fit["rotation_deg"],
-                best_fit["tx"],
-                best_fit["ty"],
+                best_fit["tx"] + dx,
+                best_fit["ty"] + dy,
             )
             verts, faces_ = ifc.prism(ring, base, base + height)
             out.append(

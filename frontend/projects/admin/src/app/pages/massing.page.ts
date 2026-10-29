@@ -17,6 +17,7 @@ import {
   whenShort,
 } from 'ui';
 import { ToastService } from '../ui/toast.service';
+import { levelShiftLine } from './ifc-plan-fit';
 
 /** The converter's element groups in words (ADR-0032); IFC class names are shown as they are. */
 const DROPPED_LABEL: Record<string, string> = {
@@ -202,7 +203,11 @@ interface MassingStats {
                   on the model by floor {{ pf['floor_level'] }} against storey
                   "{{ pf['storey'] ?? '?' }}" ({{ faceLabel(pf) }}@if (pf['scope'] === 'project') {, fitted together with the other blocks' outlines}):
                   rotation {{ pf['rotation_deg'] }}°, overlap {{ pct(pf['iou']) }} on average,
-                  the worst level {{ pct(pf['min_coverage']) }} inside. Check the model (Show IFC
+                  the worst level {{ pct(pf['min_coverage']) }} inside.
+                  @if (levelShifts(pf); as ls) {
+                    {{ ls }}
+                  }
+                  Check the model (Show IFC
                   model, select a row), then confirm: confirming says the alignment is right; no
                   areas are copied.
                 </span>
@@ -444,6 +449,11 @@ export class MassingPage {
   planFit(m: BuildingModelOut): Record<string, unknown> | null {
     const pf = m.stats['plan_fit'];
     return pf && typeof pf === 'object' ? (pf as Record<string, unknown>) : null;
+  }
+
+  /** ADR-0030 #D1: the levels moved onto their own slab, or left because they lie too far off. */
+  levelShifts(pf: Record<string, unknown>): string {
+    return levelShiftLine(pf);
   }
 
   readonly suggestedPlan = computed(

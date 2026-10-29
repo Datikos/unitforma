@@ -145,3 +145,5 @@ Phase C: verify
       picked floor's own balconies. The west end of the
       L shows A-x-03 reaching past the end wall: the plan fit's offset or a terrace in the outline
       (ADR-0030 Revisit, BACKLOG 49), visible before this change as the boxes outside the building.
+      *2026-10-29:* the cause is neither: each floor plan sheet has its own origin, and levels 1 to
+      3 sat 3.1–3.9 m off their slabs under the shared fit (ADR-0030 #D1).
