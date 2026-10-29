@@ -19,7 +19,7 @@ from unitforma.mcp.tools import TOOLS
 
 def test_names_are_unique_and_every_tool_is_documented():
     names = [t.name for t in TOOLS]
-    assert len(names) == len(set(names)) == 25
+    assert len(names) == len(set(names)) == 35
     for t in TOOLS:
         assert t.tag in ("read", "write")
         assert t.title and (t.fn.__doc__ or "").strip(), t.name

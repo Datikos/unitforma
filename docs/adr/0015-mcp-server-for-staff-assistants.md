@@ -180,8 +180,9 @@ offboarding path.
 limit zone on the app host. No new secret, no new container.
 
 **Revisit.** Option C when a client that only does OAuth is needed (Cursor and VS Code are
-unchecked); tools for documents, mapping and sales; a `delete_*` tool family with
-an explicit confirmation argument; the buyer-side read-only server (Option A).
+unchecked); tools for sales. Done by ADR-0034 (2026-10-29): the mapping tools, the `delete_*`
+family with an explicit `confirm` argument (elicitation stays here for 2026-07-28 clients), and the
+buyer-side read-only server (Option A) on the portal hosts, which amends Decision 1.
 *Checked 2026-10-27:* a real confirmation prompt (MCP elicitation) instead of the argument
 works only for clients on the 2026-07-28 revision: there the tool returns an `input_required`
 result and the client retries with the answer and the server's sealed `requestState`; older

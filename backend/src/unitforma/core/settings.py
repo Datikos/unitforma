@@ -96,6 +96,8 @@ class Settings(BaseSettings):
 
     # MCP server for staff assistants at /mcp on the admin host (ADR-0015); false leaves /mcp 404
     mcp_enabled: bool = True
+    # Read-only MCP server for buyers' assistants on every portal host at /mcp (ADR-0034)
+    portal_mcp_enabled: bool = True
 
     # AI-generated 3D plan renders (ADR-0017 Decision 4). ``none`` hides the feature; the key is a
     # file secret (UF_AI_IMAGE_API_KEY_FILE=/run/secrets/ai_image_api_key).

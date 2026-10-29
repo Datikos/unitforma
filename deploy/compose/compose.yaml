@@ -38,6 +38,7 @@ x-backend-env: &backend-env
   UF_INTERNAL_ASK_TOKEN_FILE: /run/secrets/internal_ask_token
   UF_APP_SESSION_KEY_FILE: /run/secrets/app_session_key
   UF_REGULATORY_TASGE_ENABLED: ${UF_REGULATORY_TASGE_ENABLED:-true}
+  UF_PORTAL_MCP_ENABLED: ${UF_PORTAL_MCP_ENABLED:-true}
   UF_MCP_ENABLED: ${UF_MCP_ENABLED:-true}
 x-backend-secrets: &backend-secrets
   - postgres_app_rw_password

@@ -472,3 +472,61 @@ async def delete_document(
         doc_id,
     )
     return units
+
+
+# --- shared by the admin router and the MCP tools (ADR-0034 Decision 3) ---------------------
+async def sheets_with_floors(db: AsyncSession, sheets: list[Sheet]) -> list[Any]:
+    """``SheetOut`` rows with signed raster URLs and the floor assignments, the shape the sheet
+    editor and the mapping tools read."""
+    from unitforma.api.schemas import SheetFloorOut, SheetOut
+    from unitforma.documents import assignments
+
+    floors = await assignments.list_for_sheets(db, [s.id for s in sheets])
+    out = []
+    for s in sheets:
+        o = SheetOut.model_validate(s)
+        for k, v in signed_urls(s).items():
+            setattr(o, k, v)
+        o.floors = [SheetFloorOut.model_validate(a) for a in floors.get(s.id, [])]
+        out.append(o)
+    return out
+
+
+async def calibrate_sheet(
+    db: AsyncSession,
+    sheet: Sheet,
+    *,
+    p1: list[float],
+    p2: list[float],
+    distance_m: float,
+    version: int,
+    actor: tuple[uuid.UUID, str],
+) -> dict[str, Any]:
+    """Two normalised points and the real distance between them → the sheet's scale; the
+    current outlines are recomputed in metres. Returns the calibration written."""
+    from unitforma.inventory import geometry
+    from unitforma.inventory import service as inventory
+
+    if sheet.version != version:
+        raise ProblemError(409, "Conflict", f"Sheet changed concurrently (version {sheet.version})")
+    if not sheet.raster_width or not sheet.raster_height:
+        raise ProblemError(409, "Sheet not rasterised yet")
+    try:
+        cal = geometry.calibration_from_points(
+            p1, p2, distance_m, sheet.raster_width, sheet.raster_height
+        )
+    except ValueError as e:
+        raise ProblemError(422, "Invalid calibration", str(e)) from e
+    n = await inventory.recalibrate_sheet(db, sheet, cal)
+    sheet.version += 1
+    await write_audit(
+        db,
+        tenant_id=sheet.tenant_id,
+        actor_user_id=actor[0],
+        actor_role=actor[1],
+        entity_type="sheet",
+        entity_id=sheet.id,
+        action="calibrate",
+        after={"m_per_px": cal["m_per_px"], "boundaries_recomputed": n},
+    )
+    return cal

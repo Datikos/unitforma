@@ -30,7 +30,7 @@ from unitforma.core.errors import install_error_handlers
 from unitforma.core.logging import configure_logging
 from unitforma.core.security import RequestedWithMiddleware
 from unitforma.core.settings import get_settings
-from unitforma.mcp.server import mcp_asgi
+from unitforma.mcp.server import HostDispatch, mcp_asgi, portal_asgi
 
 log = structlog.get_logger()
 
@@ -52,9 +52,12 @@ async def _lifespan(app: FastAPI):
         log.warning("api.jobs_unavailable", error=str(e))
     async with AsyncExitStack() as stack:
         # the mounted MCP app's own lifespan never runs; its session manager starts here
-        mcp_server = getattr(app.state, "mcp_server", None)
-        if mcp_server is not None:
-            await stack.enter_async_context(mcp_server.session_manager.run())
+        for server in (
+            getattr(app.state, "mcp_server", None),
+            getattr(app.state, "portal_mcp_server", None),
+        ):
+            if server is not None:
+                await stack.enter_async_context(server.session_manager.run())
         yield
     if jobs_open:
         await jobs_app.close_async()
@@ -88,10 +91,22 @@ def create_app() -> FastAPI:
     app.include_router(admin_regulatory.router)
     app.include_router(admin_setup.router)
     app.state.mcp_server = None
+    app.state.portal_mcp_server = None
+    staff_app = portal_app = None
     if settings.mcp_enabled:
-        # one route, not a Mount: a Mount would answer /mcp with a redirect to /mcp/
-        app.state.mcp_server, mcp_app = mcp_asgi(settings)
-        app.router.routes.append(Route("/mcp", endpoint=mcp_app, methods=["GET", "POST", "DELETE"]))
+        app.state.mcp_server, staff_app = mcp_asgi(settings)
+    if settings.portal_mcp_enabled:
+        app.state.portal_mcp_server, portal_app = portal_asgi()
+    if staff_app is not None or portal_app is not None:
+        # one route, not a Mount: a Mount would answer /mcp with a redirect to /mcp/; the host
+        # picks the server (ADR-0034 Decision 5)
+        app.router.routes.append(
+            Route(
+                "/mcp",
+                endpoint=HostDispatch(settings, staff_app, portal_app),
+                methods=["GET", "POST", "DELETE"],
+            )
+        )
     return app
 
 

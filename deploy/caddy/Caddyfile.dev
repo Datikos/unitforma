@@ -76,6 +76,20 @@ https:// {
 	}
 	import security_headers
 	import api_routes
+	# Public read-only MCP server for buyers' assistants (ADR-0034): anonymous, published data only.
+	handle /mcp* {
+		request_body {
+			max_size 64KB
+		}
+		rate_limit {
+			zone portal_mcp_by_ip {
+				key {remote_host}
+				events 60
+				window 1m
+			}
+		}
+		reverse_proxy api:8000
+	}
 	handle {
 		reverse_proxy web-portal:8080
 	}

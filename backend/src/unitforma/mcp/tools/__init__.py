@@ -3,7 +3,17 @@ today and for the admin app's assistant chat later. A tool is added here, never 
 
 from __future__ import annotations
 
-from unitforma.mcp.tools import buildings, documents, layouts, projects, renders, setup, units
+from unitforma.mcp.tools import (
+    buildings,
+    deletes,
+    documents,
+    layouts,
+    mapping,
+    projects,
+    renders,
+    setup,
+    units,
+)
 from unitforma.mcp.tools.base import Tool
 
 TOOLS: list[Tool] = [
@@ -14,6 +24,8 @@ TOOLS: list[Tool] = [
     *renders.TOOLS,
     *layouts.TOOLS,
     *setup.TOOLS,
+    *mapping.TOOLS,
+    *deletes.TOOLS,
 ]
 
 __all__ = ["TOOLS", "Tool"]

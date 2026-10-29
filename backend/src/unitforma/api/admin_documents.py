@@ -17,7 +17,6 @@ from unitforma.api.schemas import (
     SheetAssign,
     SheetCalibrate,
     SheetExclude,
-    SheetFloorOut,
     SheetFloorsSet,
     SheetOut,
     UploadIntentCreate,
@@ -31,8 +30,6 @@ from unitforma.documents import service as documents
 from unitforma.geometry import service as geometry_service
 from unitforma.identity.authz import Action
 from unitforma.identity.deps import TenantContext, tenant_context
-from unitforma.inventory import geometry
-from unitforma.inventory import service as inventory
 from unitforma.jobs.app import app as jobs
 from unitforma.projects import service as projects
 from unitforma.tenants.models import Document
@@ -56,15 +53,7 @@ async def _sheet_out(ctx: TenantContext, s) -> SheetOut:
 
 
 async def _sheets_out(ctx: TenantContext, sheets: list) -> list[SheetOut]:
-    floors = await assignments.list_for_sheets(ctx.session, [s.id for s in sheets])
-    out = []
-    for s in sheets:
-        o = SheetOut.model_validate(s)
-        for k, v in documents.signed_urls(s).items():
-            setattr(o, k, v)
-        o.floors = [SheetFloorOut.model_validate(a) for a in floors.get(s.id, [])]
-        out.append(o)
-    return out
+    return await documents.sheets_with_floors(ctx.session, sheets)
 
 
 async def _project_of_document(ctx: TenantContext, document_id: uuid.UUID) -> Document:
@@ -299,33 +288,14 @@ async def calibrate_sheet(sheet_id: uuid.UUID, body: SheetCalibrate, ctx: Ctx):
     sheet = await documents.get_sheet(ctx.session, ctx.tenant_id, sheet_id)
     project_id = await documents.sheet_project_id(ctx.session, sheet)
     ctx.require_project(project_id)
-    if sheet.version != body.version:
-        raise ProblemError(409, "Conflict", f"Sheet changed concurrently (version {sheet.version})")
-    if not sheet.raster_width or not sheet.raster_height:
-        raise ProblemError(409, "Sheet not rasterised yet")
-    try:
-        cal = geometry.calibration_from_points(
-            body.calibration.p1,
-            body.calibration.p2,
-            body.calibration.distance_m,
-            sheet.raster_width,
-            sheet.raster_height,
-        )
-    except ValueError as e:
-        raise ProblemError(422, "Invalid calibration", str(e)) from e
-    n = await inventory.recalibrate_sheet(ctx.session, sheet, cal)
-    sheet.version += 1
-    from unitforma.audit.service import write_audit
-
-    await write_audit(
+    await documents.calibrate_sheet(
         ctx.session,
-        tenant_id=ctx.tenant_id,
-        actor_user_id=ctx.principal.user_id,
-        actor_role=ctx.actor_role,
-        entity_type="sheet",
-        entity_id=sheet.id,
-        action="calibrate",
-        after={"m_per_px": cal["m_per_px"], "boundaries_recomputed": n},
+        sheet,
+        p1=body.calibration.p1,
+        p2=body.calibration.p2,
+        distance_m=body.calibration.distance_m,
+        version=body.version,
+        actor=_actor(ctx),
     )
     await geometry_service.queue_massing(ctx.tenant_id, project_id)  # outlines moved (ADR-0011)
     return await _sheet_out(ctx, sheet)

@@ -264,9 +264,24 @@ const EXPIRIES = [30, 90, 180, 365];
           <code>create_project</code>, <code>update_project</code>, <code>list_buildings</code>,
           <code>create_building</code>, <code>update_building</code>, <code>set_floors</code>,
           <code>get_floor_proposal</code>, <code>accept_floor_proposal_blocks</code>,
-          <code>list_site_features</code>, <code>create_site_feature</code>. Deleting, documents,
-          mapping and prices stay in this app. Every change lands in the audit log with the token
-          prefix as its request id.
+          <code>list_site_features</code>, <code>create_site_feature</code>; units
+          (<code>find_units</code>, <code>list_units</code>, <code>get_unit</code>), documents
+          (<code>list_documents</code>), renders, plan types and the setup checklist.
+          Mapping (ADR-0034): <code>list_sheets</code>, <code>set_sheet_floors</code>,
+          <code>calibrate_sheet</code>, <code>exclude_pages</code>, <code>suggest_outlines</code>,
+          <code>create_outline</code>, <code>approve_sheet</code>, with the same rights as the
+          sheet editor. Deleting (ADR-0034): <code>delete_floor</code>,
+          <code>delete_building</code>, <code>delete_document</code> need a <code>confirm</code>
+          argument equal to the floor name, the building code or the document title, so the
+          assistant has to state what it removes; a floor or building with units is refused, a
+          mapped document asks for <code>detach_units</code>. Deleting a project, uploading and
+          publishing stay in this app. Every change lands in the audit log with the token prefix
+          as its request id.
+        </p>
+        <p class="uf-hint">
+          Buyers' assistants have their own read-only server at <code>/mcp</code> on every portal
+          host, without any token: published projects, units with the portal's filters, plan
+          types. Nothing more than the portal shows, nothing it can change.
         </p>
         <p class="uf-hint">
           Known gap: tokens are bearer secrets sent on every call, not an OAuth sign-in; keep them

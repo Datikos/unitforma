@@ -51,6 +51,17 @@ TOOLS = {
     "get_setup_checklist",
     "run_setup",
     "set_setup_auto",
+    # ADR-0034: mapping and deletes
+    "list_sheets",
+    "set_sheet_floors",
+    "calibrate_sheet",
+    "exclude_pages",
+    "suggest_outlines",
+    "create_outline",
+    "approve_sheet",
+    "delete_floor",
+    "delete_building",
+    "delete_document",
 }
 
 
@@ -178,9 +189,21 @@ def test_no_bearer_is_401_with_challenge(client: TestClient, world: dict):
     assert rpc(client, "ufm_not-a-token", "initialize").status_code == 401
 
 
-def test_wrong_host_is_refused(client: TestClient, world: dict):
-    r = rpc(client, world["write"]["secret"], "initialize", Host="evil.example")
-    assert r.status_code == 421
+def test_wrong_host_never_reaches_the_staff_server(client: TestClient, world: dict):
+    """ADR-0034 Decision 5: a host that is not the admin host is a portal host; the staff
+    server (and the token) are not consulted there, the anonymous read-only portal server is."""
+    r = rpc(client, world["write"]["secret"], "tools/list", Host="evil.example")
+    assert r.status_code == 200, r.text
+    assert "whoami" not in {t["name"] for t in r.json()["result"]["tools"]}
+    r = rpc(
+        client,
+        world["write"]["secret"],
+        "tools/call",
+        {"name": "site", "arguments": {}},
+        Host="evil.example",
+    )
+    assert r.status_code == 200 and r.json()["result"]["isError"] is True
+    assert "not configured" in r.json()["result"]["content"][0]["text"].lower()
 
 
 def test_initialize_and_tools_list(client: TestClient, world: dict):

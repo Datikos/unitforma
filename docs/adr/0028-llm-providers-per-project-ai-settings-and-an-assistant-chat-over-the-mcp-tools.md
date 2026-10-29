@@ -156,7 +156,7 @@ itself stays $0.0336 (ADR-0017).
    `confirm_layout(layout_id)` (write), `get_setup_checklist(project_id)`, `run_setup(project_id)` (write),
    `set_setup_auto(project_id, enabled, approve_sheets)` (write). No `approve_render` tool: the review of a
    generated image is a person's click (ADR-0017 Decision 3), and the chat shows the image with the existing
-   Approve and Reject buttons instead. No delete tools (ADR-0012).
+   Approve and Reject buttons instead. No delete tools (ADR-0012; since ADR-0034 of 2026-10-29 `delete_floor`, `delete_building` and `delete_document` exist with a `confirm` argument; `delete_project` stays a browser action).
 7. **A chat turn is a job; writes pause for the person.** Tables (migration `0022`, RLS): `chat_conversations`
    (`id, tenant_id, project_id, user_id, provider, model, title, created_at, last_at`) and `chat_messages` (`id,
    tenant_id, conversation_id, seq, role (user | assistant | tool | system), content JSONB, format (1), pending_action
