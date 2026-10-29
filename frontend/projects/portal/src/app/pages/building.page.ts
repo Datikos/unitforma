@@ -10,7 +10,13 @@ import { detectCapabilities } from '../core/capabilities';
 import { AVAILABILITY, typeLabel } from '../core/format';
 import { Availability, PortalApi, ProjectDoc } from '../core/portal-api';
 import { SiteStore } from '../core/site.store';
-import { countByAvailability, floorChosen, groupUnitsByType, tapOnModel } from './building.model';
+import {
+  countByAvailability,
+  defaultFloor,
+  floorChosen,
+  groupUnitsByType,
+  tapOnModel,
+} from './building.model';
 
 /**
  * Building view, floor first (plan §7.1, ADR-0006 Decision 6): the floor stack, the 3D building
@@ -549,7 +555,7 @@ export class BuildingPage {
   readonly floorsTopDown = computed(() =>
     [...(this.building()?.floors ?? [])].sort((a, b) => b.level - a.level),
   );
-  /** The floor from `?floor=`, else the floor of `?unit=`, else the first published floor. */
+  /** The floor from `?floor=`, else the floor of `?unit=`, else the lowest floor with flats (#D5). */
   readonly level = computed(() => {
     const fs = this.building()?.floors ?? [];
     const want = Number(this.floorParam());
@@ -558,7 +564,7 @@ export class BuildingPage {
     const byUnit = unit
       ? fs.find((f) => f.units.some((u) => u.code.toLowerCase() === unit))
       : undefined;
-    return byUnit?.level ?? fs[0]?.level ?? 0;
+    return byUnit?.level ?? defaultFloor(fs) ?? 0;
   });
   readonly floor = computed(
     () => this.building()?.floors.find((f) => f.level === this.level()) ?? null,

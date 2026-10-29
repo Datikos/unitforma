@@ -1,6 +1,6 @@
 # ADR-0036: A picked floor of the IFC model is cut open
 
-- **Status:** accepted (2026-10-29, the owner's pick of option 2 after his screenshot of N4 level 0); implemented 2026-10-29 on branch `adr-0036`, verified on N4 the same day; D1 (the admin tint by link status) added and done 2026-10-29; D2 (the section fill of cut elements) added and done 2026-10-29; D3 (the building page opens on the whole building) and D4 (a tap takes the picked floor on a tie) added 2026-10-30 after the owner's screenshot of N4 level 2
+- **Status:** accepted (2026-10-29, the owner's pick of option 2 after his screenshot of N4 level 0); implemented 2026-10-29 on branch `adr-0036`, verified on N4 the same day; D1 (the admin tint by link status) added and done 2026-10-29; D2 (the section fill of cut elements) added and done 2026-10-29; D3 (the building page opens on the whole building) and D4 (a tap takes the picked floor on a tie) added 2026-10-30 after the owner's screenshot of N4 level 2; D5 (the plan starts on the lowest floor with flats) added and done 2026-10-30
 - **Date:** 2026-10-29
 - **Deciders:** David Sakhelashvili (platform owner)
 - **Plan reference:** §7.3 (floor isolation, interior view), §11.3 (MVP 3D); ADR-0006 Decision 6 and #E4, ADR-0030 (plan spaces), ADR-0033 (the architectural look)
@@ -191,7 +191,7 @@ Phase D: follow-up
       | Back to whole | "Whole building" drops both from the link | the switch | not possible |
       Chosen: whole until chosen. A floor on the left, a band on the facade, a unit tapped on the
       model or a link with `?floor=`/`?unit=` cuts it (Decision 5 aims the camera as before); the
-      plan below still shows the first floor meanwhile. The schematic massing follows the same rule
+      plan below shows a default floor meanwhile (D5). The schematic massing follows the same rule
       (no fade until a floor is chosen). The spaces' polygon offset (A2) is on for the cut floor
       only: on the uncut building it pulled level 3's tint through the roof finish, whose top lies
       about 0.1 m over the spaces' 18.00 m top. `portal/.../building.model.ts` (`floorChosen`,
@@ -214,3 +214,10 @@ Phase D: follow-up
       | This branch | 187 | 3 | 8 | 2 |
       The 13 left are taps where the ray meets no level 2 space (walls, the corridor, stairs) and
       reaches a space of a lower floor, which Decision 4 still allows.
+- [x] D5 Before a floor is chosen the plan shows the lowest floor with an apartment, else with a
+      commercial unit, else with any unit, else the lowest floor. Until now it was the first floor
+      of the list, on N4 the parking level -2, under the whole building of D3 (owner's pick of
+      the follow-up, 2026-10-30). The 3D view stays whole; the floor list marks the floor shown.
+      `portal/.../building.model.ts` (`defaultFloor`), `building.page.ts` (`level`).
+      *Done 2026-10-30*: `building.model.spec.ts` proves N4's order (parking -2, empty -1, flats
+      from 0) and the fallbacks.
