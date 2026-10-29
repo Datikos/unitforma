@@ -264,6 +264,65 @@ def test_setup_checklist_reflects_the_project_state(client, world):  # noqa: F81
     assert st["location"]["status"] == "done" and st["location"]["detail"] == "41.7, 44.8"
 
 
+async def _ifc_rows(tenant_id: uuid.UUID, project_id: uuid.UUID, building_id: uuid.UUID, n: int):
+    """``n`` conversions of one building, the last one current, as every re-run leaves them."""
+    from unitforma.core.db import tenant_session
+    from unitforma.tenants.models import GeometryModel
+
+    ids = [uuid.uuid4() for _ in range(n)]
+    async with tenant_session(tenant_id, scope="tenant") as db:
+        for i, gid in enumerate(ids):
+            db.add(
+                GeometryModel(
+                    id=gid,
+                    tenant_id=tenant_id,
+                    project_id=project_id,
+                    building_id=building_id,
+                    kind="ifc",
+                    status="ready",
+                    is_current=i == n - 1,
+                )
+            )
+    return ids
+
+
+async def _drop_rows(tenant_id: uuid.UUID, ids: list[uuid.UUID]) -> None:
+    from sqlalchemy import delete
+
+    from unitforma.core.db import tenant_session
+    from unitforma.tenants.models import GeometryModel
+
+    async with tenant_session(tenant_id, scope="tenant") as db:
+        await db.execute(delete(GeometryModel).where(GeometryModel.id.in_(ids)))
+
+
+def test_setup_checklist_counts_buildings_with_a_model_not_conversions(client, world):  # noqa: F811
+    """ADR-0031 #E2: N4 showed "8 model(s) linked" for one building converted eight times."""
+    base, pid, pm, tid = world["base"], world["project"]["id"], world["pm"], world["tenant"]["id"]
+    bld = client.get(f"{base}/projects/{pid}/buildings", headers=pm).json()
+    building = next(b for b in bld if b["kind"] == "building")
+    ids = client.portal.call(
+        _ifc_rows, uuid.UUID(tid), uuid.UUID(pid), uuid.UUID(building["id"]), 3
+    )
+    try:
+        d = client.get(f"{base}/projects/{pid}/setup", headers=pm).json()
+        st = {s["key"]: s for s in d["steps"]}
+        assert st["architect_model"]["status"] == "done"
+        assert st["architect_model"]["count"] == 1
+        assert st["architect_model"]["detail"].startswith("1 of 1 building(s)")
+    finally:
+        client.portal.call(_drop_rows, uuid.UUID(tid), ids)
+
+
+def test_prices_are_not_done_before_there_is_a_unit():
+    """ADR-0031 #E2: "Prices" read done on a project with no unit, since no unit lacks a price."""
+    from unitforma.publishing.setup import prices_status
+
+    assert prices_status(0, missing_prices=False) == "todo"
+    assert prices_status(4, missing_prices=True) == "attention"
+    assert prices_status(4, missing_prices=False) == "done"
+
+
 def test_workspace_render_prompt_replaces_the_base_text(client, world, monkeypatch):  # noqa: F811
     """ADR-0023: the tenant admin sets one base prompt for the workspace; the next request starts
     with it, the joined sentence and the note are still appended; blank resets to the default."""

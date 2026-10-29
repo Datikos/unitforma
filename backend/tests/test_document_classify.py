@@ -218,3 +218,23 @@ def test_classification_through_upload_processing_and_confirmation(
         ).status_code
         == 422
     )
+
+
+def test_a_hand_set_kind_refreshes_floor_suggestions_only_when_it_adds_pages():
+    """ADR-0008 #7: the page → floor job reads building documents and project-level floor plans;
+    a kind or building change that brings a processed file into that set queues it."""
+    import uuid
+    from types import SimpleNamespace as NS
+
+    from unitforma.documents.service import needs_floor_resuggest
+
+    done, uploading = NS(processing_status="done"), NS(processing_status="uploading")
+    b = uuid.uuid4()
+    plan = NS(kind="floor_plan", building_id=None)
+    assert needs_floor_resuggest(("unclassified", None), plan, done)
+    assert not needs_floor_resuggest(("floor_plan", None), plan, done)  # nothing changed
+    assert not needs_floor_resuggest(("unclassified", None), plan, uploading)
+    assert not needs_floor_resuggest(("unclassified", None), plan, None)
+    render = NS(kind="render", building_id=None)
+    assert not needs_floor_resuggest(("unclassified", None), render, done)
+    assert needs_floor_resuggest(("section", None), NS(kind="section", building_id=b), done)

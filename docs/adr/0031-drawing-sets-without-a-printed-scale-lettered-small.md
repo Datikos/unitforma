@@ -224,12 +224,27 @@ scans.
       units are drawn.
 
 ### Phase E: found on the way (open)
-- [ ] E1 A floor no unit uses can be deleted (API, admin building card, MCP); `projects.set_floors`
+- [x] E1 A floor no unit uses can be deleted (API, admin building card, MCP); `projects.set_floors`
       only creates and updates, while the MCP tool `set_floors` says it replaces the list. N4's B1
       (−0.80, from the outside ground mark) cannot be removed today.
-- [ ] E2 Setup checklist: "Architect's 3D model" counts `geometry_models` rows (N4: 8 conversions of
+      *Done 2026-10-29:* `DELETE /buildings/{id}/floors/{floor_id}` (project write) → 204, 409
+      `floor-has-units` with the count while any unit row points at it, removed ones included
+      (`units.floor_id` is RESTRICT); its `sheet_floors` rows go and each sheet that showed it gets
+      its mirror columns from the floors it still shows (`assignments.sync_primary`: N4 page 11
+      keeps Ground when B1 goes), or becomes unassigned when none is left; IFC space links keep their space (SET NULL); the page → floor
+      suggestions and the massing are queued; an audit row `delete_floor` keeps the old values. A bin
+      per row of the building card's floor table, with a confirmation. The MCP part is only the
+      docstring of `set_floors` (it never claimed replacing in the code; it now points at the building
+      card): a `delete_floor` tool waits for BACKLOG 31's choice of the confirmation form for the
+      `delete_*` family; that tool is not built. Test:
+      `test_floor_without_units_is_deleted_and_one_with_units_refused` (a sheet showing two floors).
+- [x] E2 Setup checklist: "Architect's 3D model" counts `geometry_models` rows (N4: 8 conversions of
       one building, "8 model(s) linked"), not buildings with a ready model; "Prices" is done on a
       project with no unit.
+      *Done 2026-10-29:* the step counts buildings with a current ready IFC model ("1 of 1
+      building(s) shown from the architect's model"); "Prices" is `todo` until a unit is active
+      (`publishing.setup.prices_status`). Tests: `test_setup_checklist_counts_buildings_with_a_model_not_conversions`,
+      `test_prices_are_not_done_before_there_is_a_unit`.
 - [ ] E3 `documents/levels.py`: a legend's sample level symbol ("±0.00 / −0.10" on N4 page 1) is not a
       floor marker.
 - [ ] E4 Revisit items above: colour thresholds, vertical and metre dimensions, a printed code checked

@@ -531,6 +531,40 @@ async def requeue_document_if_stuck(tenant_id: uuid.UUID, document_id: uuid.UUID
     return outcome
 
 
+REPROCESSABLE = ("queued", "processing", "failed", "done", "partial")
+
+
+async def reprocess_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> str:
+    """Process again (ADR-0016 #F5, ADR-0031 Decision 6): the manual escape hatch next to the
+    sweep, without its 15-minute wait or its MAX_TRIES stop, and the way a processed revision
+    takes a newer extractor. Sheets, floor assignments, calibrations and boundaries stay
+    (``process_revision`` updates sheets in place). Returns ``queued``, ``running`` (a job waits
+    or runs on a live worker: nothing to do) or ``enqueue_failed``. The status is committed
+    before the job is deferred, so the worker never reads the old one."""
+    async with tenant_session(tenant_id, scope="tenant") as db:
+        rev = (
+            await db.execute(
+                select(DocumentRevision).where(DocumentRevision.id == revision_id).with_for_update()
+            )
+        ).scalar_one()
+        rows = (
+            await db.execute(
+                _JOBS_OF_REVISION,
+                {"dead_s": WORKER_DEAD_AFTER_S, "task": INGEST_TASK, "rid": str(rev.id)},
+            )
+        ).all()
+        if any(r.status == "todo" or (r.status == "doing" and r.alive) for r in rows):
+            return "running"
+        stale = [r.id for r in rows if r.status == "doing"]
+        if stale:
+            await db.execute(_FAIL_JOBS, {"ids": stale})
+        rev.processing_status = "queued"
+        rev.processing_error = None
+    outcome = "queued" if await defer_ingest(tenant_id, revision_id) else "enqueue_failed"
+    log.info("documents.reprocess", revision_id=str(revision_id), outcome=outcome)
+    return outcome
+
+
 async def requeue_stuck(now: datetime | None = None) -> dict:
     """Periodic sweep (``documents.requeue_stuck``, every 10 minutes): every revision ``queued``
     or ``processing`` for longer than STUCK_AFTER whose ingestion is neither waiting nor running

@@ -82,6 +82,19 @@ async def create_document(
     return doc
 
 
+def needs_floor_resuggest(
+    before: tuple[str, uuid.UUID | None], doc: Document, rev: DocumentRevision | None
+) -> bool:
+    """Whether a kind or building set by hand makes a processed revision's pages candidates for
+    floor suggestions they did not get at processing time (ADR-0008 #7): the job skips
+    project-level documents that are not floor plans."""
+    if rev is None or rev.processing_status not in ("done", "partial"):
+        return False
+    if (doc.kind, doc.building_id) == before:
+        return False
+    return doc.building_id is not None or doc.kind == "floor_plan"
+
+
 async def update_document(
     db: AsyncSession, doc: Document, data: dict[str, Any], actor: tuple[uuid.UUID, str]
 ) -> Document:

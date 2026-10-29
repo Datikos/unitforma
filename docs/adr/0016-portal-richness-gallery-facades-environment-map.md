@@ -1,6 +1,6 @@
 # ADR-0016: A buyer portal that shows the building: render gallery, facade drawings on the 3D massing, site environment, layout renders, map, and imports that cannot get stuck
 
-- **Status:** accepted (2026-10-26; implemented 2026-10-26; Decision 8 added and implemented 2026-10-26; open: the E5 contract step, F5 and F6; E2 decided in ADR-0017; Decision 4 superseded by ADR-0022 on 2026-10-26: the layout registry owns the shared media, the donor rule and `shared_from` are gone from new snapshots)
+- **Status:** accepted (2026-10-26; implemented 2026-10-26; Decision 8 added and implemented 2026-10-26; open: the E5 contract step and F6 (F5 done 2026-10-29); E2 decided in ADR-0017; Decision 4 superseded by ADR-0022 on 2026-10-26: the layout registry owns the shared media, the donor rule and `shared_from` are gone from new snapshots)
 - **Date:** 2026-10-26
 - **Deciders:** David Sakhelashvili (platform owner); AI-generated renders (Out of scope) are his call
 - **Plan reference:** §6.6 (public fields), §7.1 (navigation model), §7.3 (3D and fallbacks), §9.3 (portal
@@ -284,9 +284,18 @@ buyer accounts and inquiries (plan Phase 5); custom map providers.
       after the 14 jobs were queued by hand and killed the 3 the old worker had taken; the sweep at 06:12:23
       queued 2 again (the third was 23 s younger than `STUCK_AFTER`), the one at 06:20:00 the last; all 33
       revisions of the dev stack were "done" at 06:22:31.
-- [ ] F5 "Process again" on the document card for a revision `queued`, `processing` or `failed`
+- [x] F5 "Process again" on the document card for a revision `queued`, `processing` or `failed`
       (`POST /revisions/{id}/reprocess` → `requeue_document_if_stuck` without the age threshold, or status
       reset for `failed`), with its guide line.
+      *Done 2026-10-29:* `documents.jobs.reprocess_revision` also takes `done` and `partial` (ADR-0031
+      Decision 6) and ignores `MAX_TRIES` (a person asks); it closes jobs left `doing` by a dead worker,
+      commits `queued` in its own transaction and only then defers, so the worker never reads the old
+      status. 202 with the revision; 409 "Processing is under way" while a job waits or runs on a live
+      worker, 409 for a revision that is not the current one or still uploading, 409 for a model
+      document (an IFC would be converted again and every confirmed plan space would return to
+      suggested, ADR-0032 #C1; "Re-run conversion" on the 3D massing page owns that), 503 when the
+      queue is down; the card hides the button for models. Sheets are updated in place, so floors, calibrations and boundaries stay; a re-run diff
+      dismisses the earlier open proposal. Test: `test_files_left_queued_by_a_lost_worker_are_queued_again`.
 - [ ] F6 File names on the `local` storage backend: a Georgian name URL-quoted to 9 bytes per letter exceeds
       the 255-byte path component limit ("File name too long" on 2 of 16 permit files on 2026-10-26); cap the
       quoted length in `storage.object_key` or hash long names. S3 keys allow 1024 bytes, production is

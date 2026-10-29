@@ -2345,6 +2345,63 @@
     }
    }
   },
+  "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/floors/{floor_id}": {
+   "delete": {
+    "tags": [
+     "projects"
+    ],
+    "summary": "Delete Floor",
+    "description": "Delete a floor no unit uses (ADR-0031 #E1); 409 floor-has-units otherwise. The sheets'\nfloor suggestions and the massing are refreshed.",
+    "operationId": "delete_floor_api_v1_admin_tenants__tenant_id__buildings__building_id__floors__floor_id__delete",
+    "parameters": [
+     {
+      "name": "building_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Building Id"
+      }
+     },
+     {
+      "name": "floor_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Floor Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/site-features": {
    "get": {
     "tags": [
@@ -2955,6 +3012,60 @@
     ],
     "responses": {
      "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RevisionOut"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/admin/tenants/{tenant_id}/revisions/{revision_id}/reprocess": {
+   "post": {
+    "tags": [
+     "documents"
+    ],
+    "summary": "Reprocess Revision",
+    "description": "Process the document's current revision again (ADR-0016 #F5): a revision stuck queued or\nprocessing with no live job, a failed one, or a processed one that should take the newer\ndrawing reader (ADR-0031 Decision 6). Sheets, floors, calibrations and units are kept.",
+    "operationId": "reprocess_revision_api_v1_admin_tenants__tenant_id__revisions__revision_id__reprocess_post",
+    "parameters": [
+     {
+      "name": "revision_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Revision Id"
+      }
+     },
+     {
+      "name": "tenant_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid",
+       "title": "Tenant Id"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
       "description": "Successful Response",
       "content": {
        "application/json": {

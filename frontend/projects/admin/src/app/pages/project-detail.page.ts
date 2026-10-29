@@ -451,8 +451,8 @@ import { ToastService } from '../ui/toast.service';
             </button>
             @if (floorsOf(b).length) {
               <span class="uf-hint"
-                >Regenerating replaces the floor list; floors with mapped units cannot be
-                removed.</span
+                >Regenerating updates the levels in the range and adds the missing ones; it deletes
+                nothing. Delete a floor in the table below.</span
               >
             }
           </div>
@@ -463,6 +463,7 @@ import { ToastService } from '../ui/toast.service';
                   <th>Level</th>
                   <th>Name</th>
                   <th class="uf-num">Height (m)</th>
+                  <th aria-label="Delete"></th>
                 </tr>
               </thead>
               <tbody>
@@ -471,6 +472,17 @@ import { ToastService } from '../ui/toast.service';
                     <td class="uf-num">{{ f.level }}</td>
                     <td>{{ f.display_name }}</td>
                     <td class="uf-num">{{ f.height_m ?? '—' }}</td>
+                    <td>
+                      <button
+                        mat-icon-button
+                        [disabled]="busy()"
+                        (click)="deleteFloor(b, f)"
+                        [attr.aria-label]="'Delete floor ' + f.display_name"
+                        title="Delete this floor; only a floor no unit uses can go"
+                      >
+                        <ng-icon name="lucideTrash2" />
+                      </button>
+                    </td>
                   </tr>
                 }
               </tbody>
@@ -1017,6 +1029,25 @@ export class ProjectDetailPage {
     await this.run(async () => {
       await this.api.setFloors(this.tenantId(), b.id, floors);
       this.toast.ok(`${floors.length} floors set on ${b.code}`);
+    });
+  }
+
+  /** A floor no unit uses, such as a level read off an outside ground mark (ADR-0031 #E1); the
+   *  backend answers 409 with the unit count otherwise. */
+  async deleteFloor(b: BuildingOut, f: FloorOut): Promise<void> {
+    const ok = await this.dialogs.confirm({
+      title: `Delete floor ${f.display_name} of ${b.code}?`,
+      message:
+        'Sheets assigned to it become unassigned and the page → floor suggestions are refreshed. ' +
+        'A floor with units, removed ones included, cannot be deleted.',
+      confirmLabel: 'Delete',
+      tone: 'bad',
+      icon: 'lucideTrash2',
+    });
+    if (!ok) return;
+    await this.run(async () => {
+      await this.api.deleteFloor(this.tenantId(), b.id, f.id);
+      this.toast.ok(`Floor ${f.display_name} of ${b.code} deleted`);
     });
   }
 

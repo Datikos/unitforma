@@ -135,7 +135,11 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
       {
         name: 'Generate floors',
-        does: 'Creates floors from the lowest to the highest level; negative levels are basements (B1), 0 is Ground. Use the permit heights as the hint.',
+        does: 'Creates floors from the lowest to the highest level; negative levels are basements (B1), 0 is Ground. Use the permit heights as the hint. Levels already there are updated; nothing is deleted.',
+      },
+      {
+        name: 'Delete (floor)',
+        does: 'The bin in the floor table removes a floor no unit uses, such as a level read off an outside ground mark. Refused while any unit is on it, removed ones included. Sheets assigned to it become unassigned and the page → floor suggestions are refreshed.',
       },
       {
         name: 'Check registry for new files',
@@ -218,7 +222,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       },
       {
         name: 'Building',
-        does: "The building a document is filed under, or project level. With several buildings, file each plan set under its building: a building's floor proposal reads only its own documents, and sheet suggestions prefer its floors. Keep site plans, renders and sheets that show several blocks at project level. Changing it keeps the sheet suggestions already made; they are not redone until a new revision or a re-save of the building's floors.",
+        does: "The building a document is filed under, or project level. With several buildings, file each plan set under its building: a building's floor proposal reads only its own documents, and sheet suggestions prefer its floors. Keep site plans, renders and sheets that show several blocks at project level. Changing it keeps confirmed floor assignments and refreshes the suggestions on the document's sheets a moment later; setting the kind to Floor plans does the same.",
       },
       {
         name: 'Sheet thumbnails',
@@ -227,6 +231,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
       {
         name: 'Upload new revision',
         does: 'A newer drawing of the same document. Processed revisions of mapped documents produce a revision diff.',
+      },
+      {
+        name: 'Process again',
+        does: 'Reads the current revision again: when it is stuck queued or processing, failed, or was processed before an improvement of the drawing reader. Sheets, floor assignments, calibrations and units stay. While a worker still has the revision the button answers "Processing is under way". A stuck revision is also queued again on its own after 15 minutes. Models have no such button: Re-run conversion on the 3D massing page converts them again.',
       },
       {
         name: 'Show in portal gallery',

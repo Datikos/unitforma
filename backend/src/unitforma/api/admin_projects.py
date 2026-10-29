@@ -32,6 +32,7 @@ from unitforma.autopilot import service as autopilot
 from unitforma.autopilot.queue import queue_run
 from unitforma.core.errors import ProblemError
 from unitforma.documents import floor_proposal as proposal
+from unitforma.geometry import service as geometry_service
 from unitforma.identity.authz import Action, is_allowed
 from unitforma.identity.deps import TenantContext, tenant_context
 from unitforma.projects import service as projects
@@ -240,6 +241,19 @@ async def set_floors(building_id: uuid.UUID, body: FloorsBulkCreate, ctx: Ctx):
     await proposal.queue_resuggest(ctx.tenant_id, b.project_id)
     await queue_run(ctx.tenant_id, b.project_id, "floors_saved", requested_by=ctx.principal.user_id)
     return floors
+
+
+@router.delete("/buildings/{building_id}/floors/{floor_id}", status_code=204)
+async def delete_floor(building_id: uuid.UUID, floor_id: uuid.UUID, ctx: Ctx):
+    """Delete a floor no unit uses (ADR-0031 #E1); 409 floor-has-units otherwise. The sheets'
+    floor suggestions and the massing are refreshed."""
+    ctx.require("project", Action.WRITE)
+    b = await projects.get_building(ctx.session, ctx.tenant_id, building_id)
+    ctx.require_project(b.project_id)
+    await projects.delete_floor(ctx.session, b, floor_id, _actor(ctx))
+    await proposal.queue_resuggest(ctx.tenant_id, b.project_id)
+    await geometry_service.queue_massing(ctx.tenant_id, b.project_id)
+    return Response(status_code=204)
 
 
 @router.get("/projects/{project_id}/site-features", response_model=list[SiteFeatureOut])

@@ -577,6 +577,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tenants/{tenant_id}/buildings/{building_id}/floors/{floor_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Floor
+         * @description Delete a floor no unit uses (ADR-0031 #E1); 409 floor-has-units otherwise. The sheets'
+         *     floor suggestions and the massing are refreshed.
+         */
+        delete: operations["delete_floor_api_v1_admin_tenants__tenant_id__buildings__building_id__floors__floor_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tenants/{tenant_id}/projects/{project_id}/site-features": {
         parameters: {
             query?: never;
@@ -705,6 +726,28 @@ export interface paths {
         put?: never;
         /** Complete Upload */
         post: operations["complete_upload_api_v1_admin_tenants__tenant_id__revisions__revision_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/revisions/{revision_id}/reprocess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reprocess Revision
+         * @description Process the document's current revision again (ADR-0016 #F5): a revision stuck queued or
+         *     processing with no live job, a failed one, or a processed one that should take the newer
+         *     drawing reader (ADR-0031 Decision 6). Sheets, floors, calibrations and units are kept.
+         */
+        post: operations["reprocess_revision_api_v1_admin_tenants__tenant_id__revisions__revision_id__reprocess_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6673,6 +6716,37 @@ export interface operations {
             };
         };
     };
+    delete_floor_api_v1_admin_tenants__tenant_id__buildings__building_id__floors__floor_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                building_id: string;
+                floor_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_site_features_api_v1_admin_tenants__tenant_id__projects__project_id__site_features_get: {
         parameters: {
             query?: never;
@@ -7025,6 +7099,38 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevisionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reprocess_revision_api_v1_admin_tenants__tenant_id__revisions__revision_id__reprocess_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                revision_id: string;
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };

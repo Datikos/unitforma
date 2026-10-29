@@ -340,6 +340,47 @@ def test_empty_building_deleted_with_models_and_assignments(client, world):
     assert rows[0][0]["floors"] == 2 and rows[0][0]["models"] == 1
 
 
+def test_floor_without_units_is_deleted_and_one_with_units_refused(client, world):
+    """ADR-0031 #E1: N4's phantom floor B1 (read off an outside ground mark) could not be removed.
+    A floor with units stays (unit identity); an empty one goes, and a sheet that showed it keeps
+    the floors it still shows."""
+    base, a, adm = world["base"], world["a"], world["adm"]
+    ground, first = world["floors"]["A"][0], world["floors"]["A"][1]
+    url = f"{base}/buildings/{a['id']}/floors"
+    assert client.delete(f"{url}/{first['id']}", headers=world["sales"]).status_code == 403
+    r = client.delete(f"{url}/{ground['id']}", headers=adm)
+    assert r.status_code == 409, r.text
+    assert r.json()["type"].endswith("floor-has-units") and r.json()["units"] == 2
+    assert client.delete(f"{url}/{uuid.uuid4()}", headers=adm).status_code == 404
+
+    # a sheet showing both floors keeps the one that stays (N4 page 11: B1 next to Ground)
+    s2 = client.get(f"{base}/sheets/{world['sheet2']['id']}", headers=adm).json()
+    r = client.put(
+        f"{base}/sheets/{s2['id']}/floors",
+        headers=adm,
+        json={
+            "floors": [{"floor_id": first["id"]}, {"floor_id": ground["id"]}],
+            "version": s2["version"],
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["floor_id"] == first["id"] and len(r.json()["floors"]) == 2
+    r = client.delete(f"{url}/{first['id']}", headers=world["pm"])
+    assert r.status_code == 204, r.text
+    bl = client.get(f"{base}/projects/{world['project']['id']}/buildings", headers=adm).json()
+    assert [f["level"] for f in next(x for x in bl if x["id"] == a["id"])["floors"]] == [0]
+    s2 = client.get(f"{base}/sheets/{s2['id']}", headers=adm).json()
+    assert s2["floor_id"] == ground["id"] and s2["assignment_status"] == "confirmed"
+    assert [f["floor_id"] for f in s2["floors"]] == [ground["id"]]
+    assert _count("sheet_floors", "floor_id = :f", {"f": first["id"]}) == 0
+    rows = _admin_sql(
+        "SELECT before FROM audit_log WHERE entity_type = 'building' AND entity_id = :id "
+        "AND action = 'delete_floor'",
+        {"id": a["id"]},
+    )
+    assert rows[0][0]["display_name"] == "First" and rows[0][0]["height_m"] == "3.000"
+
+
 def test_mapped_document_refused_then_detached(client, world):
     base, doc, pid = world["base"], world["plans"], world["project"]["id"]
     r = client.delete(f"{base}/documents/{doc['id']}", headers=world["adm"])

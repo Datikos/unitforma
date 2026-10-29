@@ -129,6 +129,8 @@ export interface Problem {
 }
 
 const BASE = '/api/v1';
+/** The admin API of one tenant; one helper keeps 130 URLs short in the initial bundle. */
+const tenantPath = (tenantId: string): string => `${BASE}/admin/tenants/${tenantId}`;
 
 /**
  * Typed client for the Unitforma admin and platform APIs.
@@ -159,183 +161,176 @@ export class UnitformaApi {
 
   // --- tenant
   getTenant(tenantId: string): Promise<TenantOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}`);
+    return this.get(`${tenantPath(tenantId)}`);
   }
   updateTenant(tenantId: string, body: TenantUpdate): Promise<TenantOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}`, body);
+    return this.patch(`${tenantPath(tenantId)}`, body);
   }
   listMembers(tenantId: string): Promise<MemberOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/members`);
+    return this.get(`${tenantPath(tenantId)}/members`);
   }
   updateMember(tenantId: string, membershipId: string, body: MemberUpdate): Promise<MemberOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/members/${membershipId}`, body);
+    return this.patch(`${tenantPath(tenantId)}/members/${membershipId}`, body);
   }
   listInvitations(tenantId: string): Promise<InvitationOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/invitations`);
+    return this.get(`${tenantPath(tenantId)}/invitations`);
   }
   createInvitation(tenantId: string, body: InvitationCreate): Promise<InvitationOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/invitations`, body);
+    return this.post(`${tenantPath(tenantId)}/invitations`, body);
   }
   revokeInvitation(tenantId: string, invitationId: string): Promise<void> {
-    return this.delete(`${BASE}/admin/tenants/${tenantId}/invitations/${invitationId}`);
+    return this.delete(`${tenantPath(tenantId)}/invitations/${invitationId}`);
   }
 
   // --- API tokens (ADR-0015)
   listApiTokens(tenantId: string): Promise<ApiTokenOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/tokens`);
+    return this.get(`${tenantPath(tenantId)}/tokens`);
   }
   createApiToken(tenantId: string, body: ApiTokenCreate): Promise<ApiTokenCreated> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/tokens`, body);
+    return this.post(`${tenantPath(tenantId)}/tokens`, body);
   }
   revokeApiToken(tenantId: string, tokenId: string): Promise<void> {
-    return this.delete(`${BASE}/admin/tenants/${tenantId}/tokens/${tokenId}`);
+    return this.delete(`${tenantPath(tenantId)}/tokens/${tokenId}`);
   }
   listAudit(tenantId: string, limit = 50, offset = 0): Promise<Page<AuditOut>> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/audit`, { limit, offset });
+    return this.get(`${tenantPath(tenantId)}/audit`, { limit, offset });
   }
 
   // --- projects
   listProjects(tenantId: string): Promise<ProjectOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects`);
+    return this.get(`${tenantPath(tenantId)}/projects`);
   }
   createProject(tenantId: string, body: ProjectCreate): Promise<ProjectOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects`, body);
+    return this.post(`${tenantPath(tenantId)}/projects`, body);
   }
 
   // --- regulatory: project bootstrap from a tas.ge building permit (ADR-0007)
   previewPermit(tenantId: string, reference: string): Promise<PermitPreviewOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/regulatory/tasge/preview`, { reference });
+    return this.post(`${tenantPath(tenantId)}/regulatory/tasge/preview`, { reference });
   }
   importPermit(tenantId: string, body: PermitImportCreate): Promise<PermitImportResult> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/regulatory/tasge/import`, body);
+    return this.post(`${tenantPath(tenantId)}/regulatory/tasge/import`, body);
   }
   refreshPermit(tenantId: string, projectId: string): Promise<RegulatoryImportOut> {
     return this.post(
-      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/regulatory/tasge/refresh`,
+      `${tenantPath(tenantId)}/projects/${projectId}/regulatory/tasge/refresh`,
       undefined,
     );
   }
   listRegulatoryImports(tenantId: string, projectId: string): Promise<RegulatoryImportOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/regulatory/imports`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/regulatory/imports`);
   }
   getProject(tenantId: string, projectId: string): Promise<ProjectOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}`);
   }
   updateProject(tenantId: string, projectId: string, body: ProjectUpdate): Promise<ProjectOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}`, body);
+    return this.patch(`${tenantPath(tenantId)}/projects/${projectId}`, body);
   }
   /** Permanent delete, tenant admin only; `confirm` must equal the slug (ADR-0012). */
   deleteProject(tenantId: string, projectId: string, confirm: string): Promise<void> {
     return this.delete(
-      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}?confirm=${encodeURIComponent(confirm)}`,
+      `${tenantPath(tenantId)}/projects/${projectId}?confirm=${encodeURIComponent(confirm)}`,
     );
   }
   /** Refused with 409 `building-has-units` while any unit belongs to it (ADR-0012). */
   deleteBuilding(tenantId: string, buildingId: string): Promise<void> {
-    return this.delete(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}`);
+    return this.delete(`${tenantPath(tenantId)}/buildings/${buildingId}`);
   }
   listBuildings(tenantId: string, projectId: string): Promise<BuildingOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/buildings`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/buildings`);
   }
   createBuilding(tenantId: string, projectId: string, body: BuildingCreate): Promise<BuildingOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/buildings`, body);
+    return this.post(`${tenantPath(tenantId)}/projects/${projectId}/buildings`, body);
   }
   setFloors(tenantId: string, buildingId: string, floors: FloorIn[]): Promise<FloorOut[]> {
-    return this.put(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/floors`, { floors });
+    return this.put(`${tenantPath(tenantId)}/buildings/${buildingId}/floors`, { floors });
+  }
+  /** Delete a floor no unit uses (ADR-0031 #E1); 409 floor-has-units otherwise. */
+  deleteFloor(tenantId: string, buildingId: string, floorId: string): Promise<void> {
+    return this.delete(`${tenantPath(tenantId)}/buildings/${buildingId}/floors/${floorId}`);
   }
   floorProposal(tenantId: string, buildingId: string): Promise<FloorProposalOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/floor-proposal`);
+    return this.get(`${tenantPath(tenantId)}/buildings/${buildingId}/floor-proposal`);
   }
   acceptBlocks(
     tenantId: string,
     buildingId: string,
     body: BlocksAcceptIn,
   ): Promise<BlocksAcceptOut> {
-    return this.post(
-      `${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/floor-proposal/blocks`,
-      body,
-    );
+    return this.post(`${tenantPath(tenantId)}/buildings/${buildingId}/floor-proposal/blocks`, body);
   }
   /** Sections and elevations that can become the building's floor picker (ADR-0014). */
   elevationCandidates(tenantId: string, buildingId: string): Promise<ElevationCandidateOut[]> {
-    return this.get(
-      `${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/elevation-candidates`,
-    );
+    return this.get(`${tenantPath(tenantId)}/buildings/${buildingId}/elevation-candidates`);
   }
 
   listSiteFeatures(tenantId: string, projectId: string): Promise<SiteFeatureOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/site-features`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/site-features`);
   }
   createSiteFeature(
     tenantId: string,
     projectId: string,
     body: SiteFeatureCreate,
   ): Promise<SiteFeatureOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/site-features`, body);
+    return this.post(`${tenantPath(tenantId)}/projects/${projectId}/site-features`, body);
   }
   updateSiteFeature(
     tenantId: string,
     featureId: string,
     body: SiteFeatureUpdate,
   ): Promise<SiteFeatureOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/site-features/${featureId}`, body);
+    return this.patch(`${tenantPath(tenantId)}/site-features/${featureId}`, body);
   }
   deleteSiteFeature(tenantId: string, featureId: string): Promise<void> {
-    return this.delete(`${BASE}/admin/tenants/${tenantId}/site-features/${featureId}`);
+    return this.delete(`${tenantPath(tenantId)}/site-features/${featureId}`);
   }
   updateBuilding(tenantId: string, buildingId: string, body: BuildingUpdate): Promise<BuildingOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}`, body);
+    return this.patch(`${tenantPath(tenantId)}/buildings/${buildingId}`, body);
   }
 
   // --- geometry (plan §11.3): footprints for placement, generated massing
   listFootprints(tenantId: string, projectId: string): Promise<FootprintOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/footprints`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/footprints`);
   }
   getMassing(tenantId: string, projectId: string): Promise<MassingOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/massing`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/massing`);
   }
   regenerateMassing(tenantId: string, projectId: string): Promise<MassingOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/massing`, undefined);
+    return this.post(`${tenantPath(tenantId)}/projects/${projectId}/massing`, undefined);
   }
   // --- IFC models per building (ADR-0006 Phase C)
   buildingModel(tenantId: string, buildingId: string): Promise<BuildingModelOut | null> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/model`);
+    return this.get(`${tenantPath(tenantId)}/buildings/${buildingId}/model`);
   }
   listIfcLinks(tenantId: string, buildingId: string): Promise<IfcSpaceLinkOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/ifc-links`);
+    return this.get(`${tenantPath(tenantId)}/buildings/${buildingId}/ifc-links`);
   }
   confirmPlanIfcLinks(tenantId: string, buildingId: string): Promise<{ confirmed: number }> {
-    return this.post(
-      `${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/ifc-links/confirm-plan`,
-      {},
-    );
+    return this.post(`${tenantPath(tenantId)}/buildings/${buildingId}/ifc-links/confirm-plan`, {});
   }
   decideIfcLink(
     tenantId: string,
     linkId: string,
     body: IfcSpaceLinkDecide,
   ): Promise<IfcSpaceLinkOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/ifc-links/${linkId}`, body);
+    return this.post(`${tenantPath(tenantId)}/ifc-links/${linkId}`, body);
   }
   rebuildBuildingModel(
     tenantId: string,
     buildingId: string,
   ): Promise<{ queued: boolean; revision_id: string }> {
-    return this.post(
-      `${BASE}/admin/tenants/${tenantId}/buildings/${buildingId}/model/rebuild`,
-      undefined,
-    );
+    return this.post(`${tenantPath(tenantId)}/buildings/${buildingId}/model/rebuild`, undefined);
   }
 
   // --- documents
   listDocuments(tenantId: string, projectId: string): Promise<DocumentOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/documents`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/documents`);
   }
   createDocument(tenantId: string, projectId: string, body: DocumentCreate): Promise<DocumentOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/documents`, body);
+    return this.post(`${tenantPath(tenantId)}/projects/${projectId}/documents`, body);
   }
   updateDocument(tenantId: string, documentId: string, body: DocumentUpdate): Promise<DocumentOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/documents/${documentId}`, body);
+    return this.patch(`${tenantPath(tenantId)}/documents/${documentId}`, body);
   }
 
   createUpload(
@@ -343,25 +338,26 @@ export class UnitformaApi {
     documentId: string,
     body: UploadIntentCreate,
   ): Promise<UploadIntentOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/documents/${documentId}/uploads`, body);
+    return this.post(`${tenantPath(tenantId)}/documents/${documentId}/uploads`, body);
   }
   completeUpload(tenantId: string, revisionId: string): Promise<RevisionOut> {
-    return this.post(
-      `${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/complete`,
-      undefined,
-    );
+    return this.post(`${tenantPath(tenantId)}/revisions/${revisionId}/complete`, undefined);
+  }
+  /** Process the current revision again (ADR-0016 #F5); sheets, floors and units are kept. */
+  reprocessRevision(tenantId: string, revisionId: string): Promise<RevisionOut> {
+    return this.post(`${tenantPath(tenantId)}/revisions/${revisionId}/reprocess`, undefined);
   }
   listRevisions(tenantId: string, documentId: string): Promise<RevisionOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/documents/${documentId}/revisions`);
+    return this.get(`${tenantPath(tenantId)}/documents/${documentId}/revisions`);
   }
   listSheets(tenantId: string, revisionId: string): Promise<SheetOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/sheets`);
+    return this.get(`${tenantPath(tenantId)}/revisions/${revisionId}/sheets`);
   }
   revisionDownloadUrl(tenantId: string, revisionId: string): Promise<{ url: string }> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/download`);
+    return this.get(`${tenantPath(tenantId)}/revisions/${revisionId}/download`);
   }
   getSheet(tenantId: string, sheetId: string): Promise<SheetOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}`);
+    return this.get(`${tenantPath(tenantId)}/sheets/${sheetId}`);
   }
   assignSheetFloor(
     tenantId: string,
@@ -369,7 +365,7 @@ export class UnitformaApi {
     floorId: string | null,
     version: number,
   ): Promise<SheetOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/floor`, {
+    return this.patch(`${tenantPath(tenantId)}/sheets/${sheetId}/floor`, {
       floor_id: floorId,
       version,
     });
@@ -381,7 +377,7 @@ export class UnitformaApi {
     floors: SheetFloorIn[],
     version: number,
   ): Promise<SheetOut> {
-    return this.put(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/floors`, {
+    return this.put(`${tenantPath(tenantId)}/sheets/${sheetId}/floors`, {
       floors,
       version,
     });
@@ -394,7 +390,7 @@ export class UnitformaApi {
     reason: string | null,
     version: number,
   ): Promise<SheetOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/exclusion`, {
+    return this.patch(`${tenantPath(tenantId)}/sheets/${sheetId}/exclusion`, {
       excluded,
       reason,
       version,
@@ -408,7 +404,7 @@ export class UnitformaApi {
     excluded: boolean,
     reason: string | null,
   ): Promise<SheetOut[]> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/exclusions`, {
+    return this.post(`${tenantPath(tenantId)}/revisions/${revisionId}/exclusions`, {
       pages,
       excluded,
       reason,
@@ -416,10 +412,7 @@ export class UnitformaApi {
   }
   /** Store the areas printed on the sheet as the documented areas of its units. */
   readPrintedAreas(tenantId: string, sheetId: string): Promise<PrintedAreasOut> {
-    return this.post(
-      `${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/printed-areas`,
-      undefined,
-    );
+    return this.post(`${tenantPath(tenantId)}/sheets/${sheetId}/printed-areas`, undefined);
   }
   calibrateSheet(
     tenantId: string,
@@ -427,7 +420,7 @@ export class UnitformaApi {
     calibration: Calibration,
     version: number,
   ): Promise<SheetOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/calibration`, {
+    return this.patch(`${tenantPath(tenantId)}/sheets/${sheetId}/calibration`, {
       calibration,
       version,
     });
@@ -435,10 +428,10 @@ export class UnitformaApi {
 
   // --- mapping
   listBoundaries(tenantId: string, sheetId: string): Promise<BoundaryOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/boundaries`);
+    return this.get(`${tenantPath(tenantId)}/sheets/${sheetId}/boundaries`);
   }
   createBoundary(tenantId: string, sheetId: string, body: BoundaryCreate): Promise<UnitCreated> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/boundaries`, body);
+    return this.post(`${tenantPath(tenantId)}/sheets/${sheetId}/boundaries`, body);
   }
   updateBoundary(
     tenantId: string,
@@ -446,21 +439,21 @@ export class UnitformaApi {
     ring: number[][],
     version: number,
   ): Promise<BoundaryOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/boundaries/${boundaryId}`, {
+    return this.patch(`${tenantPath(tenantId)}/boundaries/${boundaryId}`, {
       ring,
       version,
     });
   }
   approveSheet(tenantId: string, sheetId: string): Promise<{ approved_units: number }> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/approve`, undefined);
+    return this.post(`${tenantPath(tenantId)}/sheets/${sheetId}/approve`, undefined);
   }
   listUnits(tenantId: string, projectId: string, includeRemoved = false): Promise<UnitOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/units`, {
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/units`, {
       include_removed: String(includeRemoved),
     });
   }
   getUnit(tenantId: string, unitId: string): Promise<UnitOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}`);
+    return this.get(`${tenantPath(tenantId)}/units/${unitId}`);
   }
   relabelUnit(
     tenantId: string,
@@ -469,58 +462,55 @@ export class UnitformaApi {
     version: number,
     reason?: string,
   ): Promise<UnitOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/relabel`, {
+    return this.post(`${tenantPath(tenantId)}/units/${unitId}/relabel`, {
       code,
       version,
       reason: reason ?? null,
     });
   }
   removeUnit(tenantId: string, unitId: string, version: number, note?: string): Promise<UnitOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/remove`, {
+    return this.post(`${tenantPath(tenantId)}/units/${unitId}/remove`, {
       version,
       note: note ?? null,
     });
   }
   mergeUnits(tenantId: string, projectId: string, body: UnitMerge): Promise<UnitOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/units/merge`, body);
+    return this.post(`${tenantPath(tenantId)}/projects/${projectId}/units/merge`, body);
   }
   splitUnit(tenantId: string, unitId: string, body: UnitSplit): Promise<UnitOut[]> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/split`, body);
+    return this.post(`${tenantPath(tenantId)}/units/${unitId}/split`, body);
   }
   setArea(tenantId: string, unitId: string, body: AreaSet): Promise<AreaOut> {
-    return this.put(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/areas`, body);
+    return this.put(`${tenantPath(tenantId)}/units/${unitId}/areas`, body);
   }
   verifyArea(tenantId: string, areaId: string): Promise<AreaOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/areas/${areaId}/verify`, undefined);
+    return this.post(`${tenantPath(tenantId)}/areas/${areaId}/verify`, undefined);
   }
   unitHistory(
     tenantId: string,
     unitId: string,
   ): Promise<{ codes: unknown[]; lineage: LineageOut[] }> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/history`);
+    return this.get(`${tenantPath(tenantId)}/units/${unitId}/history`);
   }
   projectLineage(tenantId: string, projectId: string): Promise<LineageOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/lineage`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/lineage`);
   }
 
   // --- suggestions & revision diff proposals (plan §13.2, §13.3)
   suggestBoundaries(tenantId: string, sheetId: string): Promise<SuggestionOut[]> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/sheets/${sheetId}/suggestions`, undefined);
+    return this.post(`${tenantPath(tenantId)}/sheets/${sheetId}/suggestions`, undefined);
   }
   listProposals(tenantId: string, projectId: string, status?: string): Promise<ProposalOut[]> {
     return this.get(
-      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/proposals`,
+      `${tenantPath(tenantId)}/projects/${projectId}/proposals`,
       status ? { status } : undefined,
     );
   }
   getProposal(tenantId: string, proposalId: string): Promise<ProposalOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/proposals/${proposalId}`);
+    return this.get(`${tenantPath(tenantId)}/proposals/${proposalId}`);
   }
   buildProposal(tenantId: string, revisionId: string): Promise<ProposalOut> {
-    return this.post(
-      `${BASE}/admin/tenants/${tenantId}/revisions/${revisionId}/proposals`,
-      undefined,
-    );
+    return this.post(`${tenantPath(tenantId)}/revisions/${revisionId}/proposals`, undefined);
   }
   decideProposalItem(
     tenantId: string,
@@ -528,204 +518,195 @@ export class UnitformaApi {
     itemId: string,
     body: ProposalDecide,
   ): Promise<ProposalItemOut> {
-    return this.post(
-      `${BASE}/admin/tenants/${tenantId}/proposals/${proposalId}/items/${itemId}`,
-      body,
-    );
+    return this.post(`${tenantPath(tenantId)}/proposals/${proposalId}/items/${itemId}`, body);
   }
   acceptProposalItems(tenantId: string, proposalId: string, kinds: string[]): Promise<ProposalOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/proposals/${proposalId}/accept-all`, {
+    return this.post(`${tenantPath(tenantId)}/proposals/${proposalId}/accept-all`, {
       kinds,
     });
   }
 
   // --- sales workspace (plan §6)
   inventory(tenantId: string, projectId: string): Promise<InventoryRow[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/inventory`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/inventory`);
   }
   getUnitSales(tenantId: string, unitId: string): Promise<InventoryRow> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/sales`);
+    return this.get(`${tenantPath(tenantId)}/units/${unitId}/sales`);
   }
   /** Inline edit; a stale `version` rejects with 409 whose body carries `current` (the row). */
   updateUnitSales(tenantId: string, unitId: string, body: SalesUpdate): Promise<InventoryRow> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/sales`, body);
+    return this.patch(`${tenantPath(tenantId)}/units/${unitId}/sales`, body);
   }
   bulkUpdate(tenantId: string, projectId: string, body: BulkUpdate): Promise<BulkResult> {
-    return this.post(
-      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/inventory/bulk`,
-      body,
-    );
+    return this.post(`${tenantPath(tenantId)}/projects/${projectId}/inventory/bulk`, body);
   }
   unitSalesHistory(tenantId: string, unitId: string): Promise<SalesHistoryOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/sales/history`);
+    return this.get(`${tenantPath(tenantId)}/units/${unitId}/sales/history`);
   }
   unitPublicPreview(tenantId: string, unitId: string): Promise<Record<string, unknown>> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/sales/public-preview`);
+    return this.get(`${tenantPath(tenantId)}/units/${unitId}/sales/public-preview`);
   }
   getSalesSettings(tenantId: string, projectId: string): Promise<SalesSettingsOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/sales-settings`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/sales-settings`);
   }
   putSalesSettings(
     tenantId: string,
     projectId: string,
     body: SalesSettingsIn,
   ): Promise<SalesSettingsOut> {
-    return this.put(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/sales-settings`, body);
+    return this.put(`${tenantPath(tenantId)}/projects/${projectId}/sales-settings`, body);
   }
   listPaymentPlans(tenantId: string, projectId: string): Promise<PaymentPlanOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/payment-plans`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/payment-plans`);
   }
   createPaymentPlan(
     tenantId: string,
     projectId: string,
     body: PaymentPlanIn,
   ): Promise<PaymentPlanOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/payment-plans`, body);
+    return this.post(`${tenantPath(tenantId)}/projects/${projectId}/payment-plans`, body);
   }
   updatePaymentPlan(
     tenantId: string,
     planId: string,
     body: PaymentPlanUpdate,
   ): Promise<PaymentPlanOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/payment-plans/${planId}`, body);
+    return this.patch(`${tenantPath(tenantId)}/payment-plans/${planId}`, body);
   }
   listPromotions(tenantId: string, projectId: string): Promise<PromotionOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/promotions`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/promotions`);
   }
   createPromotion(tenantId: string, projectId: string, body: PromotionIn): Promise<PromotionOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/promotions`, body);
+    return this.post(`${tenantPath(tenantId)}/projects/${projectId}/promotions`, body);
   }
   updatePromotion(
     tenantId: string,
     promotionId: string,
     body: PromotionUpdate,
   ): Promise<PromotionOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/promotions/${promotionId}`, body);
+    return this.patch(`${tenantPath(tenantId)}/promotions/${promotionId}`, body);
   }
   /** Generated 3D plan renders of a unit (ADR-0017): list with the daily cap, request, review. */
   listRenders(tenantId: string, unitId: string): Promise<RendersOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/renders`);
+    return this.get(`${tenantPath(tenantId)}/units/${unitId}/renders`);
   }
   requestRender(tenantId: string, unitId: string, body: RenderRequest): Promise<RenderOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/renders`, body);
+    return this.post(`${tenantPath(tenantId)}/units/${unitId}/renders`, body);
   }
   approveRender(tenantId: string, renderId: string): Promise<RenderOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/renders/${renderId}/approve`, undefined);
+    return this.post(`${tenantPath(tenantId)}/renders/${renderId}/approve`, undefined);
   }
   rejectRender(tenantId: string, renderId: string): Promise<RenderOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/renders/${renderId}/reject`, undefined);
+    return this.post(`${tenantPath(tenantId)}/renders/${renderId}/reject`, undefined);
   }
   /** The workspace's base prompt for generated plan renders (ADR-0023); tenant admin only. */
   getRenderPrompt(tenantId: string): Promise<RenderPromptOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/render-prompt`);
+    return this.get(`${tenantPath(tenantId)}/render-prompt`);
   }
   setRenderPrompt(tenantId: string, body: RenderPromptUpdate): Promise<RenderPromptOut> {
-    return this.put(`${BASE}/admin/tenants/${tenantId}/render-prompt`, body);
+    return this.put(`${tenantPath(tenantId)}/render-prompt`, body);
   }
   /** The setup checklist: ordered steps with status, detail and the screen that completes each. */
   projectSetup(tenantId: string, projectId: string): Promise<SetupOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/setup`);
   }
   /** The setup solver's switches (ADR-0025); switching on queues a run. */
   setSetupAuto(tenantId: string, projectId: string, body: SetupAutoIn): Promise<SetupAutoOut> {
-    return this.put(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup/auto`, body);
+    return this.put(`${tenantPath(tenantId)}/projects/${projectId}/setup/auto`, body);
   }
   /** Queue one solver run now, whether or not the switch is on. */
   runSetup(tenantId: string, projectId: string): Promise<SetupRunOut> {
-    return this.post(
-      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup/run`,
-      undefined,
-    );
+    return this.post(`${tenantPath(tenantId)}/projects/${projectId}/setup/run`, undefined);
   }
   /** One action that ends with a live portal (ADR-0029): the run approves the solver's drafts,
    *  confirms its plan types, writes a first description, marks every active unit and publishes. */
   publishSetupDefaults(tenantId: string, projectId: string): Promise<SetupRunOut> {
     return this.post(
-      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup/publish-defaults`,
+      `${tenantPath(tenantId)}/projects/${projectId}/setup/publish-defaults`,
       undefined,
     );
   }
   listSetupRuns(tenantId: string, projectId: string): Promise<SetupRunOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup/runs`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/setup/runs`);
   }
   getSetupRun(tenantId: string, projectId: string, runId: string): Promise<SetupRunDetailOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/setup/runs/${runId}`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/setup/runs/${runId}`);
   }
   /** A proposed layout (from the solver) becomes a confirmed plan type (ADR-0025 Decision 6). */
   confirmLayout(tenantId: string, layoutId: string): Promise<LayoutOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}/confirm`, undefined);
+    return this.post(`${tenantPath(tenantId)}/layouts/${layoutId}/confirm`, undefined);
   }
   /** The layout registry of a project (ADR-0022): plan types that own media shared by their units. */
   listLayouts(tenantId: string, projectId: string): Promise<LayoutOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/layouts`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/layouts`);
   }
   createLayout(tenantId: string, projectId: string, body: LayoutIn): Promise<LayoutOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/layouts`, body);
+    return this.post(`${tenantPath(tenantId)}/projects/${projectId}/layouts`, body);
   }
   getLayout(tenantId: string, layoutId: string): Promise<LayoutOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}`);
+    return this.get(`${tenantPath(tenantId)}/layouts/${layoutId}`);
   }
   updateLayout(tenantId: string, layoutId: string, body: LayoutUpdate): Promise<LayoutOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}`, body);
+    return this.patch(`${tenantPath(tenantId)}/layouts/${layoutId}`, body);
   }
   /** Refused with 409 `layout-in-use` while units link to it unless `unlinkUnits`. */
   deleteLayout(tenantId: string, layoutId: string, unlinkUnits = false): Promise<void> {
     return this.delete(
-      `${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}${unlinkUnits ? '?unlink_units=true' : ''}`,
+      `${tenantPath(tenantId)}/layouts/${layoutId}${unlinkUnits ? '?unlink_units=true' : ''}`,
     );
   }
   listLayoutMedia(tenantId: string, layoutId: string): Promise<MediaOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}/media`);
+    return this.get(`${tenantPath(tenantId)}/layouts/${layoutId}/media`);
   }
   createLayoutMedia(
     tenantId: string,
     layoutId: string,
     body: MediaCreate,
   ): Promise<MediaIntentOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}/media`, body);
+    return this.post(`${tenantPath(tenantId)}/layouts/${layoutId}/media`, body);
   }
   reorderLayoutMedia(tenantId: string, layoutId: string, ids: string[]): Promise<MediaOut[]> {
-    return this.put(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}/media/order`, { ids });
+    return this.put(`${tenantPath(tenantId)}/layouts/${layoutId}/media/order`, { ids });
   }
   listLayoutRenders(tenantId: string, layoutId: string): Promise<RendersOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}/renders`);
+    return this.get(`${tenantPath(tenantId)}/layouts/${layoutId}/renders`);
   }
   requestLayoutRender(
     tenantId: string,
     layoutId: string,
     body: LayoutRenderRequest,
   ): Promise<RenderOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/layouts/${layoutId}/renders`, body);
+    return this.post(`${tenantPath(tenantId)}/layouts/${layoutId}/renders`, body);
   }
   listMedia(tenantId: string, unitId: string): Promise<MediaOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/media`);
+    return this.get(`${tenantPath(tenantId)}/units/${unitId}/media`);
   }
   createMedia(tenantId: string, unitId: string, body: MediaCreate): Promise<MediaIntentOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/media`, body);
+    return this.post(`${tenantPath(tenantId)}/units/${unitId}/media`, body);
   }
   completeMedia(tenantId: string, mediaId: string): Promise<MediaOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/media/${mediaId}/complete`, undefined);
+    return this.post(`${tenantPath(tenantId)}/media/${mediaId}/complete`, undefined);
   }
   updateMedia(tenantId: string, mediaId: string, body: MediaUpdate): Promise<MediaOut> {
-    return this.patch(`${BASE}/admin/tenants/${tenantId}/media/${mediaId}`, body);
+    return this.patch(`${tenantPath(tenantId)}/media/${mediaId}`, body);
   }
   reorderMedia(tenantId: string, unitId: string, ids: string[]): Promise<MediaOut[]> {
-    return this.put(`${BASE}/admin/tenants/${tenantId}/units/${unitId}/media/order`, { ids });
+    return this.put(`${tenantPath(tenantId)}/units/${unitId}/media/order`, { ids });
   }
   /** Refused with 409 `document-mapped` while units are outlined on it unless `detachUnits`. */
   deleteDocument(tenantId: string, documentId: string, detachUnits = false): Promise<void> {
     return this.delete(
-      `${BASE}/admin/tenants/${tenantId}/documents/${documentId}${detachUnits ? '?detach_units=true' : ''}`,
+      `${tenantPath(tenantId)}/documents/${documentId}${detachUnits ? '?detach_units=true' : ''}`,
     );
   }
   deleteMedia(tenantId: string, mediaId: string): Promise<void> {
-    return this.delete(`${BASE}/admin/tenants/${tenantId}/media/${mediaId}`);
+    return this.delete(`${tenantPath(tenantId)}/media/${mediaId}`);
   }
   /** Upload a CSV/XLSX file as the raw request body. */
   uploadImport(tenantId: string, projectId: string, file: File): Promise<ImportBatchOut> {
     return firstValueFrom(
       this.http.post<ImportBatchOut>(
-        `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/imports`,
+        `${tenantPath(tenantId)}/projects/${projectId}/imports`,
         file,
         {
           params: toParams({ file_name: file.name }),
@@ -735,10 +716,10 @@ export class UnitformaApi {
     );
   }
   listImports(tenantId: string, projectId: string): Promise<ImportBatchOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/imports`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/imports`);
   }
   getImport(tenantId: string, batchId: string): Promise<ImportBatchOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}`);
+    return this.get(`${tenantPath(tenantId)}/imports/${batchId}`);
   }
   dryRunImport(
     tenantId: string,
@@ -746,7 +727,7 @@ export class UnitformaApi {
     mapping: Record<string, string>,
     options: ImportOptions,
   ): Promise<ImportBatchOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}/dry-run`, {
+    return this.post(`${tenantPath(tenantId)}/imports/${batchId}/dry-run`, {
       mapping,
       options,
     });
@@ -756,12 +737,12 @@ export class UnitformaApi {
     batchId: string,
     skipInvalidRows: boolean,
   ): Promise<ImportBatchOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}/apply`, {
+    return this.post(`${tenantPath(tenantId)}/imports/${batchId}/apply`, {
       skip_invalid_rows: skipInvalidRows,
     });
   }
   discardImport(tenantId: string, batchId: string): Promise<ImportBatchOut> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/imports/${batchId}/discard`, undefined);
+    return this.post(`${tenantPath(tenantId)}/imports/${batchId}/discard`, undefined);
   }
   /** Download the inventory as CSV or XLSX (same columns as the importer reads). */
   async downloadInventory(
@@ -771,7 +752,7 @@ export class UnitformaApi {
     columns: 'internal' | 'public',
   ): Promise<void> {
     const res = await firstValueFrom(
-      this.http.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/inventory/export`, {
+      this.http.get(`${tenantPath(tenantId)}/projects/${projectId}/inventory/export`, {
         params: toParams({ format, columns }),
         responseType: 'blob',
         observe: 'response',
@@ -790,7 +771,7 @@ export class UnitformaApi {
 
   // --- publishing (plan §9.3)
   publishReadiness(tenantId: string, projectId: string): Promise<ReadinessOut> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/publish/readiness`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/publish/readiness`);
   }
   setUnitPublication(
     tenantId: string,
@@ -799,29 +780,26 @@ export class UnitformaApi {
     unitIds: string[] | null,
     allActive = false,
   ): Promise<UnitPublicationOut> {
-    return this.put(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/units/publication`, {
+    return this.put(`${tenantPath(tenantId)}/projects/${projectId}/units/publication`, {
       status,
       unit_ids: unitIds,
       all_active: allActive,
     });
   }
   listPublications(tenantId: string, projectId: string): Promise<PublicationOut[]> {
-    return this.get(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/publications`);
+    return this.get(`${tenantPath(tenantId)}/projects/${projectId}/publications`);
   }
   publish(
     tenantId: string,
     projectId: string,
     mode: 'preview' | 'publish',
   ): Promise<PublishResult> {
-    return this.post(`${BASE}/admin/tenants/${tenantId}/projects/${projectId}/publications`, {
+    return this.post(`${tenantPath(tenantId)}/projects/${projectId}/publications`, {
       mode,
     });
   }
   unpublish(tenantId: string, projectId: string): Promise<PublicationOut> {
-    return this.post(
-      `${BASE}/admin/tenants/${tenantId}/projects/${projectId}/unpublish`,
-      undefined,
-    );
+    return this.post(`${tenantPath(tenantId)}/projects/${projectId}/unpublish`, undefined);
   }
 
   /** Upload a file to a presigned PUT URL (S3 or the local dev backend), reporting progress 0..1. */
