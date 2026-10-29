@@ -54,9 +54,12 @@ than 2.4 m. The plane sits on every material of the model from load on (at `NO_C
 cut, so a floor change recompiles no shader), with `clipShadows`; the ground, the site features and
 the trees are never cut. The spaces are glass in an IFC model, never opaque: 40 % on the picked floor
 and on every floor when none is picked, 55 % hovered, 75 % selected. They cast no shadow, and a
-polygon offset draws their base over the slab it lies on (without it the slab flickered through the
-tint). The other floors' spaces are not drawn (`colorWrite` off) but stay tappable below the cut and
-show at 30 % when hovered; a ray hit above the cut is ignored. On a change of floor the camera keeps
+polygon offset draws the picked floor's base over the slab it lies on (without it the slab flickered
+through the tint); it is off on the uncut building, where it pulled the top floor's tint through the
+roof finish 0.1 m above it (#D3). The other floors' spaces are not drawn (`colorWrite` off) but stay tappable below the cut and
+show at 30 % when hovered; a ray hit above the cut is ignored. Below the cut a hit on the picked
+floor wins over a nearer one on another floor (`pickedHit`, #D4): adjacent storeys' spaces share a
+face, so a tap on a flat hit its floor and the ceiling of the flat below at the same distance. On a change of floor the camera keeps
 its azimuth, aims at the floor's centre from 55° and the floor's diagonal; clearing the floor frames
 the model again. A floor without spaces is not cut. The schematic massing keeps the fade.
 
@@ -82,7 +85,8 @@ the same with the section fill (level -2, 0 and 2).
 data-saver phone, a 2 GB device, a narrow viewport, no WebGL2) and that the edge shader declares
 every uniform it samples. `floor-cut.spec.ts` proves the cut height (a floor with spaces, a low floor,
 a floor without spaces), the space opacity per state, that the camera keeps its azimuth over a
-cut floor, and the section fill's band and which materials take it. The fill's shader hook is checked
+cut floor, the section fill's band and which materials take it, and that a tap takes the picked
+floor's space on a tie with the floor below. The fill's shader hook is checked
 in headless Chrome with the chain. `massing-viewer.spec.ts` proves the component degrades to a status line
 without WebGL. The chain itself cannot run in the test browser (no WebGL context); it is checked on
 the dev stack in headless Chrome.

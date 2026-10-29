@@ -10,12 +10,12 @@ import { detectCapabilities } from '../core/capabilities';
 import { AVAILABILITY, typeLabel } from '../core/format';
 import { Availability, PortalApi, ProjectDoc } from '../core/portal-api';
 import { SiteStore } from '../core/site.store';
-import { countByAvailability, groupUnitsByType } from './building.model';
+import { countByAvailability, floorChosen, groupUnitsByType, tapOnModel } from './building.model';
 
 /**
  * Building view, floor first (plan §7.1, ADR-0006 Decision 6): the floor stack, the 3D building
- * with the chosen floor in focus (the other floors faded, or the architect's model cut open above
- * the floor, ADR-0036), and below it the floor plan where
+ * (whole until a floor is chosen, then with that floor in focus: the other floors faded, or the
+ * architect's model cut open above the floor, ADR-0036 #D3), and below it the floor plan where
  * the buyer taps the exact unit. `?floor=` and `?unit=` carry the choice, so a pick on the project
  * page's 3D model and a shared link both land here with the floor and unit already selected.
  */
@@ -94,6 +94,16 @@ import { countByAvailability, groupUnitsByType } from './building.model';
                   }
                 </div>
               }
+              @if (view() === '3d' && chosen()) {
+                <button
+                  type="button"
+                  class="uf-chip-btn"
+                  (click)="wholeBuilding()"
+                  title="Show the whole building again, not cut open at this floor"
+                >
+                  <ng-icon name="lucideBuilding2" /> Whole building
+                </button>
+              }
               @if (view() === '3d') {
                 <button
                   type="button"
@@ -127,7 +137,7 @@ import { countByAvailability, groupUnitsByType } from './building.model';
                     'Schematic model generated from floor plans — not an architectural model'
                   "
                   [buildingCode]="b.model ? null : b.code"
-                  [floorLevel]="level()"
+                  [floorLevel]="chosen() ? level() : null"
                   [selectedUnitId]="selected()"
                   [unitColors]="unitColors()"
                   [tintMode]="tint()"
@@ -553,6 +563,8 @@ export class BuildingPage {
   readonly floor = computed(
     () => this.building()?.floors.find((f) => f.level === this.level()) ?? null,
   );
+  /** Whether the buyer chose a floor; until then the 3D building is shown whole (ADR-0036 #D3). */
+  readonly chosen = computed(() => floorChosen(this.floorParam(), this.unitParam()));
   /** Preselected from `?unit=` on the current floor; a tap on the plan or the model overrides it. */
   readonly selected = linkedSignal<string | null>(() => {
     const unit = this.unitParam()?.toLowerCase();
@@ -655,9 +667,18 @@ export class BuildingPage {
     });
   }
 
-  /** 3D model: a unit on the current floor is selected in place; one on another floor moves there with it preselected. */
+  /** Back to the whole building: the floor and unit leave the link, the plan shows the first floor. */
+  wholeBuilding(): void {
+    void this.router.navigate([], {
+      queryParams: { floor: null, unit: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  /** 3D model: a unit on the floor cut open is selected in place; any other moves there with it preselected. */
   pick3d(u: MassingUnitInfo): void {
-    if (u.floor_level === this.level()) {
+    if (tapOnModel(this.chosen(), this.level(), u.floor_level) === 'select') {
       this.selected.set(u.unit_id);
       return;
     }

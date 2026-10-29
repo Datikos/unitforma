@@ -8,6 +8,7 @@ import {
   aimOverFloor,
   cutHeight,
   ifcSpaceOpacity,
+  pickedHit,
   sectionBand,
   takesSectionFill,
 } from './floor-cut';
@@ -85,5 +86,40 @@ describe('section fill of cut elements (ADR-0036 #D2)', () => {
     expect(takesSectionFill({ transparent: false, opacity: 1 }, false)).toBe(true);
     expect(takesSectionFill({ transparent: true, opacity: 0.4 }, false)).toBe(false);
     expect(takesSectionFill({ transparent: false, opacity: 1 }, true)).toBe(false);
+  });
+});
+
+describe('pickedHit (ADR-0036 Decision 4, #D4)', () => {
+  // N4: level 1's spaces end at 11.6 m where level 2's begin, so a tap on a level 2 flat hits
+  // both faces at the same distance, in either order
+  it('takes the picked floor on a tie with the floor below', () => {
+    const hits = [
+      { y: 13.5, level: 2 },
+      { y: 11.6, level: 1 },
+      { y: 11.6, level: 2 },
+    ];
+    expect(pickedHit(hits, 12.8, 2)).toBe(2);
+  });
+
+  it('takes another floor below the cut when the ray misses the picked one', () => {
+    expect(pickedHit([{ y: 8.4, level: 0 }], 12.8, 2)).toBe(0);
+  });
+
+  it('counts nothing above the cut', () => {
+    expect(pickedHit([{ y: 13.5, level: 2 }], 12.8, 2)).toBe(-1);
+  });
+
+  it('takes the nearest hit when nothing is cut', () => {
+    expect(
+      pickedHit(
+        [
+          { y: 17.9, level: 3 },
+          { y: 14.8, level: 2 },
+        ],
+        null,
+        null,
+      ),
+    ).toBe(0);
+    expect(pickedHit([], null, null)).toBe(-1);
   });
 });

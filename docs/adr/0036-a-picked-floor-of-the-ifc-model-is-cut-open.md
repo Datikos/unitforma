@@ -1,6 +1,6 @@
 # ADR-0036: A picked floor of the IFC model is cut open
 
-- **Status:** accepted (2026-10-29, the owner's pick of option 2 after his screenshot of N4 level 0); implemented 2026-10-29 on branch `adr-0036`, verified on N4 the same day; D1 (the admin tint by link status) added and done 2026-10-29; D2 (the section fill of cut elements) added and done 2026-10-29
+- **Status:** accepted (2026-10-29, the owner's pick of option 2 after his screenshot of N4 level 0); implemented 2026-10-29 on branch `adr-0036`, verified on N4 the same day; D1 (the admin tint by link status) added and done 2026-10-29; D2 (the section fill of cut elements) added and done 2026-10-29; D3 (the building page opens on the whole building) and D4 (a tap takes the picked floor on a tie) added 2026-10-30 after the owner's screenshot of N4 level 2
 - **Date:** 2026-10-29
 - **Deciders:** David Sakhelashvili (platform owner)
 - **Plan reference:** §7.3 (floor isolation, interior view), §11.3 (MVP 3D); ADR-0006 Decision 6 and #E4, ADR-0030 (plan spaces), ADR-0033 (the architectural look)
@@ -180,3 +180,37 @@ Phase D: follow-up
       API (v12): levels -2, 0 and 2 show the cut walls, columns and door leaves dark, no dark patch
       off the band, 60 fps on each (60 before). Viewer-3d 19 tests; admin and portal initial bundles
       unchanged (498.05 and 390.89 kB).
+- [x] D3 The portal building page opens on the whole building. Until now `level()` fell back to the
+      first floor (N4: the parking level -2), so the architect's model always arrived cut open and
+      a buyer never saw the building or its roof (owner, 2026-10-30: "a missing rooftop and the
+      full building visual is uncommon"). Options weighed on 2026-10-30:
+      | | Whole until a floor is chosen (chosen) | A whole/cut switch, cut by default | Keep |
+      |---|---|---|---|
+      | First view | the building with its roof | the lowest floor cut open | the lowest floor cut open |
+      | Where the state lives | the link: no `?floor=` and no `?unit=` means whole | a page signal, lost on a shared link | — |
+      | Back to whole | "Whole building" drops both from the link | the switch | not possible |
+      Chosen: whole until chosen. A floor on the left, a band on the facade, a unit tapped on the
+      model or a link with `?floor=`/`?unit=` cuts it (Decision 5 aims the camera as before); the
+      plan below still shows the first floor meanwhile. The schematic massing follows the same rule
+      (no fade until a floor is chosen). The spaces' polygon offset (A2) is on for the cut floor
+      only: on the uncut building it pulled level 3's tint through the roof finish, whose top lies
+      about 0.1 m over the spaces' 18.00 m top. `portal/.../building.model.ts` (`floorChosen`,
+      `tapOnModel`), `building.page.ts`, `massing-viewer.ts` (`applyFocus`), the portal guide.
+      *Done 2026-10-30* on N4 with the portal built from branch `adr-0036-whole` against the dev
+      API: `/buildings/A?view=3d` opens on the whole building with a grey roof (the deployed
+      portal opened on level -2 cut), `?floor=2` cuts as before, "Whole building" returns to
+      `?view=3d`.
+- [x] D4 A tap on a flat of the picked floor selects it instead of moving to the floor below.
+      Adjacent storeys' spaces share a face: on N4 (the 2026-10-29 re-run) level 1 ends at 11.60 m where level 2
+      begins (every level likewise, measured in the GLB on 2026-10-30). With the hit on the clipped
+      top face ignored (Decision 4), the picked flat's floor face and the lower flat's ceiling tie
+      at the same distance and either came first. Rule: below the cut the nearest hit on the picked
+      floor wins; another floor's space counts only when the ray meets none of the picked floor.
+      `floor-cut.ts` (`pickedHit`), `massing-viewer.ts` (`pick`), the viewer-3d README.
+      *Done 2026-10-30*: 200 taps on a grid over N4 level 2 in headless Chrome.
+      | Taps landing on | level 2 | level 1 | level 0 | level -2 |
+      |---|---|---|---|---|
+      | Deployed portal (before) | 163 | 27 | 8 | 2 |
+      | This branch | 187 | 3 | 8 | 2 |
+      The 13 left are taps where the ray meets no level 2 space (walls, the corridor, stairs) and
+      reaches a space of a lower floor, which Decision 4 still allows.
