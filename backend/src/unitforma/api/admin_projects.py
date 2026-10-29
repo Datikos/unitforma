@@ -175,7 +175,12 @@ async def update_building(building_id: uuid.UUID, body: BuildingUpdate, ctx: Ctx
     if "site_transform" in changes and "placement_status" not in changes:
         changes["placement_status"] = "draft" if b.placement_status == "unplaced" else None
         changes = {k: v for k, v in changes.items() if v is not None}
-    return await projects.update_building(ctx.session, b, changes, body.version, _actor(ctx))
+    before = (dict(b.site_transform or {}), b.placement_status)
+    out = await projects.update_building(ctx.session, b, changes, body.version, _actor(ctx))
+    if (dict(out.site_transform or {}), out.placement_status) != before:
+        # the massing places the building and finds its drawn outline (ADR-0035 Decision 2)
+        await geometry_service.queue_massing(ctx.tenant_id, b.project_id)
+    return out
 
 
 @router.delete("/buildings/{building_id}", status_code=204)

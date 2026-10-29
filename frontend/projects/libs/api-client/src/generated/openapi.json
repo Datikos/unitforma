@@ -10894,6 +10894,23 @@
       ],
       "title": "Ring M"
      },
+     "site_outline_m": {
+      "anyOf": [
+       {
+        "items": {
+         "items": {
+          "type": "number"
+         },
+         "type": "array"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Site Outline M"
+     },
      "source_floor_level": {
       "anyOf": [
        {

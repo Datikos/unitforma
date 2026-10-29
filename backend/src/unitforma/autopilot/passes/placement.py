@@ -18,33 +18,11 @@ from unitforma.autopilot import rules
 from unitforma.autopilot.service import Context, session
 from unitforma.geometry import plan_fit
 from unitforma.geometry import service as geometry_service
-from unitforma.inventory import geometry
-from unitforma.mapping import service as mapping
-from unitforma.mapping import suggest
+from unitforma.geometry.site_outline import site_faces
 from unitforma.projects import service as projects
 from unitforma.tenants.models import Building, Project, Sheet
 
 STEP = "placement"
-
-
-def site_faces(sheet: Sheet) -> list[Polygon]:
-    """Closed faces of the site sheet in site metres (the calibration's frame)."""
-    extract = mapping.load_extract(sheet)
-    cal = sheet.calibration or {}
-    if not extract or not cal.get("m_per_px"):
-        return []
-    cands = suggest.closed_loops(
-        extract, page_m=mapping.sheet_metres(sheet, extract), min_area=0.0002, max_area=0.6
-    )
-    out = []
-    for c in cands:
-        try:
-            p = Polygon(geometry.ring_to_metres(c.ring, cal)).buffer(0)
-        except (ValueError, TypeError, KeyError):
-            continue
-        if not p.is_empty and p.geom_type == "Polygon":
-            out.append(p)
-    return out
 
 
 def best_fit(foot: Polygon, faces: list[Polygon]) -> dict[str, Any] | None:

@@ -13,6 +13,7 @@ from decimal import Decimal
 from typing import Any
 
 import structlog
+from shapely.geometry import Polygon
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -122,6 +123,7 @@ async def _ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str,
         return {"error": str(e)[:500]}
     async with tenant_session(tenant_id, scope="tenant") as db:
         project = (await db.execute(select(Project).where(Project.id == project_id))).scalar_one()
+        previous: list[uuid.UUID] = []
         for old in (
             await db.execute(
                 select(GeometryModel).where(
@@ -132,6 +134,7 @@ async def _ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str,
             )
         ).scalars():
             old.is_current = False
+            previous.append(old.id)
         model = GeometryModel(
             id=new_id(),
             tenant_id=tenant_id,
@@ -229,6 +232,9 @@ async def _ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str,
                 )
             ),
         }
+        carried = await carry_confirmations(db, previous, model)
+        if carried:
+            model.stats = {**model.stats, "spaces_carried": carried}
         model.status = "ready"
         rev = (
             await db.execute(select(DocumentRevision).where(DocumentRevision.id == revision_id))
@@ -251,6 +257,85 @@ async def _ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str,
             },
         )
         return {"model_id": str(model.id), "status": model.status, "stats": model.stats}
+
+
+CARRY_MIN_IOU = 0.98  # the space's footprint barely moved between the two conversions
+
+
+def _footprint(lk: IfcSpaceLink) -> Polygon | None:
+    ring = (lk.footprint_m or {}).get("ring") if isinstance(lk.footprint_m, dict) else None
+    if not ring or len(ring) < 3:
+        return None
+    try:
+        p = Polygon(ring).buffer(0)
+    except (ValueError, TypeError):
+        return None
+    return p if not p.is_empty and p.area > 0 else None
+
+
+async def carry_confirmations(
+    db: AsyncSession, previous: list[uuid.UUID], model: GeometryModel
+) -> int:
+    """A re-run keeps the person's confirmations when nothing moved (ADR-0035 Decision 3): a
+    space with the same GlobalId and source as a confirmed space of the previous model, whose
+    footprint overlaps the old one at ``CARRY_MIN_IOU`` or more, is confirmed as the same unit
+    when that unit is not removed and not confirmed on another space. One audit row, one relink."""
+    if not previous:
+        return 0
+    old = {
+        (lk.source, lk.ifc_global_id): lk
+        for lk in (
+            await db.execute(
+                select(IfcSpaceLink).where(
+                    IfcSpaceLink.geometry_model_id.in_(previous),
+                    IfcSpaceLink.status == "confirmed",
+                    IfcSpaceLink.unit_id.is_not(None),
+                )
+            )
+        ).scalars()
+    }
+    if not old:
+        return 0
+    await db.flush()
+    alive = set(
+        (
+            await db.execute(
+                select(Unit.id).where(
+                    Unit.id.in_({lk.unit_id for lk in old.values()}),
+                    Unit.lifecycle_status != "removed",
+                )
+            )
+        ).scalars()
+    )
+    taken: set[uuid.UUID] = set()
+    done = 0
+    for lk in await list_links(db, model.id):
+        was = old.get((lk.source, lk.ifc_global_id))
+        if was is None or was.unit_id not in alive or was.unit_id in taken:
+            continue
+        a, b = _footprint(was), _footprint(lk)
+        if a is None or b is None:
+            continue
+        union = a.union(b).area
+        if union <= 0 or a.intersection(b).area / union < CARRY_MIN_IOU:
+            continue
+        lk.unit_id, lk.status, lk.confidence = was.unit_id, "confirmed", Decimal("1.00")
+        taken.add(was.unit_id)
+        done += 1
+    if done:
+        await db.flush()
+        await write_audit(
+            db,
+            tenant_id=model.tenant_id,
+            actor_user_id=None,
+            actor_role="system",
+            entity_type="geometry_model",
+            entity_id=model.id,
+            action="carry_confirmations",
+            after={"carried": done, "from_models": [str(m) for m in previous]},
+        )
+        await relink_model(db, model.id)
+    return done
 
 
 def _f(v: Any) -> float | None:

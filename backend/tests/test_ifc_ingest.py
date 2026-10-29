@@ -4,6 +4,7 @@ to existing units, and a reviewer confirms a link, which writes the IFC areas on
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import uuid
@@ -743,6 +744,45 @@ def test_ifc_without_spaces_takes_the_plan_outlines(kratos: FakeKratos, client: 
         assert not [a for a in areas if a["source"] == "ifc_quantity"]
     r = client.post(f"{base}/buildings/{b['id']}/ifc-links/confirm-plan", headers=root)
     assert r.json() == {"confirmed": 0}
+
+    # ADR-0035 Decision 3: an identical re-run keeps both confirmations and the picks
+    result = client.portal.call(ingest_ifc, tid, uuid.UUID(rev["id"]))
+    assert result["status"] == "ready" and result["stats"]["spaces_carried"] == 2, result
+    links = client.get(f"{base}/buildings/{b['id']}/ifc-links", headers=root).json()
+    assert {lk["status"] for lk in links} == {"confirmed"}
+    assert {lk["unit_id"] for lk in links} == {u["id"] for u in units}
+    model = client.get(f"{base}/buildings/{b['id']}/model", headers=root).json()
+    gltf, _ = parse_glb(client.get(model["glb_url"]).content)
+    picked = {
+        n["extras"]["unit_id"]
+        for n in gltf["nodes"]
+        if (n.get("extras") or {}).get("source") == "plan"
+    }
+    assert picked == {u["id"] for u in units}
+
+    # a space that moved since it was confirmed asks again; the other one stays confirmed
+    moved = links[0]
+    eng = create_engine(os.environ["UF_TEST_DATABASE_ADMIN_URL"])
+    with eng.begin() as conn:
+        conn.execute(text("SELECT set_config('app.scope', 'platform', true)"))
+        ring = conn.execute(
+            text("SELECT footprint_m FROM ifc_space_links WHERE id = :i"), {"i": moved["id"]}
+        ).scalar_one()["ring"]
+        conn.execute(
+            text("UPDATE ifc_space_links SET footprint_m = CAST(:f AS jsonb) WHERE id = :i"),
+            {"f": json.dumps({"ring": [[x + 1.0, y] for x, y in ring]}), "i": moved["id"]},
+        )
+        audits = conn.execute(
+            text("SELECT count(*) FROM audit_log WHERE action = 'carry_confirmations'")
+        ).scalar_one()
+    eng.dispose()
+    assert audits >= 1
+    result = client.portal.call(ingest_ifc, tid, uuid.UUID(rev["id"]))
+    assert result["stats"]["spaces_carried"] == 1, result
+    links = client.get(f"{base}/buildings/{b['id']}/ifc-links", headers=root).json()
+    status = {lk["unit_id"]: lk["status"] for lk in links}
+    assert status[moved["unit_id"]] == "suggested"
+    assert sorted(status.values()) == ["confirmed", "suggested"]
 
     # a building with floors but no outlines: the model is built, the reason is written
     other = client.post(

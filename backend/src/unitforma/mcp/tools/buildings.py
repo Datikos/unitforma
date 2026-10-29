@@ -17,6 +17,7 @@ from unitforma.api.schemas import (
     FloorProposalOut,
 )
 from unitforma.documents import floor_proposal as proposal
+from unitforma.geometry import service as geometry_service
 from unitforma.identity.authz import Action
 from unitforma.mcp.auth import tenant_ctx
 from unitforma.mcp.tools.base import Tool, actor
@@ -62,7 +63,11 @@ async def update_building(building_id: uuid.UUID, changes: BuildingUpdate) -> Bu
         if "site_transform" in data and "placement_status" not in data:
             if b.placement_status == "unplaced":
                 data["placement_status"] = "draft"
+        before = (dict(b.site_transform or {}), b.placement_status)
         b = await projects.update_building(ctx.session, b, data, changes.version, actor(ctx))
+        if (dict(b.site_transform or {}), b.placement_status) != before:
+            # the massing places the building and finds its drawn outline (ADR-0035 Decision 2)
+            await geometry_service.queue_massing(ctx.tenant_id, b.project_id)
         return BuildingOut.model_validate(
             await projects.get_building(ctx.session, ctx.tenant_id, b.id)
         )

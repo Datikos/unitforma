@@ -322,7 +322,7 @@ fine-tuning; embeddings or search over documents; a second image provider (ADR-0
 - [ ] A1 `pyproject.toml`: `anthropic>=2,<3` (or the verified 1.x line), `openai>=3,<4`; `uv lock`; record
       the resolved `httpx2`, `httpx` and `mcp` versions here as ADR-0015 #4 did. Import-linter: `unitforma.ai`
       added to `core`'s forbidden list.
-- [ ] A2 Migration `0022_ai_settings_chat_usage.py` (expand; 0020 and 0021 were taken by ADR-0008 and ADR-0030 on 2026-10-27, renumber again if another lands first): `projects.ai_settings` JSONB default `{}`;
+- [ ] A2 Migration `0022_ai_settings_chat_usage.py` (expand; 0020 and 0021 were taken by ADR-0008 and ADR-0030 on 2026-10-27, renumber again if another lands first; 0022 was taken by ADR-0035 on 2026-10-29, so this is 0023): `projects.ai_settings` JSONB default `{}`;
       `ai_usage`, `chat_conversations`, `chat_messages` with `enable_tenant_rls`, indexes
       `ai_usage (tenant_id, created_at desc)`, `chat_messages (conversation_id, seq)` unique. Models in
       `tenants/models.py`.

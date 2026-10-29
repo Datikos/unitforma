@@ -215,6 +215,8 @@ class Building(TimestampMixin, Base):
     # {"v": 1, "items": [{side, sheet_id, region, flip}]}: the facade drawings per side
     # (ADR-0016 E3); null means "read the legacy projects.site_frame.facades[building_id]"
     facades: Mapped[dict | None] = mapped_column(JSONB)
+    # the site plan's closed face under the placed footprint (ADR-0035 Decision 1), or null
+    site_outline: Mapped[dict | None] = mapped_column(JSONB)
     elevation_sheet_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey(
             "sheets.id", ondelete="SET NULL", use_alter=True, name="fk_building_elevation_sheet"

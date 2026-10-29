@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
-from unitforma.geometry import massing
+from unitforma.geometry import massing, site_outline
 from unitforma.storage.service import get_storage, object_key
 from unitforma.tenants.models import (
     Building,
@@ -321,6 +321,34 @@ def facade_image(raster_png: bytes, ring: list[list[float]]) -> bytes:
         return buf.getvalue()
 
 
+async def lowest_floor_union(db: AsyncSession, floors: list[Floor]) -> tuple[Any, int | None]:
+    """The union of the lowest mapped floor's current calibrated unit outlines (parking left
+    out) in building-local metres, and that floor's level; ``(None, None)`` without outlines.
+    The union may be several polygons (a stair core holds no unit)."""
+    for f in sorted(floors, key=lambda x: x.level):
+        # ``polygon_m`` is JSON ``null`` (not SQL NULL) on a sheet calibrated after the
+        # boundary was drawn, so the filter below lets it through: skip it here
+        polys = [
+            Polygon(bd.polygon_m["ring"])
+            for (bd,) in await db.execute(
+                select(UnitBoundary)
+                .join(Unit, Unit.id == UnitBoundary.unit_id)
+                .where(
+                    Unit.floor_id == f.id,
+                    Unit.lifecycle_status != "removed",
+                    Unit.unit_type.not_in(massing.FACADE_EXCLUDED_TYPES),
+                    UnitBoundary.is_current.is_(True),
+                    UnitBoundary.polygon_m.is_not(None),
+                )
+            )
+            if bd.polygon_m and bd.polygon_m.get("ring")
+        ]
+        polys = [p.buffer(0) for p in polys if not p.is_empty]
+        if polys:
+            return unary_union(polys), f.level
+    return None, None
+
+
 async def footprints(db: AsyncSession, project: Project) -> list[dict[str, Any]]:
     """Per building: outline of the lowest mapped floor in building-local metres, plus placement.
 
@@ -336,6 +364,7 @@ async def footprints(db: AsyncSession, project: Project) -> list[dict[str, Any]]
             )
         ).scalars()
     )
+    site_sheet = await site_outline.site_sheet(db, project)
     out: list[dict[str, Any]] = []
     for b in buildings:
         floors = sorted(
@@ -343,38 +372,15 @@ async def footprints(db: AsyncSession, project: Project) -> list[dict[str, Any]]
             key=lambda f: f.level,
         )
         ring = None
-        source_floor = None
         total_height = sum(
             float(f.height_m) if f.height_m is not None else DEFAULT_FLOOR_HEIGHT_M for f in floors
         )
-        for f in floors:
-            # ``polygon_m`` is JSON ``null`` (not SQL NULL) on a sheet calibrated after the
-            # boundary was drawn, so the filter below lets it through: skip it here
-            polys = [
-                Polygon(bd.polygon_m["ring"])
-                for (bd,) in await db.execute(
-                    select(UnitBoundary)
-                    .join(Unit, Unit.id == UnitBoundary.unit_id)
-                    .where(
-                        Unit.floor_id == f.id,
-                        Unit.lifecycle_status != "removed",
-                        Unit.unit_type.not_in(massing.FACADE_EXCLUDED_TYPES),
-                        UnitBoundary.is_current.is_(True),
-                        UnitBoundary.polygon_m.is_not(None),
-                    )
-                )
-                if bd.polygon_m and bd.polygon_m.get("ring")
-            ]
-            polys = [p.buffer(0) for p in polys if not p.is_empty]
-            if not polys:
-                continue
-            u = unary_union(polys)
+        u, source_floor = await lowest_floor_union(db, floors)
+        if u is not None:
             if isinstance(u, MultiPolygon) or u.geom_type != "Polygon":
                 u = u.convex_hull
             u = u.simplify(0.05, preserve_topology=True)
             ring = [[round(x, 3), round(y, 3)] for x, y in u.exterior.coords[:-1]]
-            source_floor = f.level
-            break
         out.append(
             {
                 "building_id": b.id,
@@ -384,6 +390,8 @@ async def footprints(db: AsyncSession, project: Project) -> list[dict[str, Any]]
                 "site_transform": b.site_transform or {},
                 "version": b.version,
                 "ring_m": ring,
+                # the site plan's own outline, site metres, while it fits the placement
+                "site_outline_m": site_outline.current_ring(b, site_sheet),
                 "source_floor_level": source_floor,
                 "floors": len(floors),
                 "height_m": round(total_height, 2),

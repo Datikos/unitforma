@@ -779,6 +779,8 @@ class FootprintOut(BaseModel):
     site_transform: dict[str, Any]
     version: int
     ring_m: Ring | None
+    # the site plan's own closed outline in site metres while it fits the placement (ADR-0035)
+    site_outline_m: Ring | None = None
     source_floor_level: int | None
     floors: int
     height_m: float
