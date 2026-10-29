@@ -26,6 +26,7 @@ export const PORTAL_GUIDE: PortalGuideSection[] = [
       'Every unit of a plan type has the same layout; the finish, the floor and the view differ per unit, so the renders are illustrative.',
       '"See the units" opens the units list filtered by that plan type; the Plan type filter on the list does the same.',
       'A unit page names its plan type under the renders and links to the other units of it.',
+      'When a unit has several 3D views of its plan, page through them with the arrows, the dots under the picture, the arrow keys or a swipe; "1 / 2" says which one you see.',
     ],
   },
   {

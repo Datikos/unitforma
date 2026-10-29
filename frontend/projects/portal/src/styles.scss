@@ -334,3 +334,67 @@ a.uf-card:hover {
   border-color: var(--uf-primary);
   color: #fff;
 }
+
+/* 3D plan view pager (unit page); global because of the 4 kB component style budget */
+.hero3d:focus-visible {
+  outline: 2px solid var(--uf-primary);
+  outline-offset: 4px;
+  border-radius: var(--uf-radius);
+}
+.hero3d .media {
+  touch-action: pan-y;
+}
+.pager__btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--uf-border);
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
+  font-size: 1.3rem;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
+}
+.pager__btn:hover {
+  background: #fff;
+}
+.pager__btn--prev {
+  left: 0.75rem;
+}
+.pager__btn--next {
+  right: 0.75rem;
+}
+.pager__count {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  font-size: 0.85rem;
+}
+.pager__dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+.pager__dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 0;
+  background: var(--uf-border);
+  cursor: pointer;
+}
+.pager__dot--on {
+  background: var(--uf-primary);
+}
