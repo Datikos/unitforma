@@ -329,8 +329,9 @@ Phase E: follow-ups found while implementing B and C (open)
       in the worker image and use it in `DxfDrawing.rasterize` instead of Pillow's default font.
 - [ ] E3 IFC link confirmation: move the GLB rewrite (`ifc_service.relink_model`) out of the request
       into a `geometry` job so no database connection is held across storage I/O.
-- [ ] E4 IFC view with a floor isolated: cut or fade the envelope above the chosen floor so interior
-      spaces are visible (plan §7.3 interior view).
+- [x] E4 IFC view with a floor isolated: cut or fade the envelope above the chosen floor so interior
+      spaces are visible (plan §7.3 interior view). *Done by ADR-0036 (2026-10-29): one clipping
+      plane 1.2 m above the picked floor, the spaces as tinted glass.*
 - [ ] E5 IFC tessellation through the IfcOpenShell iterator with threads instead of
       `create_shape` per product; measure on a real export first.
 - [ ] E6 Place the IFC model on the site (`model_transform` from the building's `site_transform`)

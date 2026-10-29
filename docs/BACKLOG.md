@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-29: 49 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, 0026, 0027, 0028, 0030, 0031, 0032, 0033, plan Phases 5 to 7 and
+State on 2026-10-29: 48 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, 0026, 0027, 0028, 0030, 0031, 0032, 0033, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Rows that share one code area or one
 outside input are one row with every reference. Sizes: S up to a day, M a few days, L a week or more.
@@ -48,7 +48,6 @@ decided out the same day and reopened, widened to manual intake, on 2026-10-27 (
 | 20 | Remaining open questions: O2 countries and currencies, O3 reservations, O4 email provider, O7 marketing site, O8 pilot developer. | plan §1 O2–O8 | owner's decisions | — |
 | 21 | Unitless DXF with a printed scale: derive the sheet size from the scale before manual calibration. | ADR-0006 #E1 | a real DXF | S |
 | 22 | Georgian glyphs on the DXF preview raster: ship a Georgian font in the worker image. | ADR-0006 #E2 | — | S |
-| 23 | IFC view: cut or fade the envelope above the isolated floor (interior view). | ADR-0006 #E4 | — | M |
 | 24 | Place the IFC model on the site so the project page can show it in the site frame. | ADR-0006 #E6 | placement of the building | M |
 | 25 | Massing page refresh after outline changes (poll or push). | ADR-0011 #5 | — | S |
 | 26 | Warn before deleting the document that holds a building's elevation sheet: ADR-0012 refuses only mapped documents, the FK clears `elevation_sheet_id` and the floor picker disappears at the next publication. | ADR-0014 Revisit | — | S |

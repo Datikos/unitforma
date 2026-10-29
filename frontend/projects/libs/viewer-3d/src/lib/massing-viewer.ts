@@ -13,6 +13,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { LookChain, buildLookChain, deviceFacts, renderTier } from './architectural-look';
+import { NO_CUT_Y, aimOverFloor, cutHeight, ifcSpaceOpacity } from './floor-cut';
 
 export interface MassingUnitInfo {
   unit_id: string;
@@ -68,6 +69,11 @@ const SUN_LIGHT = 1.0;
  * and can tap another floor to move there (`floorPicked`). With `buildingCode` set the other
  * buildings are faded further and cannot be picked, and the camera frames that building.
  *
+ * An IFC model is cut open instead (ADR-0036, `floor-cut.ts`): its elements are merged across
+ * storeys, so one clipping plane removes everything above the picked floor; the spaces are tinted
+ * glass, the other floors' spaces are drawn only when hovered, and the camera looks down into the
+ * floor.
+ *
  * The look (ADR-0033): on WebGL2 the frame goes through `architectural-look.ts` (edges on every
  * element, ambient occlusion on desktops); the tier is decided once from the device.
  */
@@ -82,7 +88,10 @@ const SUN_LIGHT = 1.0;
       }
       @if (hovered(); as h) {
         <div class="mv__hover">
-          {{ h.building_code }} · {{ h.code }} · level {{ h.floor_level }}
+          @if (h.building_code) {
+            {{ h.building_code }} ·
+          }
+          {{ h.code }} · level {{ h.floor_level }}
           @if (h.lifecycle_status === 'draft') {
             · draft
           }
@@ -199,6 +208,12 @@ export class MassingViewerComponent implements OnDestroy {
   private look: LookChain | null = null;
   /** The loaded GLB is an IFC conversion (nodes carry `ifc_class`, ADR-0032): no line geometry. */
   private ifcModel = false;
+  /** The cut over the picked floor of an IFC model; at `NO_CUT_Y` when nothing is cut (ADR-0036). */
+  private readonly cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), NO_CUT_Y);
+  private readonly cutPlanes = [this.cutPlane];
+  private cutY: number | null = null;
+  /** The floor the camera was last aimed at; undefined until the first focus after a load. */
+  private aimedLevel: number | null | undefined = undefined;
 
   constructor() {
     effect(() => {
@@ -240,6 +255,7 @@ export class MassingViewerComponent implements OnDestroy {
     }
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // mobile budget (plan §11.3)
     this.renderer.shadowMap.enabled = true;
+    this.renderer.localClippingEnabled = true; // the floor cut of an IFC model (ADR-0036)
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.scene.background = null; // the host paints the sky gradient behind the transparent canvas
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0xb7c4a8, SKY_LIGHT));
@@ -307,6 +323,9 @@ export class MassingViewerComponent implements OnDestroy {
       this.glbColours.clear();
     }
     this.ifcModel = false;
+    this.aimedLevel = undefined;
+    this.cutY = null;
+    this.cutPlane.constant = NO_CUT_Y;
     try {
       const gltf = await this.loader.loadAsync(url);
       this.model = gltf.scene;
@@ -343,13 +362,14 @@ export class MassingViewerComponent implements OnDestroy {
         }
       });
       this.scene.add(this.model);
+      if (this.ifcModel) this.prepareCut(this.model);
       // a massing unit's lines separate it from its neighbours on a flat facade; the IFC model's
       // lines come from the screen-space pass (ADR-0033 Decision 5)
       if (!this.ifcModel) this.addEdges();
       this.look?.setSceneBox(new THREE.Box3().setFromObject(this.model).expandByScalar(1));
       this.buildEnvironment();
-      this.applyFocus();
       this.frameAll();
+      this.applyFocus();
       this.status.set(this.meshes.length ? null : 'Model has no units yet');
       this.loadedUnits.emit(infos);
       this.loadedTick.update((n) => n + 1);
@@ -370,6 +390,29 @@ export class MassingViewerComponent implements OnDestroy {
       edges.userData['edges'] = true;
       m.add(edges);
     }
+  }
+
+  /**
+   * The plane goes on every material of the IFC model once, at `NO_CUT_Y`, so a floor change only
+   * moves it (no shader recompiles); shadows honour it; spaces cast none (ADR-0036 Decisions 3, 6).
+   * A space's base lies on the slab, so it is drawn a little nearer than the slab, which would
+   * otherwise flicker through the tint.
+   */
+  private prepareCut(model: THREE.Object3D): void {
+    model.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const space = !!o.userData['unit_id'];
+      for (const mat of Array.isArray(o.material) ? o.material : [o.material]) {
+        mat.clippingPlanes = this.cutPlanes;
+        mat.clipShadows = true;
+        if (space) {
+          mat.polygonOffset = true;
+          mat.polygonOffsetFactor = -1;
+          mat.polygonOffsetUnits = -4;
+        }
+      }
+      if (space) o.castShadow = false;
+    });
   }
 
   /** Ground, sky light, shadow frame and the public site features around the model. */
@@ -490,8 +533,18 @@ export class MassingViewerComponent implements OnDestroy {
   private applyFocus(): void {
     const lvl = this.floorLevel();
     const own = new Set(this.focused());
+    if (this.ifcModel) {
+      this.applyCut(lvl, own);
+      const sel = this.selectedUnitId();
+      for (const m of this.meshes) {
+        m.visible = true;
+        m.userData['onFloor'] = lvl === null ? null : m.userData['floor_level'] === lvl;
+        m.userData['pickable'] = own.has(m);
+        this.paint(m, m.userData['unit_id'] === sel ? 'selected' : null);
+      }
+      return;
+    }
     for (const m of this.meshes) {
-      const mat = m.material as THREE.MeshStandardMaterial;
       const focus = !own.has(m)
         ? FADE_OTHER_BUILDING
         : lvl !== null && m.userData['floor_level'] !== lvl
@@ -499,13 +552,55 @@ export class MassingViewerComponent implements OnDestroy {
           : 1;
       const opacity = m.userData['lifecycle_status'] === 'draft' ? focus * DRAFT_OPACITY : focus;
       m.visible = true;
-      mat.transparent = opacity < 1;
-      mat.opacity = opacity;
-      mat.depthWrite = opacity === 1;
-      m.userData['ghost'] = opacity < 1; // out of the edge and occlusion buffers (ADR-0033)
+      this.setOpacity(m, opacity);
       m.userData['pickable'] = own.has(m);
-      for (const child of m.children) if (child.userData['edges']) child.visible = opacity === 1;
     }
+  }
+
+  private setOpacity(m: THREE.Mesh, opacity: number): void {
+    const mat = m.material as THREE.MeshStandardMaterial;
+    mat.transparent = opacity < 1;
+    mat.opacity = opacity;
+    mat.depthWrite = opacity === 1;
+    mat.colorWrite = opacity > 0; // an undrawn space of another floor stays tappable (ADR-0036)
+    m.userData['ghost'] = opacity < 1; // out of the edge and occlusion buffers (ADR-0033)
+    for (const child of m.children) if (child.userData['edges']) child.visible = opacity === 1;
+  }
+
+  /**
+   * Moves the plane to the picked floor's cut (none without a floor or without spaces on it) and,
+   * when the floor changed, aims the camera down into it; clearing the floor frames the model.
+   */
+  private applyCut(lvl: number | null, own: Set<THREE.Mesh>): void {
+    const floor =
+      lvl === null
+        ? []
+        : this.meshes.filter((m) => own.has(m) && m.userData['floor_level'] === lvl);
+    const box = new THREE.Box3();
+    const spans = floor.map((m) => {
+      const b = new THREE.Box3().setFromObject(m);
+      box.union(b);
+      return { minY: b.min.y, maxY: b.max.y };
+    });
+    this.cutY = cutHeight(spans);
+    this.cutPlane.constant = this.cutY ?? NO_CUT_Y;
+    if (this.aimedLevel === lvl) return;
+    const first = this.aimedLevel === undefined;
+    this.aimedLevel = lvl;
+    if (this.cutY !== null && this.controls) {
+      const centre = box.getCenter(new THREE.Vector3());
+      centre.y = box.min.y;
+      const size = box.getSize(new THREE.Vector3());
+      const p = aimOverFloor(
+        this.camera.position.toArray(),
+        this.controls.target.toArray(),
+        centre.toArray(),
+        Math.max(Math.hypot(size.x, size.z), 10),
+      );
+      this.camera.position.set(...p);
+      this.controls.target.copy(centre);
+      this.controls.update();
+    } else if (!first) this.frameAll();
   }
 
   private frameAll(): void {
@@ -532,10 +627,13 @@ export class MassingViewerComponent implements OnDestroy {
       -((ev.clientY - rect.top) / rect.height) * 2 + 1,
     );
     this.raycaster.setFromCamera(ndc, this.camera);
-    const hit = this.raycaster.intersectObjects(
+    const hits = this.raycaster.intersectObjects(
       this.meshes.filter((m) => m.visible && m.userData['pickable'] !== false),
       false,
-    )[0];
+    );
+    // above the cut nothing is drawn, so nothing there can be tapped (ADR-0036 Decision 4)
+    const cut = this.cutY;
+    const hit = cut === null ? hits[0] : hits.find((h) => h.point.y <= cut + 1e-3);
     return (hit?.object as THREE.Mesh) ?? null;
   }
 
@@ -567,6 +665,12 @@ export class MassingViewerComponent implements OnDestroy {
     if (state === 'selected') mat.color.set(0xf59e0b);
     else if (state === 'hover') mat.color.copy(base).lerp(new THREE.Color(0x2563eb), 0.35);
     else mat.color.copy(base);
+    if (this.ifcModel) {
+      // spaces of an IFC model are glass, never a box over the walls (ADR-0036 Decision 3)
+      const onFloor = (m.userData['onFloor'] ?? null) as boolean | null;
+      const other = m.userData['pickable'] === false ? FADE_OTHER_BUILDING : 1;
+      this.setOpacity(m, ifcSpaceOpacity(onFloor, state) * other);
+    }
   }
 
   onMove(ev: PointerEvent): void {

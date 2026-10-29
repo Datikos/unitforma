@@ -73,11 +73,16 @@ export function deviceFacts(): DeviceFacts {
  * Each mesh draws with a normal material of its own material's side: the massing and the plan
  * spaces are double-sided with walls wound inwards, and a front-sided override dropped them from
  * the buffer, so the edges of the units behind showed through the facade (2026-10-28, A-9/10).
+ * A mesh whose material carries clipping planes (the floor cut, ADR-0036) draws with a normal
+ * material carrying the same planes, so the edges and the occlusion follow the cut.
  */
 export class GBufferPass extends Pass {
   readonly target: THREE.WebGLRenderTarget;
   /** One normal material per `THREE.Side` (front, back, double). */
   private readonly materials = [THREE.FrontSide, THREE.BackSide, THREE.DoubleSide].map(
+    (side) => new THREE.MeshNormalMaterial({ flatShading: true, blending: THREE.NoBlending, side }),
+  );
+  private readonly clipped = [THREE.FrontSide, THREE.BackSide, THREE.DoubleSide].map(
     (side) => new THREE.MeshNormalMaterial({ flatShading: true, blending: THREE.NoBlending, side }),
   );
   private readonly hidden: THREE.Object3D[] = [];
@@ -124,8 +129,8 @@ export class GBufferPass extends Pass {
       if (!mesh.isMesh) return;
       this.swapped.push([mesh, mesh.material]);
       mesh.material = Array.isArray(mesh.material)
-        ? mesh.material.map((m) => this.materials[m.side])
-        : this.materials[mesh.material.side];
+        ? mesh.material.map((m) => this.normalFor(m))
+        : this.normalFor(mesh.material);
     });
     const background = this.scene.background;
     this.scene.background = null;
@@ -139,13 +144,21 @@ export class GBufferPass extends Pass {
     for (const o of this.hidden) o.visible = true;
   }
 
+  private normalFor(m: THREE.Material): THREE.Material {
+    if (!m.clippingPlanes?.length) return this.materials[m.side];
+    const c = this.clipped[m.side];
+    c.clippingPlanes = m.clippingPlanes; // one plane per viewer, shared by the whole model
+    c.clipShadows = m.clipShadows;
+    return c;
+  }
+
   override setSize(width: number, height: number): void {
     this.target.setSize(width, height);
   }
 
   override dispose(): void {
     this.target.dispose();
-    for (const m of this.materials) m.dispose();
+    for (const m of [...this.materials, ...this.clipped]) m.dispose();
   }
 }
 

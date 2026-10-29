@@ -14,8 +14,9 @@ frame runs the chain
 
 1. `GBufferPass`: the scene flat-shaded with a `MeshNormalMaterial` of each mesh's own side (the
    massing and the plan spaces are double-sided) into a half-float normal target with a depth
-   texture; meshes flagged `userData.ghost` (units faded by the floor focus, drafts) and line objects
-   are left out;
+   texture; meshes flagged `userData.ghost` (units faded by the floor focus, drafts, the glass
+   spaces of an IFC model) and line objects are left out; a mesh whose material carries the floor
+   cut draws with a normal material carrying the same plane;
 2. `RenderPass`: the colours, into a 4× multisampled target;
 3. `GTAOPass` (full tier only): ambient occlusion from the same depth and normal textures,
    `AO_RADIUS_M` = 2 m, 16 samples, denoised;
@@ -44,11 +45,33 @@ device pixel ratio of 1.5 (full) and 600 × 700 at 2 (edges); about 100 MB of JS
 loaded. The massing of A-9/10 (99 units) at the same size: 60 fps on `edges`, 52–55 on `full`
 under a load average of about 6. Phones: not measured.
 
+## A picked floor of the IFC model is cut open (ADR-0036)
+
+The IFC model merges each element class and colour across all storeys, so a storey cannot be hidden.
+With a floor picked, one horizontal clipping plane (`floor-cut.ts`) removes the model above
+`PLAN_CUT_M` = 1.2 m over the floor's lowest space, or half the floor's height when the floor is lower
+than 2.4 m. The plane sits on every material of the model from load on (at `NO_CUT_Y` when nothing is
+cut, so a floor change recompiles no shader), with `clipShadows`; the ground, the site features and
+the trees are never cut. The spaces are glass in an IFC model, never opaque: 40 % on the picked floor
+and on every floor when none is picked, 55 % hovered, 75 % selected. They cast no shadow, and a
+polygon offset draws their base over the slab it lies on (without it the slab flickered through the
+tint). The other floors' spaces are not drawn (`colorWrite` off) but stay tappable below the cut and
+show at 30 % when hovered; a ray hit above the cut is ignored. On a change of floor the camera keeps
+its azimuth, aims at the floor's centre from 55° and the floor's diagonal; clearing the floor frames
+the model again. A floor without spaces is not cut. The schematic massing keeps the fade.
+
+**Known look.** The cut walls have no cap: their inner faces show (double-sided materials).
+
+**Measured** (2026-10-29, headless Chrome on an Apple M2, the portal building page of N4 at
+1440 × 1000 CSS px and a device pixel ratio of 1.5, full tier): 60 fps with level 0, 2 or 3 cut.
+
 ## Tests
 
 `architectural-look.spec.ts` proves the tier rule (desktop, a browser without `deviceMemory`, a
 data-saver phone, a 2 GB device, a narrow viewport, no WebGL2) and that the edge shader declares
-every uniform it samples. `massing-viewer.spec.ts` proves the component degrades to a status line
+every uniform it samples. `floor-cut.spec.ts` proves the cut height (a floor with spaces, a low floor,
+a floor without spaces), the space opacity per state and that the camera keeps its azimuth over a
+cut floor. `massing-viewer.spec.ts` proves the component degrades to a status line
 without WebGL. The chain itself cannot run in the test browser (no WebGL context); it is checked on
 the dev stack in headless Chrome.
 
