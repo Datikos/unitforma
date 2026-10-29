@@ -1,6 +1,6 @@
 # ADR-0036: A picked floor of the IFC model is cut open
 
-- **Status:** accepted (2026-10-29, the owner's pick of option 2 after his screenshot of N4 level 0); implemented 2026-10-29 on branch `adr-0036`, verified on N4 the same day; D1 (the admin tint by link status) added and done 2026-10-29
+- **Status:** accepted (2026-10-29, the owner's pick of option 2 after his screenshot of N4 level 0); implemented 2026-10-29 on branch `adr-0036`, verified on N4 the same day; D1 (the admin tint by link status) added and done 2026-10-29; D2 (the section fill of cut elements) added and done 2026-10-29
 - **Date:** 2026-10-29
 - **Deciders:** David Sakhelashvili (platform owner)
 - **Plan reference:** §7.3 (floor isolation, interior view), §11.3 (MVP 3D); ADR-0006 Decision 6 and #E4, ADR-0030 (plan spaces), ADR-0033 (the architectural look)
@@ -101,9 +101,9 @@ so a cut is needed anyway.
   architecture through the glass instead of covered boxes.
 - **Harder:** while a floor is picked a buyer does not see the floors above it, so "where is this
   floor in the building" comes from the floor picker, not from the model. Cut walls have no cap:
-  their inner faces show (double-sided materials, ADR-0032). Two focus rules now live in the viewer,
+  their inner faces show (double-sided materials, ADR-0032); D2 fills them. Two focus rules now live in the viewer,
   one per model kind.
-- **Revisit:** caps on the cut walls (a stencil pass) if the hollow shells read badly on the owner's
+- **Revisit:** caps on the cut walls (a stencil pass; done as a section fill by D2) if the hollow shells read badly on the owner's
   look; a cut for the schematic massing if a buyer asks for one; a glass opacity per device if a
   phone shows the glass too strong.
 
@@ -157,3 +157,24 @@ Phase D: follow-up
       hovered one blue, corridors and cores grey. All 854 of N4's links are confirmed, so the other
       three hues are proven by `massing.page.spec.ts` only. The status chips split "unmatched"
       (red) from "not units" (grey) to match.
+- [x] D2 Cut elements get a section fill instead of hollow shells (the Revisit's caps). The IFC
+      materials are double-sided, so a cut wall showed its own inner faces lit like its outside.
+      Options weighed on 2026-10-29:
+      | | Back-face section fill (chosen) | Stencil caps | Keep the known look |
+      |---|---|---|---|
+      | Draws per frame | none added | 2 extra passes of the model (614,805 triangles each) and a cap plane | none |
+      | Render chain | one `onBeforeCompile` on the opaque IFC materials | `stencil: true` on the renderer, a stencil buffer on the multisampled target, the helper meshes kept out of the G-buffer | unchanged |
+      | Needs closed meshes | no: an open element shows its back faces dark, inside the band only | yes: an open mesh anywhere under the ray leaks a cap | no |
+      | Result | the cut element's inside is one flat dark colour, outlined by the edge pass | a flat cap exactly at the cut | the walls read as hollow |
+      Chosen: the fill. It adds no draw and leaves the chain as ADR-0033 built it. Rule: an opaque
+      IFC element that is not a space draws its back faces in `SECTION_FILL` (#3b4048, the poché of
+      a plan) when they lie between 0.5 m below the picked floor's base and the cut. Outside that
+      band and with no floor picked, nothing changes. Glass (`alphaMode BLEND`) and the spaces keep
+      their look. One shared shader hook and one shared uniform per viewer, so the program count
+      does not grow with the meshes. `floor-cut.ts` (`SECTION_FILL`, `sectionBand`,
+      `takesSectionFill`), `massing-viewer.ts` (`prepareCut`, `applyCut`), the viewer-3d README's
+      known look, the guides.
+      *Done 2026-10-29* on the portal building page of N4 built from this branch against the dev
+      API (v12): levels -2, 0 and 2 show the cut walls, columns and door leaves dark, no dark patch
+      off the band, 60 fps on each (60 before). Viewer-3d 19 tests; admin and portal initial bundles
+      unchanged (498.05 and 390.89 kB).

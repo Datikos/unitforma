@@ -44,6 +44,26 @@ export function ifcSpaceOpacity(
   return SPACE_GLASS_OPACITY;
 }
 
+/** The inside of a cut element, as a plan draws cut walls (D2); an sRGB hex. */
+export const SECTION_FILL = 0x3b4048;
+/** How far below the picked floor's base the section fill still applies, in metres (D2). */
+export const SECTION_BELOW_BASE_M = 0.5;
+
+/** The heights between which a cut element's back faces take the fill; null with no cut. */
+export function sectionBand(spaces: SpanY[]): [number, number] | null {
+  const cut = cutHeight(spaces);
+  if (cut === null) return null;
+  return [Math.min(...spaces.map((s) => s.minY)) - SECTION_BELOW_BASE_M, cut];
+}
+
+/** Opaque IFC elements take the section fill; glass and the plan spaces keep their look (D2). */
+export function takesSectionFill(
+  m: { transparent: boolean; opacity: number },
+  space: boolean,
+): boolean {
+  return !space && !m.transparent && m.opacity >= 1;
+}
+
 export type Vec3 = [number, number, number];
 
 /**
