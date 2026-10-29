@@ -114,7 +114,9 @@ async def get_building_model(building_id: uuid.UUID, ctx: Ctx):
     m = await ifc_service.current_model(ctx.session, b.id)
     if m is None:
         return None
-    return _model_out(m, await ifc_service.list_links(ctx.session, m.id))
+    out = _model_out(m, await ifc_service.list_links(ctx.session, m.id))
+    out.plan_fit_realigned = await ifc_service.realigned_levels(ctx.session, m)
+    return out
 
 
 @router.get("/buildings/{building_id}/ifc-links", response_model=list[IfcSpaceLinkOut])

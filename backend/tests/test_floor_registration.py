@@ -9,6 +9,8 @@ run changes nothing and queues nothing."""
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace as NS
 from typing import Any
 
 import pytest
@@ -21,6 +23,7 @@ from tests.test_phase4_publishing import (
 from tests.test_site_outline import _waiting_massing
 from unitforma.geometry import registration as reg
 
+LONG_AGO = datetime(2000, 1, 1, tzinfo=UTC)
 W_M, H_M = 100.0, 70.0  # a sheet's size in metres in the pure tests
 NEAR = (20.0, 20.0, 60.0, 40.0)  # the floor's outlines
 
@@ -81,6 +84,20 @@ def test_too_few_or_disagreeing_axes_leave_the_floor_as_drawn():
     assert out["method"] == "none" and "disagree by 1.00 m" in out["reason"]
 
 
+def test_a_conversion_is_stale_where_a_floor_moved_since_it_ran():
+    from unitforma.geometry.service import realigned
+
+    now = {"s1:f1": [0.1, -2.3], "s2:f2": [0.0, 1.79]}
+    # a conversion from before the alignment recorded nothing: every registered floor moved
+    assert realigned({}, now) == {"s1:f1", "s2:f2"}
+    assert realigned(now, now) == set()
+    # centimetres of rounding are not a move; a floor whose registration was dropped is
+    assert realigned({"s1:f1": [0.12, -2.28], "s2:f2": [0.0, 1.79]}, now) == set()
+    assert realigned({"s1:f1": [0.1, -2.3], "s2:f2": [0.0, 1.79], "s3:f3": [1, 0]}, now) == {
+        "s3:f3"
+    }
+
+
 # ------------------------------------------------------------------ the pass, on the world
 def _sheet_floors(project_id: str) -> list[tuple[Any, ...]]:
     return _admin_sql(
@@ -103,6 +120,7 @@ def test_the_pass_registers_a_floor_drawn_on_another_origin_and_readers_apply_it
     from unitforma.core.db import tenant_session
     from unitforma.geometry import ifc_service
     from unitforma.geometry import service as geometry_service
+    from unitforma.geometry.service import registration_used
     from unitforma.tenants.models import Project
 
     pid, tid = world["project"]["id"], world["tenant"]["id"]
@@ -163,6 +181,27 @@ def test_the_pass_registers_a_floor_drawn_on_another_origin_and_readers_apply_it
     assert fps[0]["source_floor_level"] == 0
     assert min(x for x, _ in fps[0]["ring_m"]) == pytest.approx(lo0[0], abs=0.01)
 
+    # a conversion that recorded no alignment names level 1 when it ran before the alignment and
+    # none when it ran after; one that recorded the current alignment names none; a model
+    # without plan spaces never does (#D3)
+    async def stale(stats: dict[str, Any], at: datetime = LONG_AGO) -> list[int]:
+        model = NS(stats=stats, building_id=uuid.UUID(str(fps[0]["building_id"])), created_at=at)
+        async with tenant_session(uuid.UUID(tid), scope="tenant") as db:
+            if "now" in stats:
+                floor_ids = [f.id for f in await _floors(db, model.building_id)]
+                stats = {"plan_fit": {"registration": await registration_used(db, floor_ids)}}
+                model.stats = stats
+            return await ifc_service.realigned_levels(db, model)
+
+    assert client.portal.call(stale, {"plan_fit": {"iou": 0.4}}) == [1]
+    later = datetime.now(UTC) + timedelta(hours=1)
+    assert client.portal.call(stale, {"plan_fit": {"iou": 0.4}}, later) == []
+    moved = {"plan_fit": {"registration": {}}}
+    assert client.portal.call(stale, moved, later) == [1]
+    assert client.portal.call(stale, {"now": True}) == []
+    assert client.portal.call(stale, {"plan_fit": {"reason": "no outline"}}) == []
+    assert client.portal.call(stale, {}) == []
+
     # nothing changed: nothing decided, nothing queued
     assert _waiting_massing(pid, clear=True) == 0
     second = ctx()
@@ -193,3 +232,11 @@ def _world_grid(pid: str, w_m: float, h_m: float, dx: float, dy: float) -> list[
         for x in (x0 - 4, max(x1 + 4, x0 + 12)):
             words.append(_bubble(label, x + dx, y + dy, w_m, h_m))
     return words
+
+
+async def _floors(db: Any, building_id: uuid.UUID) -> list[Any]:
+    from sqlalchemy import select
+
+    from unitforma.tenants.models import Floor
+
+    return list((await db.execute(select(Floor).where(Floor.building_id == building_id))).scalars())

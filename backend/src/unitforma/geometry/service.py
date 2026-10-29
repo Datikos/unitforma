@@ -82,6 +82,31 @@ async def floor_offsets(
     }
 
 
+async def registration_used(db: AsyncSession, floor_ids: list[uuid.UUID]) -> dict[str, list[float]]:
+    """The registrations of these floors as ``{"<sheet_id>:<floor_id>": [dx_m, dy_m]}``: what a
+    conversion records so a later alignment can be noticed (ADR-0030 #D3)."""
+    return {
+        f"{sheet_id}:{floor_id}": [round(dx, 3), round(dy, 3)]
+        for (sheet_id, floor_id), (dx, dy) in (await floor_offsets(db, floor_ids)).items()
+    }
+
+
+# a registration that moved by more than this since a conversion makes its plan spaces stale
+REALIGNED_MIN_M = 0.05
+
+
+def realigned(recorded: dict[str, Any], current: dict[str, list[float]]) -> set[str]:
+    """Keys (``sheet:floor``) whose shift differs between a conversion's record and now; a key
+    missing on either side is an unregistered floor, shift (0, 0)."""
+    out = set()
+    for key in recorded.keys() | current.keys():
+        a = recorded.get(key) or [0.0, 0.0]
+        b = current.get(key) or [0.0, 0.0]
+        if abs(float(a[0]) - b[0]) > REALIGNED_MIN_M or abs(float(a[1]) - b[1]) > REALIGNED_MIN_M:
+            out.add(key)
+    return out
+
+
 def shifted(ring: list[list[float]], offset: Offset | None) -> list[list[float]]:
     """A ring in sheet metres moved into building metres (every reader of ``polygon_m`` that
     stacks floors goes through here)."""

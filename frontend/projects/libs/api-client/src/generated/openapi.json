@@ -9859,6 +9859,13 @@
       },
       "type": "object",
       "title": "Links"
+     },
+     "plan_fit_realigned": {
+      "items": {
+       "type": "integer"
+      },
+      "type": "array",
+      "title": "Plan Fit Realigned"
      }
     },
     "type": "object",

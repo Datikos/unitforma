@@ -17,7 +17,7 @@ import {
   whenShort,
 } from 'ui';
 import { ToastService } from '../ui/toast.service';
-import { levelShiftLine } from './ifc-plan-fit';
+import { levelShiftLine, realignedLine } from './ifc-plan-fit';
 
 /** The converter's element groups in words (ADR-0032); IFC class names are shown as they are. */
 const DROPPED_LABEL: Record<string, string> = {
@@ -211,6 +211,13 @@ interface MassingStats {
                   }
                 }
               </span>
+            </div>
+          }
+          @if (im.status === 'ready' && realigned(im); as note) {
+            <div class="uf-alert uf-alert--warning">
+              <ng-icon name="lucideTriangleAlert" />
+              <span>{{ note }}</span>
+              <button mat-stroked-button [disabled]="busy()" (click)="rebuildIfc()">Re-run conversion</button>
             </div>
           }
           @if (im.status === 'ready' && planFit(im); as pf) {
@@ -478,6 +485,11 @@ export class MassingPage {
   planFit(m: BuildingModelOut): Record<string, unknown> | null {
     const pf = m.stats['plan_fit'];
     return pf && typeof pf === 'object' ? (pf as Record<string, unknown>) : null;
+  }
+
+  /** ADR-0030 #D3: floors aligned after this conversion placed its plan spaces. */
+  realigned(m: BuildingModelOut): string {
+    return realignedLine(m.plan_fit_realigned ?? []);
   }
 
   /** ADR-0030 #D1: the levels moved onto their own slab, or left because they lie too far off. */
