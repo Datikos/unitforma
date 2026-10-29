@@ -183,6 +183,10 @@ import { planViews, stepIndex, swipeDirection } from './unit.model';
                 <uf-massing-viewer
                   class="model__view"
                   [src]="api.asset(building()?.model?.url ?? doc()?.massing?.url)"
+                  [badge]="
+                    building()?.model?.disclaimer ??
+                    'Schematic model generated from floor plans — not an architectural model'
+                  "
                   [buildingCode]="building()?.model ? null : u.building_code"
                   [floorLevel]="u.floor_level"
                   [selectedUnitId]="u.unit_id"
@@ -192,7 +196,14 @@ import { planViews, stepIndex, swipeDirection } from './unit.model';
               } @placeholder {
                 <div class="uf-skeleton model__view"></div>
               }
-              <p class="uf-muted small">{{ u.code }} is highlighted; the other floors are faded.</p>
+              <p class="uf-muted small">
+                {{ u.code }} is highlighted;
+                {{
+                  building()?.model
+                    ? 'the building is cut open above its floor.'
+                    : 'the other floors are faded.'
+                }}
+              </p>
             </section>
           }
           @if (otherMedia().length) {

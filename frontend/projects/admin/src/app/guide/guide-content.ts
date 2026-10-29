@@ -339,7 +339,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
     purpose:
       'A schematic 3D model built from the approved floor outlines and the floor heights. Buyers see it on the portal when their device can load it.',
     controls: [
-      { name: 'Floor', does: 'Isolates one level; click a unit to see its code.' },
+      {
+        name: 'Floor',
+        does: 'Isolates one level; click a unit to see its code. On the schematic model the other floors fade; on the IFC model the building is cut open 1.2 m above that floor, its units show as tinted glass and the camera looks down into it. "All floors" shows the whole building again.',
+      },
       { name: 'Regenerate', does: 'Queues a rebuild and waits up to a minute for the worker.' },
     ],
     roles: STRUCTURE,

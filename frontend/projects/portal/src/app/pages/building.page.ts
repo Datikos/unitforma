@@ -14,7 +14,8 @@ import { countByAvailability, groupUnitsByType } from './building.model';
 
 /**
  * Building view, floor first (plan §7.1, ADR-0006 Decision 6): the floor stack, the 3D building
- * with the chosen floor in focus and the other floors faded, and below it the floor plan where
+ * with the chosen floor in focus (the other floors faded, or the architect's model cut open above
+ * the floor, ADR-0036), and below it the floor plan where
  * the buyer taps the exact unit. `?floor=` and `?unit=` carry the choice, so a pick on the project
  * page's 3D model and a shared link both land here with the floor and unit already selected.
  */
