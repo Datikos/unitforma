@@ -1360,6 +1360,9 @@ class BuildingModelOut(ORM):
     created_at: datetime
     glb_url: str | None = None
     links: dict[str, int] = Field(default_factory=dict)
+    # floor levels aligned on the grid axes after this conversion placed its plan spaces: a
+    # re-run places them on the aligned floors (ADR-0030 #D3)
+    plan_fit_realigned: list[int] = Field(default_factory=list)
 
 
 # --- AI-generated 3D plan renders (ADR-0017 Decision 3) -------------------------------------------

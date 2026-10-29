@@ -352,6 +352,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
     roles: STRUCTURE,
     tips: [
       '"Units skipped (sheet not calibrated)" means a sheet still needs a scale; "unplaced" means a building has no site placement yet.',
+      'An amber note "aligned on the drawing’s grid axes after this conversion" means the setup solver lined up floor sheets after the IFC was converted: press Re-run conversion, then confirm the plan spaces again.',
     ],
   },
   units: {

@@ -1,6 +1,6 @@
 # ADR-0030: IFC spaces from the architect's zones or from the approved plan outlines; export diagnostics; duplicate uploads
 
-- **Status:** accepted (2026-10-27, "let start"; implemented 2026-10-27, C2 docs in the same change); Decision 4 amended 2026-10-29 by D1 (a level may refine the shared translation); D2 (floor sheets registered on the grid axes) implemented 2026-10-30
+- **Status:** accepted (2026-10-27, "let start"; implemented 2026-10-27, C2 docs in the same change); Decision 4 amended 2026-10-29 by D1 (a level may refine the shared translation); D2 (floor sheets registered on the grid axes) implemented 2026-10-30; D3 (the admin notes a conversion older than the alignment) done 2026-10-30
 - **Date:** 2026-10-27
 - **Deciders:** David Sakhelashvili (platform owner)
 - **Plan reference:** §7.3 (building model budget), §13.1 (document → published project), ADR-0006 Phase C (IFC intake, space links), ADR-0008 (document kinds), ADR-0011 (massing from outlines), ADR-0025 Decision 5 (placement by footprint fit)
@@ -357,3 +357,23 @@ so the best IoU or coverage alone does not pin a level.
       screen to correct it yet.
       *Revisit:* line-work correlation for sets without labelled axes; a registration the person
       can set or correct on the sheet editor; the shift shown on the sheet.
+- [x] D3 **The admin 3D page says when floors were aligned after the conversion placed its plan
+      spaces.** On N4 the owner's "Re-run conversion" (23:05 UTC, 2026-10-30) finished before the
+      solver run it triggered aligned the floors (23:08), so its plan spaces kept the old placement
+      and nothing said so; "Confirm all" had nothing to do. Options: compare the conversion's time
+      with the registration's (needs a timestamp, wrong when a run rewrites an equal shift);
+      re-run the conversion automatically (resets the owner's confirmations unasked); record what
+      the conversion used and compare (chosen). Rule: the conversion writes the registrations it
+      read into `stats.plan_fit.registration` (`{"<sheet_id>:<floor_id>": [dx_m, dy_m]}`);
+      `GET /buildings/{id}/model` returns `plan_fit_realigned`, the levels whose registration now
+      differs by more than `REALIGNED_MIN_M` = 0.05 m. A conversion from before D3 recorded
+      nothing; there a registered floor counts when its `sheet_floors` row was written after the
+      conversion (N4's re-run at 23:25 came after the 23:08 alignment, rotation 0.0°: no note).
+      The page shows an amber note with "Re-run
+      conversion" above the fit line. `geometry/service.py` (`registration_used`, `realigned`),
+      `ifc_service.realigned_levels`, `BuildingModelOut.plan_fit_realigned`,
+      `admin/.../ifc-plan-fit.ts` (`realignedLine`), the 3D massing guide's tip.
+      Tests: `test_a_conversion_is_stale_where_a_floor_moved_since_it_ran`, the realigned levels
+      in the registration test on the publishing world, the record and an empty
+      `plan_fit_realigned` in `test_ifc_without_spaces_takes_the_plan_outlines`, and
+      `ifc-plan-fit.spec.ts`.

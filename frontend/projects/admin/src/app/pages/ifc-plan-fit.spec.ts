@@ -1,4 +1,4 @@
-import { levelShiftLine } from './ifc-plan-fit';
+import { levelShiftLine, realignedLine } from './ifc-plan-fit';
 
 describe('the plan fit line on the admin 3D page (ADR-0030 #D1)', () => {
   it('names the levels moved onto their own slab with the distance and the share inside', () => {
@@ -23,5 +23,19 @@ describe('the plan fit line on the admin 3D page (ADR-0030 #D1)', () => {
   it('says nothing when no level moved, also for a fit stored before the shifts', () => {
     expect(levelShiftLine({ per_level: { '0': { coverage: 0.98 } } })).toBe('');
     expect(levelShiftLine({})).toBe('');
+  });
+});
+
+describe('the note when floors were aligned after the conversion (ADR-0030 #D3)', () => {
+  it('names the realigned levels in order and says what a re-run does', () => {
+    const line = realignedLine([3, -2, 1, 2]);
+    expect(line.startsWith('Levels -2, 1, 2 and 3 were aligned on the drawing')).toBe(true);
+    expect(line).toContain('Re-run the conversion');
+    expect(line).toContain('go back to suggested');
+    expect(realignedLine([1]).startsWith('Level 1 was aligned')).toBe(true);
+  });
+
+  it('says nothing when no floor moved since the conversion', () => {
+    expect(realignedLine([])).toBe('');
   });
 });

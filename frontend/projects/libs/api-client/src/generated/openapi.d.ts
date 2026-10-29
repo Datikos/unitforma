@@ -2673,6 +2673,8 @@ export interface components {
             links?: {
                 [key: string]: number;
             };
+            /** Plan Fit Realigned */
+            plan_fit_realigned?: number[];
         };
         /** BuildingOut */
         BuildingOut: {

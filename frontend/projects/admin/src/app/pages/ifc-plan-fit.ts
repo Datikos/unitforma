@@ -29,3 +29,21 @@ export function levelShiftLine(pf: Record<string, unknown>): string {
     );
   return parts.join(' ');
 }
+
+/**
+ * The note when floors were aligned on the grid axes after this conversion placed its plan
+ * spaces (ADR-0030 #D3): those spaces sit where the old alignment put them until a re-run;
+ * '' when none.
+ */
+export function realignedLine(levels: readonly number[]): string {
+  if (!levels.length) return '';
+  const names = [...levels].sort((a, b) => a - b).map(String);
+  const list =
+    names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+  const which = names.length === 1 ? `Level ${list} was` : `Levels ${list} were`;
+  return (
+    `${which} aligned on the drawing's grid axes after this conversion, so the plan spaces ` +
+    `there still sit where the old alignment put them. Re-run the conversion to place them on ` +
+    `the aligned floors; confirmed spaces that move go back to suggested.`
+  );
+}

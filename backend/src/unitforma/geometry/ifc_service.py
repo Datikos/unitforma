@@ -22,7 +22,13 @@ from unitforma.core.db import tenant_session
 from unitforma.core.errors import ProblemError
 from unitforma.core.ids import new_id
 from unitforma.geometry import ifc, ifc_match, plan_spaces
-from unitforma.geometry.service import floor_elevations, floor_offsets, shifted
+from unitforma.geometry.service import (
+    floor_elevations,
+    floor_offsets,
+    realigned,
+    registration_used,
+    shifted,
+)
 from unitforma.storage.service import get_storage, object_key
 from unitforma.tenants.models import (
     Building,
@@ -32,6 +38,7 @@ from unitforma.tenants.models import (
     GeometryModel,
     IfcSpaceLink,
     Project,
+    SheetFloor,
     Unit,
     UnitArea,
     UnitBoundary,
@@ -99,9 +106,12 @@ async def _ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str,
             # building, placed in the IFC frame
             async with tenant_session(tenant_id, scope="tenant") as db:
                 plan_floors, outlines = await _plan_inputs(db, project_id, building_id)
+                used = await registration_used(db, [f.id for f in plan_floors])
             extra, plan_fit = plan_spaces.build(
                 parsed, plan_floors, outlines, building_id=building_id
             )
+            # the floor alignment the spaces were placed with (ADR-0030 #D3)
+            plan_fit = {**plan_fit, "registration": used}
         model_in = ifc.pack_ifc(parsed, extra_spaces=extra)
         if plan_fit is not None:
             model_in = replace(model_in, stats={**model_in.stats, "plan_fit": plan_fit})
@@ -670,3 +680,35 @@ async def public_glb(db: AsyncSession, model: GeometryModel, listed: set[uuid.UU
 
 async def building_for_link(db: AsyncSession, link: IfcSpaceLink) -> Building:
     return (await db.execute(select(Building).where(Building.id == link.building_id))).scalar_one()
+
+
+async def realigned_levels(db: AsyncSession, model: GeometryModel) -> list[int]:
+    """Floor levels of the model's building whose alignment (ADR-0030 #D2) changed since the
+    conversion placed its plan spaces: those spaces sit where the old alignment put them until
+    the conversion is re-run (ADR-0030 #D3). Empty for a model without plan spaces.
+
+    A conversion from before #D3 recorded no alignment: there a registered floor counts when its
+    ``sheet_floors`` row was written after the conversion."""
+    pf = (model.stats or {}).get("plan_fit")
+    if not isinstance(pf, dict) or pf.get("reason") or model.building_id is None:
+        return []
+    floors = list(
+        (await db.execute(select(Floor).where(Floor.building_id == model.building_id))).scalars()
+    )
+    level_of = {str(f.id): f.level for f in floors}
+    current = await registration_used(db, [f.id for f in floors])
+    recorded = pf.get("registration")
+    if isinstance(recorded, dict):
+        keys = realigned(recorded, current)
+    else:
+        rows = await db.execute(
+            select(SheetFloor.sheet_id, SheetFloor.floor_id, SheetFloor.updated_at).where(
+                SheetFloor.floor_id.in_([f.id for f in floors])
+            )
+        )
+        keys = {
+            f"{s}:{fl}"
+            for s, fl, at in rows
+            if f"{s}:{fl}" in current and at is not None and at > model.created_at
+        }
+    return sorted({level_of[k.split(":", 1)[1]] for k in keys if k.split(":", 1)[1] in level_of})

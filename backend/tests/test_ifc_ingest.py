@@ -756,6 +756,8 @@ def test_ifc_without_spaces_takes_the_plan_outlines(kratos: FakeKratos, client: 
     fit = stats["plan_fit"]
     assert "reason" not in fit and fit["floor_level"] == 0 and fit["face"] == "slabs", fit
     assert fit["iou"] >= 0.3
+    # the alignment it placed them with is recorded (none here), so none is reported as newer
+    assert fit["registration"] == {}
 
     links = client.get(f"{base}/buildings/{b['id']}/ifc-links", headers=root).json()
     assert {lk["source"] for lk in links} == {"plan"}
@@ -764,6 +766,7 @@ def test_ifc_without_spaces_takes_the_plan_outlines(kratos: FakeKratos, client: 
     assert {lk["floor_level"] for lk in links} == {0}
     assert all(float(lk["confidence"]) == round(fit["iou"], 2) for lk in links)
     model = client.get(f"{base}/buildings/{b['id']}/model", headers=root).json()
+    assert model["plan_fit_realigned"] == []
     gltf, _ = parse_glb(client.get(model["glb_url"]).content)
     plan_nodes = [n for n in gltf["nodes"] if (n.get("extras") or {}).get("source") == "plan"]
     assert len(plan_nodes) == 2
