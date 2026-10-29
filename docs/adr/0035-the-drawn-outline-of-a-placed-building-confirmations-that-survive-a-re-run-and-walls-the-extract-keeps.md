@@ -1,6 +1,6 @@
 # ADR-0035: The drawn outline of a placed building, confirmations that survive a re-run, and walls the extract keeps
 
-- **Status:** accepted (2026-10-29, the owner's "start" on the recommended option of BACKLOG 58); Decisions 1 to 3 implemented 2026-10-29 on branch `adr-0035`; Decision 4 measured and not shipped (Phase C); D2 open until merged
+- **Status:** accepted (2026-10-29, the owner's "start" on the recommended option of BACKLOG 58); Decisions 1 to 3 implemented 2026-10-29 on branch `adr-0035`; Decision 4 measured and not shipped (Phase C); D2 done 2026-10-29 (v12)
 - **Date:** 2026-10-29
 - **Deciders:** David Sakhelashvili (platform owner)
 - **Plan reference:** §3.5 (site frame, footprints), §11.3 (geometry), §13.2 (unit boundaries from line work); ADR-0011 (massing), ADR-0025 Decision 5 (placement pass), ADR-0030 (plan spaces), ADR-0031 #E4 and #E5, ADR-0032 #C1
@@ -118,7 +118,8 @@ longer costs 122 clicks.
 **Harder:** two rules on review: the stored outline is valid only for the sheet, scale and
 transform it records; a carried confirmation needs both the GlobalId and the footprint.
 
-**Revisit:** the placement pass could fit against the faces holding the unit union instead of
+**Revisit:** a site plan line that crosses the building (N4's west wing) cuts the chosen face;
+the union of the faces the units cover would follow the envelope instead. The placement pass could fit against the faces holding the unit union instead of
 the hull (N4 would then place itself); a stored outline for a site plan without closed line work.
 
 **Out of scope here:** facade sides on an L-shaped building (ADR-0016 numbers four rectangle
@@ -175,7 +176,13 @@ sides); the IFC model's placement on the site (BACKLOG 24).
 
 ### Phase D: docs and N4
 - [x] D1 Plan §3.5 and §11.3, README, BACKLOG (58, 55, 53), ADR-0031 #E5 and ADR-0032 #C1 pointers.
-- [ ] D2 On the dev stack, in this order: apply 0022 from the worktree before the merge (the
+- [x] D2 On the dev stack, in this order: apply 0022 from the worktree before the merge (the
       dev API runs the main checkout live and would select a missing column), merge, restart
       `worker-light` and `worker-heavy`, rebuild N4's massing so its outline is stored, publish;
       the 122 plan spaces confirmed once more on the owner's word (the carry helps the next re-run).
+      *Done 2026-10-29 on the owner's "commit and merge":* 0022 applied 07:25 UTC, merged as
+      `d227223`, `api`, `worker-light` and `worker-heavy` restarted 07:26, N4's massing rebuilt in
+      4 s with a 22-point outline stored for building A, 122 plan spaces confirmed, v12 published
+      (v10 and v11 were published by someone else in between). The live site plan draws the L
+      along the grid; the courtyard is free. A diagonal line the site plan draws across the west
+      wing cuts its face, so a thin triangle of the wing lies outside the outline.
