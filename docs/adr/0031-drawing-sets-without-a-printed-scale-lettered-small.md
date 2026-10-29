@@ -249,3 +249,26 @@ scans.
       floor marker.
 - [ ] E4 Revisit items above: colour thresholds, vertical and metre dimensions, a printed code checked
       against the page's area schedule, a two-label face split between its labels.
+      *N4, 2026-10-29:* the ground plan's 121 (43.2 m²) and 122 (61.2 m²) are one loop candidate
+      of 52.3 m² holding both labels, so no split of it gives the printed areas; drawn walls
+      separate them on the sheet.
+- [ ] E5 A building's footprint is the convex hull of its lowest floor's outlines when they do not
+      union into one polygon (`geometry.service.footprints`): on N4's L-shaped block the hull
+      (1,557.6 m²) covers the courtyard with a diagonal, the placement pass matched it at 0.75 and
+      skipped, and the published site plan (v9) draws that diagonal. A closing of the outlines does
+      not help (0.5 to 4 m give two parts or a 1,135 to 1,224 m² shape: the stair core has no
+      unit). Options: the closed face of the calibrated site plan the placed footprint lands on as
+      the drawn outline (N4: 1,364.6 m², the architect's envelope), or a concave hull; the owner
+      picks.
+      *Found while placing N4 (2026-10-29), done on the owner's "can you do it for me":* the site
+      plan prints NTS and has no dimension chain the reader takes, so it was calibrated on the
+      admin API from the column grid it draws: axes 1 and 13 on axis A, 6,475 cm (the twelve bays
+      620 + 530 + 300 + 400 + 640 + 640 + 620 + 620 + 620 + 595 + 320 + 570 and the printed total),
+      raster x 1447 and 3113 at y 2130, 0.038866 m/px; axes 2, 4, 8, 10 and 11 land within 1 px of
+      that scale. The same axes on the ground plan (page 11, its dimension calibration
+      0.027988 m/px) measure 64.748 m; axis 1 × A is (15.312, 53.150) m there and (56.238,
+      82.239) m on the site plan, so building A is placed at tx 40.926, ty 29.089, 0°, confirmed
+      after the 20 ground-floor outlines were drawn over the site plan on the grid. Floor B1 was
+      deleted (no unit, no sheet). The massing was rebuilt with the building placed and v9
+      published. Facade drawings were not assigned: N4 shows the architect's IFC model, which
+      replaces the massing they would texture.
