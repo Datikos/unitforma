@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-28: 55 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, 0026, 0027, 0028, 0030, 0031, 0032, 0033, plan Phases 5 to 7 and
+State on 2026-10-28: 54 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, 0026, 0027, 0028, 0030, 0031, 0032, 0033, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Rows that share one code area or one
 outside input are one row with every reference. Sizes: S up to a day, M a few days, L a week or more.
@@ -75,7 +75,6 @@ decided out the same day and reopened, widened to manual intake, on 2026-10-27 (
 | 49 | ADR-0030 Revisit: `IFC_PLAN_FIT_MIN_IOU` (the real file passed at 0.30–0.32), mixing per storey (zones on some floors only), a project-level IFC instead of one copy per block (the three-block file is filed under B, C and D today), and feeding a confirmed plan fit back as the IFC's `site_transform` (BACKLOG 24). | ADR-0030 Revisit | the owner's 3D check of the B, C, D fits | M |
 | 52 | Setup checklist counts: "Architect's 3D model" counts conversions (`geometry_models` rows: N4 shows "8 model(s) linked" for one building), "Prices" is done on a project with no unit. | ADR-0031 #E2 | — | S |
 | 53 | ADR-0031 Revisit: a legend's sample level symbol is not a floor marker (`documents/levels.py`, N4 page 1); line-work colour thresholds after an office that draws walls in colour; vertical and metre dimension chains; a printed code checked against the page's area schedule; a two-label face split between its labels. | ADR-0031 #E3 #E4 | the next real set | M |
-| 54 | N4 with the architect's colours: the owner looks at the re-converted model on the 3D massing page, confirms the 122 plan spaces again ("Confirm all plan spaces") and publishes (the five renders join the gallery with the same publication). | ADR-0032 #C2 | owner's review | S |
 | 55 | ADR-0032 Revisit: a re-run conversion keeps the confirmations of plan spaces whose GlobalId and fit are unchanged (today all 122 of N4 return to suggested); metal and glass from the file's specular and reflectance values; furniture proxies dropped even when they fit; the IFC placed on the site so the site features surround it (with BACKLOG 24). | ADR-0032 #C1, ADR-0032 Revisit | — | M |
 | 56 | The owner looks at N4 with the architectural look (edges, occlusion) on the 3D massing page and the portal and keeps or tunes the viewer's constants (`EDGE_*`, `AO_RADIUS_M`, `SKY_LIGHT`, `SUN_LIGHT`). | ADR-0033 #C2 | owner's review | S |
 | 57 | ADR-0033 Revisit: seams between coplanar faces of one merged mesh (an element id per vertex in the GLB, with ADR-0032's colour split, converter work); ground reflection and an environment map (the remaining Autodesk switches); a portal switch for the look if a phone tier disappoints. | ADR-0033 Revisit | the owner's look at N4 | M |

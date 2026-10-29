@@ -129,5 +129,8 @@ elements, the massing model's colours (ADR-0017 keeps its own palette).
       confirmations of the previous model are lost and "Confirm all plan spaces" is needed before
       the next publication; carrying a confirmation over when the space's GlobalId and the plan fit
       are unchanged is BACKLOG 55.
-- [ ] C2 The owner looks at the model on the 3D massing page, confirms the plan spaces and publishes
-      again (the renders join the gallery with the same publication).
+- [x] C2 The owner looks at the model on the 3D massing page, confirms the plan spaces and publishes
+      again (the renders join the gallery with the same publication). Published 2026-10-28 at the
+      owner's word ("publish"): 122 plan spaces confirmed, N4 version 8 live with 122 units; its
+      building GLB is 836,408 bytes (Draco) with 36 coloured meshes and 122 unit nodes; the gallery
+      holds the five renders.
