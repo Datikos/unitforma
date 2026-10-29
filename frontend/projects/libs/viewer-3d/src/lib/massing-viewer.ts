@@ -13,7 +13,15 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { LookChain, buildLookChain, deviceFacts, renderTier } from './architectural-look';
-import { NO_CUT_Y, aimOverFloor, cutHeight, ifcSpaceOpacity } from './floor-cut';
+import {
+  NO_CUT_Y,
+  SECTION_FILL,
+  aimOverFloor,
+  cutHeight,
+  ifcSpaceOpacity,
+  sectionBand,
+  takesSectionFill,
+} from './floor-cut';
 
 export interface MassingUnitInfo {
   unit_id: string;
@@ -77,6 +85,40 @@ const SUN_LIGHT = 1.0;
  * The look (ADR-0033): on WebGL2 the frame goes through `architectural-look.ts` (edges on every
  * element, ambient occlusion on desktops); the tier is decided once from the device.
  */
+interface SectionUniforms {
+  uSectionBand: { value: THREE.Vector2 };
+  uSectionFill: { value: THREE.Color };
+}
+
+/**
+ * The shader hook of the section fill (ADR-0036 #D2): a back face between the band's heights draws
+ * in the fill colour, so a cut element reads solid. One hook per viewer, shared by its materials,
+ * keeps them on one program; the uniforms are shared too, so moving the band is one write.
+ */
+function sectionFillHook(
+  u: SectionUniforms,
+): (shader: THREE.WebGLProgramParametersWithUniforms) => void {
+  return (shader) => {
+    shader.uniforms['uSectionBand'] = u.uSectionBand;
+    shader.uniforms['uSectionFill'] = u.uSectionFill;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vSectionY;')
+      .replace(
+        '#include <project_vertex>',
+        '#include <project_vertex>\nvSectionY = (modelMatrix * vec4(transformed, 1.0)).y;',
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        '#include <common>\nvarying float vSectionY;\nuniform vec2 uSectionBand;\nuniform vec3 uSectionFill;',
+      )
+      .replace(
+        '#include <opaque_fragment>',
+        '#include <opaque_fragment>\nif (!gl_FrontFacing && vSectionY > uSectionBand.x && vSectionY < uSectionBand.y) gl_FragColor = vec4(uSectionFill, 1.0);',
+      );
+  };
+}
+
 @Component({
   selector: 'uf-massing-viewer',
   template: `
@@ -211,6 +253,11 @@ export class MassingViewerComponent implements OnDestroy {
   /** The cut over the picked floor of an IFC model; at `NO_CUT_Y` when nothing is cut (ADR-0036). */
   private readonly cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), NO_CUT_Y);
   private readonly cutPlanes = [this.cutPlane];
+  private readonly section: SectionUniforms = {
+    uSectionBand: { value: new THREE.Vector2(NO_CUT_Y, NO_CUT_Y) },
+    uSectionFill: { value: new THREE.Color(SECTION_FILL) },
+  };
+  private readonly sectionFill = sectionFillHook(this.section);
   private cutY: number | null = null;
   /** The floor the camera was last aimed at; undefined until the first focus after a load. */
   private aimedLevel: number | null | undefined = undefined;
@@ -326,6 +373,7 @@ export class MassingViewerComponent implements OnDestroy {
     this.aimedLevel = undefined;
     this.cutY = null;
     this.cutPlane.constant = NO_CUT_Y;
+    this.section.uSectionBand.value.set(NO_CUT_Y, NO_CUT_Y);
     try {
       const gltf = await this.loader.loadAsync(url);
       this.model = gltf.scene;
@@ -396,7 +444,7 @@ export class MassingViewerComponent implements OnDestroy {
    * The plane goes on every material of the IFC model once, at `NO_CUT_Y`, so a floor change only
    * moves it (no shader recompiles); shadows honour it; spaces cast none (ADR-0036 Decisions 3, 6).
    * A space's base lies on the slab, so it is drawn a little nearer than the slab, which would
-   * otherwise flicker through the tint.
+   * otherwise flicker through the tint. Opaque elements get the section fill (#D2).
    */
   private prepareCut(model: THREE.Object3D): void {
     model.traverse((o) => {
@@ -405,6 +453,7 @@ export class MassingViewerComponent implements OnDestroy {
       for (const mat of Array.isArray(o.material) ? o.material : [o.material]) {
         mat.clippingPlanes = this.cutPlanes;
         mat.clipShadows = true;
+        if (takesSectionFill(mat, space)) mat.onBeforeCompile = this.sectionFill;
         if (space) {
           mat.polygonOffset = true;
           mat.polygonOffsetFactor = -1;
@@ -584,6 +633,8 @@ export class MassingViewerComponent implements OnDestroy {
     });
     this.cutY = cutHeight(spans);
     this.cutPlane.constant = this.cutY ?? NO_CUT_Y;
+    const band = sectionBand(spans);
+    this.section.uSectionBand.value.set(...(band ?? [NO_CUT_Y, NO_CUT_Y]));
     if (this.aimedLevel === lvl) return;
     const first = this.aimedLevel === undefined;
     this.aimedLevel = lvl;

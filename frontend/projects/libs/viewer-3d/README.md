@@ -60,18 +60,30 @@ show at 30 % when hovered; a ray hit above the cut is ignored. On a change of fl
 its azimuth, aims at the floor's centre from 55° and the floor's diagonal; clearing the floor frames
 the model again. A floor without spaces is not cut. The schematic massing keeps the fade.
 
-**Known look.** The cut walls have no cap: their inner faces show (double-sided materials).
+**Section fill (ADR-0036 #D2).** The IFC materials are double-sided, so a cut wall would show its
+own inner faces lit like its outside. Each opaque element that is not a space draws its back faces in
+`SECTION_FILL` (#3b4048) between 0.5 m below the picked floor's base and the cut, so cut walls,
+columns and doors read solid dark, as on a plan. One `onBeforeCompile` hook and one pair of uniforms
+per viewer serve every such material: moving the band is one uniform write, no recompile, no added
+draw. Glass and the spaces keep their look; with no floor picked the band is at `NO_CUT_Y` and
+nothing changes.
+
+**Known look.** The fill is the element's inside seen through the cut, not a plane at the cut: it is
+flat only because it is unlit. An open element in the band (one that is not a closed solid) shows
+its back faces dark too; none did on N4.
 
 **Measured** (2026-10-29, headless Chrome on an Apple M2, the portal building page of N4 at
-1440 × 1000 CSS px and a device pixel ratio of 1.5, full tier): 60 fps with level 0, 2 or 3 cut.
+1440 × 1000 CSS px and a device pixel ratio of 1.5, full tier): 60 fps with level 0, 2 or 3 cut;
+the same with the section fill (level -2, 0 and 2).
 
 ## Tests
 
 `architectural-look.spec.ts` proves the tier rule (desktop, a browser without `deviceMemory`, a
 data-saver phone, a 2 GB device, a narrow viewport, no WebGL2) and that the edge shader declares
 every uniform it samples. `floor-cut.spec.ts` proves the cut height (a floor with spaces, a low floor,
-a floor without spaces), the space opacity per state and that the camera keeps its azimuth over a
-cut floor. `massing-viewer.spec.ts` proves the component degrades to a status line
+a floor without spaces), the space opacity per state, that the camera keeps its azimuth over a
+cut floor, and the section fill's band and which materials take it. The fill's shader hook is checked
+in headless Chrome with the chain. `massing-viewer.spec.ts` proves the component degrades to a status line
 without WebGL. The chain itself cannot run in the test browser (no WebGL context); it is checked on
 the dev stack in headless Chrome.
 

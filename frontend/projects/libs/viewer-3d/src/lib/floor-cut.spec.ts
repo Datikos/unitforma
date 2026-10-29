@@ -3,10 +3,13 @@ import {
   OTHER_FLOOR_HOVER_OPACITY,
   PLAN_CUT_M,
   SELECTED_GLASS_OPACITY,
+  SECTION_BELOW_BASE_M,
   SPACE_GLASS_OPACITY,
   aimOverFloor,
   cutHeight,
   ifcSpaceOpacity,
+  sectionBand,
+  takesSectionFill,
 } from './floor-cut';
 
 describe('cutHeight (ADR-0036 Decision 2)', () => {
@@ -64,5 +67,23 @@ describe('aimOverFloor (ADR-0036 Decision 5)', () => {
     const p = aimOverFloor([0, 50, 0], [0, 0, 0], [0, 0, 0], 10);
     expect(p[0]).toBeCloseTo(p[2], 6);
     expect(p[0]).toBeGreaterThan(0);
+  });
+});
+
+describe('section fill of cut elements (ADR-0036 #D2)', () => {
+  it('fills from just under the floor base up to the cut', () => {
+    const band = sectionBand([{ minY: 6.0, maxY: 9.0 }]);
+    expect(band![0]).toBeCloseTo(6.0 - SECTION_BELOW_BASE_M, 6);
+    expect(band![1]).toBeCloseTo(6.0 + PLAN_CUT_M, 6);
+  });
+
+  it('fills nothing when the floor is not cut', () => {
+    expect(sectionBand([])).toBeNull();
+  });
+
+  it('fills opaque elements only, never glass or a plan space', () => {
+    expect(takesSectionFill({ transparent: false, opacity: 1 }, false)).toBe(true);
+    expect(takesSectionFill({ transparent: true, opacity: 0.4 }, false)).toBe(false);
+    expect(takesSectionFill({ transparent: false, opacity: 1 }, true)).toBe(false);
   });
 });
