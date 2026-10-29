@@ -252,7 +252,7 @@ scans.
       *N4, 2026-10-29:* the ground plan's 121 (43.2 m²) and 122 (61.2 m²) are one loop candidate
       of 52.3 m² holding both labels, so no split of it gives the printed areas; drawn walls
       separate them on the sheet.
-- [ ] E5 A building's footprint is the convex hull of its lowest floor's outlines when they do not
+- [x] E5 A building's footprint is the convex hull of its lowest floor's outlines when they do not
       union into one polygon (`geometry.service.footprints`): on N4's L-shaped block the hull
       (1,557.6 m²) covers the courtyard with a diagonal, the placement pass matched it at 0.75 and
       skipped, and the published site plan (v9) draws that diagonal. A closing of the outlines does
@@ -272,3 +272,5 @@ scans.
       deleted (no unit, no sheet). The massing was rebuilt with the building placed and v9
       published. Facade drawings were not assigned: N4 shows the architect's IFC model, which
       replaces the massing they would texture.
+      *Decided and built in ADR-0035 Decision 1 (2026-10-29): the site plan's closed face under the
+      placed footprint.*

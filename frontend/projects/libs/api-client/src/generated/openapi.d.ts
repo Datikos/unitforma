@@ -3046,6 +3046,8 @@ export interface components {
             version: number;
             /** Ring M */
             ring_m: number[][] | null;
+            /** Site Outline M */
+            site_outline_m?: number[][] | null;
             /** Source Floor Level */
             source_floor_level: number | null;
             /** Floors */

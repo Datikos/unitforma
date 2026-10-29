@@ -97,7 +97,7 @@ IFC is converted again ("Re-run conversion"); the published copy changes with th
 Measured on N4's file (2026-10-27, local, ifcopenshell 0.9.0): 602,129 triangles, 36 meshes, 21 of
 the file's colours, 8.53 MB raw, services dropped; parsing 103 s, packing 1 s.
 
-**Revisit.** Material properties (metal railings, glass reflections) from the file's specular and
+**Revisit.** A re-run that keeps unchanged confirmations is ADR-0035 Decision 3 (built 2026-10-29). Material properties (metal railings, glass reflections) from the file's specular and
 reflectance values; furniture proxies kept while they fit (N4: 136,944 triangles nobody sees from
 outside); placing the IFC on the site so the grass, trees and roads of the site features surround it
 (BACKLOG 24).

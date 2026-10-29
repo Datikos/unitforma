@@ -630,7 +630,15 @@ async def _site(
         if f["code"] not in public_codes:
             continue
         ring = None
-        if (
+        drawn = f.get("site_outline_m")
+        if drawn and cal and cal.get("m_per_px") and sheet.raster_width and sheet.raster_height:
+            # the architect's envelope from the site plan itself (ADR-0035 Decision 1)
+            m = cal["m_per_px"]
+            ring = [
+                [round(x / (m * sheet.raster_width), 5), round(y / (m * sheet.raster_height), 5)]
+                for x, y in drawn
+            ]
+        elif (
             f["ring_m"]
             and cal
             and cal.get("m_per_px")
