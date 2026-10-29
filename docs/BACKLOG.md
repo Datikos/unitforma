@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-29: 48 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, 0026, 0027, 0028, 0030, 0031, 0032, 0033, plan Phases 5 to 7 and
+State on 2026-10-29: 49 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, 0026, 0027, 0028, 0030, 0031, 0032, 0033, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Rows that share one code area or one
 outside input are one row with every reference. Sizes: S up to a day, M a few days, L a week or more.
@@ -36,6 +36,7 @@ decided out the same day and reopened, widened to manual intake, on 2026-10-27 (
 | 45 | ADR-0027 (embeddable chooser on a developer's own site, proposed): verify the Caddy `forward_auth` + placeholder path on the dev stack (else Option C), `X-Frame-Options DENY` out of the shared snippet and per framed load `frame-ancestors` from `GET /internal/embed/policy`, `tenants.settings.embed_origins` with validation and audit behind `tenant.settings`, the "Embedding" card on Settings and the "Embed on your site" snippet card on Publish, the framed portal bar with "Open in a new tab", `try`/`catch` around browser storage, `caddy validate` in CI, guide, plan and README. | ADR-0027 #A1–#A5 #B1–#B3 #C1–#C3 #D1 #D2 | owner's acceptance of Decisions 2 and 3 | M |
 | 46 | Paste the embed snippet into a real WordPress page as an administrator (the pilot developer's or a test site); record whether the iframe survived, which block was used and how 80vh behaves on a phone inside the theme. | ADR-0027 #D3 | a WordPress site, the owner | S |
 | 50 | Project N4 (v9 live on 2026-10-29: 122 units, the IFC model, building A placed on the calibrated site plan, B1 deleted, B2 3.0 m): the owner draws 121, 122, 223/224, 323/324 and 423/424 (two units share one face on each floor, ADR-0031 #E4), sets prices or "on request" (all empty), picks the elevation drawing for the floor picker on the building card if wanted; then the IFC conversion is re-run and a new version published. | ADR-0031 #D2 #D3 | owner's review | S |
+| 59 | Register the floor plan sheets of a building to each other where `polygon_m` is made: each sheet has its own origin, so the massing and the site outline stack floors with a stagger (N4: 3 m between level -2 and levels 1-3); the IFC plan spaces correct it per level since ADR-0030 #D1. | ADR-0030 #D2 | — | M |
 
 ## P2 — after
 

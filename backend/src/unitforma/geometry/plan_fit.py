@@ -22,6 +22,13 @@ FINE_STEP_DEG = 0.5
 # below this overlap the plan outlines are not taken as the IFC's spaces (ADR-0030 Decision 5;
 # a start, the first real building sets it)
 IFC_PLAN_FIT_MIN_IOU = 0.30
+# each floor plan sheet has its own origin, so a level whose outlines leave its own storey's slab
+# under the shared fit gets its own translation on top (ADR-0030 #D1; N4 levels 1-3 sat 3.1-3.9 m
+# off on 2026-10-29)
+LEVEL_SHIFT_MAX_M = 5.0
+LEVEL_SHIFT_STEP_M = 0.25
+LEVEL_SHIFT_MIN_GAIN = 0.05  # coverage a level must gain before it is moved
+LEVEL_SHIFT_PLATEAU = 0.005  # coverage this close to the best counts as the best
 
 
 def sheet_to_ifc(ring: list[Any]) -> list[Point]:
@@ -77,6 +84,48 @@ def best_rotation(
         if f_iou > iou:
             iou, tx, ty, ang = f_iou, f_tx, f_ty, f
     return {"iou": iou, "tx": tx, "ty": ty, "rotation_deg": ang % 360.0}
+
+
+def level_shift(
+    foot: BaseGeometry,
+    face: BaseGeometry,
+    *,
+    max_m: float = LEVEL_SHIFT_MAX_M,
+    step: float = LEVEL_SHIFT_STEP_M,
+) -> dict[str, Any]:
+    """The translation of one level's placed footprint onto its own storey's ``face``.
+
+    The coverage (share of the footprint inside the face) is scored on a ``step`` grid within
+    ``max_m``; the shift is the smallest one whose coverage is within ``LEVEL_SHIFT_PLATEAU`` of the
+    best, since a hull target is slack and the best coverage holds over a range of shifts. Returns
+    ``{dx, dy, coverage, refused}``: (0, 0) when the gain is under ``LEVEL_SHIFT_MIN_GAIN`` or when
+    the shift would reach the cap (the real offset may be larger; ``refused`` is then true).
+    """
+    area = foot.area
+    if area <= 0:
+        return {"dx": 0.0, "dy": 0.0, "coverage": 0.0, "refused": False}
+
+    def cover(dx: float, dy: float) -> float:
+        return affinity.translate(foot, dx, dy).intersection(face).area / area
+
+    here = cover(0.0, 0.0)
+    n = int(round(max_m / step))
+    scored = [
+        (cover(i * step, j * step), i * step, j * step)
+        for i in range(-n, n + 1)
+        for j in range(-n, n + 1)
+        if math.hypot(i, j) <= n
+    ]
+    best = max(c for c, _dx, _dy in scored)
+    if best - here < LEVEL_SHIFT_MIN_GAIN:
+        return {"dx": 0.0, "dy": 0.0, "coverage": here, "refused": False}
+    c, dx, dy = min(
+        (t for t in scored if t[0] >= best - LEVEL_SHIFT_PLATEAU),
+        key=lambda t: math.hypot(t[1], t[2]),
+    )
+    if math.hypot(dx, dy) > max_m - step:
+        return {"dx": 0.0, "dy": 0.0, "coverage": here, "refused": True}
+    return {"dx": dx, "dy": dy, "coverage": c, "refused": False}
 
 
 def polygon(ring: list[Point]) -> Polygon:

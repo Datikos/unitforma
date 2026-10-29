@@ -1,6 +1,6 @@
 # ADR-0030: IFC spaces from the architect's zones or from the approved plan outlines; export diagnostics; duplicate uploads
 
-- **Status:** accepted (2026-10-27, "let start"; implemented 2026-10-27, C2 docs in the same change)
+- **Status:** accepted (2026-10-27, "let start"; implemented 2026-10-27, C2 docs in the same change); Decision 4 amended 2026-10-29 by D1 (a level may refine the shared translation), D2 open
 - **Date:** 2026-10-27
 - **Deciders:** David Sakhelashvili (platform owner)
 - **Plan reference:** §7.3 (building model budget), §13.1 (document → published project), ADR-0006 Phase C (IFC intake, space links), ADR-0008 (document kinds), ADR-0011 (massing from outlines), ADR-0025 Decision 5 (placement by footprint fit)
@@ -244,3 +244,43 @@ spaces (the documented areas of the drawing already exist, ADR-0006 Phase A), DW
       section text.
 - [x] C2 README status sentence; BACKLOG rows (#36 updated, new Revisit rows); ADR-0006 Phase C and
       ADR-0008 #6 pointers; this ADR's status line.
+
+### Phase D: floors drawn on different sheet origins (amendment, 2026-10-29)
+
+*Evidence.* N4 building A (IFC v12, the owner's level 0 screenshot under ADR-0036) showed the flats
+of levels 1 to 3 reaching past the facade. The fit was made on level -2 (the only `slabs` target,
+rotation 2.5°) and carried to every level; each floor plan sheet has its own origin. Measured in the
+heavy worker against each storey's own target:
+
+| Level | Target | Coverage, shared fit | Coverage at the best shift | Best shift |
+|---|---|---|---|---|
+| -2 | slabs | 0.978 | 0.987 | 0.7 m |
+| 0 | hull | 0.984 | 0.993 | 1.3 m |
+| 1 | hull | 0.878 | 1.000 | 3.4 m |
+| 2 | hull | 0.854 | 1.000 | 3.9 m |
+| 3 | hull | 0.901 | 1.000 | 3.1 m |
+
+On the hull targets the coverage is flat (0.997–0.999) for shifts from 3 m to 5 m on level 1 to 3,
+so the best IoU or coverage alone does not pin a level.
+
+- [x] D1 `plan_fit.level_shift`: after the shared fit, every level other than the fit level searches
+      its own translation onto its storey's target on a 0.25 m grid within `LEVEL_SHIFT_MAX_M` = 5 m,
+      and takes the **smallest** shift whose coverage is within 0.005 of the best; it moves only when
+      the coverage gains `LEVEL_SHIFT_MIN_GAIN` = 0.05 or more, and a shift that would reach the cap
+      is refused (the real offset may be larger). The rotation stays shared. `plan_spaces.build`
+      applies the shift per level and writes `per_level[k].shift_m`, `coverage_shifted` or
+      `shift_refused` into `stats.plan_fit`; the admin fit line names the moved and the refused
+      levels (`pages/ifc-plan-fit.ts`). Tests: `test_a_level_drawn_on_another_sheet_origin_moves_onto_its_slab`,
+      `test_a_level_already_on_its_slab_or_too_far_off_keeps_the_shared_fit`, `ifc-plan-fit.spec.ts`.
+      *Measured 2026-10-29* as a dry run on N4's file and outlines in the heavy worker (nothing
+      written): levels 1, 2 and 3 move 2.8, 3.3 and 2.5 m to 0.995–0.996 inside, levels -2 and 0 stay;
+      `build` takes 3.69 s instead of 0.86 s, on a conversion that runs in the background.
+      *Consequence:* on the next conversion of a building whose levels move, ADR-0035's carry rule
+      (footprint IoU 0.98 or more) sends those levels' confirmed plan spaces back to suggested, since
+      they did move; "Confirm all plan spaces" confirms them again in one click. N4 is not re-run here:
+      that is the owner's "Re-run conversion".
+- [ ] D2 The schematic massing (`geometry/service.py`) and the site outline stack each unit's
+      `polygon_m` from its own sheet with no registration between the floor sheets, so N4's massing
+      has the same 3 m stagger between level -2 and levels 1 to 3. Register each floor sheet to the
+      building (from the outer walls, the grid axes or a confirmed IFC fit) once, where `polygon_m`
+      is made, so every consumer reads aligned floors. BACKLOG 59.
