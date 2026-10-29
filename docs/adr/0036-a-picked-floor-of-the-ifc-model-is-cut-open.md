@@ -1,6 +1,6 @@
 # ADR-0036: A picked floor of the IFC model is cut open
 
-- **Status:** accepted (2026-10-29, the owner's pick of option 2 after his screenshot of N4 level 0); implemented 2026-10-29 on branch `adr-0036`, verified on N4 the same day
+- **Status:** accepted (2026-10-29, the owner's pick of option 2 after his screenshot of N4 level 0); implemented 2026-10-29 on branch `adr-0036`, verified on N4 the same day; D1 (the admin tint by link status) added and done 2026-10-29
 - **Date:** 2026-10-29
 - **Deciders:** David Sakhelashvili (platform owner)
 - **Plan reference:** §7.3 (floor isolation, interior view), §11.3 (MVP 3D); ADR-0006 Decision 6 and #E4, ADR-0030 (plan spaces), ADR-0033 (the architectural look)
@@ -145,3 +145,15 @@ Phase C: verify
       picked floor's own balconies. The west end of the
       L shows A-x-03 reaching past the end wall: the plan fit's offset or a terrace in the outline
       (ADR-0030 Revisit, BACKLOG 49), visible before this change as the boxes outside the building.
+
+Phase D: follow-up
+- [x] D1 The admin 3D page tints each IFC space by its link status, in the hues of the status chips
+      (confirmed `#34d399`, suggested `#fbbf24`, unmatched `#f87171`, not a unit `#9ca3af`), passed
+      as `unitColors` keyed by the id the space carries in the GLB (the unit once confirmed, else
+      `space:<GlobalId>`). C1 showed the GLB's own near-grey space colour at 40 % glass is barely
+      visible on a cut floor. The portal keeps the availability colours. `admin/.../massing.page.ts`,
+      its hint and the guide's "Show IFC model" entry.
+      *Done 2026-10-29* on N4 level 0 and all floors (58 and 60 fps): the flats read green, the
+      hovered one blue, corridors and cores grey. All 854 of N4's links are confirmed, so the other
+      three hues are proven by `massing.page.spec.ts` only. The status chips split "unmatched"
+      (red) from "not units" (grey) to match.
