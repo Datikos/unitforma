@@ -26,6 +26,29 @@ const DROPPED_LABEL: Record<string, string> = {
   IfcBuildingElementPart: 'element skins and parts',
 };
 
+/** Space colour in the IFC view by link status: the hues of the status chips (ADR-0036 #D1). */
+const LINK_COLOUR: Record<string, string> = {
+  confirmed: '#34d399',
+  suggested: '#fbbf24',
+  unmatched: '#f87171',
+  rejected: '#9ca3af',
+};
+
+/** The id a space carries in the IFC GLB: its unit once confirmed, else `space:<GlobalId>`. */
+export function spaceKey(lk: IfcSpaceLinkOut): string {
+  return lk.status === 'confirmed' && lk.unit_id ? lk.unit_id : `space:${lk.ifc_global_id}`;
+}
+
+/** The viewer's `unitColors` for the IFC view: every linked space in its status hue. */
+export function linkColours(links: IfcSpaceLinkOut[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const lk of links) {
+    const c = LINK_COLOUR[lk.status];
+    if (c) out[spaceKey(lk)] = c;
+  }
+  return out;
+}
+
 interface MassingStats {
   units?: number;
   triangles?: number;
@@ -114,6 +137,7 @@ interface MassingStats {
             [badge]="viewerBadge()"
             [floorLevel]="floor()"
             [selectedUnitId]="selectedId()"
+            [unitColors]="spaceColors()"
             (unitPicked)="onPick($event)"
             (loadedUnits)="units.set($event)"
           />
@@ -135,7 +159,9 @@ interface MassingStats {
           building's floors become the spaces, placed in the model by matching the lowest floor to
           its storey's slab (ADR-0030); confirming one of those says the alignment is right, no
           areas are copied. Buyers see the IFC model of a building instead of the massing once it
-          exists; only confirmed spaces of listed units are clickable for them.
+          exists; only confirmed spaces of listed units are clickable for them. In the IFC view each
+          space is tinted like its status chip: green confirmed, amber suggested, red unmatched, grey
+          not a unit.
         </p>
         <div class="uf-toolbar">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -151,7 +177,8 @@ interface MassingStats {
             <span class="uf-chip">{{ im.stats['spaces'] }} spaces · {{ im.stats['triangles'] }} triangles · {{ mb(im.stats['bytes']) }} MB</span>
             <span class="uf-chip uf-tone-good">{{ count(im, 'confirmed') }} confirmed</span>
             <span class="uf-chip uf-tone-warning">{{ count(im, 'suggested') }} suggested</span>
-            <span class="uf-chip">{{ count(im, 'unmatched') }} unmatched · {{ count(im, 'rejected') }} not units</span>
+            <span class="uf-chip uf-tone-bad">{{ count(im, 'unmatched') }} unmatched</span>
+            <span class="uf-chip">{{ count(im, 'rejected') }} not units</span>
             @if (dropped(im).length) {
               <span class="uf-chip uf-tone-warning">dropped to fit 15 MB: {{ dropped(im).join(', ') }}</span>
             }
@@ -330,10 +357,12 @@ export class MassingPage {
   readonly selectedId = computed(() => {
     if (this.view() === 'ifc') {
       const lk = this.selectedLink();
-      return lk ? (lk.status === 'confirmed' && lk.unit_id ? lk.unit_id : `space:${lk.ifc_global_id}`) : null;
+      return lk ? spaceKey(lk) : null;
     }
     return this.picked()?.unit_id ?? null;
   });
+  /** In the IFC view every space is tinted by its link status, so the work left shows on the model. */
+  readonly spaceColors = computed(() => (this.view() === 'ifc' ? linkColours(this.links()) : null));
   readonly facts = computed<HeaderFact[]>(() => {
     const m = this.model();
     if (!m) return [];

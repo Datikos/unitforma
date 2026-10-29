@@ -344,6 +344,10 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
         does: 'Isolates one level; click a unit to see its code. On the schematic model the other floors fade; on the IFC model the building is cut open 1.2 m above that floor, its units show as tinted glass and the camera looks down into it. "All floors" shows the whole building again.',
       },
       { name: 'Regenerate', does: 'Queues a rebuild and waits up to a minute for the worker.' },
+      {
+        name: 'Show IFC model',
+        does: "Shows the architect's model with each space tinted like its status chip: green confirmed, amber suggested, red unmatched, grey not a unit. Click a space to select its row.",
+      },
     ],
     roles: STRUCTURE,
     tips: [
