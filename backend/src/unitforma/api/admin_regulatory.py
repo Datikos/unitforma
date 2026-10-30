@@ -19,7 +19,7 @@ from unitforma.api.schemas import (
 from unitforma.core.errors import ProblemError
 from unitforma.core.settings import get_settings
 from unitforma.identity.authz import Action
-from unitforma.identity.deps import TenantContext, tenant_context
+from unitforma.identity.deps import TenantContext, open_session, tenant_access, tenant_context
 from unitforma.jobs.app import app as jobs
 from unitforma.projects import service as projects
 from unitforma.regulatory import service as regulatory
@@ -28,6 +28,8 @@ from unitforma.tenants.models import RegulatoryImport, Tenant
 
 router = APIRouter(prefix="/api/v1/admin/tenants/{tenant_id}", tags=["regulatory"])
 Ctx = Annotated[TenantContext, Depends(tenant_context)]
+# rights checked, no session held across the registry call (BACKLOG 15)
+Access = Annotated[TenantContext, Depends(tenant_access)]
 
 
 def _enabled() -> None:
@@ -59,47 +61,61 @@ async def _enqueue(row: RegulatoryImport) -> None:
 
 
 @router.post("/regulatory/tasge/preview", response_model=PermitPreviewOut)
-async def preview_permit(body: PermitReference, ctx: Ctx):
+async def preview_permit(body: PermitReference, access: Access):
+    """The registry call runs with no database connection held (BACKLOG 15)."""
     _enabled()
-    ctx.require("project", Action.WRITE)
+    access.require("project", Action.WRITE)
     return await regulatory.preview(body.reference)
 
 
 @router.post("/regulatory/tasge/import", response_model=PermitImportResult, status_code=201)
-async def import_permit(body: PermitImportCreate, ctx: Ctx):
+async def import_permit(body: PermitImportCreate, access: Access):
+    """Rights first, then the registry call outside any transaction, then one transaction for
+    the project, building and import row (BACKLOG 15)."""
     _enabled()
-    ctx.require("project", Action.WRITE)
-    tenant = (
-        await ctx.session.execute(select(Tenant).where(Tenant.id == ctx.tenant_id))
-    ).scalar_one()
+    access.require("project", Action.WRITE)
     if body.setup_auto and body.setup_auto.enabled and body.setup_auto.approve_sheets:
-        ctx.require("mapping", Action.APPROVE)
+        access.require("mapping", Action.APPROVE)
     if body.setup_auto and body.setup_auto.enabled and body.setup_auto.publish_defaults:
-        admin_setup.require_publish_defaults(ctx)
-    project, building, row = await regulatory.start_import(
-        ctx.session,
-        tenant_id=ctx.tenant_id,
-        actor=_actor(ctx),
-        reference=body.reference,
-        slug=body.slug,
-        name=body.name,
-        building_code=body.building_code,
-        default_currency=tenant.default_currency,
-        setup_auto=body.setup_auto.model_dump() if body.setup_auto else None,
-    )
-    await _enqueue(row)
-    return PermitImportResult(project=project, building=building, job=_out(row))
+        admin_setup.require_publish_defaults(access)
+    record = await regulatory.fetch_normalised(body.reference)
+    async with open_session(access) as ctx:
+        tenant = (
+            await ctx.session.execute(select(Tenant).where(Tenant.id == ctx.tenant_id))
+        ).scalar_one()
+        project, building, row = await regulatory.start_import(
+            ctx.session,
+            tenant_id=ctx.tenant_id,
+            actor=_actor(ctx),
+            reference=body.reference,
+            slug=body.slug,
+            name=body.name,
+            building_code=body.building_code,
+            default_currency=tenant.default_currency,
+            setup_auto=body.setup_auto.model_dump() if body.setup_auto else None,
+            record=record,
+        )
+        await _enqueue(row)
+        building = await projects.get_building(ctx.session, ctx.tenant_id, building.id)
+        return PermitImportResult(project=project, building=building, job=_out(row))
 
 
 @router.post("/projects/{project_id}/regulatory/tasge/refresh", response_model=RegulatoryImportOut)
-async def refresh_permit(project_id: uuid.UUID, ctx: Ctx):
+async def refresh_permit(project_id: uuid.UUID, access: Access):
+    """Checks in a short transaction, the registry call outside one, the write in a third; the
+    checks run again there in case another refresh started meanwhile (BACKLOG 15)."""
     _enabled()
-    ctx.require("documents", Action.WRITE)
-    ctx.require_project(project_id)
-    project = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
-    row = await regulatory.refresh(ctx.session, project, _actor(ctx))
-    await _enqueue(row)
-    return _out(row)
+    access.require("documents", Action.WRITE)
+    access.require_project(project_id)
+    async with open_session(access) as ctx:
+        project = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
+        external_id = await regulatory.refresh_target(ctx.session, project)
+    record = await regulatory.fetch_normalised(external_id)
+    async with open_session(access) as ctx:
+        project = await projects.get_project(ctx.session, ctx.tenant_id, project_id)
+        row = await regulatory.refresh(ctx.session, project, _actor(ctx), record=record)
+        await _enqueue(row)
+        return _out(row)
 
 
 @router.get("/projects/{project_id}/regulatory/imports", response_model=list[RegulatoryImportOut])

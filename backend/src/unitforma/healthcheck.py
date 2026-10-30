@@ -1,4 +1,4 @@
-"""Container health probe: ``python -m unitforma.healthcheck live|ready``."""
+"""Container health probe: ``python -m unitforma.healthcheck live|ready|worker``."""
 
 from __future__ import annotations
 
@@ -8,6 +8,11 @@ import urllib.request
 
 def main() -> int:
     kind = sys.argv[1] if len(sys.argv) > 1 else "live"
+    if kind == "worker":
+        # workers serve no HTTP: their heartbeat file proves the loop runs (BACKLOG 8)
+        from unitforma.jobs.health import is_alive
+
+        return 0 if is_alive() else 1
     url = f"http://127.0.0.1:8000/internal/health/{kind}"
     try:
         with urllib.request.urlopen(url, timeout=3) as r:  # noqa: S310 - fixed local URL

@@ -458,7 +458,7 @@ export class PlanViewerComponent {
     if (!id || this.dragDelta()) return null;
     const p = this.polygons().find((x) => x.id === id);
     if (!p || p.ring.length < 3) return null;
-    const [cx, cy] = this.centroid(p.ring);
+    const [cx] = this.centroid(p.ring);
     const [ox, oy] = this.offset();
     const s = this.scale();
     const el = this.host().nativeElement;

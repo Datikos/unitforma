@@ -165,6 +165,7 @@ class ParsedIfc:
     storey_slabs: dict[str, list[list[list[float]]]]  # storey GlobalId → slab footprint rings
     bounds: tuple[float, float, float, float]  # minx, miny, maxx, maxy of everything drawn
     unit_scale: float = 1.0  # file length unit → metres (attributes such as Elevation are raw)
+    length_unit: str | None = None  # as declared ("MILLIMETRE", "METRE", "FOOT"); None: none
 
     def bounds_ring(self) -> list[tuple[float, float]]:
         x0, y0, x1, y1 = self.bounds
@@ -376,6 +377,7 @@ def parse_ifc(data: bytes, *, deflection: float = 0.03) -> ParsedIfc:
         unit_scale = float(ifc_unit.calculate_unit_scale(f)) or 1.0
     except Exception:  # noqa: BLE001 - no unit assignment: assume metres (ADR-0006 E7)
         unit_scale = 1.0
+    length_unit = declared_length_unit(f)
     storeys_raw = sorted(
         f.by_type("IfcBuildingStorey"),
         key=lambda s: (s.Elevation is None, float(s.Elevation or 0.0)),
@@ -482,7 +484,48 @@ def parse_ifc(data: bytes, *, deflection: float = 0.03) -> ParsedIfc:
         storey_slabs=storey_slabs,
         bounds=bounds,
         unit_scale=unit_scale,
+        length_unit=length_unit,
     )
+
+
+# a building outside these spans in metres was read in the wrong length unit (ADR-0006 E7)
+PLAUSIBLE_SPAN_M = (2.0, 2000.0)
+
+
+def declared_length_unit(f: Any) -> str | None:
+    """The file's declared length unit ("MILLIMETRE", "METRE", "FOOT"), or None when the unit
+    assignment has none and the reader falls back to metres."""
+    for ua in f.by_type("IfcUnitAssignment"):
+        for u in getattr(ua, "Units", None) or []:
+            if getattr(u, "UnitType", None) != "LENGTHUNIT":
+                continue
+            if u.is_a("IfcSIUnit"):
+                return f"{getattr(u, 'Prefix', None) or ''}{u.Name}"
+            return str(getattr(u, "Name", None) or u.is_a())
+    return None
+
+
+def unit_check(parsed: ParsedIfc) -> list[str]:
+    """Warnings about the length unit; raises :class:`IfcError` when no unit is declared and the
+    building comes out at an impossible size (a millimetre file read as metres, or the
+    reverse), because every footprint and height would be wrong by a factor of 1000."""
+    x0, y0, x1, y1 = parsed.bounds
+    span = max(x1 - x0, y1 - y0)
+    lo, hi = PLAUSIBLE_SPAN_M
+    if parsed.length_unit is None:
+        if span > 0 and not lo <= span <= hi:
+            raise IfcError(
+                f"The file declares no length unit and the building comes out {span:,.1f} m "
+                "across, so its unit is wrong. Ask the architect to export with the project's "
+                "units (IfcUnitAssignment with a length unit), then upload the file again."
+            )
+        return ["The file declares no length unit; metres were assumed."]
+    if span > 0 and not lo <= span <= hi:
+        return [
+            f"The building comes out {span:,.1f} m across in {parsed.length_unit}; check the "
+            "export's length unit."
+        ]
+    return []
 
 
 def prism(ring: list[tuple[float, float]], z0: float, z1: float) -> Geometry:
@@ -535,8 +578,12 @@ def pack_ifc(
                 f"{budget // (1024 * 1024)} MB. Export without furniture or with less detail."
             )
         dropped.append(candidate)
+    x0, y0, x1, y1 = parsed.bounds
     stats = {
         **build_stats,
+        "length_unit": parsed.length_unit,
+        "size_m": [round(x1 - x0, 2), round(y1 - y0, 2)],
+        "unit_warnings": unit_check(parsed),
         "schema": parsed.schema,
         "application": parsed.application,
         "export_options": parsed.export_options,

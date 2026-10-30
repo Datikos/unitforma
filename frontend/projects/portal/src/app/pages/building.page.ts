@@ -521,7 +521,10 @@ export class BuildingPage {
   private readonly router = inject(Router);
   readonly slug = input.required<string>();
   readonly code = input.required<string>();
+  // the router binds ?floor= and ?unit= to inputs of these names (withComponentInputBinding)
+  // eslint-disable-next-line @angular-eslint/no-input-rename
   readonly floorParam = input<string | undefined>(undefined, { alias: 'floor' });
+  // eslint-disable-next-line @angular-eslint/no-input-rename
   readonly unitParam = input<string | undefined>(undefined, { alias: 'unit' });
   readonly doc = signal<ProjectDoc | null>(null);
   private readonly caps = detectCapabilities();

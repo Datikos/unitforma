@@ -342,3 +342,57 @@ def test_portal_server_refuses_unknown_hosts_and_foreign_origins(client, world, 
     assert r.status_code == 200 and "site" in {t["name"] for t in r.json()["result"]["tools"]}
     # the staff server on the default (admin-side) host still wants a bearer
     assert rpc(client, None, "tools/list").status_code == 401
+
+
+def test_a_document_holding_a_floor_picker_asks_first(client, world, tokens):  # noqa: F811
+    """BACKLOG 26 (ADR-0014 Revisit): deleting the document whose sheet is a building's floor
+    picker is refused until the caller says so; then the picker is cleared and the audit row
+    names the building."""
+    from tests.pdf_fixture import make_section_pdf
+
+    base, pid, adm = world["base"], world["project"]["id"], world["adm"]
+    b = _building(client, world, "A")
+    [section] = phase4._upload(
+        client,
+        base,
+        adm,
+        pid,
+        "section",
+        "Section for picker",
+        make_section_pdf(),
+        world["tenant"]["id"],
+        b["id"],
+    )
+    b = client.patch(
+        f"{base}/buildings/{b['id']}",
+        headers=adm,
+        json={"elevation_sheet_id": section["id"], "version": b["version"]},
+    ).json()
+    assert b["elevation_sheet_id"] == section["id"]
+    doc = next(
+        d
+        for d in client.get(f"{base}/projects/{pid}/documents", headers=adm).json()
+        if d["title"] == "Section for picker"
+    )
+    r = client.delete(f"{base}/documents/{doc['id']}", headers=adm)
+    assert r.status_code == 409, r.text
+    assert r.json()["type"].endswith("document-holds-elevation") and r.json()["buildings"] == ["A"]
+    assert _building(client, world, "A")["elevation_sheet_id"] == section["id"]
+    # the MCP tool keeps the same guard behind its own flag
+    msg = _error(
+        call(
+            client,
+            tokens["adm"],
+            "delete_document",
+            {"document_id": doc["id"], "confirm": doc["title"]},
+        )
+    )
+    assert "clear_elevation" in msg
+    r = client.delete(
+        f"{base}/documents/{doc['id']}", headers=adm, params={"clear_elevation": "true"}
+    )
+    assert r.status_code == 204, r.text
+    assert _building(client, world, "A")["elevation_sheet_id"] is None
+    audit = client.get(f"{base}/audit", headers=adm, params={"limit": 20}).json()["items"]
+    row = next(a for a in audit if a["entity_type"] == "document" and a["action"] == "delete")
+    assert row["before"]["cleared_floor_pickers"] == ["A"]

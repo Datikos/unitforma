@@ -116,8 +116,7 @@ services:
       postgres: { condition: service_healthy }
     networks: [internal]
     restart: "no"
-    # Inherits the image HEALTHCHECK (HTTP probe on :8000) but serves no HTTP; disabled until the
-    # Procrastinate heartbeat check from plan §17 exists.
+    # one-shot migration: it serves nothing and exits, so the image's HTTP probe stays off
     healthcheck: { disable: true }
     logging: *default-logging
 
@@ -156,9 +155,13 @@ services:
       storage: { condition: service_healthy }
     restart: unless-stopped
     networks: [internal, egress]
-    # Inherits the image HEALTHCHECK (HTTP probe on :8000) but serves no HTTP; disabled until the
-    # Procrastinate heartbeat check from plan §17 exists.
-    healthcheck: { disable: true }
+    # the worker touches a file after each heartbeat to PostgreSQL (BACKLOG 8, plan §17)
+    healthcheck:
+      test: ["CMD", "python", "-m", "unitforma.healthcheck", "worker"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     logging: *default-logging
 
   worker-heavy:
@@ -174,9 +177,13 @@ services:
     restart: unless-stopped
     networks: [internal]
     tmpfs: ["/tmp:size=4g"]
-    # Inherits the image HEALTHCHECK (HTTP probe on :8000) but serves no HTTP; disabled until the
-    # Procrastinate heartbeat check from plan §17 exists.
-    healthcheck: { disable: true }
+    # the worker touches a file after each heartbeat to PostgreSQL (BACKLOG 8, plan §17)
+    healthcheck:
+      test: ["CMD", "python", "-m", "unitforma.healthcheck", "worker"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     logging: *default-logging
 
   scheduler:
@@ -189,9 +196,13 @@ services:
       db-migrate: { condition: service_completed_successfully }
     restart: unless-stopped
     networks: [internal]
-    # Inherits the image HEALTHCHECK (HTTP probe on :8000) but serves no HTTP; disabled until the
-    # Procrastinate heartbeat check from plan §17 exists.
-    healthcheck: { disable: true }
+    # the worker touches a file after each heartbeat to PostgreSQL (BACKLOG 8, plan §17)
+    healthcheck:
+      test: ["CMD", "python", "-m", "unitforma.healthcheck", "worker"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     logging: *default-logging
 
   # ---------------------------------------------------------------- identity

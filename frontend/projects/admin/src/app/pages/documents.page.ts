@@ -845,24 +845,47 @@ export class DocumentsPage {
     this.busy.set(true);
     this.error.set(null);
     try {
-      try {
-        await this.api.deleteDocument(this.tenantId(), d.id);
-      } catch (e) {
-        const p = (e as { error?: { type?: string; units?: number } }).error;
-        if (!p?.type?.endsWith('document-mapped')) throw e;
-        const n = p.units ?? 0;
-        const units = `${n} unit${n === 1 ? '' : 's'}`;
-        const again = await this.dialogs.confirm({
-          title: `${units} outlined on ${d.title}`,
-          message:
-            'Deleting it removes their outlines from the plan and the 3D model. The units keep ' +
-            'their codes, prices and history. Delete anyway?',
-          confirmLabel: `Delete and detach ${units}`,
-          tone: 'bad',
-          icon: 'lucideTrash2',
-        });
-        if (!again) return;
-        await this.api.deleteDocument(this.tenantId(), d.id, true);
+      // each refusal names one consequence; the person accepts it and the call is repeated
+      let detach = false;
+      let clearPicker = false;
+      for (;;) {
+        try {
+          await this.api.deleteDocument(this.tenantId(), d.id, detach, clearPicker);
+          break;
+        } catch (e) {
+          const p = (e as { error?: { type?: string; units?: number; buildings?: string[] } }).error;
+          if (p?.type?.endsWith('document-mapped') && !detach) {
+            const n = p.units ?? 0;
+            const units = `${n} unit${n === 1 ? '' : 's'}`;
+            const again = await this.dialogs.confirm({
+              title: `${units} outlined on ${d.title}`,
+              message:
+                'Deleting it removes their outlines from the plan and the 3D model. The units keep ' +
+                'their codes, prices and history. Delete anyway?',
+              confirmLabel: `Delete and detach ${units}`,
+              tone: 'bad',
+              icon: 'lucideTrash2',
+            });
+            if (!again) return;
+            detach = true;
+          } else if (p?.type?.endsWith('document-holds-elevation') && !clearPicker) {
+            const codes = (p.buildings ?? []).join(', ');
+            const again = await this.dialogs.confirm({
+              title: `${d.title} is the floor picker of ${codes}`,
+              message:
+                'Buyers pick a floor on this elevation drawing. Deleting the document removes the ' +
+                'picker from the portal at the next publication; choose another drawing on the ' +
+                'building card to keep one. Delete anyway?',
+              confirmLabel: 'Delete and remove the picker',
+              tone: 'bad',
+              icon: 'lucideTrash2',
+            });
+            if (!again) return;
+            clearPicker = true;
+          } else {
+            throw e;
+          }
+        }
       }
       this.docs.update((list) => list.filter((x) => x.id !== d.id));
       this.toast.ok(`${d.title} deleted`);

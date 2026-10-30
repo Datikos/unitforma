@@ -158,8 +158,10 @@ candidate only when the project has one building, because `markers_for_building`
 documents only then.
 
 Revisit: proposing the entrance from the drawing (the stair core labels sit on the plan next to the
-units); a second language; drawn footprints for planned buildings; a warning before the document that
-holds a building's elevation sheet is deleted. Browser pass done 2026-10-26 on the published sample
+units); a second language; drawn footprints for planned buildings. Done 2026-10-30 (BACKLOG 26): deleting the document that
+holds a building's elevation sheet answers 409 `document-holds-elevation` naming the buildings until
+the caller sends `clear_elevation` (the admin dialog asks, the MCP tool has the flag); the audit row
+lists the cleared pickers. Browser pass done 2026-10-26 on the published sample
 project: the admin building "Shown to buyers" row (construction status, completion, elevation drawing
 picker, terms), the portal units table view with its filters, the building page with the floor list, the
 project page with the site plan and legend. The elevation floor picker, the construction-status colours,

@@ -134,6 +134,8 @@ function sectionFillHook(
 @Component({
   selector: 'uf-massing-viewer',
   template: `
+    <!-- pointer picking on a 3D canvas; every unit is also reachable from the lists beside it -->
+    <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
     <div class="mv" #host (pointermove)="onMove($event)" (click)="onClick($event)">
       <canvas #canvas></canvas>
       <div class="mv__badge">{{ badge() }}</div>

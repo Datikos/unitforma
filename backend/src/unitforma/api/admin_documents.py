@@ -105,13 +105,20 @@ async def update_document(document_id: uuid.UUID, body: DocumentUpdate, ctx: Ctx
 
 
 @router.delete("/documents/{document_id}", status_code=204)
-async def delete_document(document_id: uuid.UUID, ctx: Ctx, detach_units: bool = False):
+async def delete_document(
+    document_id: uuid.UUID, ctx: Ctx, detach_units: bool = False, clear_elevation: bool = False
+):
     """Delete the document, its revisions, sheets and files; 409 document-mapped while units are
-    outlined on it unless ``detach_units`` (ADR-0012 Decision 2)."""
+    outlined on it unless ``detach_units`` (ADR-0012 Decision 2), 409 document-holds-elevation
+    while a building's floor picker is drawn on it unless ``clear_elevation`` (ADR-0014)."""
     ctx.require("documents", Action.WRITE)
     d = await _project_of_document(ctx, document_id)
     detached = await documents.delete_document(
-        ctx.session, d, detach_units=detach_units, actor=_actor(ctx)
+        ctx.session,
+        d,
+        detach_units=detach_units,
+        clear_elevation=clear_elevation,
+        actor=_actor(ctx),
     )
     if detached:
         await geometry_service.queue_massing(ctx.tenant_id, d.project_id)

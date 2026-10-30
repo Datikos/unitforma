@@ -361,6 +361,8 @@ const FEATURE_STROKE: Record<string, string> = {
           }
         </section>
       }
+      <!-- a click on the backdrop closes it; Escape closes a modal dialog natively -->
+      <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
       <dialog
         #lightbox
         class="lightbox"

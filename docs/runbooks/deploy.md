@@ -54,3 +54,7 @@ notice. What to do when that happens, or when portal traffic grows past a few th
 
 Attribution stays "© OpenStreetMap contributors" linked to https://www.openstreetmap.org/copyright in
 both modes.
+
+## Health of the workers
+
+`docker compose ps` shows `worker-light`, `worker-heavy` and `scheduler` as healthy while their Procrastinate heartbeat reaches PostgreSQL (`unitforma healthcheck worker`, plan §17). An `unhealthy` worker is not restarted by Compose: read its log, then `docker compose restart <service>`; a document it was processing is queued again by the 10-minute sweep (ADR-0016 Decision 8).

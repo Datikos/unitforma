@@ -84,7 +84,11 @@ async def _ingest_ifc(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict[str,
     async with tenant_session(tenant_id, scope="tenant") as db:
         rev = (
             await db.execute(select(DocumentRevision).where(DocumentRevision.id == revision_id))
-        ).scalar_one()
+        ).scalar_one_or_none()
+        if rev is None or rev.processing_status == "pending":
+            from unitforma.jobs.visibility import NotYetCommitted
+
+            raise NotYetCommitted(f"revision {revision_id} not committed yet")  # ADR-0038
         doc = (
             await db.execute(select(Document).where(Document.id == rev.document_id))
         ).scalar_one()
@@ -440,7 +444,7 @@ async def confirm_plan_links(db: AsyncSession, model: GeometryModel, actor: Acto
             action="confirm_plan_spaces",
             after={"confirmed": done},
         )
-        await relink_model(db, model.id)
+        await queue_relink(db, model)
     return done
 
 
@@ -570,7 +574,11 @@ async def decide(
         before=before,
         after={"status": link.status, "unit_id": str(link.unit_id) if link.unit_id else None},
     )
-    await relink_model(db, link.geometry_model_id)
+    model = (
+        await db.execute(select(GeometryModel).where(GeometryModel.id == link.geometry_model_id))
+    ).scalar_one_or_none()
+    if model is not None:
+        await queue_relink(db, model)
     return link
 
 
@@ -611,6 +619,41 @@ async def _write_areas(db: AsyncSession, link: IfcSpaceLink, unit: Unit) -> None
         )
 
 
+async def queue_relink(db: AsyncSession, model: GeometryModel) -> bool:
+    """Rewrite the model's GLB in a job, not in the request (BACKLOG 15): reading and writing up
+    to 15 MB of object storage would hold the request's database connection. One waiting job per
+    model (queueing lock) and one running (lock); ``stats.relink_pending`` tells the admin page
+    to reload the model when the job has finished. Never raises: a queue outage relinks inline."""
+    from procrastinate.exceptions import AlreadyEnqueued
+
+    from unitforma.jobs.app import app as jobs
+
+    model.stats = {**(model.stats or {}), "relink_pending": True}
+    try:
+        await jobs.configure_task(
+            name="geometry.relink_ifc",
+            queue="geometry",
+            lock=f"relink:{model.id}",
+            queueing_lock=f"relink-wait:{model.id}",
+        ).defer_async(tenant_id=str(model.tenant_id), model_id=str(model.id))
+        return True
+    except AlreadyEnqueued:
+        return True
+    except Exception as e:  # noqa: BLE001 - without a queue the click must still take effect
+        log.warning("geometry.relink_enqueue_failed", model_id=str(model.id), error=str(e)[:200])
+        await relink_model(db, model.id)
+        return False
+
+
+async def run_relink(tenant_id: uuid.UUID, model_id: uuid.UUID) -> dict[str, Any]:
+    """Worker body of ``geometry.relink_ifc``: rewrite the GLB from the links as they are now."""
+    async with tenant_session(tenant_id, scope="tenant") as db:
+        model = await relink_model(db, model_id)
+        if model is None:
+            return {"skipped": "model gone"}
+        return {"model_id": str(model.id), "spaces_confirmed": model.stats.get("spaces_confirmed")}
+
+
 async def relink_model(db: AsyncSession, model_id: uuid.UUID) -> GeometryModel | None:
     """Rewrite the GLB's space extras so confirmed spaces pick as their unit (new object key;
     the previous file is left for in-flight viewers)."""
@@ -634,6 +677,7 @@ async def relink_model(db: AsyncSession, model_id: uuid.UUID) -> GeometryModel |
     model.stats = {
         **(model.stats or {}),
         "spaces_confirmed": sum(1 for v in mapping.values() if v and v.get("unit_id")),
+        "relink_pending": False,
     }
     return model
 

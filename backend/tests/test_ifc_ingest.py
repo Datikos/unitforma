@@ -694,8 +694,13 @@ def test_ifc_upload_links_spaces_to_units_and_confirmation_writes_areas(
         json={"decision": "confirm", "unit_id": units[0]["id"]},
     )
     assert r.status_code == 409
+    # the GLB is rewritten by a job, not in the request (BACKLOG 15): pending until it runs
+    model = client.get(f"{base}/buildings/{b['id']}/model", headers=root).json()
+    assert model["stats"]["relink_pending"] is True
+    _run_relink(client, tid, model)
     # the model's GLB now picks space 1 as the unit
     model = client.get(f"{base}/buildings/{b['id']}/model", headers=root).json()
+    assert model["stats"]["relink_pending"] is False
     glb = client.get(model["glb_url"]).content
     gltf, _ = parse_glb(glb)
     space1 = next(
@@ -780,6 +785,8 @@ def test_ifc_without_spaces_takes_the_plan_outlines(kratos: FakeKratos, client: 
     assert r.status_code == 200 and r.json() == {"confirmed": 2}, r.text
     links = client.get(f"{base}/buildings/{b['id']}/ifc-links", headers=root).json()
     assert {lk["status"] for lk in links} == {"confirmed"}
+    model = client.get(f"{base}/buildings/{b['id']}/model", headers=root).json()
+    _run_relink(client, tid, model)  # BACKLOG 15: the rewrite is a job
     model = client.get(f"{base}/buildings/{b['id']}/model", headers=root).json()
     gltf, _ = parse_glb(client.get(model["glb_url"]).content)
     picked = {
@@ -894,3 +901,40 @@ def test_ifc_without_spaces_takes_the_plan_outlines(kratos: FakeKratos, client: 
     result = client.portal.call(ingest_ifc, tid, uuid.UUID(rev_b["id"]))
     assert result["status"] == "ready" and result["stats"]["spaces"] == 0
     assert "no calibrated unit outline" in result["stats"]["plan_fit"]["reason"]
+
+
+def _run_relink(client, tid, model: dict) -> None:
+    """Run the relink job a confirmation queued (BACKLOG 15) on the app's event loop."""
+    from unitforma.geometry.ifc_service import run_relink
+
+    client.portal.call(run_relink, uuid.UUID(str(tid)), uuid.UUID(model["id"]))
+
+
+def _without_length_unit(data: bytes) -> bytes:
+    """The same file with its length unit taken out of the unit assignment."""
+    f = ifcopenshell.file.from_string(data.decode("utf-8"))
+    for ua in f.by_type("IfcUnitAssignment"):
+        units = [u for u in ua.Units if getattr(u, "UnitType", None) != "LENGTHUNIT"]
+        ua.Units = units
+    return f.to_string().encode("utf-8")
+
+
+def test_the_declared_length_unit_and_the_size_land_in_the_stats():
+    """ADR-0006 E7: the stats name the file's length unit and the building's size."""
+    m = ifc.read_ifc(make_ifc(spaces=False))
+    assert m.stats["length_unit"] == "METRE"
+    assert m.stats["size_m"][0] == pytest.approx(16.0, abs=0.05)
+    assert m.stats["unit_warnings"] == []
+    mm = ifc.read_ifc(make_ifc(spaces=False, millimetres=True))
+    assert mm.stats["length_unit"] == "MILLIMETRE" and mm.stats["unit_warnings"] == []
+    assert mm.stats["size_m"][0] == pytest.approx(16.0, abs=0.05)
+
+
+def test_an_undeclared_unit_warns_and_an_impossible_size_is_refused():
+    """No length unit and metre-sized numbers: converted, with a warning. No length unit and
+    millimetre numbers (16 000 m across): refused with a message for the architect."""
+    m = ifc.read_ifc(_without_length_unit(make_ifc(spaces=False)))
+    assert m.stats["length_unit"] is None
+    assert m.stats["unit_warnings"] == ["The file declares no length unit; metres were assumed."]
+    with pytest.raises(ifc.IfcError, match="declares no length unit"):
+        ifc.read_ifc(_without_length_unit(make_ifc(spaces=False, millimetres=True)))

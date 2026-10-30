@@ -23,7 +23,7 @@ export function formatPrice(amount: string | number | null | undefined, currency
 /** User input → decimal string with at most two decimals; '' → null; invalid → undefined. */
 export function parsePriceInput(v: unknown): string | null | undefined {
   if (v === null || v === undefined) return null;
-  let s = String(v).trim().replace(/[\s  ]/g, '');
+  let s = String(v).trim().replace(/[\s\u00a0\u202f]/g, '');
   if (s === '') return null;
   if (!s.includes('.') && /,\d{1,2}$/.test(s)) s = s.replace(',', '.');
   s = s.replace(/,/g, '');

@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { DestroyRef, Component, computed, inject, input, signal } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -274,7 +274,7 @@ interface MassingStats {
             @for (lk of links(); track lk.id) {
               <tr [class.sel]="selectedLink()?.id === lk.id" (click)="selectLink(lk)">
                 <td>{{ lk.name || lk.ifc_global_id }}@if (lk.long_name) { <span class="uf-hint"> · {{ lk.long_name }}</span> }@if (lk.source === 'plan') { <span class="uf-chip uf-tone-info">from plan</span> }</td>
-                <td>{{ lk.storey_name }}@if (lk.storey_elevation_m != null) { <span class="uf-hint"> {{ lk.storey_elevation_m }}</span> }</td>
+                <td>{{ lk.storey_name }}@if (lk.storey_elevation_m !== null && lk.storey_elevation_m !== undefined) { <span class="uf-hint"> {{ lk.storey_elevation_m }}</span> }</td>
                 <td>{{ lk.floor_level ?? '—' }}</td>
                 <td class="num">{{ lk.areas['net_floor_area'] ?? '—' }}</td>
                 <td>
@@ -397,6 +397,44 @@ export class MassingPage {
       void this.load();
       void this.loadBuildings();
     });
+    // BACKLOG 25 (ADR-0011 #5): the model follows the mapping, so the page follows the model.
+    // Every 10 s while the tab is visible it asks for the current massing and swaps the viewer
+    // only when a new build replaced it (the signed URL alone changes on every read); an IFC
+    // model whose links were just changed is re-read every 2 s until its GLB is rewritten.
+    let ticks = 0;
+    const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      ticks++;
+      if (this.ifcModel()?.stats?.['relink_pending']) void this.refreshIfc();
+      if (ticks % 5 === 0 && !this.busy()) void this.refreshMassing();
+    }, 2000);
+    inject(DestroyRef).onDestroy(() => clearInterval(timer));
+  }
+
+  /** A new massing build replaced the shown one: show it, keep the viewer otherwise. */
+  async refreshMassing(): Promise<void> {
+    try {
+      const m = await this.api.getMassing(this.tenantId(), this.projectId());
+      const shown = this.model();
+      if (m.status === 'ready' && (!shown || m.id !== shown.id)) {
+        this.model.set(m);
+        if (shown) this.toast.ok('3D model rebuilt with the latest outlines');
+      }
+    } catch {
+      /* a failed poll changes nothing; the next one tries again */
+    }
+  }
+
+  /** The relink job of BACKLOG 15 finished: show the rewritten IFC model. */
+  async refreshIfc(): Promise<void> {
+    const id = this.buildingId();
+    if (!id) return;
+    try {
+      const m = await this.api.buildingModel(this.tenantId(), id);
+      if (m && !m.stats?.['relink_pending']) this.ifcModel.set(m);
+    } catch {
+      /* keep the shown model */
+    }
   }
 
   async loadBuildings(): Promise<void> {
@@ -445,6 +483,16 @@ export class MassingPage {
   exportAdvice(m: BuildingModelOut): { key: string; name: string; value: string; advice: string }[] {
     const opts = (m.stats['export_options'] ?? {}) as Record<string, string>;
     const out: { key: string; name: string; value: string; advice: string }[] = [];
+    // ADR-0006 E7: the file's length unit and a size that does not fit it
+    const unitWarnings = (m.stats['unit_warnings'] ?? []) as string[];
+    unitWarnings.forEach((w, i) =>
+      out.push({
+        key: `length_unit_${i}`,
+        name: 'Length unit',
+        value: String(m.stats['length_unit'] ?? 'not declared'),
+        advice: `${w} Ask the architect to export with the project's units.`,
+      }),
+    );
     const spaces = Number(m.stats['spaces'] ?? 0);
     const v = (k: string) => (opts[k] ?? '').toLowerCase();
     if (spaces === 0 && v('elements_to_export').startsWith('visible')) {
@@ -561,7 +609,8 @@ export class MassingPage {
       const updated = await this.api.decideIfcLink(this.tenantId(), lk.id, { decision, unit_id: unitId });
       this.links.update((list) => list.map((x) => (x.id === lk.id ? updated : x)));
       const id = this.buildingId();
-      if (id) this.ifcModel.set(await this.api.buildingModel(this.tenantId(), id)); // the GLB got a new key after relinking
+      // the GLB is rewritten by a job (BACKLOG 15); the 2 s poll shows it once it is done
+      if (id) this.ifcModel.set(await this.api.buildingModel(this.tenantId(), id));
       this.toast.ok(decision === 'confirm' ? `Space ${updated.name ?? ''} confirmed as ${updated.unit_code ?? 'unit'}` : 'Updated');
     } catch (e) {
       this.error.set(problemMessage(e));
