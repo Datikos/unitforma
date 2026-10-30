@@ -212,6 +212,7 @@ async def collect(
                 extras={"placement_status": b.placement_status},
                 facades=await facade_images(db, project, b),
                 facade_rect=massing.building_rectangle(massing.facade_rings(units)),
+                plates=massing.floor_plates(units),
             )
         )
     stats = {

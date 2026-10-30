@@ -575,6 +575,7 @@ def test_contract_no_internal_fields_in_any_public_response(client, world, publi
                 "unit_type",
                 "building_code",
                 "floor_level",
+                "structure",  # infill, slab or parapet of a floor (ADR-0037 Decision 5)
             }
     assert "SECRET" not in json.dumps(gltf)
     # the non-public media object was never copied into the publication

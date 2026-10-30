@@ -283,8 +283,11 @@ def test_massing_glb_generated_from_approved_boundaries(
     gltf, _ = parse_glb(glb.content)
     names = {n["name"] for n in gltf["nodes"]}
     assert {"A", "A-00-01", "A-00-02", "A-01-01", "A-00-S1"} <= names
-    unit_nodes = [n for n in gltf["nodes"] if "mesh" in n]
+    unit_nodes = [n for n in gltf["nodes"] if "mesh" in n and "unit_id" in n["extras"]]
     assert len(unit_nodes) == 7
+    # ADR-0037 Decision 5: each floor also has its infill and slab band, the top one a parapet
+    structure = {n["extras"].get("structure") for n in gltf["nodes"] if "mesh" in n} - {None}
+    assert {"slab", "parapet"} <= structure
     first_floor = [n for n in unit_nodes if n["extras"]["floor_level"] == 1]
     assert first_floor and all(
         gltf["accessors"][gltf["meshes"][n["mesh"]]["primitives"][0]["attributes"]["POSITION"]][

@@ -138,6 +138,7 @@ import {
                 <uf-massing-viewer
                   class="model"
                   [src]="api.asset(b.model?.url ?? d.massing?.url)"
+                  [srcMatrix]="b.model?.site_matrix ?? null"
                   [badge]="
                     b.model?.disclaimer ??
                     'Schematic model generated from floor plans — not an architectural model'

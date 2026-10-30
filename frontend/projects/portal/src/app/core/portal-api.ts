@@ -125,6 +125,9 @@ export interface BuildingDoc {
     kind: string;
     disclaimer: string;
     built_at: string | null;
+    /** Where the model sits on the site (glTF metres, column-major); null or absent when it
+     * cannot be placed, so the site view keeps the schematic model (ADR-0037 Decision 3). */
+    site_matrix?: number[] | null;
   } | null;
   /** The elevation floor picker when the reviewer chose a sheet and its markers matched (ADR-0014). */
   elevation?: ElevationDoc | null;

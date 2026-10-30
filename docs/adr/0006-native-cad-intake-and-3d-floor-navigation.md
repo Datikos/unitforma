@@ -336,6 +336,9 @@ Phase E: follow-ups found while implementing B and C (open)
       `create_shape` per product; measure on a real export first.
 - [ ] E6 Place the IFC model on the site (`model_transform` from the building's `site_transform`)
       so the project page can show it in the site frame.
+      *2026-10-30:* done by ADR-0037 for a model with an accepted plan fit (the matrix is
+      composed at read time from the fit and the placement, not stored); an IFC with its own zones
+      and no plan fit stays off the site (BACKLOG 24).
 - [ ] E7 Reject or warn on an IFC export whose length unit is not declared (footprints a thousand
       times too small); show the unit in the model stats.
 

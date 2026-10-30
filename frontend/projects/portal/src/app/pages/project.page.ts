@@ -5,12 +5,13 @@ import { Router, RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { PlanPolygon, PlanViewerComponent } from 'plan-viewer';
 import { EmptyStateComponent, StatusChipComponent, UF_ICONS } from 'ui';
-import type { MassingUnitInfo, SiteFeature3D } from 'viewer-3d';
+import type { MassingUnitInfo, PlacedModel, SiteFeature3D } from 'viewer-3d';
 import { MassingViewerComponent } from 'viewer-3d';
 import { detectCapabilities } from '../core/capabilities';
 import { AVAILABILITY, CONSTRUCTION, area, areaRange, money } from '../core/format';
 import { LayoutDoc, PortalApi, ProjectDoc, UnitMedia, problemOf } from '../core/portal-api';
 import { SiteStore } from '../core/site.store';
+import { siteBadge } from './site-view.model';
 
 /** Site feature colours on the 2D site plan; the 3D viewer uses the same hues. */
 const FEATURE_FILL: Record<string, string> = {
@@ -175,6 +176,8 @@ const FEATURE_STROKE: Record<string, string> = {
             <div class="explore__3d" [class.explore__3d--split]="gallery().length">
               <uf-massing-viewer
                 [src]="api.asset(d.massing.url)"
+                [models]="placedModels()"
+                [badge]="siteBadge()"
                 [unitColors]="unitColors()"
                 [tintMode]="tint()"
                 [siteFeatures]="siteFeatures3d()"
@@ -701,6 +704,16 @@ export class ProjectPage {
     const i = this.lightboxIndex();
     return i === null ? null : (this.gallery()[i] ?? null);
   });
+  /** Buildings whose architect's model sits on the site replace their schematic one (ADR-0037). */
+  readonly placedModels = computed<PlacedModel[]>(() =>
+    (this.doc()?.buildings ?? []).flatMap((b) => {
+      const src = b.model ? this.api.asset(b.model.url) : null;
+      const matrix = b.model?.site_matrix;
+      return src && matrix?.length === 16 ? [{ src, matrix, buildingCode: b.code }] : [];
+    }),
+  );
+  /** The disclaimer names which buildings are the architect's model and which are schematic. */
+  readonly siteBadge = computed(() => siteBadge(this.doc()?.buildings ?? []));
   readonly siteFeatures3d = computed<SiteFeature3D[]>(() =>
     (this.doc()?.site?.features ?? [])
       .filter((f) => f.ring_m && f.ring_m.length >= 3)
