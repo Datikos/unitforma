@@ -1,6 +1,6 @@
 # Backlog
 
-State on 2026-10-30: 40 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, 0026, 0027, 0028, 0030, 0031, 0032, 0033, plan Phases 5 to 7 and
+State on 2026-10-30: 39 open items across ADR-0006, 0007, 0008, 0010, 0011, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0020, 0022, 0026, 0027, 0028, 0030, 0031, 0032, 0033, plan Phases 5 to 7 and
 the plan's open questions. The ADRs own the items; this file owns the order. A row is deleted when its item
 is ticked in its ADR; a new item goes into its ADR first, then here. Rows that share one code area or one
 outside input are one row with every reference. Sizes: S up to a day, M a few days, L a week or more.
@@ -42,7 +42,6 @@ decided out the same day and reopened, widened to manual intake, on 2026-10-27 (
 | 19 | IFC performance on a real export: tessellation through the iterator with threads, and Draco in the browser measured on a ≈ 10 MB model on desktop Chrome, iOS Safari and a mid-range Android (PoC V7) with the `<model-viewer>` fallback. | ADR-0006 #E5, ADR-0006 C2a, plan PoC V7 | a real IFC, devices | M |
 | 20 | Remaining open questions: O2 countries and currencies, O3 reservations, O4 email provider, O7 marketing site, O8 pilot developer. | plan §1 O2–O8 | owner's decisions | — |
 | 21 | Unitless DXF with a printed scale: derive the sheet size from the scale before manual calibration. | ADR-0006 #E1 | a real DXF | S |
-| 22 | Georgian glyphs on the DXF preview raster: ship a Georgian font in the worker image. | ADR-0006 #E2 | — | S |
 | 24 | Place on the site an IFC model with its own zones and no plan fit (a model with a plan fit is placed since ADR-0037). | ADR-0006 #E6 | placement of the building | M |
 | 27 | Entrance proposed from the drawing: the stair-core labels next to the units on the plan, confirmed like the unit labels. | ADR-0014 Revisit | a real sheet with entrance labels | M |
 | 28 | Drawn footprints for planned buildings, so a house without drawings shows grey on the site plan as on lisihouse.ge. | ADR-0014 Revisit, plan §7.1 | — | M |

@@ -325,8 +325,22 @@ Phase E: follow-ups found while implementing B and C (open)
 - [ ] E1 Unitless DXF (`$INSUNITS = 0`) that prints a scale string: derive `page_pt` from the
       printed scale instead of raw drawing units so printed-area matches are trustworthy before
       a manual calibration (`documents/cad_dxf.py`, `mapping/service.sheet_metres`).
-- [ ] E2 Preview raster of a DXF: ship a font with Georgian glyphs (e.g. Noto Sans Georgian, OFL)
+- [x] E2 Preview raster of a DXF: ship a font with Georgian glyphs (e.g. Noto Sans Georgian, OFL)
       in the worker image and use it in `DxfDrawing.rasterize` instead of Pillow's default font.
+      *Done 2026-10-30 (BACKLOG 22):* two fonts under `documents/fonts/`, so they reach every
+      image role through `COPY src` and the dev stack through its source mount:
+      `NotoSansGeorgian-Regular.ttf` from release NotoSansGeorgian-v2.005 (2024-02-14,
+      https://github.com/notofonts/georgian/releases, SHA-256 `89207521…f3364d`) and the unhinted
+      `NotoSans-Regular.ttf` from NotoSans-v2.015 (2024-11-20,
+      https://github.com/notofonts/latin-greek-cyrillic/releases, SHA-256 `f3961a9c…48b0e8`),
+      both SIL OFL 1.1 with their licence files next to them (520 KB together). Two fonts because
+      Noto Sans Georgian has no ², ±, − or × and Noto Sans has no Georgian (cmaps read with
+      fontTools 4.60.1); Pillow 13.0.0 without libraqm does no font fallback, so
+      `documents/preview_text.py` cuts a label into Georgian and other runs (U+10A0–10FF,
+      U+1C90–1CBF, U+2D00–2D2F) and draws them side by side. A missing font file fails the
+      rasterisation instead of dropping every label. Tests: `test_dxf_preview_text.py` (runs, a
+      glyph for every character a plan label uses, a Georgian label and a row of empty boxes
+      render differently; that test fails on the old code).
 - [x] E3 IFC link confirmation: move the GLB rewrite (`ifc_service.relink_model`) out of the request
       into a `geometry` job so no database connection is held across storage I/O.
       *Done 2026-10-30 (BACKLOG 15):* `decide` and `confirm_plan_links` queue `geometry.relink_ifc`

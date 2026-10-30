@@ -21,7 +21,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from unitforma.documents import labels
+from unitforma.documents import labels, preview_text
 
 MIME = "application/dxf"
 ALIASES = frozenset({"application/dxf", "image/vnd.dxf", "application/x-dxf", "image/x-dxf"})
@@ -141,9 +141,12 @@ class DxfDrawing:
     def rasterize(
         self, page_no: int, long_edge: int = 4000, thumb_edge: int = 320
     ) -> tuple[bytes, bytes, int, int]:
-        """(png, thumbnail_png, width, height): fills in their colour, lines dark, text in a
-        default font sized to the text height."""
-        from PIL import Image, ImageDraw, ImageFont
+        """(png, thumbnail_png, width, height): fills in their colour, lines dark, text sized to
+        the text height in Noto Sans Georgian and Noto Sans (``preview_text``)."""
+        from PIL import Image, ImageDraw
+
+        preview_text.font(True, 12)  # a missing font file fails the job, not every label
+        preview_text.font(False, 12)
 
         info = self.layout(page_no)
         w_u = info.extent[2] - info.extent[0]
@@ -169,9 +172,8 @@ class DxfDrawing:
         for wd in geo.words:
             px = max(6, int(round((wd["y1"] - wd["y0"]) * height)))
             try:
-                font = ImageFont.load_default(size=px)
-                draw.text(
-                    (wd["x0"] * width, wd["y0"] * height), wd["t"], fill=(20, 20, 20), font=font
+                preview_text.draw_label(
+                    draw, (wd["x0"] * width, wd["y0"] * height), wd["t"], px, (20, 20, 20)
                 )
             except Exception:  # noqa: BLE001, S112 - text on the preview is best effort
                 continue
