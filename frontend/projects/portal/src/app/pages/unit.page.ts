@@ -183,6 +183,7 @@ import { planViews, stepIndex, swipeDirection } from './unit.model';
                 <uf-massing-viewer
                   class="model__view"
                   [src]="api.asset(building()?.model?.url ?? doc()?.massing?.url)"
+                  [srcMatrix]="building()?.model?.site_matrix ?? null"
                   [badge]="
                     building()?.model?.disclaimer ??
                     'Schematic model generated from floor plans — not an architectural model'

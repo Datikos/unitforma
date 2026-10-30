@@ -18,6 +18,12 @@ import struct
 from dataclasses import dataclass, field
 from typing import Any
 
+import shapely
+from shapely import affinity
+from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry.base import BaseGeometry
+from shapely.ops import unary_union
+
 Point = tuple[float, float]
 Ring = list[Point]
 
@@ -25,6 +31,16 @@ DISCLAIMER = "Schematic model generated from floor plans — not an architectura
 GENERATOR = "unitforma-massing"
 
 ROOF_COLOUR = [0.84, 0.85, 0.87, 1.0]
+# ADR-0037 Decision 5: the floors around the units. A plate closes the gaps between a floor's
+# outlines (corridors, walls, stair cores) up to twice this width
+PLATE_CLOSE_M = 2.0
+PLATE_MIN_AREA_M2 = 2.0
+SLAB_BAND_M = 0.3
+SLAB_OVERHANG_M = 0.15
+PARAPET_M = 1.0
+PARAPET_THICK_M = 0.25
+INFILL_COLOUR = [0.80, 0.81, 0.82, 1.0]
+SLAB_COLOUR = [0.60, 0.62, 0.65, 1.0]
 TYPE_COLOURS = {
     "apartment": [0.86, 0.88, 0.92, 1.0],
     "commercial": [0.96, 0.80, 0.55, 1.0],
@@ -104,6 +120,60 @@ class BuildingSolids:
     # from a subset (the portal keeps listed units only) maps the drawings exactly as the admin
     # page's ``sides`` describe them
     facade_rect: list[Point] | None = None
+    # the floors drawn around the units, from every current outline of the building (ADR-0037
+    # Decision 5), so a GLB of listed units only still shows a closed building
+    plates: list[FloorPlate] = field(default_factory=list)
+
+
+@dataclass
+class FloorPlate:
+    """One floor of a building as the schematic model draws it (ADR-0037 Decision 5)."""
+
+    level: int
+    base_m: float
+    height_m: float
+    polygon: BaseGeometry  # building-local metres, Polygon or MultiPolygon
+
+
+def _polygons(geom: BaseGeometry) -> list[Polygon]:
+    if isinstance(geom, Polygon):
+        return [geom] if not geom.is_empty else []
+    if isinstance(geom, MultiPolygon):
+        return [g for g in geom.geoms if not g.is_empty]
+    return [g for g in getattr(geom, "geoms", []) if isinstance(g, Polygon) and not g.is_empty]
+
+
+def floor_plates(units: list[UnitSolid]) -> list[FloorPlate]:
+    """Per floor the morphological closing of its outlines (``PLATE_CLOSE_M``): the corridor,
+    the walls and the stair cores between the units become floor, a courtyard wider than twice
+    the width stays open. Pieces under ``PLATE_MIN_AREA_M2`` are dropped."""
+    by_level: dict[int, list[UnitSolid]] = {}
+    for u in units:
+        if len(u.ring_m) >= 3:
+            by_level.setdefault(u.floor_level, []).append(u)
+    out: list[FloorPlate] = []
+    for level, items in sorted(by_level.items()):
+        shapes = [Polygon(u.ring_m).buffer(0) for u in items]
+        union = unary_union([p for p in shapes if not p.is_empty])
+        if union.is_empty:
+            continue
+        closed = union.buffer(PLATE_CLOSE_M, join_style=2, mitre_limit=5.0).buffer(
+            -PLATE_CLOSE_M, join_style=2, mitre_limit=5.0
+        )
+        plate = unary_union(
+            [p for p in _polygons(closed.union(union)) if p.area >= PLATE_MIN_AREA_M2]
+        ).simplify(0.05, preserve_topology=True)
+        if plate.is_empty:
+            continue
+        out.append(
+            FloorPlate(
+                level=level,
+                base_m=min(u.base_m for u in items),
+                height_m=max(u.height_m for u in items),
+                polygon=plate,
+            )
+        )
+    return out
 
 
 # --- building rectangle: the four sides a facade drawing can be mapped to ---------------------
@@ -327,6 +397,52 @@ def extrude(ring_site: Ring, base: float, height: float) -> tuple[list[float], l
     return positions, indices
 
 
+def extrude_polygon(
+    geom: BaseGeometry, base: float, height: float
+) -> tuple[list[float], list[int]]:
+    """``extrude`` for polygons with holes (site metres, X/Z plane): walls around the outer ring
+    and every hole, caps from a constrained triangulation."""
+    positions: list[float] = []
+    indices: list[int] = []
+    top = base + height
+    for poly in _polygons(geom):
+        rings = [(list(poly.exterior.coords)[:-1], True)]
+        rings += [(list(r.coords)[:-1], False) for r in poly.interiors]
+        for ring, outer in rings:
+            if len(ring) < 3:
+                continue
+            # outward walls: the outer ring clockwise on the sheet, a hole the other way
+            if (signed_area(ring) > 0) == outer:
+                ring.reverse()
+            n, o = len(ring), len(positions) // 3
+            for x, z in ring:
+                positions += [x, base, z]
+            for x, z in ring:
+                positions += [x, top, z]
+            for i in range(n):
+                j = (i + 1) % n
+                indices += [o + i, o + n + i, o + j, o + j, o + n + i, o + n + j]
+        for tri in shapely.constrained_delaunay_triangles(poly).geoms:
+            pts = list(tri.exterior.coords)[:3]
+            if signed_area(pts) > 0:
+                pts.reverse()
+            o = len(positions) // 3
+            for x, z in pts:
+                positions += [x, top, z]
+            for x, z in pts:
+                positions += [x, base, z]
+            indices += [o, o + 1, o + 2, o + 3, o + 5, o + 4]
+    return positions, indices
+
+
+def _placed_polygon(geom: BaseGeometry, placement: Placement) -> BaseGeometry:
+    """Building-local metres → site metres (``Placement.apply`` on a shapely geometry)."""
+    a = math.radians(placement.rotation_deg)
+    k = placement.scale
+    c, s = math.cos(a) * k, math.sin(a) * k
+    return affinity.affine_transform(geom, [c, -s, s, c, placement.tx, placement.ty])
+
+
 # --- GLB assembly --------------------------------------------------------------------------
 def _pad4(b: bytes, fill: bytes) -> bytes:
     return b + fill * ((4 - len(b) % 4) % 4)
@@ -389,6 +505,25 @@ class _GltfBuilder:
                 }
             )
         return self._material_index[unit_type]
+
+    def material_plain(self, name: str, colour: list[float], role: str) -> int:
+        """A neutral material the viewer never tints: the infill and slabs of the floors."""
+        key = f"#{name}"
+        if key not in self._material_index:
+            self._material_index[key] = len(self.materials)
+            self.materials.append(
+                {
+                    "name": name,
+                    "doubleSided": True,
+                    "pbrMetallicRoughness": {
+                        "baseColorFactor": colour,
+                        "metallicFactor": 0.0,
+                        "roughnessFactor": 0.95,
+                    },
+                    "extras": {"role": role},
+                }
+            )
+        return self._material_index[key]
 
     def material_roof(self) -> int:
         """Caps of every unit: a neutral light grey the viewer never tints by availability
@@ -591,6 +726,7 @@ def build_glb(
             for k in range(3):
                 bbox_min[k] = min(bbox_min[k], min(positions[k::3]))
                 bbox_max[k] = max(bbox_max[k], max(positions[k::3]))
+        children += _floor_nodes(b, bld)
         roots.append(
             b.node(
                 bld.code,
@@ -718,3 +854,50 @@ def _split_facade_walls(
         for k, tris in per_side.items()
     ]
     return plain, textured
+
+
+def _floor_nodes(b: _GltfBuilder, bld: BuildingSolids) -> list[int]:
+    """Infill, slab band and parapet of every plate (ADR-0037 Decision 5): neutral, no
+    ``unit_id``, so never picked; ``floor_level`` lets the viewer fade them with their floor.
+    The infill is the plate minus the units of this GLB, so an unlisted unit of the public model
+    becomes infill rather than a hole."""
+    nodes: list[int] = []
+    if not bld.plates:
+        return nodes
+    top_level = max(p.level for p in bld.plates)
+    by_level: dict[int, list[Polygon]] = {}
+    for u in bld.units:
+        if len(u.ring_m) >= 3:
+            by_level.setdefault(u.floor_level, []).append(Polygon(u.ring_m).buffer(0))
+    infill_mat = b.material_plain("infill", INFILL_COLOUR, "infill")
+    slab_mat = b.material_plain("slab", SLAB_COLOUR, "slab")
+    roof_mat = b.material_roof()
+    for plate in bld.plates:
+        base = bld.placement.elevation + plate.base_m
+        pieces: list[tuple[str, BaseGeometry, float, float, int]] = []
+        units = unary_union(by_level.get(plate.level, []))
+        infill = plate.polygon.difference(units) if not units.is_empty else plate.polygon
+        # slivers along shared edges are not infill
+        opened = infill.buffer(-0.05, join_style=2, mitre_limit=5.0).buffer(
+            0.05, join_style=2, mitre_limit=5.0
+        )
+        infill = unary_union([p for p in _polygons(opened) if p.area >= 0.5]).simplify(
+            0.05, preserve_topology=True
+        )
+        if not infill.is_empty:
+            pieces.append(("infill", infill, base, plate.height_m, infill_mat))
+        band = plate.polygon.buffer(SLAB_OVERHANG_M, join_style=2, mitre_limit=5.0)
+        pieces.append(("slab", band, base - SLAB_BAND_M / 2, SLAB_BAND_M, slab_mat))
+        if plate.level == top_level:
+            rim = plate.polygon.difference(
+                plate.polygon.buffer(-PARAPET_THICK_M, join_style=2, mitre_limit=5.0)
+            )
+            pieces.append(("parapet", rim, base + plate.height_m, PARAPET_M, roof_mat))
+        for kind, geom, at, height, mat in pieces:
+            positions, indices = extrude_polygon(_placed_polygon(geom, bld.placement), at, height)
+            if not indices:
+                continue
+            extras = {"building_code": bld.code, "floor_level": plate.level, "structure": kind}
+            name = f"{bld.code}-{kind}-{plate.level}"
+            nodes.append(b.node(name, b.mesh(name, positions, indices, mat, extras), [], extras))
+    return nodes

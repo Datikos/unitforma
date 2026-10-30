@@ -29,6 +29,7 @@ from unitforma.geometry.service import (
     registration_used,
     shifted,
 )
+from unitforma.geometry.site_matrix import site_matrix_of
 from unitforma.storage.service import get_storage, object_key
 from unitforma.tenants.models import (
     Building,
@@ -712,3 +713,38 @@ async def realigned_levels(db: AsyncSession, model: GeometryModel) -> list[int]:
             if f"{s}:{fl}" in current and at is not None and at > model.created_at
         }
     return sorted({level_of[k.split(":", 1)[1]] for k in keys if k.split(":", 1)[1] in level_of})
+
+
+async def site_matrix(
+    db: AsyncSession, model: GeometryModel, building: Building
+) -> list[float] | None:
+    """The model's matrix onto the site (ADR-0037 Decision 1), or None when it cannot be placed:
+    no accepted plan fit, no fit storey elevation (converted before ADR-0037), the building not
+    placed, or the model not ready."""
+    pf = (model.stats or {}).get("plan_fit")
+    offset = (model.stats or {}).get("offset_m")
+    if (
+        model.status != "ready"
+        or building.placement_status == "unplaced"
+        or not isinstance(pf, dict)
+        or pf.get("reason")
+        or pf.get("storey_elevation_m") is None
+        or not isinstance(offset, list)
+        or len(offset) != 3
+    ):
+        return None
+    floors = list(
+        (await db.execute(select(Floor).where(Floor.building_id == building.id))).scalars()
+    )
+    fit_floor = next((f for f in floors if f.level == pf.get("floor_level")), None)
+    if fit_floor is None:
+        return None
+    return site_matrix_of(
+        rotation_deg=float(pf["rotation_deg"]),
+        tx=float(pf["tx"]),
+        ty=float(pf["ty"]),
+        offset_m=offset,
+        placement=building.site_transform or {},
+        fit_base_m=floor_elevations(floors)[fit_floor.id][0],
+        storey_elevation_m=float(pf["storey_elevation_m"]),
+    )

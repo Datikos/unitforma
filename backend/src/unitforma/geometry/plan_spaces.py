@@ -192,6 +192,10 @@ def build(
         "per_level": best_fit["per_level"],
         "floor_level": fit_level,
         "storey": target_storey[fit_level].name if fit_level in target_storey else None,
+        # the fit storey's IFC elevation: the vertical anchor of the model on the site (ADR-0037)
+        "storey_elevation_m": (
+            target_storey[fit_level].elevation_m if fit_level in target_storey else None
+        ),
         "face": face_kind.get(fit_level),
         "min_iou": plan_fit.IFC_PLAN_FIT_MIN_IOU,
     }

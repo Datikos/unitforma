@@ -848,6 +848,9 @@ async def _building_model(
         "kind": "ifc",
         "disclaimer": ifc.DISCLAIMER,
         "built_at": model.created_at.isoformat() if model.created_at else None,
+        # where the model sits on the site, glTF metres, column-major; null = not placeable,
+        # the site view keeps the schematic model for this building (ADR-0037 Decision 3)
+        "site_matrix": await ifc_service.site_matrix(db, model, b),
     }
 
 

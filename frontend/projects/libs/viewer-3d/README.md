@@ -45,6 +45,25 @@ device pixel ratio of 1.5 (full) and 600 × 700 at 2 (edges); about 100 MB of JS
 loaded. The massing of A-9/10 (99 units) at the same size: 60 fps on `edges`, 52–55 on `full`
 under a load average of about 6. Phones: not measured.
 
+## The schematic model as floors (ADR-0037 Decision 5 and 6)
+
+Besides one mesh per unit, the schematic GLB carries per floor an infill mesh (the floor plate, the
+closing of the floor's outlines by 2 m, minus the units), a slab band 0.3 m thick and, on the top
+floor, a parapet 1 m high; their nodes carry `structure`, `floor_level` and `building_code` and no
+`unit_id`, so they are never picked and fade with their floor. In site metres the ground lies at
+y 0, level 0's base: floors below ground are hidden under it until one is picked, which lowers the
+ground (and the site features) to that floor's base.
+
+## Several models in one scene (ADR-0037)
+
+`models` (`PlacedModel`: `src`, `matrix`, `buildingCode`) loads more GLBs next to `src`, each under
+its own group with the column-major matrix the snapshot carries (`building.model.site_matrix`), and
+`srcMatrix` places `src` itself. The portal project page draws each building whose architect's
+model can be placed that way, and hides that building's schematic meshes; a model that fails to load
+leaves them. "IFC" is a property of a mesh (`userData.ifc`): its spaces are glass and get no line
+geometry, the floor cut applies when `src` itself is an IFC model. Camera, look and ground span the
+root group of every model.
+
 ## A picked floor of the IFC model is cut open (ADR-0036)
 
 The IFC model merges each element class and colour across all storeys, so a storey cannot be hidden.

@@ -337,7 +337,7 @@ export const GUIDE: Record<GuideKey, GuideEntry> = {
     title: '3D massing',
     icon: 'lucideBox',
     purpose:
-      'A schematic 3D model built from the approved floor outlines and the floor heights. Buyers see it on the portal when their device can load it.',
+      'A schematic 3D model built from the approved floor outlines and the floor heights: each floor is closed over its corridor and cores, with a slab edge at every floor and a parapet on the roof; floors below ground sit under the ground until you pick one. Buyers see it on the portal when their device can load it; a building whose architect’s model is fitted and placed shows that model on the portal’s site view instead.',
     controls: [
       {
         name: 'Floor',

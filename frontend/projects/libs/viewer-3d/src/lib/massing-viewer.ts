@@ -34,6 +34,17 @@ export interface MassingUnitInfo {
   lifecycle_status?: string;
 }
 
+/**
+ * Another GLB drawn in the same scene under a matrix (ADR-0037 Decision 4): the architect's model
+ * of one building on the site; that building's schematic units are hidden.
+ */
+export interface PlacedModel {
+  src: string;
+  /** glTF metres onto the scene's (site) metres, column-major. */
+  matrix: number[];
+  buildingCode: string;
+}
+
 /** A public site feature drawn on the ground (ADR-0016 Decision 3), site-frame metres. */
 export interface SiteFeature3D {
   kind: string;
@@ -199,6 +210,10 @@ function sectionFillHook(
 export class MassingViewerComponent implements OnDestroy {
   /** Signed GLB URL. */
   readonly src = input<string | null>(null);
+  /** Where `src` sits in the scene (glTF metres, column-major); null = as stored (ADR-0037). */
+  readonly srcMatrix = input<number[] | null>(null);
+  /** More GLBs in the same scene, each under its matrix (ADR-0037 Decision 4). */
+  readonly models = input<PlacedModel[] | null>(null);
   /** Focus one floor level: other floors of the focused building are faded (null = all). */
   readonly floorLevel = input<number | null>(null);
   /** Focus one building: other buildings are faded and not pickable (null = all). */
@@ -237,6 +252,12 @@ export class MassingViewerComponent implements OnDestroy {
   private environment: THREE.Group | null = null;
   private sun: THREE.DirectionalLight | null = null;
   private meshes: THREE.Mesh[] = [];
+  /** Infill, slab bands and parapets of the schematic floors: faded with their floor, never
+   * picked (ADR-0037 Decision 5). */
+  private structure: THREE.Mesh[] = [];
+  /** The ground lies at level 0's base (site metres), so floors below ground are under it until
+   * one of them is picked (ADR-0037 Decision 6); false for an IFC model in its own frame. */
+  private groundAtZero = false;
   private raycaster = new THREE.Raycaster();
   private frame = 0;
   private resizeObs: ResizeObserver | null = null;
@@ -249,8 +270,11 @@ export class MassingViewerComponent implements OnDestroy {
   private readonly loader = new GLTFLoader().setDRACOLoader(this.draco);
   /** The pass chain of the architectural look; null on the plain tier (ADR-0033 Decision 4). */
   private look: LookChain | null = null;
-  /** The loaded GLB is an IFC conversion (nodes carry `ifc_class`, ADR-0032): no line geometry. */
+  /** The main GLB (`src`) is an IFC conversion (nodes carry `ifc_class`, ADR-0032): the floor
+   * cut applies. Each mesh of an IFC GLB also carries `userData.ifc` (ADR-0037 Decision 4). */
   private ifcModel = false;
+  /** Bumped per load, so a slower earlier load does not overwrite a later one. */
+  private loadToken = 0;
   /** The cut over the picked floor of an IFC model; at `NO_CUT_Y` when nothing is cut (ADR-0036). */
   private readonly cutPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), NO_CUT_Y);
   private readonly cutPlanes = [this.cutPlane];
@@ -266,8 +290,10 @@ export class MassingViewerComponent implements OnDestroy {
   constructor() {
     effect(() => {
       const url = this.src();
+      const matrix = this.srcMatrix();
+      const extra = this.models() ?? [];
       this.ensureRenderer();
-      if (url) void this.load(url);
+      if (url) void this.load(url, matrix, extra);
     });
     effect(() => {
       this.floorLevel();
@@ -354,8 +380,9 @@ export class MassingViewerComponent implements OnDestroy {
     this.camera.updateProjectionMatrix();
   }
 
-  private async load(url: string): Promise<void> {
+  private async load(url: string, matrix: number[] | null, extra: PlacedModel[]): Promise<void> {
     if (!this.renderer) return;
+    const token = ++this.loadToken;
     this.status.set('Loading model…');
     if (this.model) {
       this.scene.remove(this.model);
@@ -367,6 +394,7 @@ export class MassingViewerComponent implements OnDestroy {
       });
       this.model = null;
       this.meshes = [];
+      this.structure = [];
       this.baseColours.clear();
       this.glbColours.clear();
     }
@@ -376,46 +404,45 @@ export class MassingViewerComponent implements OnDestroy {
     this.cutPlane.constant = NO_CUT_Y;
     this.section.uSectionBand.value.set(NO_CUT_Y, NO_CUT_Y);
     try {
-      const gltf = await this.loader.loadAsync(url);
-      this.model = gltf.scene;
+      const main = await this.loader.loadAsync(url);
+      // a building whose architect's model fails to load keeps its schematic units
+      const placed = await Promise.allSettled(extra.map((e) => this.loader.loadAsync(e.src)));
+      if (token !== this.loadToken) return;
+      const root = new THREE.Group();
+      const hidden = new Set<string>();
+      const parts: { scene: THREE.Group; matrix: number[] | null }[] = [
+        { scene: main.scene, matrix },
+      ];
+      placed.forEach((r, i) => {
+        if (r.status !== 'fulfilled') return;
+        parts.push({ scene: r.value.scene, matrix: extra[i].matrix });
+        hidden.add(extra[i].buildingCode);
+      });
       const infos: MassingUnitInfo[] = [];
       const seen = new Set<string>();
-      this.model.traverse((o) => {
-        if (o.userData['ifc_class']) this.ifcModel = true;
-        if (o instanceof THREE.Mesh) {
-          // materials are shared per unit type in the GLB; clone so highlights stay per unit
-          const mat = (o.material as THREE.MeshStandardMaterial).clone();
-          mat.flatShading = true;
-          o.material = mat;
-          o.castShadow = true;
-          o.receiveShadow = true;
-          // glTF material extras arrive in userData: roof | wall | facade (ADR-0017 Decision 2)
-          o.userData['role'] = (mat.userData?.['role'] as string | undefined) ?? 'wall';
-          this.glbColours.set(o, mat.color.clone());
-          this.baseColours.set(o, mat.color.clone());
-          const x = (o.userData ?? {}) as Partial<MassingUnitInfo>;
-          if (x.unit_id) {
-            this.meshes.push(o);
-            // a unit with facade drawings is several primitives, so several meshes: one info each
-            if (!seen.has(x.unit_id)) seen.add(x.unit_id);
-            else return;
-            infos.push({
-              unit_id: x.unit_id,
-              code: x.code ?? o.name,
-              unit_type: x.unit_type ?? 'apartment',
-              building_code: x.building_code ?? '',
-              floor_level: Number(x.floor_level ?? 0),
-              lifecycle_status: x.lifecycle_status,
-            });
-          }
+      parts.forEach((part, i) => {
+        let ifc = false;
+        part.scene.traverse((o) => {
+          if (o.userData['ifc_class']) ifc = true;
+        });
+        if (i === 0) this.ifcModel = ifc;
+        const group = new THREE.Group();
+        group.add(part.scene);
+        if (part.matrix?.length === 16) {
+          group.matrixAutoUpdate = false;
+          group.matrix.fromArray(part.matrix);
         }
+        root.add(group);
+        this.prepareMeshes(part.scene, ifc, ifc ? new Set() : hidden, infos, seen);
+        if (ifc) this.prepareCut(part.scene);
       });
-      this.scene.add(this.model);
-      if (this.ifcModel) this.prepareCut(this.model);
+      this.model = root;
+      this.scene.add(root);
+      root.updateMatrixWorld(true);
       // a massing unit's lines separate it from its neighbours on a flat facade; the IFC model's
       // lines come from the screen-space pass (ADR-0033 Decision 5)
-      if (!this.ifcModel) this.addEdges();
-      this.look?.setSceneBox(new THREE.Box3().setFromObject(this.model).expandByScalar(1));
+      this.addEdges();
+      this.look?.setSceneBox(new THREE.Box3().setFromObject(root).expandByScalar(1));
       this.buildEnvironment();
       this.frameAll();
       this.applyFocus();
@@ -427,6 +454,52 @@ export class MassingViewerComponent implements OnDestroy {
     }
   }
 
+  /**
+   * Clone each mesh's material (highlights stay per unit), read its role and colours, and collect
+   * the unit meshes; schematic meshes of a building in `hidden` are drawn by its IFC model instead.
+   */
+  private prepareMeshes(
+    scene: THREE.Object3D,
+    ifc: boolean,
+    hidden: Set<string>,
+    infos: MassingUnitInfo[],
+    seen: Set<string>,
+  ): void {
+    scene.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const x = (o.userData ?? {}) as Partial<MassingUnitInfo>;
+      if (hidden.has(x.building_code ?? '')) {
+        o.visible = false;
+        return;
+      }
+      // materials are shared per unit type in the GLB; clone so highlights stay per unit
+      const mat = (o.material as THREE.MeshStandardMaterial).clone();
+      mat.flatShading = true;
+      o.material = mat;
+      o.castShadow = true;
+      o.receiveShadow = true;
+      o.userData['ifc'] = ifc;
+      // glTF material extras arrive in userData: roof | wall | facade (ADR-0017 Decision 2)
+      o.userData['role'] = (mat.userData?.['role'] as string | undefined) ?? 'wall';
+      this.glbColours.set(o, mat.color.clone());
+      this.baseColours.set(o, mat.color.clone());
+      if (o.userData['structure']) this.structure.push(o);
+      if (!x.unit_id) return;
+      this.meshes.push(o);
+      // a unit with facade drawings is several primitives, so several meshes: one info each
+      if (seen.has(x.unit_id)) return;
+      seen.add(x.unit_id);
+      infos.push({
+        unit_id: x.unit_id,
+        code: x.code ?? o.name,
+        unit_type: x.unit_type ?? 'apartment',
+        building_code: x.building_code ?? '',
+        floor_level: Number(x.floor_level ?? 0),
+        lifecycle_status: x.lifecycle_status,
+      });
+    });
+  }
+
   /** Thin dark outlines so floors and units read even on a textured or faded facade. */
   private addEdges(): void {
     const lineMat = new THREE.LineBasicMaterial({
@@ -435,6 +508,7 @@ export class MassingViewerComponent implements OnDestroy {
       opacity: 0.35,
     });
     for (const m of this.meshes) {
+      if (m.userData['ifc']) continue;
       const edges = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 25), lineMat);
       edges.userData['edges'] = true;
       m.add(edges);
@@ -480,7 +554,10 @@ export class MassingViewerComponent implements OnDestroy {
     const env = new THREE.Group();
     const box = new THREE.Box3().setFromObject(this.model);
     const size = box.getSize(new THREE.Vector3());
-    const groundY = Math.min(box.min.y, 0) - 0.02;
+    // site metres (the schematic model, or an architect's model under its matrix): the ground at
+    // level 0's base; an IFC model in its own frame keeps it at its lowest point (ADR-0037)
+    this.groundAtZero = !this.ifcModel || this.srcMatrix()?.length === 16;
+    const groundY = (this.groundAtZero ? 0 : Math.min(box.min.y, 0)) - 0.02;
     const center = new THREE.Vector3(
       (box.min.x + box.max.x) / 2,
       groundY,
@@ -538,6 +615,7 @@ export class MassingViewerComponent implements OnDestroy {
     }
     this.environment = env;
     this.scene.add(env);
+    this.lowerGround(this.floorLevel());
   }
 
   /** Low-poly trees on a deterministic grid inside a garden polygon (no randomness, no data invented). */
@@ -594,9 +672,19 @@ export class MassingViewerComponent implements OnDestroy {
         m.userData['pickable'] = own.has(m);
         this.paint(m, m.userData['unit_id'] === sel ? 'selected' : null);
       }
+      this.lowerGround(lvl);
       return;
     }
+    const sel = this.selectedUnitId();
     for (const m of this.meshes) {
+      if (m.userData['ifc']) {
+        // an architect's model placed among the schematic ones: glass, never cut (ADR-0037)
+        m.visible = true;
+        m.userData['onFloor'] = null;
+        m.userData['pickable'] = own.has(m);
+        this.paint(m, m.userData['unit_id'] === sel ? 'selected' : null);
+        continue;
+      }
       const focus = !own.has(m)
         ? FADE_OTHER_BUILDING
         : lvl !== null && m.userData['floor_level'] !== lvl
@@ -607,6 +695,33 @@ export class MassingViewerComponent implements OnDestroy {
       this.setOpacity(m, opacity);
       m.userData['pickable'] = own.has(m);
     }
+    // the floors around the units fade like their units (ADR-0037 Decision 5)
+    const code = this.buildingCode();
+    for (const m of this.structure) {
+      const mine = code === null || m.userData['building_code'] === code;
+      this.setOpacity(
+        m,
+        !mine
+          ? FADE_OTHER_BUILDING
+          : lvl !== null && m.userData['floor_level'] !== lvl
+            ? FADE_OTHER_FLOOR
+            : 1,
+      );
+    }
+    this.lowerGround(lvl);
+  }
+
+  /** A picked floor below ground lowers the ground to its base; any other choice restores it. */
+  private lowerGround(lvl: number | null): void {
+    if (!this.environment) return;
+    let base = 0;
+    if (this.groundAtZero && lvl !== null) {
+      const box = new THREE.Box3();
+      for (const m of [...this.meshes, ...this.structure])
+        if (m.userData['floor_level'] === lvl && m.visible) box.expandByObject(m);
+      if (!box.isEmpty() && box.min.y < -0.05) base = box.min.y;
+    }
+    this.environment.position.y = base;
   }
 
   private setOpacity(m: THREE.Mesh, opacity: number): void {
@@ -722,7 +837,7 @@ export class MassingViewerComponent implements OnDestroy {
     if (state === 'selected') mat.color.set(0xf59e0b);
     else if (state === 'hover') mat.color.copy(base).lerp(new THREE.Color(0x2563eb), 0.35);
     else mat.color.copy(base);
-    if (this.ifcModel) {
+    if (m.userData['ifc']) {
       // spaces of an IFC model are glass, never a box over the walls (ADR-0036 Decision 3)
       const onFloor = (m.userData['onFloor'] ?? null) as boolean | null;
       const other = m.userData['pickable'] === false ? FADE_OTHER_BUILDING : 1;

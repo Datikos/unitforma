@@ -758,6 +758,8 @@ def test_ifc_without_spaces_takes_the_plan_outlines(kratos: FakeKratos, client: 
     assert fit["iou"] >= 0.3
     # the alignment it placed them with is recorded (none here), so none is reported as newer
     assert fit["registration"] == {}
+    # the fit storey's elevation anchors the model on the site (ADR-0037 Decision 2)
+    assert fit["storey_elevation_m"] is not None
 
     links = client.get(f"{base}/buildings/{b['id']}/ifc-links", headers=root).json()
     assert {lk["source"] for lk in links} == {"plan"}
@@ -806,6 +808,48 @@ def test_ifc_without_spaces_takes_the_plan_outlines(kratos: FakeKratos, client: 
         if (n.get("extras") or {}).get("source") == "plan"
     }
     assert picked == {u["id"] for u in units}
+
+    # ADR-0037 Decision 1: on the site only once the building is placed; the matrix puts the
+    # fit floor's plan spaces where the placement puts its outlines
+    from unitforma.core.db import tenant_session
+    from unitforma.geometry import ifc_service
+    from unitforma.geometry.site_matrix import apply
+    from unitforma.tenants.models import Building, GeometryModel
+
+    async def matrix() -> list[float] | None:
+        async with tenant_session(tid, scope="tenant") as db:
+            m = await db.get(GeometryModel, uuid.UUID(model["id"]))
+            bld = await db.get(Building, uuid.UUID(b["id"]))
+            return await ifc_service.site_matrix(db, m, bld)
+
+    assert client.portal.call(matrix) is None  # not placed yet
+    bb = next(
+        x
+        for x in client.get(f"{base}/projects/{p['id']}/buildings", headers=root).json()
+        if x["id"] == b["id"]
+    )
+    r = client.patch(
+        f"{base}/buildings/{b['id']}",
+        headers=root,
+        json={
+            "site_transform": {"tx": 100, "ty": 200, "rotation_deg": 90},
+            "placement_status": "confirmed",
+            "version": bb["version"],
+        },
+    )
+    assert r.status_code == 200, r.text
+    mx = client.portal.call(matrix)
+    assert mx is not None and len(mx) == 16
+    fit = model["stats"]["plan_fit"]
+    space = next(n for n in gltf["nodes"] if (n.get("extras") or {}).get("source") == "plan")
+    lo = gltf["accessors"][
+        gltf["meshes"][space["mesh"]]["primitives"][0]["attributes"]["POSITION"]
+    ]["min"]
+    _sx, sy, _sz = apply(mx, tuple(lo))
+    assert fit["floor_level"] == 0
+    assert sy == pytest.approx(0.0, abs=0.05)  # the fit floor's base (level 0 at 0 m)
+    # a rotation about the vertical only: heights are kept, the plan is turned, not mirrored
+    assert mx[5] == 1.0 and mx[0] * mx[10] - mx[8] * mx[2] == pytest.approx(1.0, abs=1e-6)
 
     # a space that moved since it was confirmed asks again; the other one stays confirmed
     moved = links[0]
