@@ -280,10 +280,14 @@ class FakeFetcher:
     def __init__(self) -> None:
         self.records = 0
         self.downloads: list[str] = []
+        self.connections_held: list[int] = []  # API pool connections out during each fetch
 
     async def fetch_record(self, doc_id: int) -> dict[str, Any]:
+        from unitforma.core.db import get_engine
+
         assert doc_id == DOC_ID
         self.records += 1
+        self.connections_held.append(get_engine().pool.checkedout())
         return tasge.record_from_dwr(dwr_body())
 
     async def download(self, url: str) -> bytes:
@@ -784,3 +788,17 @@ def test_files_left_queued_by_a_lost_worker_are_queued_again(client: TestClient,
     assert r.status_code == 200, r.text
     assert resuggest_jobs() == n + (1 if doc["building_id"] or kind == "floor_plan" else 0)
     eng.dispose()
+
+
+@pytestmark_db
+def test_no_database_connection_is_held_across_the_registry_call(client: TestClient, world: dict):
+    """BACKLOG 15 (ADR-0007 #8): preview, import and refresh call the registry with no
+    connection of the API's pool checked out; every earlier fetch in this module counted too."""
+    fetcher = world["fetcher"]
+    r = client.post(
+        f"{world['base']}/regulatory/tasge/preview",
+        headers=cookie("pm"),
+        json={"reference": str(DOC_ID)},
+    )
+    assert r.status_code == 200, r.text
+    assert fetcher.connections_held and set(fetcher.connections_held) == {0}

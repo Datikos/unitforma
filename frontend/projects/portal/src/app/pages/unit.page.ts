@@ -319,15 +319,15 @@ import { planViews, stepIndex, swipeDirection } from './unit.model';
                   >{{ u.floor_name }}, building {{ u.building_code }}</a
                 >
               </dd>
-              @if (u.rooms?.rooms != null) {
+              @if (u.rooms?.rooms !== null && u.rooms?.rooms !== undefined) {
                 <dt>Rooms</dt>
                 <dd>{{ u.rooms?.rooms }}</dd>
               }
-              @if (u.rooms?.bedrooms != null) {
+              @if (u.rooms?.bedrooms !== null && u.rooms?.bedrooms !== undefined) {
                 <dt>Bedrooms</dt>
                 <dd>{{ u.rooms?.bedrooms }}</dd>
               }
-              @if (u.rooms?.bathrooms != null) {
+              @if (u.rooms?.bathrooms !== null && u.rooms?.bathrooms !== undefined) {
                 <dt>Bathrooms</dt>
                 <dd>{{ u.rooms?.bathrooms }}</dd>
               }

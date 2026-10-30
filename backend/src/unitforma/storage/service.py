@@ -246,8 +246,37 @@ def reset_storage() -> None:
     _storage = None
 
 
+# One path component of a key stays under the 255-byte limit of most filesystems (the local
+# backend writes it as a file or directory name); S3 allows 1024 bytes for the whole key.
+MAX_KEY_PART_BYTES = 200
+
+
+def _key_part(part: str) -> str:
+    """URL-quoted component; a long one (Georgian is 9 bytes per letter quoted) is cut on a
+    character boundary and gets a short hash of the full name, keeping the extension, so the key
+    stays deterministic and distinct (ADR-0016 #F6)."""
+    quoted = quote(part, safe="._-")
+    if len(quoted) <= MAX_KEY_PART_BYTES:
+        return quoted
+    import hashlib
+
+    stem, dot, ext = part.rpartition(".")
+    if not dot or len(ext) > 10 or not stem:
+        stem, ext = part, ""
+    suffix = "-" + hashlib.sha256(part.encode("utf-8")).hexdigest()[:12]
+    tail = quote(f"{suffix}.{ext}" if ext else suffix, safe="._-")
+    budget = MAX_KEY_PART_BYTES - len(tail)
+    out = ""
+    for ch in stem:
+        q = quote(ch, safe="._-")
+        if len(out) + len(q) > budget:
+            break
+        out += q
+    return out + tail
+
+
 def object_key(tenant_id, project_id, *parts: str) -> str:
-    safe = [quote(str(p), safe="._-") for p in parts]
+    safe = [_key_part(str(p)) for p in parts]
     return "/".join(["t", str(tenant_id), "p", str(project_id), *safe])
 
 

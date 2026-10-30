@@ -235,7 +235,7 @@ export class PlansPage {
     toObservable(this.slug).subscribe((s) => void this.load(s));
   }
 
-  unitsLink(p: LayoutSummary): unknown[] {
+  unitsLink(_p: LayoutSummary): unknown[] {
     return ['/projects', this.slug(), 'units'];
   }
 

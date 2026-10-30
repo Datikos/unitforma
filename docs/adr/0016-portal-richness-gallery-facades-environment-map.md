@@ -1,6 +1,6 @@
 # ADR-0016: A buyer portal that shows the building: render gallery, facade drawings on the 3D massing, site environment, layout renders, map, and imports that cannot get stuck
 
-- **Status:** accepted (2026-10-26; implemented 2026-10-26; Decision 8 added and implemented 2026-10-26; open: the E5 contract step and F6 (F5 done 2026-10-29); E2 decided in ADR-0017; Decision 4 superseded by ADR-0022 on 2026-10-26: the layout registry owns the shared media, the donor rule and `shared_from` are gone from new snapshots)
+- **Status:** accepted (2026-10-26; implemented 2026-10-26; Decision 8 added and implemented 2026-10-26; open: the E5 contract step (F5 done 2026-10-29, F6 2026-10-30); E2 decided in ADR-0017; Decision 4 superseded by ADR-0022 on 2026-10-26: the layout registry owns the shared media, the donor rule and `shared_from` are gone from new snapshots)
 - **Date:** 2026-10-26
 - **Deciders:** David Sakhelashvili (platform owner); AI-generated renders (Out of scope) are his call
 - **Plan reference:** §6.6 (public fields), §7.1 (navigation model), §7.3 (3D and fallbacks), §9.3 (portal
@@ -296,10 +296,13 @@ buyer accounts and inquiries (plan Phase 5); custom map providers.
       suggested, ADR-0032 #C1; "Re-run conversion" on the 3D massing page owns that), 503 when the
       queue is down; the card hides the button for models. Sheets are updated in place, so floors, calibrations and boundaries stay; a re-run diff
       dismisses the earlier open proposal. Test: `test_files_left_queued_by_a_lost_worker_are_queued_again`.
-- [ ] F6 File names on the `local` storage backend: a Georgian name URL-quoted to 9 bytes per letter exceeds
+- [x] F6 File names on the `local` storage backend: a Georgian name URL-quoted to 9 bytes per letter exceeds
       the 255-byte path component limit ("File name too long" on 2 of 16 permit files on 2026-10-26); cap the
       quoted length in `storage.object_key` or hash long names. S3 keys allow 1024 bytes, production is
       unaffected.
+      *Done 2026-10-30 (BACKLOG 41):* `storage.object_key` cuts a component over 200 bytes on a
+      character boundary and appends a 12-character SHA-256 of the full name with the extension;
+      short names keep their keys, so nothing stored moves.
 
 ### Phase E: the sample project and open decisions
 

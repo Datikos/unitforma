@@ -602,7 +602,11 @@ export function saveLayout(key: string, layout: Layout): boolean {
 
 // --- share link (ADR-0020 Decision 8): the same layout in a compact form in the URL fragment
 
-type Packed = { v: 1; w?: string; p: [string, number, number, number, 0 | 1][] };
+interface Packed {
+  v: 1;
+  w?: string;
+  p: [string, number, number, number, 0 | 1][];
+}
 
 export function encodeLayout(layout: Layout): string {
   const packed: Packed = {

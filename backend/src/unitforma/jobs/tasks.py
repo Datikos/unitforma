@@ -6,6 +6,7 @@ import procrastinate
 import structlog
 
 from unitforma.jobs.app import app
+from unitforma.jobs.visibility import WAIT_FOR_COMMIT
 
 log = structlog.get_logger()
 
@@ -53,7 +54,7 @@ async def delete_prefix(tenant_id: str, prefix: str, guard_table: str, guard_id:
     return await run(uuid.UUID(tenant_id), prefix, guard_table, uuid.UUID(guard_id))
 
 
-@app.task(name="documents.ingest_revision", queue="docs", retry=2)
+@app.task(name="documents.ingest_revision", queue="docs", retry=WAIT_FOR_COMMIT)
 async def ingest_revision(tenant_id: str, revision_id: str) -> dict:
     """Inspect, rasterise and extract an uploaded document revision (plan §13)."""
     import uuid
@@ -83,7 +84,7 @@ async def build_massing(tenant_id: str, project_id: str) -> dict:
     return await run(uuid.UUID(tenant_id), uuid.UUID(project_id))
 
 
-@app.task(name="regulatory.import_attachments", queue="docs", retry=1)
+@app.task(name="regulatory.import_attachments", queue="docs", retry=WAIT_FOR_COMMIT)
 async def import_attachments(tenant_id: str, import_id: str) -> dict:
     """Download a permit's current drawings into the project's documents (ADR-0007)."""
     import uuid
@@ -93,7 +94,7 @@ async def import_attachments(tenant_id: str, import_id: str) -> dict:
     return await run(uuid.UUID(tenant_id), uuid.UUID(import_id))
 
 
-@app.task(name="geometry.ingest_ifc", queue="geometry-heavy", retry=1)
+@app.task(name="geometry.ingest_ifc", queue="geometry-heavy", retry=WAIT_FOR_COMMIT)
 async def ingest_ifc(tenant_id: str, revision_id: str) -> dict:
     """IFC → GLB per building + space list for review (ADR-0006 Phase C); heavy worker only."""
     import uuid
@@ -143,3 +144,13 @@ async def setup_autopilot(tenant_id: str, project_id: str) -> dict:
     from unitforma.autopilot.service import run_project
 
     return await run_project(uuid.UUID(tenant_id), uuid.UUID(project_id))
+
+
+@app.task(name="geometry.relink_ifc", queue="geometry", retry=2)
+async def relink_ifc(tenant_id: str, model_id: str) -> dict:
+    """Rewrite an IFC model's GLB extras after space links changed (BACKLOG 15)."""
+    import uuid
+
+    from unitforma.geometry.ifc_service import run_relink
+
+    return await run_relink(uuid.UUID(tenant_id), uuid.UUID(model_id))

@@ -41,7 +41,9 @@
               "projects/admin/src/styles.scss"
             ],
             "stylePreprocessorOptions": {
-              "includePaths": ["projects/libs/ui/src/styles"]
+              "includePaths": [
+                "projects/libs/ui/src/styles"
+              ]
             }
           },
           "configurations": {
@@ -82,6 +84,15 @@
         },
         "test": {
           "builder": "@angular/build:unit-test"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/admin/**/*.ts",
+              "projects/admin/**/*.html"
+            ]
+          }
         }
       }
     },
@@ -120,7 +131,9 @@
               "projects/portal/src/styles.scss"
             ],
             "stylePreprocessorOptions": {
-              "includePaths": ["projects/libs/ui/src/styles"]
+              "includePaths": [
+                "projects/libs/ui/src/styles"
+              ]
             }
           },
           "configurations": {
@@ -161,6 +174,15 @@
         },
         "test": {
           "builder": "@angular/build:unit-test"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/portal/**/*.ts",
+              "projects/portal/**/*.html"
+            ]
+          }
         }
       }
     },
@@ -186,6 +208,15 @@
           "builder": "@angular/build:unit-test",
           "options": {
             "tsConfig": "projects/libs/ui/tsconfig.spec.json"
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/libs/ui/**/*.ts",
+              "projects/libs/ui/**/*.html"
+            ]
           }
         }
       }
@@ -213,6 +244,15 @@
           "options": {
             "tsConfig": "projects/libs/api-client/tsconfig.spec.json"
           }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/libs/api-client/**/*.ts",
+              "projects/libs/api-client/**/*.html"
+            ]
+          }
         }
       }
     },
@@ -238,6 +278,15 @@
           "builder": "@angular/build:unit-test",
           "options": {
             "tsConfig": "projects/libs/auth-staff/tsconfig.spec.json"
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/libs/auth-staff/**/*.ts",
+              "projects/libs/auth-staff/**/*.html"
+            ]
           }
         }
       }
@@ -265,6 +314,15 @@
           "options": {
             "tsConfig": "projects/libs/auth-buyer/tsconfig.spec.json"
           }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/libs/auth-buyer/**/*.ts",
+              "projects/libs/auth-buyer/**/*.html"
+            ]
+          }
         }
       }
     },
@@ -290,6 +348,15 @@
           "builder": "@angular/build:unit-test",
           "options": {
             "tsConfig": "projects/libs/plan-viewer/tsconfig.spec.json"
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/libs/plan-viewer/**/*.ts",
+              "projects/libs/plan-viewer/**/*.html"
+            ]
           }
         }
       }
@@ -317,6 +384,15 @@
           "options": {
             "tsConfig": "projects/libs/domain-models/tsconfig.spec.json"
           }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/libs/domain-models/**/*.ts",
+              "projects/libs/domain-models/**/*.html"
+            ]
+          }
         }
       }
     },
@@ -342,6 +418,15 @@
           "builder": "@angular/build:unit-test",
           "options": {
             "tsConfig": "projects/libs/viewer-3d/tsconfig.spec.json"
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/libs/viewer-3d/**/*.ts",
+              "projects/libs/viewer-3d/**/*.html"
+            ]
           }
         }
       }

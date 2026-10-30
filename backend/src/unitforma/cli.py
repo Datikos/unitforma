@@ -24,7 +24,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     ba.add_argument("email")
     hc = sub.add_parser("healthcheck")
-    hc.add_argument("kind", choices=["live", "ready"], default="live", nargs="?")
+    hc.add_argument("kind", choices=["live", "ready", "worker"], default="live", nargs="?")
     args = parser.parse_args(argv)
 
     if args.cmd == "api":
@@ -44,18 +44,22 @@ def main(argv: list[str] | None = None) -> int:
         from unitforma.core.logging import configure_logging
         from unitforma.core.settings import get_settings
         from unitforma.jobs.app import app
+        from unitforma.jobs.health import install
 
         s = get_settings()
         configure_logging(s.log_level, s.log_json)
+        install(app)  # heartbeat file for `unitforma healthcheck worker` (BACKLOG 8)
         app.run_worker(queues=args.queues.split(","), concurrency=args.concurrency)
         return 0
     if args.cmd == "scheduler":
         from unitforma.core.logging import configure_logging
         from unitforma.core.settings import get_settings
         from unitforma.jobs.app import app
+        from unitforma.jobs.health import install
 
         s = get_settings()
         configure_logging(s.log_level, s.log_json)
+        install(app)
         # A worker that only runs the periodic deferrer and no queues: one replica.
         app.run_worker(queues=["__scheduler__"], concurrency=1)
         return 0

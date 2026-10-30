@@ -103,11 +103,13 @@ async def start_import(
     building_code: str | None,
     default_currency: str,
     setup_auto: dict[str, Any] | None = None,
+    record: dict[str, Any] | None = None,
 ) -> tuple[Project, Any, RegulatoryImport]:
     """Project + one building + summary + import row (status ``importing``). The caller enqueues
     the worker task; floors are left to the user (Decision 5) unless the setup solver is switched
     on for the project (ADR-0025 Decision 1), which the imported drawings' processing triggers."""
-    record = await fetch_normalised(reference)
+    if record is None:  # callers fetch first, outside the transaction (BACKLOG 15)
+        record = await fetch_normalised(reference)
     permit = record["permit"]
     # the explanatory note stays in the import record: project.description is buyer-visible
     project = await projects.create_project(
@@ -144,10 +146,34 @@ async def start_import(
     return project, building, row
 
 
+async def refresh_target(db: AsyncSession, project: Project) -> str:
+    """The permit id a refresh fetches, after the checks: imported from a permit, no import
+    running (a stale one is closed). Run before the fetch and again inside :func:`refresh`."""
+    await _refresh_checks(db, project)
+    return str((project.regulatory or {})["external_id"])
+
+
 async def refresh(
-    db: AsyncSession, project: Project, actor: tuple[uuid.UUID, str]
+    db: AsyncSession,
+    project: Project,
+    actor: tuple[uuid.UUID, str],
+    record: dict[str, Any] | None = None,
 ) -> RegulatoryImport:
-    """Fetch the permit again; the worker adds only attachments not yet imported (Decision 7)."""
+    """Fetch the permit again; the worker adds only attachments not yet imported (Decision 7).
+    Callers pass the ``record`` fetched outside the transaction (BACKLOG 15)."""
+    await _refresh_checks(db, project)
+    current = project.regulatory or {}
+    if record is None:
+        record = await fetch_normalised(str(current["external_id"]))
+    row = _new_import(project.tenant_id, project, record, actor[0])
+    db.add(row)
+    project.regulatory = tasge.summary(record, row.id)
+    await db.flush()
+    await _audit(db, row, actor, "refresh", record)
+    return row
+
+
+async def _refresh_checks(db: AsyncSession, project: Project) -> None:
     current = project.regulatory or {}
     if current.get("source") != tasge.SYSTEM or not current.get("external_id"):
         raise ProblemError(422, "Project was not imported from a permit")
@@ -170,13 +196,7 @@ async def refresh(
         r.status = "failed"
         r.error = f"worker did not finish within {int(STALE_AFTER.total_seconds() // 60)} minutes"
         r.finished_at = now
-    record = await fetch_normalised(str(current["external_id"]))
-    row = _new_import(project.tenant_id, project, record, actor[0])
-    db.add(row)
-    project.regulatory = tasge.summary(record, row.id)
     await db.flush()
-    await _audit(db, row, actor, "refresh", record)
-    return row
 
 
 async def list_imports(db: AsyncSession, project_id: uuid.UUID) -> list[RegulatoryImport]:
@@ -236,7 +256,11 @@ async def import_attachments(tenant_id: uuid.UUID, import_id: uuid.UUID) -> dict
     async with tenant_session(tenant_id, scope="tenant") as db:
         row = (
             await db.execute(select(RegulatoryImport).where(RegulatoryImport.id == import_id))
-        ).scalar_one()
+        ).scalar_one_or_none()
+        if row is None:  # the import request has not committed yet (ADR-0038)
+            from unitforma.jobs.visibility import NotYetCommitted
+
+            raise NotYetCommitted(f"permit import {import_id} not committed yet")
         if row.status != "importing":
             return {"skipped": row.status}
         project_id, requested_by, external_id = row.project_id, row.requested_by, row.external_id

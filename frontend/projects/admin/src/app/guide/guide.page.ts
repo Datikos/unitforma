@@ -156,8 +156,9 @@ export class GuidePage {
   readonly GUIDE = GUIDE;
   readonly keys = GUIDE_ORDER;
   readonly flow = PROJECT_FLOW;
-  readonly active = computed(() =>
-    this.key() && this.key()! in GUIDE ? (this.key() as GuideKey) : null,
-  );
+  readonly active = computed(() => {
+    const k = this.key();
+    return k && k in GUIDE ? (k as GuideKey) : null;
+  });
   readonly visible = computed(() => (this.active() ? [this.active()!] : [...GUIDE_ORDER]));
 }

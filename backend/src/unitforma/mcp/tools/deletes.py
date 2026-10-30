@@ -73,12 +73,14 @@ async def delete_building(building_id: uuid.UUID, confirm: str) -> Deleted:
 
 
 async def delete_document(
-    document_id: uuid.UUID, confirm: str, detach_units: bool = False
+    document_id: uuid.UUID, confirm: str, detach_units: bool = False, clear_elevation: bool = False
 ) -> Deleted:
     """Delete a document with its revisions, sheets and files. `confirm` must equal its title as
     listed; ask the person first. A document with units outlined on its sheets is refused unless
     `detach_units` is true: the units then keep their identity and lose their outline, and the
-    3D massing is rebuilt without them. Not reversible."""
+    3D massing is rebuilt without them. A document whose sheet is a building's floor picker is
+    refused unless `clear_elevation` is true: the picker leaves the portal at the next
+    publication. Not reversible."""
     async with tenant_ctx(write=True) as ctx:
         ctx.require("documents", Action.WRITE)
         d = await documents.get_document(ctx.session, ctx.tenant_id, document_id)
@@ -86,7 +88,11 @@ async def delete_document(
         _check(confirm, d.title, f"document {d.title!r}")
         title, project_id, tenant_id = d.title, d.project_id, ctx.tenant_id
         detached = await documents.delete_document(
-            ctx.session, d, detach_units=detach_units, actor=actor(ctx)
+            ctx.session,
+            d,
+            detach_units=detach_units,
+            clear_elevation=clear_elevation,
+            actor=actor(ctx),
         )
     if detached:
         await geometry_service.queue_massing(tenant_id, project_id)

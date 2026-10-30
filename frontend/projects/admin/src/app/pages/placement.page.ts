@@ -30,7 +30,6 @@ import {
   SectionCardComponent,
   StatusChipComponent,
   UF_ICONS,
-  labelOf,
 } from 'ui';
 import { DialogsService } from '../ui/dialogs.service';
 import { ToastService } from '../ui/toast.service';
@@ -456,7 +455,12 @@ function invert(t: SiteTransform, p: Pt): Pt {
             class="uf-card fp"
             [class.is-selected]="f.building_id === selectedId()"
             [class.uf-changed]="dirty()[f.building_id]"
+            role="button"
+            tabindex="0"
+            [attr.aria-pressed]="f.building_id === selectedId()"
             (click)="selectedId.set(f.building_id)"
+            (keydown.enter)="selectedId.set(f.building_id)"
+            (keydown.space)="selectedId.set(f.building_id); $event.preventDefault()"
           >
             <div class="fp__head">
               <strong>{{ f.code }} {{ f.name ?? '' }}</strong>

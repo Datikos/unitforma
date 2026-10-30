@@ -196,7 +196,11 @@ Phase C: docs
       buyers on the portal's project page and in snapshots; the note stays in `regulatory_imports.record`.
 
 Follow-ups (open)
-- [ ] 8 Preview and import hold the request's database connection across the registry call (up
+- [x] 8 Preview and import hold the request's database connection across the registry call (up
       to 20 s): fetch the record in a worker job and poll, or open the session after the fetch.
+      *Done 2026-10-30 (BACKLOG 15):* `identity.deps.tenant_access` checks rights in a short
+      transaction; preview, import and refresh call the registry with no connection held and open
+      `open_session` for their writes (refresh checks again there). Tested by counting the API pool's
+      checked-out connections during each fetch.
 - [ ] 9 Review the fieldset → kind keyword table and the field label map after three real imports.
 

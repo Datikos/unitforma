@@ -272,9 +272,9 @@ import { ToastService } from '../ui/toast.service';
                     storeys. Blocks become separate buildings, as the sheets' regions and the 3D
                     model expect; edit the codes first. The sheets then get one floor suggestion per
                     block.</span
-                  >&ngsp;<a class="uf-link" (click)="setOneBuilding(b, true)"
-                    >Treat as one building instead</a
-                  >
+                  >&ngsp;<button type="button" class="uf-link uf-link--button" (click)="setOneBuilding(b, true)">
+                    Treat as one building instead
+                  </button>
                 </p>
                 <div class="blocks">
                   @for (blk of blocksOf(pr); track blk.code) {
@@ -335,9 +335,9 @@ import { ToastService } from '../ui/toast.service';
               <div class="proposal">
                 @if (pr.split_level) {
                   <p class="uf-small">
-                    <a class="uf-link" (click)="setOneBuilding(b, false)"
-                      >Back to {{ blocksOf(pr).length }} blocks</a
-                    >
+                    <button type="button" class="uf-link uf-link--button" (click)="setOneBuilding(b, false)">
+                      Back to {{ blocksOf(pr).length }} blocks
+                    </button>
                   </p>
                 }
                 <p class="uf-small">

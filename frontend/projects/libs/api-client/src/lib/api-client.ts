@@ -693,12 +693,15 @@ export class UnitformaApi {
   reorderMedia(tenantId: string, unitId: string, ids: string[]): Promise<MediaOut[]> {
     return this.put(`${tenantPath(tenantId)}/units/${unitId}/media/order`, { ids });
   }
-  /** Refused with 409 `document-mapped` while units are outlined on it unless `detachUnits`. */
-  deleteDocument(tenantId: string, documentId: string, detachUnits = false): Promise<void> {
-    return this.delete(
-      `${tenantPath(tenantId)}/documents/${documentId}${detachUnits ? '?detach_units=true' : ''}`,
-    );
+  /** Refused with 409 `document-mapped` while units are outlined on it unless `detachUnits`, and
+   *  with 409 `document-holds-elevation` while it is a building's floor picker unless `clearElevation`. */
+  deleteDocument(tenantId: string, documentId: string, detachUnits = false, clearElevation = false): Promise<void> {
+    const q = [detachUnits ? 'detach_units=true' : '', clearElevation ? 'clear_elevation=true' : '']
+      .filter(Boolean)
+      .join('&');
+    return this.delete(`${tenantPath(tenantId)}/documents/${documentId}${q ? '?' + q : ''}`);
   }
+
   deleteMedia(tenantId: string, mediaId: string): Promise<void> {
     return this.delete(`${tenantPath(tenantId)}/media/${mediaId}`);
   }

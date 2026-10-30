@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import dataclasses
 import time
 import uuid
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Annotated, Any
 
@@ -173,6 +175,37 @@ async def load_membership(
         project_ids=project_ids,
         is_active=m.status == "active",
     )
+
+
+async def tenant_access(
+    tenant_id: uuid.UUID,
+    request: Request,
+    principal: Annotated[StaffPrincipal, Depends(current_staff)],
+) -> TenantContext:
+    """The checks of :func:`tenant_context` in a short transaction, returning a context without a
+    session (``session`` is ``None``). For handlers that call a slow outside service: they check
+    rights first, make the call with no database connection held, and open
+    :func:`open_session` for their writes (BACKLOG 15, the permit registry)."""
+    gen = tenant_context(tenant_id, request, principal)
+    ctx = await gen.__anext__()
+    try:
+        return dataclasses.replace(ctx, session=None)  # type: ignore[arg-type]
+    finally:
+        await gen.aclose()
+
+
+@asynccontextmanager
+async def open_session(access: TenantContext) -> AsyncIterator[TenantContext]:
+    """A transaction for a context from :func:`tenant_access`; the membership is read again,
+    since the outside call in between may have taken a while."""
+    async with tenant_session(
+        access.tenant_id, user_id=access.principal.user_id, scope=access.scope
+    ) as db:
+        if access.scope == "tenant":
+            m = await load_membership(db, access.tenant_id, access.principal.user_id)
+            if m is None or not m.is_active:
+                raise ProblemError(404, "Tenant not found")
+        yield dataclasses.replace(access, session=db)
 
 
 async def tenant_context(

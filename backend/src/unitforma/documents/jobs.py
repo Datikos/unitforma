@@ -96,7 +96,12 @@ async def process_revision(tenant_id: uuid.UUID, revision_id: uuid.UUID) -> dict
     async with tenant_session(tenant_id, scope="tenant") as db:
         rev = (
             await db.execute(select(DocumentRevision).where(DocumentRevision.id == revision_id))
-        ).scalar_one()
+        ).scalar_one_or_none()
+        if rev is None or rev.processing_status == "pending":
+            # the request that queued this has not committed yet (ADR-0038)
+            from unitforma.jobs.visibility import NotYetCommitted
+
+            raise NotYetCommitted(f"revision {revision_id} not committed yet")
         if rev.processing_status not in ("queued", "failed"):
             return {"skipped": rev.processing_status}
         rev.processing_status = "processing"

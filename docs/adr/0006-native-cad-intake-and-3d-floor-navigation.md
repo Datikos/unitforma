@@ -327,8 +327,12 @@ Phase E: follow-ups found while implementing B and C (open)
       a manual calibration (`documents/cad_dxf.py`, `mapping/service.sheet_metres`).
 - [ ] E2 Preview raster of a DXF: ship a font with Georgian glyphs (e.g. Noto Sans Georgian, OFL)
       in the worker image and use it in `DxfDrawing.rasterize` instead of Pillow's default font.
-- [ ] E3 IFC link confirmation: move the GLB rewrite (`ifc_service.relink_model`) out of the request
+- [x] E3 IFC link confirmation: move the GLB rewrite (`ifc_service.relink_model`) out of the request
       into a `geometry` job so no database connection is held across storage I/O.
+      *Done 2026-10-30 (BACKLOG 15):* `decide` and `confirm_plan_links` queue `geometry.relink_ifc`
+      (queueing lock per model, execution lock per model) instead of rewriting the GLB in the request;
+      `stats.relink_pending` tells the 3D page to re-read the model, which it does every 2 s; a queue
+      outage relinks inline. The ingest-time relink (carried confirmations) stays in the worker.
 - [x] E4 IFC view with a floor isolated: cut or fade the envelope above the chosen floor so interior
       spaces are visible (plan §7.3 interior view). *Done by ADR-0036 (2026-10-29): one clipping
       plane 1.2 m above the picked floor, the spaces as tinted glass.*
@@ -339,8 +343,12 @@ Phase E: follow-ups found while implementing B and C (open)
       *2026-10-30:* done by ADR-0037 for a model with an accepted plan fit (the matrix is
       composed at read time from the fit and the placement, not stored); an IFC with its own zones
       and no plan fit stays off the site (BACKLOG 24).
-- [ ] E7 Reject or warn on an IFC export whose length unit is not declared (footprints a thousand
+- [x] E7 Reject or warn on an IFC export whose length unit is not declared (footprints a thousand
       times too small); show the unit in the model stats.
+      *Done 2026-10-30 (BACKLOG 14):* `stats.length_unit` (as declared, or null), `stats.size_m` and
+      `stats.unit_warnings`; no declared unit and a building outside 2 m to 2 km across is refused
+      with a message for the architect; no declared unit at a plausible size converts with a warning;
+      the 3D page lists the warnings with the export advice.
 
 Phase D: DWG conversion (M, after the owner picks B1, B2 or B3)
 - [ ] D1 `documents/service.py`: accept `application/acad`, `image/vnd.dwg`, `.dwg`; sniff `AC10`

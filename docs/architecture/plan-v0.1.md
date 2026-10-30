@@ -1152,7 +1152,7 @@ Dependencies: none. Deliverables:
 - PoC V2: Caddy on-demand TLS with `ask` for a real test domain owned by the team; host-scoped app session on it; unknown host rejected (staging CA).
 - PoC V3: unit identity/revision spike — a script applying relabel/split/merge scenarios to the draft schema and asserting ID preservation; polygon overlap diff prototype on two real revisions from the pilot developer (**[OPEN O8]**).
 - PoC V4: RLS harness — two tenants, negative tests, `FORCE ROW LEVEL SECURITY`, measured overhead on a 50k-unit table.
-- PoC V5/V6: Procrastinate worker in its own container with a transactional enqueue; Garage presigned PUT/GET and multipart from the browser.
+- PoC V5/V6: Procrastinate worker in its own container (the enqueue is not transactional, ADR-0038: jobs are idempotent or wait for their row); Garage presigned PUT/GET and multipart from the browser.
 - PoC V7: three.js massing + a representative detailed GLB (≈ 10 MB, Draco/KTX2) rendered on desktop Chrome, iOS Safari and a mid-range Android device with FPS/memory notes; `<model-viewer>` fallback.
 - Ops drill: `docker compose up -d --no-deps --build api` without downtime for other modules; destroy and recreate `postgres` and `storage` containers with volumes intact; data survives.
 
@@ -1357,6 +1357,8 @@ Migrations live with the backend (`backend/migrations`), are executed only by th
 ---
 
 ## 17. Docker-based development and production design
+Container health (BACKLOG 8, 2026-10-30): `api` answers `unitforma healthcheck ready`; `worker-light`, `worker-heavy` and `scheduler` answer `unitforma healthcheck worker`, which passes while the file `/tmp/unitforma-worker.heartbeat` is younger than 45 s. The worker process touches it after each successful Procrastinate heartbeat to PostgreSQL (every 10 s, `jobs/health.py`), so the probe proves that this container's own loop runs and reaches the database, with no HTTP port and no query per probe. Compose marks a container `unhealthy` after three failed probes 30 s apart; it does not restart it by itself (`docker compose ps` shows it, the uptime checks of §17 alert on it). `db-migrate` is one-shot and keeps no health check.
+
 
 This section describes the configuration; the files are generated in Phase 0.
 

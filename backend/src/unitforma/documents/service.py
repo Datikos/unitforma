@@ -17,6 +17,7 @@ from unitforma.storage.service import get_storage, object_key, project_prefix, s
 from unitforma.tenants.models import Building, Document, DocumentRevision, Sheet, UnitBoundary
 
 DOCUMENT_MAPPED = "https://unitforma.com/problems/document-mapped"
+DOCUMENT_HOLDS_ELEVATION = "https://unitforma.com/problems/document-holds-elevation"
 
 ALLOWED_MIME = {
     "application/pdf": ".pdf",
@@ -423,14 +424,35 @@ async def mapped_unit_ids(db: AsyncSession, document_id: uuid.UUID) -> list[uuid
     return [r[0] for r in rows]
 
 
+async def elevation_buildings(db: AsyncSession, document_id: uuid.UUID) -> list[Building]:
+    """Buildings whose floor picker is drawn on one of this document's sheets (ADR-0014)."""
+    sheet_ids = (
+        select(Sheet.id)
+        .join(DocumentRevision, DocumentRevision.id == Sheet.revision_id)
+        .where(DocumentRevision.document_id == document_id)
+    )
+    rows = await db.execute(
+        select(Building).where(Building.elevation_sheet_id.in_(sheet_ids)).order_by(Building.code)
+    )
+    return list(rows.scalars())
+
+
 async def delete_document(
-    db: AsyncSession, doc: Document, *, detach_units: bool, actor: tuple[uuid.UUID, str]
+    db: AsyncSession,
+    doc: Document,
+    *,
+    detach_units: bool,
+    actor: tuple[uuid.UUID, str],
+    clear_elevation: bool = False,
 ) -> list[uuid.UUID]:
     """Delete a document with its revisions, sheets and files (ADR-0012 Decision 2).
 
     Refused while units are outlined on its sheets unless ``detach_units``; then the outlines go
     with the sheets (FK cascade), the units keep their identity, and the caller queues a massing
-    rebuild. Returns the detached unit ids. The storage prefix is removed by the guarded job.
+    rebuild. Refused while a building's floor picker is drawn on one of its sheets unless
+    ``clear_elevation`` (ADR-0014 Revisit): the picker would disappear from the portal at the next
+    publication without anyone having chosen it. Returns the detached unit ids. The storage
+    prefix is removed by the guarded job.
     """
     units = await mapped_unit_ids(db, doc.id)
     if units and not detach_units:
@@ -442,6 +464,20 @@ async def delete_document(
             type_=DOCUMENT_MAPPED,
             extra={"units": len(units)},
         )
+    pickers = await elevation_buildings(db, doc.id)
+    if pickers and not clear_elevation:
+        codes = [b.code for b in pickers]
+        raise ProblemError(
+            409,
+            "Document holds a floor picker",
+            f"Building(s) {', '.join(codes)} use a sheet of this document as their floor picker; "
+            "repeat with clear_elevation=true to delete it and remove the picker from the next "
+            "publication",
+            type_=DOCUMENT_HOLDS_ELEVATION,
+            extra={"buildings": codes},
+        )
+    for b in pickers:
+        b.elevation_sheet_id = None  # the FK would null it too; explicit, and in the audit row
     n_rev = (
         await db.execute(
             select(func.count(DocumentRevision.id)).where(DocumentRevision.document_id == doc.id)
@@ -460,6 +496,7 @@ async def delete_document(
             "kind": doc.kind,
             "revisions": n_rev,
             "detached_units": [str(u) for u in units],
+            "cleared_floor_pickers": [b.code for b in pickers],
         },
     )
     tenant_id, project_id, doc_id = doc.tenant_id, doc.project_id, doc.id
